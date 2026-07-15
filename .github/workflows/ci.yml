@@ -1,0 +1,40 @@
+# CI/CD (§12.2) — lint, typecheck, unit tests, RLS test scaffold, build.
+# Extend with `supabase db push` + `functions deploy` for staging/prod stages.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: npx eslint src --ext .ts,.tsx
+      - run: npx vitest run
+      - run: npm run build
+
+  # RLS + payroll SoD + webhook-settlement pgTAP suite against a live local
+  # Supabase Postgres instance. Was an empty placeholder — now wired to
+  # supabase/tests/rls/*.sql (cross-tenant matrix closing C-1, payroll SoD/
+  # immutability closing C-2/C-3, atomic webhook settlement closing H-3/H-4).
+  # A failure here means one of those regressions has come back.
+  rls-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - run: supabase start
+      - run: supabase db push
+      - run: supabase test db
+

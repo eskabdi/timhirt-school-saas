@@ -1,0 +1,11 @@
+{
+  "app": { "name": "Timhirt", "tagline": "Sirna bulchiinsa mana barumsaa" },
+  "nav": { "dashboard": "Gabatee", "students": "Barattoota", "attendance": "Hordoffii", "hr": "HR fi Mindaa", "leave": "Eeyyama", "payroll": "Mindaa", "signOut": "Ba'i" },
+  "auth": { "email": "Imeelii", "password": "Jecha darbii", "signIn": "Seeni", "signingIn": "Seenaa jira…", "invalid": "Imeeliin ykn jechi darbii sirrii miti" },
+  "students": { "title": "Barattoota", "add": "Barataa dabali", "search": "Maqaan ykn lakkoofsa galmeen barbaadi", "admissionNo": "Lakk. galmee", "firstName": "Maqaa", "lastName": "Maqaa abbaa", "dob": "Guyyaa dhalootaa", "gender": "Saala", "class": "Kutaa", "status": "Haala", "empty": "Ammatti barataan hin jiru. Barataa jalqabaa dabali.", "created": "Barataan dabalameera", "male": "Dhiira", "female": "Dubara", "other": "Kan biraa", "save": "Barataa olkaa'i", "cancel": "Haqi" },
+  "attendance": { "title": "Hordoffii", "date": "Guyyaa", "class": "Kutaa", "present": "Argameera", "absent": "Hafeera", "late": "Turera", "excused": "Eeyyamaan", "save": "Hordoffii olkaa'i", "saved": "Hordoffiin olkaa'ameera", "holidayBlocked": "Guyyaan kun ayyaana — hordoffiin cufaadha.", "empty": "Kutaa kana keessa barataan hin jiru." },
+  "hr": { "employees": "Hojjettoota", "payrollRuns": "Marsaa mindaa", "runPayroll": "Mindaa kaffali", "period": "Yeroo", "statusLabel": "Haala", "grossTotal": "Waliigala mindaa", "employeesCount": "{count, plural, one {hojjetaa #} other {hojjettoota #}}", "draft": "Wixinee", "approved": "Mirkanaa'eera", "paid": "Kaffalameera", "void": "Haqameera", "approve": "Mirkaneessi", "prepared": "Kan qopheesse", "recalculate": "Irra deebi'ii shallagi", "leaveRequests": "Gaaffii eeyyamaa", "pending": "Eegamaa jira", "approveLeave": "Mirkaneessi", "reject": "Didi", "netPay": "Kaffaltii qulqulluu", "payslip": "Waraqaa mindaa", "sodNote": "Namni marsaa qopheesse ofii isaatii mirkaneessuu hin danda'u." },
+  "dashboard": { "welcome": "Baga nagaan dhufte", "today": "Har'a", "studentsCard": "Barattoota sochii", "attendanceCard": "Hordoffii har'aa", "payrollCard": "Haala mindaa", "feesCard": "Kaffaltii walitti qabame (ji'a)" },
+  "errors": { "generic": "Dogoggorri hin eegamne uumameera", "forbidden": "Kana ilaaluuf hayyama hin qabdu." },
+  "actions": { "retry": "Irra deebi'i yaali", "close": "Cufi" }
+}

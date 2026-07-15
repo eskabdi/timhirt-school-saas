@@ -1,0 +1,45 @@
+project_id = "school-saas"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public"]
+max_rows = 1000
+
+[db]
+port = 54322
+major_version = 15
+
+[auth]
+site_url = "http://localhost:5173"
+jwt_expiry = 3600                      # 60 min access token (INSA session control)
+enable_signup = false                  # invite-only; onboarding via Edge Function
+enable_refresh_token_rotation = true   # rotating refresh + reuse detection
+refresh_token_reuse_interval = 10
+
+[auth.email]
+enable_confirmations = true
+
+[auth.mfa.totp]
+enroll_enabled = true
+verify_enabled = true
+
+[functions.run-payroll]
+verify_jwt = true
+[functions.process-fee-payment]
+verify_jwt = true
+[functions.manage-integration-credentials]
+verify_jwt = true                      # super_admin only, checked in-code
+
+[functions.onboard-tenant]
+verify_jwt = true
+[functions.generate-payslip-pdf]
+verify_jwt = true
+[functions.verify-id]
+verify_jwt = false                     # public verification; rate-limited in-code
+
+[functions.submit-admission]
+verify_jwt = false                     # public form; rate-limited + tenant-scoped in-code
+
+[functions.chapa-webhook]
+verify_jwt = false                     # HMAC signature verified in-code instead

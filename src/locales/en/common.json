@@ -1,0 +1,11 @@
+{
+  "app": { "name": "Timhirt", "tagline": "School management for Ethiopia" },
+  "nav": { "dashboard": "Dashboard", "students": "Students", "attendance": "Attendance", "hr": "HR & Payroll", "leave": "Leave", "payroll": "Payroll", "signOut": "Sign out" },
+  "auth": { "email": "Email", "password": "Password", "signIn": "Sign in", "signingIn": "Signing in…", "invalid": "Email or password is incorrect" },
+  "students": { "title": "Students", "add": "Add student", "search": "Search by name or admission no.", "admissionNo": "Admission no.", "firstName": "First name", "lastName": "Last name", "dob": "Date of birth", "gender": "Gender", "class": "Class", "status": "Status", "empty": "No students yet. Add the first student to begin.", "created": "Student added", "male": "Male", "female": "Female", "other": "Other", "save": "Save student", "cancel": "Cancel" },
+  "attendance": { "title": "Attendance", "date": "Date", "class": "Class", "present": "Present", "absent": "Absent", "late": "Late", "excused": "Excused", "save": "Save attendance", "saved": "Attendance saved", "holidayBlocked": "This date is a holiday — attendance is closed.", "empty": "No students in this class." },
+  "hr": { "employees": "Employees", "payrollRuns": "Payroll runs", "runPayroll": "Run payroll", "period": "Period", "statusLabel": "Status", "grossTotal": "Gross total", "employeesCount": "{count, plural, one {# employee} other {# employees}}", "draft": "Draft", "approved": "Approved", "paid": "Paid", "void": "Void", "approve": "Approve", "prepared": "Prepared by", "recalculate": "Recalculate", "leaveRequests": "Leave requests", "pending": "Pending", "approveLeave": "Approve", "reject": "Reject", "netPay": "Net pay", "payslip": "Payslip", "sodNote": "A run cannot be approved by the person who prepared it." },
+  "dashboard": { "welcome": "Welcome back", "today": "Today", "studentsCard": "Active students", "attendanceCard": "Attendance today", "payrollCard": "Payroll status", "feesCard": "Fees collected (month)" },
+  "errors": { "generic": "An unexpected error occurred", "forbidden": "You do not have access to this." },
+  "actions": { "retry": "Retry", "close": "Close" }
+}

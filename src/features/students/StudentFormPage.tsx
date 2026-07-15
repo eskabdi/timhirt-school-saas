@@ -1,0 +1,74 @@
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { studentSchema, type StudentInput } from "./schemas";
+import { createStudent, listClasses } from "./api";
+import { useSession } from "@/features/auth/useSession";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { Field } from "@/components/ui/Field";
+import { Card } from "@/components/ui/Card";
+import { EthDatePicker } from "@/components/EthDatePicker";
+
+export function StudentFormPage() {
+  const { t } = useTranslation();
+  const nav = useNavigate();
+  const { profile } = useSession();
+  const queryClient = useQueryClient();
+  const { data: classes } = useQuery({ queryKey: ["classes"], queryFn: listClasses });
+
+  const { register, handleSubmit, control, formState: { errors } } = useForm<StudentInput>({
+    resolver: zodResolver(studentSchema),
+  });
+
+  const mutation = useMutation({
+    mutationFn: (input: StudentInput) => createStudent(profile!.tenant_id!, input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["students"] });
+      nav("/students");
+    },
+  });
+
+  return (
+    <Card className="max-w-xl">
+      <h1 className="mb-4 font-display text-xl font-bold">{t("students.add")}</h1>
+      <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4" noValidate>
+        <div className="grid grid-cols-2 gap-4">
+          <Field label={t("students.firstName")} error={errors.first_name?.message}>
+            <Input {...register("first_name")} maxLength={80} required />
+          </Field>
+          <Field label={t("students.lastName")} error={errors.last_name?.message}>
+            <Input {...register("last_name")} maxLength={80} required />
+          </Field>
+        </div>
+        <Field label={t("students.admissionNo")} error={errors.admission_no?.message}>
+          <Input {...register("admission_no")} placeholder="ADM-2018-001" maxLength={20} required />
+        </Field>
+        <Field label={t("students.dob")} error={errors.date_of_birth?.message}>
+          <Controller name="date_of_birth" control={control}
+            render={({ field }) => <EthDatePicker value={field.value ?? null} onChange={field.onChange} />} />
+        </Field>
+        <Field label={t("students.gender")} error={errors.gender?.message}>
+          <select {...register("gender")} className="w-full rounded-card border border-line px-3 py-2 text-sm" required>
+            <option value="">—</option>
+            <option value="male">{t("students.male")}</option>
+            <option value="female">{t("students.female")}</option>
+            <option value="other">{t("students.other")}</option>
+          </select>
+        </Field>
+        <Field label={t("students.class")} error={errors.class_id?.message}>
+          <select {...register("class_id")} className="w-full rounded-card border border-line px-3 py-2 text-sm" required>
+            <option value="">—</option>
+            {classes?.map((c) => <option key={c.id} value={c.id}>{c.name} {c.section}</option>)}
+          </select>
+        </Field>
+        <div className="flex gap-2 pt-2">
+          <Button type="submit" disabled={mutation.isPending}>{t("students.save")}</Button>
+          <Button type="button" variant="ghost" onClick={() => nav("/students")}>{t("students.cancel")}</Button>
+        </div>
+      </form>
+    </Card>
+  );
+}
