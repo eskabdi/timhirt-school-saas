@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
+import { Navigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { qk } from "@/lib/queryKeys";
 import { useSession } from "@/features/auth/useSession";
@@ -18,6 +19,12 @@ export function DashboardPage() {
   const { t } = useTranslation();
   const { profile } = useSession();
   const tenantId = profile?.tenant_id ?? "";
+
+  // super_admin has no tenant — this tenant-scoped dashboard has nothing to
+  // show them (every stat below would sit at "—" forever) and their real
+  // surface is the platform console. LoginPage always lands everyone here
+  // first, so redirect on arrival rather than leaving them stranded.
+  if (profile?.role === "super_admin") return <Navigate to="/platform" replace />;
 
   const { data } = useQuery({
     queryKey: qk.dashboard(tenantId),
