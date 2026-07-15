@@ -35,6 +35,5 @@ jobs:
         with:
           version: latest
       - run: supabase start
-      - run: supabase db push
       - run: supabase test db
 
