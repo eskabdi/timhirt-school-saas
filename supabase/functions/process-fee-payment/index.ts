@@ -9,7 +9,7 @@
 // for infra-managed deployments — see getCredential() in _shared/security.ts.
 // ============================================================================
 import { z } from "npm:zod@3";
-import { requireRole, errors, json, rateLimit, getCredential } from "../_shared/security.ts";
+import { requireRole, errors, json, rateLimit, getCredential, corsHeaders } from "../_shared/security.ts";
 
 const Payload = z.object({
   invoice_id: z.string().uuid(),
@@ -17,6 +17,7 @@ const Payload = z.object({
 });
 
 Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
     if (req.method !== "POST") return errors.badRequest();
     const ctx = await requireRole(req, ["parent", "school_admin", "accountant"]);

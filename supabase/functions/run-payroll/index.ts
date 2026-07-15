@@ -6,7 +6,7 @@
 // No salary values are ever logged.
 // ============================================================================
 import { z } from "npm:zod@3";
-import { requireRole, errors, json, rateLimit } from "../_shared/security.ts";
+import { requireRole, errors, json, rateLimit, corsHeaders } from "../_shared/security.ts";
 import { ecMonthSpan } from "../_shared/ethiopian-date.ts";
 
 const Payload = z.object({
@@ -17,6 +17,7 @@ const Payload = z.object({
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
 Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
     if (req.method !== "POST") return errors.badRequest();
     const ctx = await requireRole(req, ["hr_officer", "school_admin"]);

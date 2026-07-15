@@ -10,7 +10,7 @@
 // which is worse than refusing it up front).
 // ============================================================================
 import { z } from "npm:zod@3";
-import { requireRole, errors, json, rateLimit } from "../_shared/security.ts";
+import { requireRole, errors, json, rateLimit, corsHeaders } from "../_shared/security.ts";
 
 const PROVIDER_KEYS: Record<string, string[]> = {
   chapa: ["secret_key", "webhook_secret"],
@@ -26,6 +26,7 @@ const Payload = z.object({
 });
 
 Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
     if (req.method !== "POST") return errors.badRequest();
     const ctx = await requireRole(req, ["super_admin"]);

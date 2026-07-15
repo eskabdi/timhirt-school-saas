@@ -15,9 +15,10 @@
 // var for infra-managed deployments — see getCredential() in _shared/security.ts.
 // ============================================================================
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { errors, json, verifyHmac, getCredential } from "../_shared/security.ts";
+import { errors, json, verifyHmac, getCredential, corsHeaders } from "../_shared/security.ts";
 
 Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
     if (req.method !== "POST") return errors.badRequest();
     const raw = await req.text();

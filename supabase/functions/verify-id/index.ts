@@ -13,11 +13,12 @@
 // ============================================================================
 import { z } from "npm:zod@3";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { errors, json, rateLimit } from "../_shared/security.ts";
+import { errors, json, rateLimit, corsHeaders } from "../_shared/security.ts";
 
 const Payload = z.object({ code: z.string().min(1).max(64) });
 
 Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
     if (req.method !== "POST") return errors.badRequest();
 

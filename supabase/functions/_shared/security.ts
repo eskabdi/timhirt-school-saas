@@ -8,10 +8,22 @@
 // ============================================================================
 import { createClient, SupabaseClient } from "npm:@supabase/supabase-js@2";
 
+// Every function is called cross-origin (Vercel frontend -> supabase.co), and
+// any POST with a JSON body triggers a CORS preflight (OPTIONS) regardless of
+// verify_jwt — application/json isn't a CORS-safelisted content type. Without
+// these headers on every response (preflight AND the real one), the browser
+// rejects the response before the caller's code ever sees it and fetch()
+// throws a bare "Failed to fetch" with no further detail.
+export const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
 export const json = (body: unknown, status: number) =>
   new Response(JSON.stringify(body), {
     status,
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...corsHeaders },
   });
 
 export const errors = {

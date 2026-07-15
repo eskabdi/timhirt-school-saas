@@ -7,7 +7,7 @@
 // signed URL. Object names are randomized (INSA secure-upload).
 // ============================================================================
 import { z } from "npm:zod@3";
-import { requireRole, errors, json, rateLimit } from "../_shared/security.ts";
+import { requireRole, errors, json, rateLimit, corsHeaders } from "../_shared/security.ts";
 
 const Payload = z.object({ payslip_id: z.string().uuid(), locale: z.enum(["en", "am", "om"]).default("en") });
 
@@ -16,6 +16,7 @@ const ETH_MONTHS_EN = ["Meskerem","Tikimt","Hidar","Tahsas","Tir","Yekatit","Meg
 const ETH_MONTHS_OM = ["Fulbaana","Onkololeessa","Sadaasa","Muddee","Amajjii","Guraandhala","Bitootessa","Ebla","Caamsaa","Waxabajjii","Adoolessa","Hagayya","Qaammee"];
 
 Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
     if (req.method !== "POST") return errors.badRequest();
     const ctx = await requireRole(req,

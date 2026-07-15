@@ -4,7 +4,7 @@
 // default config + current EC academic year. Rolls back on failure.
 // ============================================================================
 import { z } from "npm:zod@3";
-import { requireRole, errors, json, rateLimit } from "../_shared/security.ts";
+import { requireRole, errors, json, rateLimit, corsHeaders } from "../_shared/security.ts";
 import { toEthiopian, toGregorian } from "../_shared/ethiopian-date.ts";
 
 const Payload = z.object({
@@ -16,6 +16,7 @@ const Payload = z.object({
 });
 
 Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   let tenantId: string | undefined;
   const ctxOrRes = await requireRole(req, ["super_admin"]);
   if (ctxOrRes instanceof Response) return ctxOrRes;

@@ -9,7 +9,7 @@
 // ============================================================================
 import { z } from "npm:zod@3";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { errors, json, rateLimit } from "../_shared/security.ts";
+import { errors, json, rateLimit, corsHeaders } from "../_shared/security.ts";
 
 const Payload = z.object({
   tenant_slug: z.string().regex(/^[a-z0-9][a-z0-9-]{1,40}$/),
@@ -21,6 +21,7 @@ const Payload = z.object({
 });
 
 Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
     if (req.method !== "POST") return errors.badRequest();
 
