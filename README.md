@@ -35,8 +35,8 @@ supabase/
                   → security hardening → base table grants → RLS recursion fix
                   → column-level grants → integration credentials (Vault)
   functions/      run-payroll · process-fee-payment · chapa-webhook
-                  onboard-tenant · generate-payslip-pdf · submit-admission
-                  verify-id · manage-integration-credentials
+                  onboard-tenant · invite-tenant-admin · generate-payslip-pdf
+                  submit-admission · verify-id · manage-integration-credentials
                   _shared/  (security middleware + Ethiopian date engine)
   seed.sql        staging test-account scaffold (refuses to run in prod)
 src/

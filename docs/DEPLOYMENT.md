@@ -45,6 +45,7 @@ supabase functions deploy run-payroll
 supabase functions deploy process-fee-payment
 supabase functions deploy chapa-webhook --no-verify-jwt
 supabase functions deploy onboard-tenant
+supabase functions deploy invite-tenant-admin
 supabase functions deploy generate-payslip-pdf
 supabase functions deploy submit-admission --no-verify-jwt
 supabase functions deploy verify-id --no-verify-jwt

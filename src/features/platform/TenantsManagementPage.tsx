@@ -8,6 +8,7 @@
 // slug is create-only: it's embedded in the public /apply/:tenantSlug URL,
 // so changing it later would break any link already shared with applicants.
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -168,7 +169,7 @@ export function TenantsManagementPage() {
                         if (e.key === "Escape") setEditingId(null);
                       }}
                     />
-                  ) : t.name}
+                  ) : <Link to={`/platform/tenants/${t.id}`} className="hover:underline">{t.name}</Link>}
                 </td>
                 <td className="px-4 py-2 text-ink-faint">{t.slug}</td>
                 <td className="px-4 py-2 capitalize">{t.status}</td>

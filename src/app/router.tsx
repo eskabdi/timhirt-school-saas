@@ -74,6 +74,7 @@ import { ClassesPage } from "@/features/settings/ClassesPage";
 import { SubjectsPage } from "@/features/settings/SubjectsPage";
 
 import { TenantsManagementPage } from "@/features/platform/TenantsManagementPage";
+import { TenantDetailPage } from "@/features/platform/TenantDetailPage";
 import { IntegrationsPage } from "@/features/platform/IntegrationsPage";
 import { BillingPage } from "@/features/platform/BillingPage";
 import { StatutoryConfigPage } from "@/features/platform/StatutoryConfigPage";
@@ -216,6 +217,7 @@ export const router = createBrowserRouter([
             children: [
               { index: true, element: <Navigate to="tenants" replace /> },
               { path: "tenants", element: <TenantsManagementPage /> },
+              { path: "tenants/:id", element: <TenantDetailPage /> },
               { path: "integrations", element: <IntegrationsPage /> },
               { path: "billing", element: <BillingPage /> },
               { path: "statutory", element: <StatutoryConfigPage /> },
