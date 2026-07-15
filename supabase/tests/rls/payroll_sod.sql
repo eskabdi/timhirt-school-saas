@@ -22,10 +22,17 @@ insert into public.tenants (id, name, slug, status) values
   ('cccccccc-0000-0000-0000-000000000001', 'Tenant C', 'rls-test-tenant-c', 'active');
 
 insert into public.users (id, tenant_id, role, full_name, email) values
-  ('33333333-0000-0000-0000-000000000001', 'cccccccc-0000-0000-0000-000000000001', 'hr_officer', 'HR Officer', 'hr@test.example'),
-  ('44444444-0000-0000-0000-000000000002', 'cccccccc-0000-0000-0000-000000000001', 'accountant', 'Accountant', 'accountant@test.example');
+  ('33333333-0000-0000-0000-000000000001', 'cccccccc-0000-0000-0000-000000000001', 'school_admin', 'School Admin (preparer)', 'hr@test.example'),
+  ('44444444-0000-0000-0000-000000000002', 'cccccccc-0000-0000-0000-000000000001', 'accountant', 'Accountant (approver)', 'accountant@test.example');
 
--- ---------- Act as hr_officer: prepare a draft run ---------------------------
+-- ---------- Act as the school_admin: prepare a draft run ---------------------
+-- Preparer must be a role that can both insert (runs_insert: school_admin/
+-- hr_officer) and approve (runs_approve: accountant/school_admin) so the
+-- self-approval attempt below actually reaches the trigger's SoD check
+-- instead of being silently filtered out earlier by the runs_approve RLS
+-- policy's role gate (which would also block hr_officer, but for the wrong
+-- reason — that's role authorization, not segregation of duties). school_admin
+-- is the only role in both sets.
 set local role authenticated;
 set local request.jwt.claim.sub = '33333333-0000-0000-0000-000000000001';
 
@@ -56,8 +63,11 @@ select is(
   (select status from public.payroll_runs where id = 'dddddddd-0000-0000-0000-000000000001'),
   'approved', 'Run correctly transitioned to approved');
 
--- Illegal transition: approved cannot jump back to draft.
-select throws_ok(
+-- Illegal transition: approved cannot jump back to draft. The exact message
+-- is dynamic (old/new status interpolated in), so this needs LIKE matching
+-- (throws_like), not an exact-string match (throws_ok would compare the "%"
+-- literally rather than as a wildcard).
+select throws_like(
   $stmt$ update public.payroll_runs set status = 'draft'
          where id = 'dddddddd-0000-0000-0000-000000000001' $stmt$,
   'illegal_payroll_transition_%',
