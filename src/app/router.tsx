@@ -8,6 +8,7 @@ import { createBrowserRouter, Navigate } from "react-router-dom";
 
 import { RequireAuth } from "@/features/auth/RequireAuth";
 import { RequireRole } from "@/features/auth/RequireRole";
+import { RequireModule } from "@/features/auth/RequireModule";
 import { LoginPage } from "@/features/auth/LoginPage";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { PlatformShell } from "@/components/layout/PlatformShell";
@@ -75,6 +76,7 @@ import { SubjectsPage } from "@/features/settings/SubjectsPage";
 
 import { TenantsManagementPage } from "@/features/platform/TenantsManagementPage";
 import { TenantDetailPage } from "@/features/platform/TenantDetailPage";
+import { ModulesMatrixPage } from "@/features/platform/ModulesMatrixPage";
 import { IntegrationsPage } from "@/features/platform/IntegrationsPage";
 import { BillingPage } from "@/features/platform/BillingPage";
 import { StatutoryConfigPage } from "@/features/platform/StatutoryConfigPage";
@@ -103,33 +105,74 @@ export const router = createBrowserRouter([
         children: [
           { index: true, element: <DashboardPage /> },
 
-          // Admin: Students (SIS)
+          // Admin: Students (SIS) + Admissions + ID cards — each its own
+          // module, so each gets its own RequireModule nested under the
+          // shared role check.
           {
             element: <RequireRole roles={ADMIN_REG} />,
             children: [
-              { path: "students", element: <StudentsListPage /> },
-              { path: "students/new", element: <StudentFormPage /> },
-              { path: "students/:id", element: <StudentDetailPage /> },
-              { path: "admissions", element: <AdmissionsKanbanPage /> },
-              { path: "admissions/:id", element: <AdmissionDetailPage /> },
-              { path: "id-cards", element: <IDCardBatchPage /> },
+              {
+                element: <RequireModule module="sis" />,
+                children: [
+                  { path: "students", element: <StudentsListPage /> },
+                  { path: "students/new", element: <StudentFormPage /> },
+                  { path: "students/:id", element: <StudentDetailPage /> },
+                ],
+              },
+              {
+                element: <RequireModule module="admissions" />,
+                children: [
+                  { path: "admissions", element: <AdmissionsKanbanPage /> },
+                  { path: "admissions/:id", element: <AdmissionDetailPage /> },
+                ],
+              },
+              {
+                element: <RequireModule module="id_cards" />,
+                children: [{ path: "id-cards", element: <IDCardBatchPage /> }],
+              },
             ],
           },
 
-          // Admin: Academic setup
+          // Admin: Academic setup. classes/subjects/settings/* are core
+          // tenant configuration, not one of the 18 subscription modules —
+          // left ungated. The rest each map to their own module.
           {
             element: <RequireRole roles={["school_admin"]} />,
             children: [
               { path: "classes", element: <ClassesPage /> },
               { path: "subjects", element: <SubjectsPage /> },
-              { path: "fees/structures", element: <FeeStructuresPage /> },
-              { path: "communication", element: <AnnouncementsPage /> },
-              { path: "hostel", element: <HostelPage /> },
-              { path: "discipline", element: <DisciplineIncidentsPage /> },
-              { path: "clinic", element: <ClinicPage /> },
-              { path: "library", element: <LibraryPage /> },
-              { path: "transport", element: <TransportPage /> },
-              { path: "events", element: <EventsCalendarPage /> },
+              {
+                element: <RequireModule module="fees" />,
+                children: [{ path: "fees/structures", element: <FeeStructuresPage /> }],
+              },
+              {
+                element: <RequireModule module="communication" />,
+                children: [{ path: "communication", element: <AnnouncementsPage /> }],
+              },
+              {
+                element: <RequireModule module="hostel" />,
+                children: [{ path: "hostel", element: <HostelPage /> }],
+              },
+              {
+                element: <RequireModule module="discipline" />,
+                children: [{ path: "discipline", element: <DisciplineIncidentsPage /> }],
+              },
+              {
+                element: <RequireModule module="clinic" />,
+                children: [{ path: "clinic", element: <ClinicPage /> }],
+              },
+              {
+                element: <RequireModule module="library" />,
+                children: [{ path: "library", element: <LibraryPage /> }],
+              },
+              {
+                element: <RequireModule module="transport" />,
+                children: [{ path: "transport", element: <TransportPage /> }],
+              },
+              {
+                element: <RequireModule module="events" />,
+                children: [{ path: "events", element: <EventsCalendarPage /> }],
+              },
               { path: "settings/academic-years", element: <AcademicYearsPage /> },
               { path: "settings/grading-scales", element: <GradingScalesPage /> },
               { path: "settings/branding", element: <BrandingPage /> },
@@ -142,9 +185,18 @@ export const router = createBrowserRouter([
           {
             element: <RequireRole roles={FINANCE} />,
             children: [
-              { path: "fees/invoices", element: <InvoicesPage /> },
-              { path: "inventory", element: <InventoryPage /> },
-              { path: "reports", element: <ReportsPage /> },
+              {
+                element: <RequireModule module="fees" />,
+                children: [{ path: "fees/invoices", element: <InvoicesPage /> }],
+              },
+              {
+                element: <RequireModule module="inventory" />,
+                children: [{ path: "inventory", element: <InventoryPage /> }],
+              },
+              {
+                element: <RequireModule module="reporting" />,
+                children: [{ path: "reports", element: <ReportsPage /> }],
+              },
             ],
           },
 
@@ -152,36 +204,72 @@ export const router = createBrowserRouter([
           {
             element: <RequireRole roles={TEACH} />,
             children: [
-              { path: "attendance", element: <AttendanceMarkingPage /> },
-              { path: "attendance/overview", element: <AttendanceOverviewPage /> },
-              { path: "timetable", element: <TimetableEditorPage /> },
-              { path: "gradebook", element: <GradebookPage /> },
-              { path: "exams", element: <ExamsPage /> },
-              { path: "report-cards", element: <ReportCardBatchPage /> },
-              { path: "assignments", element: <AssignmentsTeacherPage /> },
-              { path: "assignments/new", element: <AssignmentFormPage /> },
+              {
+                element: <RequireModule module="attendance" />,
+                children: [
+                  { path: "attendance", element: <AttendanceMarkingPage /> },
+                  { path: "attendance/overview", element: <AttendanceOverviewPage /> },
+                ],
+              },
+              {
+                element: <RequireModule module="timetable" />,
+                children: [{ path: "timetable", element: <TimetableEditorPage /> }],
+              },
+              {
+                element: <RequireModule module="gradebook" />,
+                children: [
+                  { path: "gradebook", element: <GradebookPage /> },
+                  { path: "exams", element: <ExamsPage /> },
+                  { path: "report-cards", element: <ReportCardBatchPage /> },
+                ],
+              },
+              {
+                element: <RequireModule module="assignments" />,
+                children: [
+                  { path: "assignments", element: <AssignmentsTeacherPage /> },
+                  { path: "assignments/new", element: <AssignmentFormPage /> },
+                ],
+              },
             ],
           },
-          { path: "my/timetable", element: <MyTimetablePage /> },
+          {
+            element: <RequireModule module="timetable" />,
+            children: [{ path: "my/timetable", element: <MyTimetablePage /> }],
+          },
 
           // HR & Payroll
           {
             element: <RequireRole roles={HR} />,
             children: [
-              { path: "hr/employees", element: <EmployeeListPage /> },
-              { path: "hr/employees/:id", element: <EmployeeDetailPage /> },
-              { path: "hr/leave", element: <LeaveApprovalsPage /> },
+              {
+                element: <RequireModule module="hr_payroll" />,
+                children: [
+                  { path: "hr/employees", element: <EmployeeListPage /> },
+                  { path: "hr/employees/:id", element: <EmployeeDetailPage /> },
+                  { path: "hr/leave", element: <LeaveApprovalsPage /> },
+                ],
+              },
             ],
           },
           {
             element: <RequireRole roles={HR_FINANCE} />,
             children: [
-              { path: "hr/payroll", element: <PayrollRunsPage /> },
-              { path: "hr/payroll/:runId", element: <PayrollRunDetailPage /> },
+              {
+                element: <RequireModule module="hr_payroll" />,
+                children: [
+                  { path: "hr/payroll", element: <PayrollRunsPage /> },
+                  { path: "hr/payroll/:runId", element: <PayrollRunDetailPage /> },
+                ],
+              },
             ],
           },
-          { path: "my/leave", element: <MyLeavePage /> },
-          { path: "my/payslips", element: <MyPayslipsPage /> },
+          {
+            element: <RequireModule module="hr_payroll" />,
+            children: [
+              { path: "my/leave", element: <MyLeavePage /> },
+              { path: "my/payslips", element: <MyPayslipsPage /> },
+            ],
+          },
 
           // Student self-service
           {
@@ -218,6 +306,7 @@ export const router = createBrowserRouter([
               { index: true, element: <Navigate to="tenants" replace /> },
               { path: "tenants", element: <TenantsManagementPage /> },
               { path: "tenants/:id", element: <TenantDetailPage /> },
+              { path: "modules", element: <ModulesMatrixPage /> },
               { path: "integrations", element: <IntegrationsPage /> },
               { path: "billing", element: <BillingPage /> },
               { path: "statutory", element: <StatutoryConfigPage /> },

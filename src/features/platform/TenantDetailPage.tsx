@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Field } from "@/components/ui/Field";
 import { Card } from "@/components/ui/Card";
+import { cn } from "@/lib/utils";
 
 const inviteSchema = z.object({
   admin_email: z.string().email().max(254),
@@ -81,12 +82,13 @@ function InviteAdminForm({ tenantId, onDone }: { tenantId: string; onDone: () =>
 export function TenantDetailPage() {
   const { id } = useParams();
   const [inviting, setInviting] = useState(false);
+  const qc = useQueryClient();
 
   const { data: tenant } = useQuery({
     queryKey: ["tenant", id],
     queryFn: async () => {
       const { data, error } = await supabase.from("tenants")
-        .select("id, name, slug, status, created_at").eq("id", id).single();
+        .select("id, name, slug, status, created_at, tier_key").eq("id", id).single();
       if (error) throw error;
       return data;
     },
@@ -103,7 +105,72 @@ export function TenantDetailPage() {
     enabled: !!id,
   });
 
+  const { data: tiers } = useQuery({
+    queryKey: ["subscription-tiers"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("subscription_tiers").select("key, display_name").order("sort_order");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: modules } = useQuery({
+    queryKey: ["modules"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("modules").select("key, display_name").order("sort_order");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: tierModuleKeys } = useQuery({
+    queryKey: ["tier-modules", tenant?.tier_key],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("tier_modules").select("module_key").eq("tier_key", tenant!.tier_key);
+      if (error) throw error;
+      return new Set(data.map((m) => m.module_key));
+    },
+    enabled: !!tenant?.tier_key,
+  });
+
+  const { data: overrides } = useQuery({
+    queryKey: ["tenant-module-overrides", id],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("tenant_module_overrides")
+        .select("module_key, enabled").eq("tenant_id", id);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!id,
+  });
+
+  const setTier = useMutation({
+    mutationFn: async (tierKey: string) => {
+      const { error } = await supabase.from("tenants").update({ tier_key: tierKey }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["tenant", id] }),
+  });
+
+  const setOverride = useMutation({
+    mutationFn: async ({ moduleKey, enabled }: { moduleKey: string; enabled: boolean | null }) => {
+      if (enabled === null) {
+        const { error } = await supabase.from("tenant_module_overrides").delete()
+          .eq("tenant_id", id).eq("module_key", moduleKey);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("tenant_module_overrides")
+          .upsert({ tenant_id: id, module_key: moduleKey, enabled });
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["tenant-module-overrides", id] }),
+  });
+
   if (!tenant) return null;
+
+  const overrideFor = (moduleKey: string) => overrides?.find((o) => o.module_key === moduleKey)?.enabled ?? null;
+  const effectiveFor = (moduleKey: string) => overrideFor(moduleKey) ?? tierModuleKeys?.has(moduleKey) ?? false;
 
   return (
     <div className="max-w-2xl space-y-6">
@@ -117,8 +184,72 @@ export function TenantDetailPage() {
         <dl className="mt-4 grid grid-cols-2 gap-4 text-sm">
           <div><dt className="text-ink-faint">Slug</dt><dd className="font-medium">{tenant.slug}</dd></div>
           <div><dt className="text-ink-faint">Created</dt><dd className="font-medium"><EthDate value={tenant.created_at.slice(0, 10)} /></dd></div>
+          <div>
+            <dt className="text-ink-faint">Subscription tier</dt>
+            <dd className="font-medium">
+              <select
+                value={tenant.tier_key}
+                disabled={setTier.isPending}
+                onChange={(e) => setTier.mutate(e.target.value)}
+                className="mt-1 rounded-card border border-line px-2 py-1 text-sm"
+              >
+                {tiers?.map((t) => <option key={t.key} value={t.key}>{t.display_name}</option>)}
+              </select>
+            </dd>
+          </div>
         </dl>
       </Card>
+
+      <div>
+        <h2 className="mb-3 font-display text-lg font-bold">Modules</h2>
+        <p className="mb-3 text-sm text-ink-faint">
+          Inherited from the {tiers?.find((t) => t.key === tenant.tier_key)?.display_name ?? tenant.tier_key} tier.
+          Toggle a module to override it for this tenant only, or reset to go back to the tier default.
+        </p>
+        <div className="overflow-hidden rounded-card border border-line">
+          <table className="w-full text-sm">
+            <thead className="bg-chalk-sunken text-left text-xs uppercase text-ink-faint">
+              <tr><th className="px-4 py-2">Module</th><th className="px-4 py-2">Enabled</th><th className="px-4 py-2" /></tr>
+            </thead>
+            <tbody className="divide-y divide-line">
+              {modules?.map((m) => {
+                const override = overrideFor(m.key);
+                const effective = effectiveFor(m.key);
+                return (
+                  <tr key={m.key}>
+                    <td className="px-4 py-2 font-medium">{m.display_name}</td>
+                    <td className="px-4 py-2">
+                      <button
+                        type="button"
+                        disabled={setOverride.isPending}
+                        onClick={() => setOverride.mutate({ moduleKey: m.key, enabled: !effective })}
+                        aria-pressed={effective}
+                        className={cn(
+                          "inline-flex h-6 w-6 items-center justify-center rounded-card border transition-colors disabled:opacity-50",
+                          effective ? "border-meskel bg-meskel-wash text-ink" : "border-line text-ink-faint hover:bg-chalk-sunken",
+                        )}
+                      >
+                        {effective ? "✓" : ""}
+                      </button>
+                    </td>
+                    <td className="px-4 py-2 text-right text-xs text-ink-faint">
+                      {override !== null && (
+                        <button
+                          type="button"
+                          className="hover:text-ink hover:underline"
+                          onClick={() => setOverride.mutate({ moduleKey: m.key, enabled: null })}
+                        >
+                          overridden — reset to tier default
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
 
       <div>
         <div className="mb-3 flex items-center justify-between">

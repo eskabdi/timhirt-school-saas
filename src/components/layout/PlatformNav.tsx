@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 
 const TABS = [
   { to: "/platform/tenants", label: "Tenants" },
+  { to: "/platform/modules", label: "Modules" },
   { to: "/platform/integrations", label: "Integrations" },
   { to: "/platform/billing", label: "Billing" },
   { to: "/platform/statutory", label: "Statutory config" },

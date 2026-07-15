@@ -3,27 +3,31 @@ import { useTranslation } from "react-i18next";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { EthDate } from "@/components/EthDate";
 import { useSession } from "@/features/auth/useSession";
+import { useEnabledModules } from "@/features/auth/useEnabledModules";
 import { supabase } from "@/lib/supabase";
 import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 
 const NAV = [
   { to: "/", key: "nav.dashboard", roles: ["school_admin", "teacher", "hr_officer", "accountant", "registrar"] },
-  { to: "/students", key: "nav.students", roles: ["school_admin", "registrar", "teacher"] },
-  { to: "/attendance", key: "nav.attendance", roles: ["school_admin", "teacher"] },
-  { to: "/hr/payroll", key: "nav.payroll", roles: ["school_admin", "hr_officer", "accountant"] },
-  { to: "/hr/leave", key: "nav.leave", roles: ["school_admin", "hr_officer"] },
+  { to: "/students", key: "nav.students", roles: ["school_admin", "registrar", "teacher"], module: "sis" },
+  { to: "/attendance", key: "nav.attendance", roles: ["school_admin", "teacher"], module: "attendance" },
+  { to: "/hr/payroll", key: "nav.payroll", roles: ["school_admin", "hr_officer", "accountant"], module: "hr_payroll" },
+  { to: "/hr/leave", key: "nav.leave", roles: ["school_admin", "hr_officer"], module: "hr_payroll" },
 ];
 
 export function DashboardShell() {
   const { t } = useTranslation();
   const { profile } = useSession();
+  const modules = useEnabledModules();
   const queryClient = useQueryClient();
 
   const signOut = async () => {
     await supabase.auth.signOut();
     queryClient.clear(); // §6.3 mandatory — no stale cross-tenant data in memory
   };
+
+  const isSuperAdmin = profile?.role === "super_admin";
 
   return (
     <div className="flex min-h-screen">
@@ -33,7 +37,10 @@ export function DashboardShell() {
           <p className="text-xs text-ink-faint">{t("app.tagline")}</p>
         </div>
         <nav className="flex-1 space-y-0.5 p-3">
-          {NAV.filter((n) => !profile || profile.role === "super_admin" || n.roles.includes(profile.role)).map((n) => (
+          {NAV.filter((n) =>
+            (!profile || isSuperAdmin || n.roles.includes(profile.role))
+            && (!n.module || isSuperAdmin || modules?.has(n.module)),
+          ).map((n) => (
             <NavLink
               key={n.to}
               to={n.to}
