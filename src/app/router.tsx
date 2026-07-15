@@ -10,6 +10,7 @@ import { RequireAuth } from "@/features/auth/RequireAuth";
 import { RequireRole } from "@/features/auth/RequireRole";
 import { RequireModule } from "@/features/auth/RequireModule";
 import { LoginPage } from "@/features/auth/LoginPage";
+import { AcceptInvitePage } from "@/features/auth/AcceptInvitePage";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { PlatformShell } from "@/components/layout/PlatformShell";
 
@@ -93,6 +94,7 @@ const ADMIN_REG = ["school_admin", "registrar"];
 export const router = createBrowserRouter([
   // ---------- Public (no session) ----------
   { path: "/login", element: <LoginPage /> },
+  { path: "/accept-invite", element: <AcceptInvitePage /> },
   { path: "/apply/:tenantSlug", element: <PublicAdmissionFormPage /> },
   { path: "/verify/:code?", element: <IDVerificationPage /> },
 

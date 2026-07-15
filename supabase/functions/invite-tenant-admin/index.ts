@@ -47,8 +47,16 @@ Deno.serve(async (req) => {
     const { data: existing } = await db.from("users").select("id").eq("email", p.admin_email).maybeSingle();
     if (existing) return json({ error: "This email is already registered to a user in the system." }, 400);
 
+    // Without an explicit redirectTo, Supabase falls back to the project's
+    // Site URL (Authentication -> URL Configuration) -- which defaults to
+    // http://localhost:3000 on a fresh project and silently sends every
+    // invite link there instead of the deployed app. APP_URL must also be
+    // added to that project's redirect-URL allow-list, or Supabase rejects
+    // this value and falls back to Site URL anyway.
+    const appUrl = Deno.env.get("APP_URL") ?? "https://timhirt-school-saas.vercel.app";
     const { data: invited, error: uErr } = await db.auth.admin.inviteUserByEmail(p.admin_email, {
       data: { full_name: p.admin_full_name },
+      redirectTo: `${appUrl}/accept-invite`,
     });
     if (uErr) {
       if (/rate limit/i.test(uErr.message)) {

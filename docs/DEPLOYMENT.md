@@ -40,6 +40,10 @@ supabase secrets set CHAPA_WEBHOOK_SECRET=whsec_xxx
 supabase secrets set STRIPE_SECRET_KEY=sk_live_xxx        # optional
 supabase secrets set STRIPE_WEBHOOK_SECRET=whsec_xxx      # optional
 
+# Required for invite-tenant-admin's email link to point at your deployed
+# app instead of the default http://localhost:3000 fallback.
+supabase secrets set APP_URL=https://your-app.vercel.app
+
 # Deploy all Edge Functions
 supabase functions deploy run-payroll
 supabase functions deploy process-fee-payment
@@ -51,6 +55,14 @@ supabase functions deploy submit-admission --no-verify-jwt
 supabase functions deploy verify-id --no-verify-jwt
 supabase functions deploy manage-integration-credentials
 ```
+
+Also set **Authentication → URL Configuration** in the Supabase dashboard:
+Site URL to your deployed app's origin, and add `<your-app>/accept-invite`
+to the Redirect URLs allow-list. Both default to `http://localhost:3000` on
+a fresh project — leaving them unset sends every invite/magic-link email to
+a URL that only works on a developer's own machine, regardless of what
+`redirectTo` a function passes, since Supabase rejects any redirect target
+that isn't on this allow-list and silently falls back to Site URL instead.
 
 ## 3. Bootstrap the first super_admin (do this before anything else)
 
