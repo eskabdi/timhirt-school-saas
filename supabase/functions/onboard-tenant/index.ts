@@ -2,6 +2,10 @@
 // [INSA category: INTERNAL] onboard-tenant — super_admin only (§5.3)
 // Provisions: tenant row → invited school_admin auth user → profile row →
 // default config + current EC academic year. Rolls back on failure.
+// Uses inviteUserByEmail (not createUser) so the invited admin actually
+// receives an email with a link to set their own password — createUser
+// with email_confirm:false creates an account nobody can ever sign into,
+// since nothing else in this app sends that person any credentials.
 // ============================================================================
 import { z } from "npm:zod@3";
 import { requireRole, errors, json, rateLimit, corsHeaders } from "../_shared/security.ts";
@@ -30,14 +34,23 @@ Deno.serve(async (req) => {
     const p = parsed.data;
     const db = ctx.adminClient;
 
+    // Check before creating anything: inviteUserByEmail resends an invite
+    // (returning the SAME existing user id) rather than erroring when the
+    // email already has an account — inserting that id as this new tenant's
+    // admin would collide with their existing public.users row and fail
+    // with a confusing generic error instead of a clear one.
+    const { data: existingUser } = await db.from("users").select("id").eq("email", p.admin_email).maybeSingle();
+    if (existingUser) return json({ error: "This email is already registered to a user in the system." }, 400);
+
     const { data: tenant, error: tErr } = await db.from("tenants")
       .insert({ name: p.name, slug: p.slug, status: "trial" }).select("id").single();
     if (tErr) throw tErr;
     tenantId = tenant.id;
 
-    const { data: invited, error: uErr } = await db.auth.admin.createUser({
-      email: p.admin_email, email_confirm: false,
-      user_metadata: { full_name: p.admin_full_name },
+    const appUrl = Deno.env.get("APP_URL") ?? "https://timhirt-school-saas.vercel.app";
+    const { data: invited, error: uErr } = await db.auth.admin.inviteUserByEmail(p.admin_email, {
+      data: { full_name: p.admin_full_name },
+      redirectTo: `${appUrl}/accept-invite`,
     });
     if (uErr) throw uErr;
 
