@@ -30,9 +30,10 @@ see blueprint §21.9 for the reasoning.
 
 ```
 supabase/
-  migrations/     11 migrations: core → academic → attendance/fees → HR/payroll
+  migrations/     14 migrations: core → academic → attendance/fees → HR/payroll
                   → RLS → storage → extended modules → extended RLS → storage
-                  → security hardening → integration credentials (Vault)
+                  → security hardening → base table grants → RLS recursion fix
+                  → column-level grants → integration credentials (Vault)
   functions/      run-payroll · process-fee-payment · chapa-webhook
                   onboard-tenant · generate-payslip-pdf · submit-admission
                   verify-id · manage-integration-credentials
@@ -55,7 +56,7 @@ docs/
 npm install
 cp .env.example .env          # fill in your Supabase project URL/anon key
 supabase start                # local Postgres + Auth + Storage (Docker)
-supabase db push               # apply all 11 migrations
+supabase db push               # apply all 14 migrations
 npm run dev                    # http://localhost:5173
 ```
 

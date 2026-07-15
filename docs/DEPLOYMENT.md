@@ -24,9 +24,10 @@ sufficient privileges), or `supabase db push` will fail on that migration.
 supabase login
 supabase link --project-ref <your-project-ref>
 
-# Apply all 11 migrations (core -> academic -> attendance/fees -> HR/payroll ->
+# Apply all 14 migrations (core -> academic -> attendance/fees -> HR/payroll ->
 # RLS -> storage -> extended modules -> extended RLS -> extended storage ->
-# security hardening -> integration credentials)
+# security hardening -> base table grants -> RLS recursion fix ->
+# column-level grants -> integration credentials)
 supabase db push
 
 # Secrets for Edge Functions (never commit these). OPTIONAL as of migration
