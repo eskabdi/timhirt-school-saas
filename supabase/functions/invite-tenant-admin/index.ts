@@ -36,10 +36,29 @@ Deno.serve(async (req) => {
     const { data: tenant } = await db.from("tenants").select("id").eq("id", p.tenant_id).maybeSingle();
     if (!tenant) return errors.badRequest();
 
+    // Check BEFORE inviting: inviteUserByEmail resends an invite (returning
+    // the SAME existing user id) rather than erroring when the email already
+    // has an auth account. If we let that reach the catch block below, the
+    // rollback would delete that pre-existing user's account on a failed
+    // profile insert -- a real destructive bug, not a "this email is taken"
+    // message. Since every active account in this app has a matching
+    // public.users row (§ the "chicken-and-egg" note in DEPLOYMENT.md),
+    // checking there is enough to catch this before it ever calls invite.
+    const { data: existing } = await db.from("users").select("id").eq("email", p.admin_email).maybeSingle();
+    if (existing) return json({ error: "This email is already registered to a user in the system." }, 400);
+
     const { data: invited, error: uErr } = await db.auth.admin.inviteUserByEmail(p.admin_email, {
       data: { full_name: p.admin_full_name },
     });
-    if (uErr) throw uErr;
+    if (uErr) {
+      if (/rate limit/i.test(uErr.message)) {
+        return json({
+          error: "Too many invite emails sent recently — Supabase's default email sender is rate-limited. "
+            + "Try again shortly, or configure custom SMTP in the Supabase dashboard (Authentication -> Emails) for production use.",
+        }, 429);
+      }
+      throw uErr;
+    }
     invitedUserId = invited.user.id;
 
     const { error: profileErr } = await db.from("users").insert({
@@ -51,8 +70,11 @@ Deno.serve(async (req) => {
     return json({ user_id: invitedUserId, tenant_id: p.tenant_id }, 201);
   } catch (err) {
     console.error("invite-tenant-admin failed", { message: (err as Error).message });
+    // Only roll back an auth user we just created ourselves this call --
+    // invitedUserId is set exclusively by the inviteUserByEmail call above,
+    // and the pre-check means we only reach here for a genuinely new user.
     if (invitedUserId) {
-      await ctx.adminClient.auth.admin.deleteUser(invitedUserId); // rollback
+      await ctx.adminClient.auth.admin.deleteUser(invitedUserId);
     }
     return errors.internal();
   }
