@@ -28,7 +28,7 @@ export function LeaveApprovalsPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="font-display text-2xl font-bold">{t("hr.leaveRequests")}</h1>
+      <h1 className="font-display text-2xl font-bold text-ink">{t("hr.leaveRequests")}</h1>
       {!requests?.length ? (
         <Card className="py-12 text-center text-ink-faint">{t("hr.pending")}: 0</Card>
       ) : (
@@ -36,7 +36,7 @@ export function LeaveApprovalsPage() {
           {requests.map((r) => (
             <Card key={r.id} className="flex items-center justify-between">
               <div>
-                <p className="font-medium">{(r.employees as any)?.full_name}</p>
+                <p className="font-medium text-ink">{(r.employees as any)?.full_name}</p>
                 <p className="text-sm text-ink-faint"><EthDate value={r.starts_on} /> — <EthDate value={r.ends_on} /></p>
               </div>
               <div className="flex gap-2">

@@ -22,8 +22,8 @@ export function PlatformNav() {
           to={t.to}
           className={({ isActive }) =>
             cn(
-              "rounded-t-card border-b-2 px-3 py-2 text-sm font-medium",
-              isActive ? "border-meskel text-ink" : "border-transparent text-ink-faint hover:text-ink",
+              "rounded-t-control border-b-2 px-3 py-2 text-sm font-medium",
+              isActive ? "border-navy text-navy" : "border-transparent text-ink-faint hover:text-ink",
             )
           }
         >

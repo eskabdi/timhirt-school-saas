@@ -1,10 +1,16 @@
+import { useMemo } from "react";
 import { useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useSession } from "@/features/auth/useSession";
 import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
+import { Badge } from "@/components/ui/Badge";
+import { Panel, PanelHeader } from "@/components/ui/Panel";
 import { formatETB } from "@/lib/i18n";
+
+const STATUS_TONE = { draft: "neutral", approved: "navy", paid: "ok", void: "danger" } as const;
 
 export function PayrollRunDetailPage() {
   const { runId } = useParams();
@@ -31,6 +37,11 @@ export function PayrollRunDetailPage() {
     },
   });
 
+  const grossTotal = useMemo(
+    () => (payslips ?? []).reduce((sum, p) => sum + Number(p.gross), 0),
+    [payslips],
+  );
+
   const approve = useMutation({
     mutationFn: async () => {
       const { error } = await supabase.from("payroll_runs")
@@ -48,30 +59,41 @@ export function PayrollRunDetailPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="font-display text-2xl font-bold">{run.ec_year} / {String(run.ec_month).padStart(2, "0")}</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="font-display text-2xl font-bold text-ink">{run.ec_year} / {String(run.ec_month).padStart(2, "0")}</h1>
+          <Badge tone={STATUS_TONE[run.status as keyof typeof STATUS_TONE] ?? "neutral"}>{run.status}</Badge>
+        </div>
         {canApprove && <Button onClick={() => approve.mutate()} disabled={approve.isPending}>{t("hr.approve")}</Button>}
       </div>
       {approve.isError && <p className="text-sm text-danger">{t("hr.sodNote")}</p>}
 
-      <div className="overflow-hidden rounded-card border border-line">
+      <Card className="border-navy bg-navy text-white">
+        <p className="text-xs font-medium uppercase tracking-wide text-white/70">{t("hr.grossTotal")}</p>
+        <p className="mt-2 font-display text-3xl font-bold tabular-nums">
+          {formatETB(grossTotal, i18n.resolvedLanguage!)}
+        </p>
+      </Card>
+
+      <Panel>
+        <PanelHeader title={t("hr.payrollRuns")} />
         <table className="w-full text-sm">
-          <thead className="bg-chalk-sunken text-left text-xs uppercase text-ink-faint">
-            <tr><th className="px-4 py-2">Employee</th><th className="px-4 py-2">Gross</th><th className="px-4 py-2">Tax</th><th className="px-4 py-2">Pension</th><th className="px-4 py-2">{t("hr.netPay")}</th><th></th></tr>
+          <thead className="bg-sidebar text-left text-xs uppercase text-ink-faint">
+            <tr><th className="px-5 py-3">Employee</th><th className="px-5 py-3">Gross</th><th className="px-5 py-3">Tax</th><th className="px-5 py-3">Pension</th><th className="px-5 py-3">{t("hr.netPay")}</th><th></th></tr>
           </thead>
           <tbody className="divide-y divide-line">
             {payslips?.map((p) => (
               <tr key={p.id}>
-                <td className="px-4 py-2 font-medium">{(p.employees as any)?.full_name}</td>
-                <td className="px-4 py-2">{formatETB(Number(p.gross), i18n.resolvedLanguage!)}</td>
-                <td className="px-4 py-2 text-ink-faint">{formatETB(Number(p.income_tax), i18n.resolvedLanguage!)}</td>
-                <td className="px-4 py-2 text-ink-faint">{formatETB(Number(p.pension_employee), i18n.resolvedLanguage!)}</td>
-                <td className="px-4 py-2 font-semibold">{formatETB(Number(p.net_pay), i18n.resolvedLanguage!)}</td>
-                <td className="px-4 py-2"><PayslipLink payslipId={p.id} /></td>
+                <td className="px-5 py-3 font-medium text-ink">{(p.employees as any)?.full_name}</td>
+                <td className="px-5 py-3 tabular-nums text-ink">{formatETB(Number(p.gross), i18n.resolvedLanguage!)}</td>
+                <td className="px-5 py-3 tabular-nums text-ink-faint">{formatETB(Number(p.income_tax), i18n.resolvedLanguage!)}</td>
+                <td className="px-5 py-3 tabular-nums text-ink-faint">{formatETB(Number(p.pension_employee), i18n.resolvedLanguage!)}</td>
+                <td className="px-5 py-3 tabular-nums font-semibold text-ink">{formatETB(Number(p.net_pay), i18n.resolvedLanguage!)}</td>
+                <td className="px-5 py-3"><PayslipLink payslipId={p.id} /></td>
               </tr>
             ))}
           </tbody>
         </table>
-      </div>
+      </Panel>
     </div>
   );
 }
@@ -90,6 +112,6 @@ function PayslipLink({ payslipId }: { payslipId: string }) {
       return res.json() as Promise<{ url: string }>;
     },
   });
-  if (mutation.data?.url) return <a href={mutation.data.url} target="_blank" rel="noreferrer" className="text-meskel-deep hover:underline">Open</a>;
+  if (mutation.data?.url) return <a href={mutation.data.url} target="_blank" rel="noreferrer" className="text-navy hover:underline">Open</a>;
   return <button onClick={() => mutation.mutate()} className="text-sm text-ink-faint hover:text-ink">{t("hr.payslip")}</button>;
 }

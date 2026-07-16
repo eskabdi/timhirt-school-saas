@@ -17,7 +17,7 @@ export function LanguageSwitcher() {
       aria-label="Language"
       value={i18n.resolvedLanguage}
       onChange={(e) => change(e.target.value as AppLocale)}
-      className="rounded-card border border-line bg-chalk-raised px-2 py-1.5 text-sm"
+      className="rounded-control border border-line bg-card px-2 py-1.5 text-sm"
     >
       {SUPPORTED_LOCALES.map((l) => <option key={l} value={l}>{LABELS[l]}</option>)}
     </select>

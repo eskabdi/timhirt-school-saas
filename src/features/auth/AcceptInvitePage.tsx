@@ -48,10 +48,10 @@ export function AcceptInvitePage() {
   if (hasSession === null) return null;
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-chalk px-4">
+    <div className="flex min-h-screen items-center justify-center bg-page px-4">
       <div className="absolute right-4 top-4"><LanguageSwitcher /></div>
-      <div className="w-full max-w-sm rounded-card border border-line bg-chalk-raised p-8">
-        <h1 className="mb-1 font-display text-2xl font-bold">{t("auth.acceptInvite.title")}</h1>
+      <div className="w-full max-w-sm rounded-panel border border-line bg-card p-8 shadow-lg">
+        <h1 className="mb-1 font-display text-2xl font-bold text-navy">{t("auth.acceptInvite.title")}</h1>
         {!hasSession ? (
           <p className="mt-4 text-sm text-danger">{t("auth.acceptInvite.invalidLink")}</p>
         ) : (

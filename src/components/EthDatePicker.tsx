@@ -1,6 +1,9 @@
 // ============================================================================
 // <EthDatePicker /> (§17.4) — Ethiopian-first date picker.
-// 13-month grid (12 × 30 + Pagume 5/6 by leap rule ey % 4 === 3).
+// 13-month grid (12 × 30 + Pagume 5/6 by leap rule ey % 4 === 3), aligned to
+// the real day-of-week (via the Gregorian equivalent's getUTCDay() — JDN-based
+// conversion preserves the actual weekday regardless of calendar system, so
+// no separate day-of-week math is needed in the Ethiopian engine itself).
 // Emits a GREGORIAN Date to forms — Zod, PostgREST, and the DB never see EC
 // values (canonical storage rule §17.2). Footer shows the live GC equivalent.
 // Keyboard + screen-reader accessible.
@@ -19,13 +22,23 @@ interface Props {
   id?: string;
 }
 
+// Fixed English weekday initials regardless of active locale, matching the
+// reference design — there's no standard single-letter Amharic/Afaan Oromoo
+// weekday abbreviation to fall back on without risking an invented one.
+const WEEKDAYS = ["S", "M", "T", "W", "T", "F", "S"];
+
 export function EthDatePicker({ value, onChange, geez = false, id }: Props) {
   const { t } = useTranslation("calendar");
   const months = t("months", { returnObjects: true }) as string[];
   const initial: Eth = value ? toEthiopian(value) : todayEthiopian();
   const [view, setView] = useState<{ year: number; month: number }>({ year: initial.year, month: initial.month });
   const selected = value ? toEthiopian(value) : null;
+  const today = todayEthiopian();
 
+  const leadingBlanks = useMemo(
+    () => toGregorian({ year: view.year, month: view.month, day: 1 }).getUTCDay(),
+    [view],
+  );
   const days = useMemo(
     () => Array.from({ length: daysInEthMonth(view.year, view.month) }, (_, i) => i + 1),
     [view],
@@ -43,20 +56,26 @@ export function EthDatePicker({ value, onChange, geez = false, id }: Props) {
     : "";
 
   return (
-    <div id={id} className="w-72 rounded-card border border-line bg-chalk-raised p-3" role="group" aria-label={t("pickDate")}>
+    <div id={id} className="w-72 rounded-panel border border-line bg-card p-3 shadow-lg" role="group" aria-label={t("pickDate")}>
       <div className="mb-2 flex items-center justify-between">
         <button type="button" onClick={() => move(-1)} aria-label="Previous month"
-          className="rounded px-2 py-1 text-ink-faint hover:bg-chalk-sunken">‹</button>
-        <div className="text-sm font-semibold">
+          className="rounded-control px-2 py-1 text-ink-faint hover:bg-sidebar">‹</button>
+        <div className="font-display text-sm font-bold text-ink">
           {months[view.month - 1]} {geez ? toGeez(view.year) : view.year} {t("eraSuffix")}
         </div>
         <button type="button" onClick={() => move(1)} aria-label="Next month"
-          className="rounded px-2 py-1 text-ink-faint hover:bg-chalk-sunken">›</button>
+          className="rounded-control px-2 py-1 text-ink-faint hover:bg-sidebar">›</button>
       </div>
 
-      <div className="grid grid-cols-6 gap-1" role="grid">
+      <div className="grid grid-cols-7 gap-1 text-center text-xs font-medium text-ink-faint">
+        {WEEKDAYS.map((w, i) => <div key={i} className="py-1">{w}</div>)}
+      </div>
+
+      <div className="grid grid-cols-7 gap-1" role="grid">
+        {Array.from({ length: leadingBlanks }, (_, i) => <div key={`blank-${i}`} />)}
         {days.map((d) => {
           const isSelected = selected?.year === view.year && selected?.month === view.month && selected?.day === d;
+          const isToday = today.year === view.year && today.month === view.month && today.day === d;
           return (
             <button
               key={d}
@@ -65,8 +84,10 @@ export function EthDatePicker({ value, onChange, geez = false, id }: Props) {
               aria-selected={isSelected}
               onClick={() => onChange(toGregorian({ year: view.year, month: view.month, day: d }))}
               className={cn(
-                "h-9 rounded text-sm tabular-nums transition-colors",
-                isSelected ? "bg-meskel text-ink font-semibold" : "hover:bg-meskel-wash",
+                "flex h-9 w-9 items-center justify-center rounded-full text-sm tabular-nums transition-colors",
+                isSelected ? "bg-navy font-semibold text-white"
+                  : isToday ? "ring-1 ring-inset ring-navy text-ink hover:bg-navy-wash"
+                  : "text-ink hover:bg-navy-wash",
               )}
             >
               {geez ? toGeez(d) : d}

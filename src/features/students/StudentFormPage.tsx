@@ -33,7 +33,7 @@ export function StudentFormPage() {
 
   return (
     <Card className="max-w-xl">
-      <h1 className="mb-4 font-display text-xl font-bold">{t("students.add")}</h1>
+      <h1 className="mb-4 font-display text-xl font-bold text-ink">{t("students.add")}</h1>
       <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4" noValidate>
         <div className="grid grid-cols-2 gap-4">
           <Field label={t("students.firstName")} error={errors.first_name?.message}>
@@ -51,7 +51,7 @@ export function StudentFormPage() {
             render={({ field }) => <EthDatePicker value={field.value ?? null} onChange={field.onChange} />} />
         </Field>
         <Field label={t("students.gender")} error={errors.gender?.message}>
-          <select {...register("gender")} className="w-full rounded-card border border-line px-3 py-2 text-sm" required>
+          <select {...register("gender")} className="w-full rounded-control border border-line bg-card px-3 py-2 text-sm text-ink" required>
             <option value="">—</option>
             <option value="male">{t("students.male")}</option>
             <option value="female">{t("students.female")}</option>
@@ -59,7 +59,7 @@ export function StudentFormPage() {
           </select>
         </Field>
         <Field label={t("students.class")} error={errors.class_id?.message}>
-          <select {...register("class_id")} className="w-full rounded-card border border-line px-3 py-2 text-sm" required>
+          <select {...register("class_id")} className="w-full rounded-control border border-line bg-card px-3 py-2 text-sm text-ink" required>
             <option value="">—</option>
             {classes?.map((c) => <option key={c.id} value={c.id}>{c.name} {c.section}</option>)}
           </select>

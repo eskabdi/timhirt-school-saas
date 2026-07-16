@@ -30,13 +30,13 @@ export function DashboardShell() {
   const isSuperAdmin = profile?.role === "super_admin";
 
   return (
-    <div className="flex min-h-screen">
-      <aside className="flex w-60 flex-col border-r border-line bg-chalk-raised">
+    <div className="flex min-h-screen bg-page">
+      <aside className="flex w-60 flex-col border-r border-line bg-sidebar">
         <div className="border-b border-line px-5 py-4">
-          <h1 className="font-display text-xl font-bold">{t("app.name")}</h1>
+          <h1 className="font-display text-xl font-bold text-navy">{t("app.name")}</h1>
           <p className="text-xs text-ink-faint">{t("app.tagline")}</p>
         </div>
-        <nav className="flex-1 space-y-0.5 p-3">
+        <nav className="flex-1 space-y-1 p-3">
           {NAV.filter((n) =>
             (!profile || isSuperAdmin || n.roles.includes(profile.role))
             && (!n.module || isSuperAdmin || modules?.has(n.module)),
@@ -46,8 +46,8 @@ export function DashboardShell() {
               to={n.to}
               end={n.to === "/"}
               className={({ isActive }) =>
-                cn("block rounded-card px-3 py-2 text-sm",
-                   isActive ? "bg-meskel-wash font-semibold text-ink" : "text-ink-soft hover:bg-chalk-sunken")}
+                cn("block rounded-control px-3 py-2 text-sm transition-colors",
+                   isActive ? "bg-navy font-semibold text-white" : "text-ink-soft hover:bg-navy-wash")}
             >
               {t(n.key)}
             </NavLink>
@@ -59,7 +59,7 @@ export function DashboardShell() {
       </aside>
 
       <div className="flex flex-1 flex-col">
-        <header className="flex items-center justify-between border-b border-line bg-chalk-raised px-6 py-3">
+        <header className="flex items-center justify-between border-b border-line bg-card px-6 py-3">
           <div className="text-sm text-ink-faint">
             {t("dashboard.today")}: <span className="font-medium text-ink"><EthDate value={new Date()} /></span>
           </div>

@@ -3,8 +3,9 @@
 @tailwind utilities;
 
 @layer base {
-  body { @apply bg-chalk text-ink font-sans antialiased; }
-  :focus-visible { @apply outline-none ring-2 ring-meskel ring-offset-2 ring-offset-chalk; }
+  body { @apply bg-page text-ink font-sans antialiased; }
+  :focus-visible { @apply outline-none ring-2 ring-navy ring-offset-2 ring-offset-page; }
+  h1, h2, h3, h4 { @apply font-display font-bold; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }

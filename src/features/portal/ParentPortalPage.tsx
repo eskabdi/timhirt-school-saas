@@ -16,12 +16,12 @@ export function ParentPortalPage() {
   });
   return (
     <div className="space-y-4">
-      <h1 className="font-display text-2xl font-bold">My children</h1>
+      <h1 className="font-display text-2xl font-bold text-ink">My children</h1>
       <div className="grid gap-3 md:grid-cols-2">
         {children?.map((c) => (
           <Link key={c.student_id} to={`/portal/child/${c.student_id}`}>
-            <Card className="hover:border-meskel">
-              <p className="font-medium">{(c.students as any)?.first_name} {(c.students as any)?.last_name}</p>
+            <Card className="hover:border-navy">
+              <p className="font-medium text-ink">{(c.students as any)?.first_name} {(c.students as any)?.last_name}</p>
               <p className="text-sm text-ink-faint">{(c.students as any)?.class?.name} {(c.students as any)?.class?.section}</p>
             </Card>
           </Link>

@@ -27,19 +27,19 @@ export function AdmissionsKanbanPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="font-display text-2xl font-bold">Admissions</h1>
+      <h1 className="font-display text-2xl font-bold text-ink">Admissions</h1>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
         {STAGES.map((stage) => (
           <div key={stage} className="space-y-2">
             <h2 className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{STAGE_LABEL[stage]}</h2>
             {apps?.filter((a) => a.stage === stage).map((a) => (
               <Card key={a.id} className="space-y-1 p-3">
-                <p className="text-sm font-medium">{a.applicant_name}</p>
+                <p className="text-sm font-medium text-ink">{a.applicant_name}</p>
                 <p className="text-xs text-ink-faint"><EthDate value={a.date_of_birth} /></p>
                 <div className="flex gap-1 pt-1">
                   {STAGES.filter((s) => s !== stage).map((s) => (
                     <button key={s} onClick={() => move.mutate({ id: a.id, stage: s })}
-                      className="rounded bg-chalk-sunken px-1.5 py-0.5 text-[10px] text-ink-faint hover:bg-line">
+                      className="rounded-control bg-sidebar px-1.5 py-0.5 text-[10px] text-ink-faint hover:bg-line">
                       → {STAGE_LABEL[s]}
                     </button>
                   ))}

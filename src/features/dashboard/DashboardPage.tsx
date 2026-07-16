@@ -5,12 +5,15 @@ import { supabase } from "@/lib/supabase";
 import { qk } from "@/lib/queryKeys";
 import { useSession } from "@/features/auth/useSession";
 import { Card } from "@/components/ui/Card";
+import { cn } from "@/lib/utils";
 
-function StatCard({ label, value }: { label: string; value: string | number }) {
+// Hero variant reserved for the single most important number on a screen —
+// here, today's attendance. Not every stat gets this treatment.
+function StatCard({ label, value, hero = false }: { label: string; value: string | number; hero?: boolean }) {
   return (
-    <Card>
-      <p className="text-xs font-medium uppercase tracking-wide text-ink-faint">{label}</p>
-      <p className="mt-2 font-display text-3xl font-bold">{value}</p>
+    <Card className={cn(hero && "border-navy bg-navy text-white")}>
+      <p className={cn("text-xs font-medium uppercase tracking-wide", hero ? "text-white/70" : "text-ink-faint")}>{label}</p>
+      <p className="mt-2 font-display text-3xl font-bold tabular-nums">{value}</p>
     </Card>
   );
 }
@@ -41,12 +44,12 @@ export function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="font-display text-2xl font-bold">
+      <h1 className="font-display text-2xl font-bold text-ink">
         {t("dashboard.welcome")}, {profile?.full_name}
       </h1>
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         <StatCard label={t("dashboard.studentsCard")} value={data?.students ?? "—"} />
-        <StatCard label={t("dashboard.attendanceCard")} value={data?.attendanceToday ?? "—"} />
+        <StatCard label={t("dashboard.attendanceCard")} value={data?.attendanceToday ?? "—"} hero />
         <StatCard label={t("dashboard.payrollCard")} value="—" />
         <StatCard label={t("dashboard.feesCard")} value="—" />
       </div>

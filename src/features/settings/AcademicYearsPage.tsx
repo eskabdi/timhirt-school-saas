@@ -5,7 +5,10 @@ import { useSession } from "@/features/auth/useSession";
 import { toEthiopian, toGregorian } from "@/lib/ethiopian-date";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { Badge } from "@/components/ui/Badge";
 import { EthDate } from "@/components/EthDate";
+
+const YEAR_STATUS_TONE = { active: "ok", closed: "neutral", draft: "navy" } as const;
 
 export function AcademicYearsPage() {
   const { profile } = useSession();
@@ -34,21 +37,21 @@ export function AcademicYearsPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="font-display text-2xl font-bold">Academic years</h1>
+      <h1 className="font-display text-2xl font-bold text-ink">Academic years</h1>
       <Card className="flex items-end gap-3">
         <div>
           <label className="mb-1 block text-xs font-medium uppercase text-ink-faint">EC Year</label>
           <input type="number" value={ecYear} onChange={(e) => setEcYear(Number(e.target.value))}
-            className="w-28 rounded-card border border-line px-3 py-2 text-sm" />
+            className="w-28 rounded-control border border-line bg-card px-3 py-2 text-sm text-ink" />
         </div>
         <Button onClick={() => create.mutate()} disabled={create.isPending}>Create year (GC span auto-filled)</Button>
       </Card>
       <div className="space-y-2">
         {years?.map((y) => (
           <Card key={y.id} className="flex items-center justify-between">
-            <span className="font-medium">{y.ec_year} E.C.</span>
+            <span className="font-medium text-ink">{y.ec_year} E.C.</span>
             <span className="text-sm text-ink-faint"><EthDate value={y.starts_on} /> — <EthDate value={y.ends_on} /></span>
-            <span className="text-sm capitalize">{y.status}</span>
+            <Badge tone={YEAR_STATUS_TONE[y.status as keyof typeof YEAR_STATUS_TONE] ?? "neutral"}>{y.status}</Badge>
           </Card>
         ))}
       </div>
