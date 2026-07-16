@@ -30,13 +30,16 @@ see blueprint §21.9 for the reasoning.
 
 ```
 supabase/
-  migrations/     14 migrations: core → academic → attendance/fees → HR/payroll
+  migrations/     17 migrations: core → academic → attendance/fees → HR/payroll
                   → RLS → storage → extended modules → extended RLS → storage
                   → security hardening → base table grants → RLS recursion fix
                   → column-level grants → integration credentials (Vault)
+                  → settlement enum-cast fix → module permission matrix
+                  → registration stepper fields
   functions/      run-payroll · process-fee-payment · chapa-webhook
                   onboard-tenant · invite-tenant-admin · generate-payslip-pdf
-                  submit-admission · verify-id · manage-integration-credentials
+                  submit-admission · upload-admission-document · verify-id
+                  manage-integration-credentials
                   _shared/  (security middleware + Ethiopian date engine)
   seed.sql        staging test-account scaffold (refuses to run in prod)
 src/
@@ -56,7 +59,7 @@ docs/
 npm install
 cp .env.example .env          # fill in your Supabase project URL/anon key
 supabase start                # local Postgres + Auth + Storage (Docker)
-supabase db push               # apply all 14 migrations
+supabase db push               # apply all 17 migrations
 npm run dev                    # http://localhost:5173
 ```
 
