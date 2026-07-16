@@ -1,6 +1,14 @@
 {
   "app": { "name": "Timhirt", "tagline": "School management for Ethiopia" },
-  "nav": { "dashboard": "Dashboard", "students": "Students", "attendance": "Attendance", "hr": "HR & Payroll", "leave": "Leave", "payroll": "Payroll", "signOut": "Sign out" },
+  "nav": { "dashboard": "Dashboard", "students": "Students", "attendance": "Attendance", "hr": "HR & Payroll", "leave": "Leave", "payroll": "Payroll", "signOut": "Sign out",
+    "admissions": "Admissions", "idCards": "ID Cards", "attendanceOverview": "Attendance Overview", "timetable": "Timetable", "gradebook": "Gradebook", "assignments": "Assignments",
+    "feeStructures": "Fee Structures", "invoices": "Invoices", "inventory": "Inventory", "reports": "Reports",
+    "communication": "Communication", "hostel": "Hostel", "discipline": "Discipline", "clinic": "Clinic", "library": "Library", "transport": "Transport", "events": "Events",
+    "employees": "Employees", "myTimetable": "My Timetable", "myLeave": "My Leave", "myPayslips": "My Payslips",
+    "classes": "Classes", "subjects": "Subjects", "academicYears": "Academic Years", "gradingScales": "Grading Scales", "branding": "Branding", "users": "Users", "calendarSettings": "Calendar",
+    "portal": "Portal", "grades": "Grades", "makePayment": "Make Payment",
+    "section": { "academics": "Academics", "finance": "Finance", "operations": "Operations", "hr": "HR & Payroll", "mySpace": "My Space", "settings": "Settings" }
+  },
   "auth": { "email": "Email", "password": "Password", "signIn": "Sign in", "signingIn": "Signing in…", "invalid": "Email or password is incorrect",
     "acceptInvite": { "title": "Set your password", "subtitle": "Welcome — choose a password to finish setting up your account.", "newPassword": "New password", "confirmPassword": "Confirm password", "submit": "Set password & continue", "submitting": "Setting password…", "mismatch": "Passwords do not match", "tooShort": "Password must be at least 8 characters", "invalidLink": "This invite link is invalid or has expired. Ask your school administrator to resend it." } },
   "students": { "title": "Students", "add": "Add student", "search": "Search by name or admission no.", "admissionNo": "Admission no.", "firstName": "First name", "lastName": "Last name", "dob": "Date of birth", "gender": "Gender", "class": "Class", "status": "Status", "empty": "No students yet. Add the first student to begin.", "created": "Student added", "male": "Male", "female": "Female", "other": "Other", "save": "Save student", "cancel": "Cancel" },

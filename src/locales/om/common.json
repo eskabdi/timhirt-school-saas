@@ -1,6 +1,14 @@
 {
   "app": { "name": "Timhirt", "tagline": "Sirna bulchiinsa mana barumsaa" },
-  "nav": { "dashboard": "Gabatee", "students": "Barattoota", "attendance": "Hordoffii", "hr": "HR fi Mindaa", "leave": "Eeyyama", "payroll": "Mindaa", "signOut": "Ba'i" },
+  "nav": { "dashboard": "Gabatee", "students": "Barattoota", "attendance": "Hordoffii", "hr": "HR fi Mindaa", "leave": "Eeyyama", "payroll": "Mindaa", "signOut": "Ba'i",
+    "admissions": "Galmee", "idCards": "Waraqaa Eenyummaa", "attendanceOverview": "Ilaalcha Hordoffii", "timetable": "Sagantaa", "gradebook": "Galmee Qabxii", "assignments": "Hojii Manaa",
+    "feeStructures": "Caasaa Kaffaltii", "invoices": "Waraqaa Kaffaltii", "inventory": "Meeshaalee", "reports": "Gabaasa",
+    "communication": "Walqunnamtii", "hostel": "Iddoo Jireenyaa", "discipline": "Amala", "clinic": "Kilinika", "library": "Mana Kitaabaa", "transport": "Geejjiba", "events": "Sagantaalee",
+    "employees": "Hojjettoota", "myTimetable": "Sagantaa Koo", "myLeave": "Eeyyama Koo", "myPayslips": "Waraqaa Mindaa Koo",
+    "classes": "Kutaalee", "subjects": "Gosoota Barnootaa", "academicYears": "Waggoota Barnootaa", "gradingScales": "Madaallii Qabxii", "branding": "Moggaasa Dhaabbataa", "users": "Fayyadamtoota", "calendarSettings": "Kalorii",
+    "portal": "Portal", "grades": "Qabxiiwwan", "makePayment": "Kaffaltii Godhi",
+    "section": { "academics": "Barnoota", "finance": "Maallaqa", "operations": "Tajaajila", "hr": "HR fi Mindaa", "mySpace": "Iddoo Koo", "settings": "Qindaa'ina" }
+  },
   "auth": { "email": "Imeelii", "password": "Jecha darbii", "signIn": "Seeni", "signingIn": "Seenaa jira…", "invalid": "Imeeliin ykn jechi darbii sirrii miti" },
   "students": { "title": "Barattoota", "add": "Barataa dabali", "search": "Maqaan ykn lakkoofsa galmeen barbaadi", "admissionNo": "Lakk. galmee", "firstName": "Maqaa", "lastName": "Maqaa abbaa", "dob": "Guyyaa dhalootaa", "gender": "Saala", "class": "Kutaa", "status": "Haala", "empty": "Ammatti barataan hin jiru. Barataa jalqabaa dabali.", "created": "Barataan dabalameera", "male": "Dhiira", "female": "Dubara", "other": "Kan biraa", "save": "Barataa olkaa'i", "cancel": "Haqi" },
   "attendance": { "title": "Hordoffii", "date": "Guyyaa", "class": "Kutaa", "present": "Argameera", "absent": "Hafeera", "late": "Turera", "excused": "Eeyyamaan", "save": "Hordoffii olkaa'i", "saved": "Hordoffiin olkaa'ameera", "holidayBlocked": "Guyyaan kun ayyaana — hordoffiin cufaadha.", "empty": "Kutaa kana keessa barataan hin jiru." },

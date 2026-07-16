@@ -1,6 +1,14 @@
 {
   "app": { "name": "ትምህርት", "tagline": "የትምህርት ቤት አስተዳደር ሥርዓት" },
-  "nav": { "dashboard": "ዳሽቦርድ", "students": "ተማሪዎች", "attendance": "ክትትል", "hr": "ሰው ኃይል እና ደመወዝ", "leave": "ፈቃድ", "payroll": "ደመወዝ", "signOut": "ውጣ" },
+  "nav": { "dashboard": "ዳሽቦርድ", "students": "ተማሪዎች", "attendance": "ክትትል", "hr": "ሰው ኃይል እና ደመወዝ", "leave": "ፈቃድ", "payroll": "ደመወዝ", "signOut": "ውጣ",
+    "admissions": "ምዝገባ", "idCards": "መታወቂያ ካርድ", "attendanceOverview": "የክትትል አጠቃላይ እይታ", "timetable": "መርሃ ግብር", "gradebook": "ውጤት መዝገብ", "assignments": "ስራዎች",
+    "feeStructures": "የክፍያ አወቃቀር", "invoices": "ደረሰኞች", "inventory": "እቃ ንብረት", "reports": "ሪፖርቶች",
+    "communication": "ግንኙነት", "hostel": "ማደሪያ", "discipline": "ስነ ስርዓት", "clinic": "ክሊኒክ", "library": "ቤተ መጻሕፍት", "transport": "ትራንስፖርት", "events": "ዝግጅቶች",
+    "employees": "ሠራተኞች", "myTimetable": "የእኔ መርሃ ግብር", "myLeave": "የእኔ ፈቃድ", "myPayslips": "የእኔ ደመወዝ ወረቀት",
+    "classes": "ክፍሎች", "subjects": "የትምህርት ዓይነቶች", "academicYears": "የትምህርት ዓመታት", "gradingScales": "የውጤት መለኪያ", "branding": "ብራንዲንግ", "users": "ተጠቃሚዎች", "calendarSettings": "የቀን መቁጠሪያ",
+    "portal": "መግቢያ", "grades": "ውጤቶች", "makePayment": "ክፍያ ፈጽም",
+    "section": { "academics": "ትምህርታዊ", "finance": "ፋይናንስ", "operations": "አገልግሎቶች", "hr": "ሰው ኃይል እና ደመወዝ", "mySpace": "የእኔ ገጽ", "settings": "ቅንብሮች" }
+  },
   "auth": { "email": "ኢሜይል", "password": "የይለፍ ቃል", "signIn": "ግባ", "signingIn": "በመግባት ላይ…", "invalid": "ኢሜይል ወይም የይለፍ ቃል ትክክል አይደለም" },
   "students": { "title": "ተማሪዎች", "add": "ተማሪ ጨምር", "search": "በስም ወይም በመግቢያ ቁጥር ፈልግ", "admissionNo": "የመግቢያ ቁጥር", "firstName": "ስም", "lastName": "የአባት ስም", "dob": "የትውልድ ቀን", "gender": "ፆታ", "class": "ክፍል", "status": "ሁኔታ", "empty": "እስካሁን ተማሪ የለም። የመጀመሪያውን ተማሪ ይጨምሩ።", "created": "ተማሪ ተጨምሯል", "male": "ወንድ", "female": "ሴት", "other": "ሌላ", "save": "ተማሪ አስቀምጥ", "cancel": "ሰርዝ" },
   "attendance": { "title": "ክትትል", "date": "ቀን", "class": "ክፍል", "present": "ተገኝቷል", "absent": "ቀርቷል", "late": "ዘግይቷል", "excused": "በፈቃድ", "save": "ክትትል አስቀምጥ", "saved": "ክትትል ተቀምጧል", "holidayBlocked": "ይህ ቀን በዓል ነው — ክትትል ዝግ ነው።", "empty": "በዚህ ክፍል ተማሪ የለም።" },
