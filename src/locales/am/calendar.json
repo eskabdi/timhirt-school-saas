@@ -3,5 +3,6 @@
   "eraSuffix": "ዓ.ም",
   "gregorianEquivalent": "= {date} እ.ኤ.አ",
   "today": "ዛሬ",
-  "pickDate": "ቀን ይምረጡ"
+  "pickDate": "ቀን ይምረጡ",
+  "placeholder": "ቀን ይምረጡ (ዓ.ም)"
 }

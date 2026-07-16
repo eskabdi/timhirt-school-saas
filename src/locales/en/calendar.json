@@ -3,5 +3,6 @@
   "eraSuffix": "E.C.",
   "gregorianEquivalent": "= {date} G.C.",
   "today": "Today",
-  "pickDate": "Pick a date"
+  "pickDate": "Pick a date",
+  "placeholder": "Select date (EC)"
 }
