@@ -31,10 +31,10 @@ export function GradebookPage() {
     <div className="space-y-4">
       <h1 className="font-display text-2xl font-bold">Gradebook</h1>
       <div className="flex gap-3">
-        <select value={examId} onChange={(e) => setExamId(e.target.value)} className="rounded-card border border-line px-3 py-2 text-sm">
+        <select value={examId} onChange={(e) => setExamId(e.target.value)} className="rounded-control border border-line px-3 py-2 text-sm">
           <option value="">Exam</option>{exams?.map((e) => <option key={e.id} value={e.id}>{e.name_i18n?.en} (/{e.max_score})</option>)}
         </select>
-        <select value={subjectId} onChange={(e) => setSubjectId(e.target.value)} className="rounded-card border border-line px-3 py-2 text-sm">
+        <select value={subjectId} onChange={(e) => setSubjectId(e.target.value)} className="rounded-control border border-line px-3 py-2 text-sm">
           <option value="">Subject</option>{subjects?.map((s) => <option key={s.id} value={s.id}>{s.name_i18n?.en}</option>)}
         </select>
       </div>
@@ -46,7 +46,7 @@ export function GradebookPage() {
                 <tr key={s.id}>
                   <td className="py-2 font-medium">{s.first_name} {s.last_name}</td>
                   <td className="py-2">
-                    <input type="number" min={0} className="w-20 rounded-card border border-line px-2 py-1 text-sm"
+                    <input type="number" min={0} className="w-20 rounded-control border border-line px-2 py-1 text-sm"
                       value={scores[s.id] ?? ""} onChange={(e) => setScores((sc) => ({ ...sc, [s.id]: Number(e.target.value) }))} />
                   </td>
                 </tr>

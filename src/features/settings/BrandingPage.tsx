@@ -31,7 +31,7 @@ export function BrandingPage() {
       <h1 className="font-display text-2xl font-bold">Branding</h1>
       <Card className="max-w-sm space-y-3">
         <label className="block text-xs font-medium uppercase text-ink-faint">Primary color</label>
-        <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="h-10 w-20 rounded-card border border-line" />
+        <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="h-10 w-20 rounded-control border border-line" />
         <Button onClick={() => save.mutate()} disabled={save.isPending}>Save</Button>
       </Card>
     </div>

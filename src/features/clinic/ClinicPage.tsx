@@ -63,18 +63,18 @@ export function ClinicPage() {
       {open && (
         <Card className="max-w-xl space-y-3">
           <Field label="Student">
-            <select value={studentId} onChange={(e) => setStudentId(e.target.value)} className="w-full rounded-card border border-line px-3 py-2 text-sm">
+            <select value={studentId} onChange={(e) => setStudentId(e.target.value)} className="w-full rounded-control border border-line px-3 py-2 text-sm">
               <option value="">—</option>
               {students?.map((s) => <option key={s.id} value={s.id}>{s.first_name} {s.last_name}</option>)}
             </select>
           </Field>
           <Field label="Complaint">
             <textarea value={complaint} onChange={(e) => setComplaint(e.target.value)} maxLength={500} rows={2}
-              className="w-full rounded-card border border-line px-3 py-2 text-sm" />
+              className="w-full rounded-control border border-line px-3 py-2 text-sm" />
           </Field>
           <Field label="Treatment given">
             <textarea value={treatment} onChange={(e) => setTreatment(e.target.value)} maxLength={1000} rows={2}
-              className="w-full rounded-card border border-line px-3 py-2 text-sm" />
+              className="w-full rounded-control border border-line px-3 py-2 text-sm" />
           </Field>
           <Button onClick={() => create.mutate()} disabled={!studentId || !complaint}>Save</Button>
         </Card>

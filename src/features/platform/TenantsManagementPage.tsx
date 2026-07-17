@@ -19,6 +19,10 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Field } from "@/components/ui/Field";
 import { Card } from "@/components/ui/Card";
+import { Panel } from "@/components/ui/Panel";
+import { Badge } from "@/components/ui/Badge";
+
+const STATUS_TONE = { active: "ok", suspended: "danger" } as const;
 
 const tenantSchema = z.object({
   name: z.string().trim().min(2).max(120),
@@ -62,7 +66,7 @@ function NewTenantForm({ onDone }: { onDone: () => void }) {
 
   return (
     <Card className="max-w-xl">
-      <h2 className="mb-4 font-display text-lg font-bold">New tenant</h2>
+      <h2 className="mb-4 font-display text-lg font-bold text-ink">New tenant</h2>
       <form
         onSubmit={handleSubmit((v) => create.mutate(v))}
         className="space-y-4"
@@ -89,7 +93,7 @@ function NewTenantForm({ onDone }: { onDone: () => void }) {
           <Input type="email" maxLength={254} {...register("admin_email")} />
         </Field>
         <Field label="Default locale" error={errors.default_locale?.message}>
-          <select {...register("default_locale")} className="w-full rounded-card border border-line px-3 py-2 text-sm">
+          <select {...register("default_locale")} className="w-full rounded-control border border-line bg-card px-3 py-2 text-sm text-ink">
             <option value="am">Amharic</option>
             <option value="en">English</option>
             <option value="om">Afaan Oromoo</option>
@@ -137,15 +141,15 @@ export function TenantsManagementPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="font-display text-2xl font-bold">Tenants</h1>
+        <h1 className="font-display text-2xl font-bold text-ink">Tenants</h1>
         {!creating && <Button onClick={() => setCreating(true)}>New tenant</Button>}
       </div>
 
       {creating && <NewTenantForm onDone={() => setCreating(false)} />}
 
-      <div className="overflow-hidden rounded-card border border-line">
+      <Panel>
         <table className="w-full text-sm">
-          <thead className="bg-chalk-sunken text-left text-xs uppercase text-ink-faint">
+          <thead className="bg-sidebar text-left text-xs uppercase text-ink-faint">
             <tr>
               <th className="px-4 py-2">Name</th>
               <th className="px-4 py-2">Slug</th>
@@ -169,10 +173,12 @@ export function TenantsManagementPage() {
                         if (e.key === "Escape") setEditingId(null);
                       }}
                     />
-                  ) : <Link to={`/platform/tenants/${t.id}`} className="hover:underline">{t.name}</Link>}
+                  ) : <Link to={`/platform/tenants/${t.id}`} className="text-navy hover:underline">{t.name}</Link>}
                 </td>
                 <td className="px-4 py-2 text-ink-faint">{t.slug}</td>
-                <td className="px-4 py-2 capitalize">{t.status}</td>
+                <td className="px-4 py-2">
+                  <Badge tone={STATUS_TONE[t.status as keyof typeof STATUS_TONE] ?? "neutral"}>{t.status}</Badge>
+                </td>
                 <td className="px-4 py-2 text-ink-faint"><EthDate value={t.created_at.slice(0, 10)} /></td>
                 <td className="px-4 py-2 text-right">
                   {editingId === t.id ? (
@@ -207,7 +213,7 @@ export function TenantsManagementPage() {
             ))}
           </tbody>
         </table>
-      </div>
+      </Panel>
     </div>
   );
 }

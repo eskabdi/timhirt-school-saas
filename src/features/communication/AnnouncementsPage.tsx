@@ -42,11 +42,11 @@ export function AnnouncementsPage() {
         <Field label="Title"><Input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={150} /></Field>
         <Field label="Message">
           <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={3} maxLength={3000}
-            className="w-full rounded-card border border-line px-3 py-2 text-sm" />
+            className="w-full rounded-control border border-line px-3 py-2 text-sm" />
         </Field>
         <Field label="Audience">
           <select value={audience} onChange={(e) => setAudience(e.target.value as typeof audience)}
-            className="w-full rounded-card border border-line px-3 py-2 text-sm">
+            className="w-full rounded-control border border-line px-3 py-2 text-sm">
             <option value="all">All</option><option value="staff">Staff</option><option value="parents">Parents</option>
           </select>
         </Field>

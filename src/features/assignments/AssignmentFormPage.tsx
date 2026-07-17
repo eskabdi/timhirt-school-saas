@@ -38,12 +38,12 @@ export function AssignmentFormPage() {
       <h1 className="font-display text-xl font-bold">New assignment</h1>
       <Field label="Title"><Input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={150} required /></Field>
       <Field label="Class">
-        <select value={classId} onChange={(e) => setClassId(e.target.value)} className="w-full rounded-card border border-line px-3 py-2 text-sm">
+        <select value={classId} onChange={(e) => setClassId(e.target.value)} className="w-full rounded-control border border-line px-3 py-2 text-sm">
           <option value="">—</option>{classes?.map((c) => <option key={c.id} value={c.id}>{c.name} {c.section}</option>)}
         </select>
       </Field>
       <Field label="Subject">
-        <select value={subjectId} onChange={(e) => setSubjectId(e.target.value)} className="w-full rounded-card border border-line px-3 py-2 text-sm">
+        <select value={subjectId} onChange={(e) => setSubjectId(e.target.value)} className="w-full rounded-control border border-line px-3 py-2 text-sm">
           <option value="">—</option>{subjects?.map((s) => <option key={s.id} value={s.id}>{s.name_i18n?.en}</option>)}
         </select>
       </Field>

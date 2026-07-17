@@ -44,32 +44,32 @@ export function DisciplineIncidentsPage() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["discipline"] }); setOpen(false); setDescription(""); },
   });
 
-  const severityColor = { minor: "text-ink-faint", moderate: "text-warn", major: "text-danger" };
+  const severityColor = { minor: "text-ink-faint", moderate: "text-late", major: "text-danger" };
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="font-display text-2xl font-bold">Discipline</h1>
+        <h1 className="font-display text-2xl font-bold text-ink">Discipline</h1>
         <Button onClick={() => setOpen((v) => !v)}>{open ? "Cancel" : "Log incident"}</Button>
       </div>
 
       {open && (
         <Card className="max-w-xl space-y-3">
           <Field label="Student">
-            <select value={studentId} onChange={(e) => setStudentId(e.target.value)} className="w-full rounded-card border border-line px-3 py-2 text-sm">
+            <select value={studentId} onChange={(e) => setStudentId(e.target.value)} className="w-full rounded-control border border-line bg-card px-3 py-2 text-sm text-ink">
               <option value="">—</option>
               {students?.map((s) => <option key={s.id} value={s.id}>{s.first_name} {s.last_name}</option>)}
             </select>
           </Field>
           <Field label="Date"><EthDatePicker value={date} onChange={setDate} /></Field>
           <Field label="Severity">
-            <select value={severity} onChange={(e) => setSeverity(e.target.value as typeof severity)} className="w-full rounded-card border border-line px-3 py-2 text-sm">
+            <select value={severity} onChange={(e) => setSeverity(e.target.value as typeof severity)} className="w-full rounded-control border border-line bg-card px-3 py-2 text-sm text-ink">
               {SEVERITIES.map((s) => <option key={s} value={s} className="capitalize">{s}</option>)}
             </select>
           </Field>
           <Field label="Description">
             <textarea value={description} onChange={(e) => setDescription(e.target.value)} maxLength={2000} rows={3}
-              className="w-full rounded-card border border-line px-3 py-2 text-sm" />
+              className="w-full rounded-control border border-line bg-card px-3 py-2 text-sm text-ink" />
           </Field>
           <Button onClick={() => create.mutate()} disabled={!studentId || !description || create.isPending}>Save</Button>
         </Card>
@@ -79,7 +79,7 @@ export function DisciplineIncidentsPage() {
         {incidents?.map((i) => (
           <Card key={i.id} className="flex items-center justify-between">
             <div>
-              <p className="font-medium">{(i.students as any)?.first_name} {(i.students as any)?.last_name}</p>
+              <p className="font-medium text-ink">{(i.students as any)?.first_name} {(i.students as any)?.last_name}</p>
               <p className="text-sm text-ink-faint">{i.description.slice(0, 80)}</p>
             </div>
             <div className="text-right text-sm">

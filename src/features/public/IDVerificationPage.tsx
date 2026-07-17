@@ -31,15 +31,15 @@ export function IDVerificationPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-chalk px-4">
+    <div className="flex min-h-screen items-center justify-center bg-page px-4">
       <Card className="w-full max-w-sm text-center">
-        <h1 className="mb-4 font-display text-xl font-bold">Verify ID / Certificate</h1>
+        <h1 className="mb-4 font-display text-xl font-bold text-ink">Verify ID / Certificate</h1>
         <div className="flex gap-2">
           <Input value={code} onChange={(e) => setCode(e.target.value)} placeholder="Verification code" maxLength={64} />
           <Button onClick={verify} disabled={busy || !code}>{busy ? "…" : "Check"}</Button>
         </div>
         {result && (
-          <div className="mt-4 rounded-card bg-chalk-sunken p-4 text-sm">
+          <div className="mt-4 rounded-panel bg-sidebar p-4 text-sm">
             {result.valid ? (
               <p className="text-ok">✓ Valid {result.subject_type} record — {result.tenant_name}</p>
             ) : (

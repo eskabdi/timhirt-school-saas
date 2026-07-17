@@ -14,7 +14,11 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Field } from "@/components/ui/Field";
 import { Card } from "@/components/ui/Card";
+import { Panel } from "@/components/ui/Panel";
+import { Badge } from "@/components/ui/Badge";
 import { cn } from "@/lib/utils";
+
+const STATUS_TONE = { active: "ok", suspended: "danger" } as const;
 
 const inviteSchema = z.object({
   admin_email: z.string().email().max(254),
@@ -51,7 +55,7 @@ function InviteAdminForm({ tenantId, onDone }: { tenantId: string; onDone: () =>
 
   return (
     <Card className="max-w-md">
-      <h2 className="mb-4 font-display text-lg font-bold">Invite admin</h2>
+      <h2 className="mb-4 font-display text-lg font-bold text-ink">Invite admin</h2>
       <form onSubmit={handleSubmit((v) => invite.mutate(v))} className="space-y-4" noValidate>
         <Field label="Full name" error={errors.admin_full_name?.message}>
           <Input maxLength={120} {...register("admin_full_name")} />
@@ -60,7 +64,7 @@ function InviteAdminForm({ tenantId, onDone }: { tenantId: string; onDone: () =>
           <Input type="email" maxLength={254} {...register("admin_email")} />
         </Field>
         <Field label="Locale" error={errors.default_locale?.message}>
-          <select {...register("default_locale")} className="w-full rounded-card border border-line px-3 py-2 text-sm">
+          <select {...register("default_locale")} className="w-full rounded-control border border-line bg-card px-3 py-2 text-sm text-ink">
             <option value="am">Amharic</option>
             <option value="en">English</option>
             <option value="om">Afaan Oromoo</option>
@@ -178,12 +182,12 @@ export function TenantDetailPage() {
 
       <Card>
         <div className="flex items-center justify-between">
-          <h1 className="font-display text-2xl font-bold">{tenant.name}</h1>
-          <span className="rounded-full bg-chalk-sunken px-3 py-1 text-xs font-medium capitalize">{tenant.status}</span>
+          <h1 className="font-display text-2xl font-bold text-ink">{tenant.name}</h1>
+          <Badge tone={STATUS_TONE[tenant.status as keyof typeof STATUS_TONE] ?? "neutral"}>{tenant.status}</Badge>
         </div>
         <dl className="mt-4 grid grid-cols-2 gap-4 text-sm">
-          <div><dt className="text-ink-faint">Slug</dt><dd className="font-medium">{tenant.slug}</dd></div>
-          <div><dt className="text-ink-faint">Created</dt><dd className="font-medium"><EthDate value={tenant.created_at.slice(0, 10)} /></dd></div>
+          <div><dt className="text-ink-faint">Slug</dt><dd className="font-medium text-ink">{tenant.slug}</dd></div>
+          <div><dt className="text-ink-faint">Created</dt><dd className="font-medium text-ink"><EthDate value={tenant.created_at.slice(0, 10)} /></dd></div>
           <div>
             <dt className="text-ink-faint">Subscription tier</dt>
             <dd className="font-medium">
@@ -191,7 +195,7 @@ export function TenantDetailPage() {
                 value={tenant.tier_key}
                 disabled={setTier.isPending}
                 onChange={(e) => setTier.mutate(e.target.value)}
-                className="mt-1 rounded-card border border-line px-2 py-1 text-sm"
+                className="mt-1 rounded-control border border-line bg-card px-2 py-1 text-sm text-ink"
               >
                 {tiers?.map((t) => <option key={t.key} value={t.key}>{t.display_name}</option>)}
               </select>
@@ -201,14 +205,14 @@ export function TenantDetailPage() {
       </Card>
 
       <div>
-        <h2 className="mb-3 font-display text-lg font-bold">Modules</h2>
+        <h2 className="mb-3 font-display text-lg font-bold text-ink">Modules</h2>
         <p className="mb-3 text-sm text-ink-faint">
           Inherited from the {tiers?.find((t) => t.key === tenant.tier_key)?.display_name ?? tenant.tier_key} tier.
           Toggle a module to override it for this tenant only, or reset to go back to the tier default.
         </p>
-        <div className="overflow-hidden rounded-card border border-line">
+        <Panel>
           <table className="w-full text-sm">
-            <thead className="bg-chalk-sunken text-left text-xs uppercase text-ink-faint">
+            <thead className="bg-sidebar text-left text-xs uppercase text-ink-faint">
               <tr><th className="px-4 py-2">Module</th><th className="px-4 py-2">Enabled</th><th className="px-4 py-2" /></tr>
             </thead>
             <tbody className="divide-y divide-line">
@@ -217,7 +221,7 @@ export function TenantDetailPage() {
                 const effective = effectiveFor(m.key);
                 return (
                   <tr key={m.key}>
-                    <td className="px-4 py-2 font-medium">{m.display_name}</td>
+                    <td className="px-4 py-2 font-medium text-ink">{m.display_name}</td>
                     <td className="px-4 py-2">
                       <button
                         type="button"
@@ -225,8 +229,8 @@ export function TenantDetailPage() {
                         onClick={() => setOverride.mutate({ moduleKey: m.key, enabled: !effective })}
                         aria-pressed={effective}
                         className={cn(
-                          "inline-flex h-6 w-6 items-center justify-center rounded-card border transition-colors disabled:opacity-50",
-                          effective ? "border-meskel bg-meskel-wash text-ink" : "border-line text-ink-faint hover:bg-chalk-sunken",
+                          "inline-flex h-6 w-6 items-center justify-center rounded-control border transition-colors disabled:opacity-50",
+                          effective ? "border-navy bg-navy-wash text-navy" : "border-line text-ink-faint hover:bg-sidebar",
                         )}
                       >
                         {effective ? "✓" : ""}
@@ -248,12 +252,12 @@ export function TenantDetailPage() {
               })}
             </tbody>
           </table>
-        </div>
+        </Panel>
       </div>
 
       <div>
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="font-display text-lg font-bold">Admins</h2>
+          <h2 className="font-display text-lg font-bold text-ink">Admins</h2>
           {!inviting && <Button onClick={() => setInviting(true)}>Invite admin</Button>}
         </div>
 
@@ -263,17 +267,17 @@ export function TenantDetailPage() {
           </div>
         )}
 
-        <div className="overflow-hidden rounded-card border border-line">
+        <Panel>
           <table className="w-full text-sm">
-            <thead className="bg-chalk-sunken text-left text-xs uppercase text-ink-faint">
+            <thead className="bg-sidebar text-left text-xs uppercase text-ink-faint">
               <tr><th className="px-4 py-2">Name</th><th className="px-4 py-2">Email</th><th className="px-4 py-2">Locale</th></tr>
             </thead>
             <tbody className="divide-y divide-line">
               {admins?.map((a) => (
                 <tr key={a.id}>
-                  <td className="px-4 py-2 font-medium">{a.full_name}</td>
+                  <td className="px-4 py-2 font-medium text-ink">{a.full_name}</td>
                   <td className="px-4 py-2 text-ink-faint">{a.email}</td>
-                  <td className="px-4 py-2 uppercase">{a.locale}</td>
+                  <td className="px-4 py-2 uppercase text-ink">{a.locale}</td>
                 </tr>
               ))}
               {admins?.length === 0 && (
@@ -281,7 +285,7 @@ export function TenantDetailPage() {
               )}
             </tbody>
           </table>
-        </div>
+        </Panel>
       </div>
     </div>
   );

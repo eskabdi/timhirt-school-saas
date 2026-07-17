@@ -51,7 +51,7 @@ export function MyLeavePage() {
       <h1 className="font-display text-2xl font-bold">{t("nav.leave")}</h1>
       <Card className="max-w-lg space-y-3">
         <select value={leaveTypeId} onChange={(e) => setLeaveTypeId(e.target.value)}
-          className="w-full rounded-card border border-line px-3 py-2 text-sm">
+          className="w-full rounded-control border border-line px-3 py-2 text-sm">
           <option value="">Leave type</option>
           {leaveTypes?.map((lt) => <option key={lt.id} value={lt.id}>{lt.name_i18n?.en ?? lt.id}</option>)}
         </select>

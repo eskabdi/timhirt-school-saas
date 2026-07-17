@@ -3,6 +3,7 @@
 // one-off exceptions are set per-tenant on TenantDetailPage instead of here.
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { Panel } from "@/components/ui/Panel";
 import { cn } from "@/lib/utils";
 
 export function ModulesMatrixPage() {
@@ -55,15 +56,15 @@ export function ModulesMatrixPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="font-display text-2xl font-bold">Module matrix</h1>
+        <h1 className="font-display text-2xl font-bold text-ink">Module matrix</h1>
         <p className="text-sm text-ink-faint">
           Which modules each subscription tier includes. A tenant's tier is set on its detail page,
           where you can also override an individual module for that one tenant.
         </p>
       </div>
-      <div className="overflow-hidden rounded-card border border-line">
+      <Panel>
         <table className="w-full text-sm">
-          <thead className="bg-chalk-sunken text-left text-xs uppercase text-ink-faint">
+          <thead className="bg-sidebar text-left text-xs uppercase text-ink-faint">
             <tr>
               <th className="px-4 py-2">Module</th>
               {tiers?.map((t) => <th key={t.key} className="px-4 py-2 text-center">{t.display_name}</th>)}
@@ -72,7 +73,7 @@ export function ModulesMatrixPage() {
           <tbody className="divide-y divide-line">
             {modules?.map((m) => (
               <tr key={m.key}>
-                <td className="px-4 py-2 font-medium">{m.display_name}</td>
+                <td className="px-4 py-2 font-medium text-ink">{m.display_name}</td>
                 {tiers?.map((t) => (
                   <td key={t.key} className="px-4 py-2 text-center">
                     <button
@@ -81,10 +82,10 @@ export function ModulesMatrixPage() {
                       onClick={() => toggle.mutate({ tierKey: t.key, moduleKey: m.key, include: !included(t.key, m.key) })}
                       aria-pressed={included(t.key, m.key)}
                       className={cn(
-                        "inline-flex h-6 w-6 items-center justify-center rounded-card border transition-colors disabled:opacity-50",
+                        "inline-flex h-6 w-6 items-center justify-center rounded-control border transition-colors disabled:opacity-50",
                         included(t.key, m.key)
-                          ? "border-meskel bg-meskel-wash text-ink"
-                          : "border-line text-ink-faint hover:bg-chalk-sunken",
+                          ? "border-navy bg-navy-wash text-navy"
+                          : "border-line text-ink-faint hover:bg-sidebar",
                       )}
                     >
                       {included(t.key, m.key) ? "✓" : ""}
@@ -95,7 +96,7 @@ export function ModulesMatrixPage() {
             ))}
           </tbody>
         </table>
-      </div>
+      </Panel>
     </div>
   );
 }

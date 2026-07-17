@@ -1,6 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { Card } from "@/components/ui/Card";
+import { Panel } from "@/components/ui/Panel";
+import { Badge } from "@/components/ui/Badge";
+
+const STATUS_TONE = { queued: "neutral", processing: "navy", done: "ok", failed: "danger" } as const;
 
 export function ReportsPage() {
   const { data } = useQuery({
@@ -13,23 +17,25 @@ export function ReportsPage() {
   });
   return (
     <div className="space-y-4">
-      <h1 className="font-display text-2xl font-bold">Reports</h1>
+      <h1 className="font-display text-2xl font-bold text-ink">Reports</h1>
       {!data?.length ? (
         <Card className="py-12 text-center text-ink-faint">No records yet.</Card>
       ) : (
-        <div className="overflow-hidden rounded-card border border-line">
+        <Panel>
           <table className="w-full text-sm">
             <tbody className="divide-y divide-line">
-              {data.map((row: Record<string, unknown>, i: number) => (
-                <tr key={i} className="hover:bg-chalk-sunken">
-                  {Object.values(row).map((v, j) => (
-                    <td key={j} className="px-4 py-2">{String(v ?? "—")}</td>
-                  ))}
+              {data.map((row) => (
+                <tr key={row.id} className="hover:bg-sidebar">
+                  <td className="px-4 py-2 capitalize text-ink">{row.export_type.replace(/_/g, " ")}</td>
+                  <td className="px-4 py-2 text-ink">{row.ec_year}</td>
+                  <td className="px-4 py-2">
+                    <Badge tone={STATUS_TONE[row.status as keyof typeof STATUS_TONE] ?? "neutral"}>{row.status}</Badge>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
-        </div>
+        </Panel>
       )}
     </div>
   );
