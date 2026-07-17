@@ -1,4 +1,5 @@
-import { NavLink, Outlet } from "react-router-dom";
+import { useState } from "react";
+import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { EthDate } from "@/components/EthDate";
@@ -105,6 +106,8 @@ export function DashboardShell() {
   const { profile } = useSession();
   const modules = useEnabledModules();
   const queryClient = useQueryClient();
+  const location = useLocation();
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
 
   const signOut = async () => {
     await supabase.auth.signOut();
@@ -112,6 +115,14 @@ export function DashboardShell() {
   };
 
   const isSuperAdmin = profile?.role === "super_admin";
+
+  const toggleSection = (key: string) => {
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  };
 
   return (
     <div className="flex min-h-screen bg-page">
@@ -127,25 +138,42 @@ export function DashboardShell() {
               && (!n.module || isSuperAdmin || modules?.has(n.module)),
             );
             if (items.length === 0) return null;
+
+            const hasActiveRoute = items.some((n) =>
+              n.end ? location.pathname === n.to : location.pathname.startsWith(n.to));
+            const isOpen = !section.section || !collapsed.has(section.section) || hasActiveRoute;
+
             return (
               <div key={si} className="space-y-1">
                 {section.section && (
-                  <p className="px-3 pb-1 text-xs font-semibold uppercase tracking-wide text-ink-faint">
-                    {t(section.section)}
-                  </p>
-                )}
-                {items.map((n) => (
-                  <NavLink
-                    key={n.to}
-                    to={n.to}
-                    end={n.end ?? false}
-                    className={({ isActive }) =>
-                      cn("block rounded-control px-3 py-2 text-sm transition-colors",
-                         isActive ? "bg-navy font-semibold text-white" : "text-ink-soft hover:bg-navy-wash")}
+                  <button
+                    type="button"
+                    onClick={() => toggleSection(section.section!)}
+                    aria-expanded={isOpen}
+                    className="flex w-full items-center justify-between px-3 pb-1 text-xs font-semibold uppercase tracking-wide text-ink-faint hover:text-ink"
                   >
-                    {t(n.key)}
-                  </NavLink>
-                ))}
+                    {t(section.section)}
+                    <svg viewBox="0 0 12 12" className={cn("h-3 w-3 transition-transform", isOpen ? "rotate-180" : "")} aria-hidden>
+                      <path d="M2.5 4.5 6 8l3.5-3.5" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </button>
+                )}
+                <div className={cn("grid transition-[grid-template-rows] duration-200 ease-out", isOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]")}>
+                  <div className={cn("space-y-1 overflow-hidden", section.section && "pl-1")}>
+                    {items.map((n) => (
+                      <NavLink
+                        key={n.to}
+                        to={n.to}
+                        end={n.end ?? false}
+                        className={({ isActive }) =>
+                          cn("block rounded-control px-3 py-2 text-sm transition-colors",
+                             isActive ? "bg-navy font-semibold text-white" : "text-ink-soft hover:bg-navy-wash")}
+                      >
+                        {t(n.key)}
+                      </NavLink>
+                    ))}
+                  </div>
+                </div>
               </div>
             );
           })}
