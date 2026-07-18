@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useSession } from "@/features/auth/useSession";
@@ -12,6 +13,7 @@ import { toIsoDate } from "@/lib/ethiopian-date";
 const SEVERITIES = ["minor", "moderate", "major"] as const;
 
 export function DisciplineIncidentsPage() {
+  const { t } = useTranslation();
   const { profile } = useSession();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
@@ -49,29 +51,29 @@ export function DisciplineIncidentsPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="font-display text-2xl font-bold text-ink">Discipline</h1>
-        <Button onClick={() => setOpen((v) => !v)}>{open ? "Cancel" : "Log incident"}</Button>
+        <h1 className="font-display text-2xl font-bold text-ink">{t("discipline.title")}</h1>
+        <Button onClick={() => setOpen((v) => !v)}>{open ? t("discipline.cancel") : t("discipline.logIncident")}</Button>
       </div>
 
       {open && (
         <Card className="max-w-xl space-y-3">
-          <Field label="Student">
+          <Field label={t("discipline.student")}>
             <select value={studentId} onChange={(e) => setStudentId(e.target.value)} className="w-full rounded-control border border-line bg-card px-3 py-2 text-sm text-ink">
               <option value="">—</option>
               {students?.map((s) => <option key={s.id} value={s.id}>{s.first_name} {s.last_name}</option>)}
             </select>
           </Field>
-          <Field label="Date"><EthDatePicker value={date} onChange={setDate} /></Field>
-          <Field label="Severity">
+          <Field label={t("discipline.date")}><EthDatePicker value={date} onChange={setDate} /></Field>
+          <Field label={t("discipline.severity")}>
             <select value={severity} onChange={(e) => setSeverity(e.target.value as typeof severity)} className="w-full rounded-control border border-line bg-card px-3 py-2 text-sm text-ink">
-              {SEVERITIES.map((s) => <option key={s} value={s} className="capitalize">{s}</option>)}
+              {SEVERITIES.map((s) => <option key={s} value={s}>{t(`discipline.severityLevel.${s}`)}</option>)}
             </select>
           </Field>
-          <Field label="Description">
+          <Field label={t("discipline.description")}>
             <textarea value={description} onChange={(e) => setDescription(e.target.value)} maxLength={2000} rows={3}
               className="w-full rounded-control border border-line bg-card px-3 py-2 text-sm text-ink" />
           </Field>
-          <Button onClick={() => create.mutate()} disabled={!studentId || !description || create.isPending}>Save</Button>
+          <Button onClick={() => create.mutate()} disabled={!studentId || !description || create.isPending}>{t("discipline.save")}</Button>
         </Card>
       )}
 
@@ -83,7 +85,7 @@ export function DisciplineIncidentsPage() {
               <p className="text-sm text-ink-faint">{i.description.slice(0, 80)}</p>
             </div>
             <div className="text-right text-sm">
-              <p className={severityColor[i.severity as keyof typeof severityColor]}>{i.severity}</p>
+              <p className={severityColor[i.severity as keyof typeof severityColor]}>{t(`discipline.severityLevel.${i.severity}`)}</p>
               <p className="text-ink-faint"><EthDate value={i.incident_date} /></p>
             </div>
           </Card>
