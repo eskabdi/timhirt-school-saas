@@ -21,14 +21,28 @@ export function StudentDetailPage() {
     },
   });
   if (!student) return null;
+
+  const hasAmharicName = student.first_name_am || student.middle_name_am || student.last_name_am;
+
   return (
     <Card className="max-w-2xl">
       <div className="flex items-center justify-between">
-        <h1 className="font-display text-2xl font-bold text-ink">{student.first_name} {student.last_name}</h1>
+        <h1 className="font-display text-2xl font-bold text-ink">
+          {[student.first_name, student.middle_name, student.last_name].filter(Boolean).join(" ")}
+        </h1>
         <Badge tone={STATUS_TONE[student.status as keyof typeof STATUS_TONE] ?? "neutral"}>
           {t(`students.${student.status}`)}
         </Badge>
       </div>
+
+      {hasAmharicName && (
+        <dl className="mt-4 grid grid-cols-2 gap-4 text-sm">
+          <div><dt className="text-ink-faint">{t("students.firstName")}</dt><dd className="text-ink">{student.first_name} / {student.first_name_am ?? "—"}</dd></div>
+          <div><dt className="text-ink-faint">{t("students.middleName")}</dt><dd className="text-ink">{student.middle_name ?? "—"} / {student.middle_name_am ?? "—"}</dd></div>
+          <div><dt className="text-ink-faint">{t("students.lastName")}</dt><dd className="text-ink">{student.last_name} / {student.last_name_am ?? "—"}</dd></div>
+        </dl>
+      )}
+
       <dl className="mt-4 grid grid-cols-2 gap-4 text-sm">
         <div><dt className="text-ink-faint">{t("students.admissionNo")}</dt><dd className="font-medium text-ink">{student.admission_no}</dd></div>
         <div><dt className="text-ink-faint">{t("students.class")}</dt><dd className="font-medium text-ink">{student.class?.name} {student.class?.section}</dd></div>

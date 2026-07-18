@@ -4,9 +4,18 @@ import { z } from "zod";
 // Error messages are short stable codes, not English sentences — this schema
 // is built once at module load and can't react to a later language switch,
 // so callers translate the code at display time (students.errors.<code>).
+const NAME_RE = /^[\p{L}\p{M}'\- ]+$/u;
+
+// English + Amharic spellings of each name part, matching the public /apply
+// stepper's step1Schema (§ the tenant-side and public-side forms must
+// collect identical fields — see migration 20260718000001).
 export const studentSchema = z.object({
-  first_name: z.string().trim().min(1, "required").max(80).regex(/^[\p{L}\p{M}'\- ]+$/u, "letters_only"),
-  last_name: z.string().trim().min(1, "required").max(80).regex(/^[\p{L}\p{M}'\- ]+$/u, "letters_only"),
+  first_name: z.string().trim().min(1, "required").max(80).regex(NAME_RE, "letters_only"),
+  first_name_am: z.string().trim().min(1, "required").max(80).regex(NAME_RE, "letters_only"),
+  middle_name: z.string().trim().min(1, "required").max(80).regex(NAME_RE, "letters_only"),
+  middle_name_am: z.string().trim().min(1, "required").max(80).regex(NAME_RE, "letters_only"),
+  last_name: z.string().trim().min(1, "required").max(80).regex(NAME_RE, "letters_only"),
+  last_name_am: z.string().trim().min(1, "required").max(80).regex(NAME_RE, "letters_only"),
   admission_no: z.string().regex(/^[A-Z0-9\-/]{3,20}$/, "admission_no_format"),
   date_of_birth: z.date({ errorMap: () => ({ message: "required" }) }).max(new Date(), "must_be_past"),
   gender: z.enum(["male", "female", "other"], { errorMap: () => ({ message: "required" }) }),

@@ -37,14 +37,42 @@ export function StudentFormPage() {
     <Card className="max-w-xl">
       <h1 className="mb-4 font-display text-xl font-bold text-ink">{t("students.add")}</h1>
       <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4" noValidate>
-        <div className="grid grid-cols-2 gap-4">
-          <Field label={t("students.firstName")} error={errorText(errors.first_name?.message)}>
-            <Input {...register("first_name")} maxLength={80} required />
-          </Field>
-          <Field label={t("students.lastName")} error={errorText(errors.last_name?.message)}>
-            <Input {...register("last_name")} maxLength={80} required />
-          </Field>
-        </div>
+        <Field label={t("students.firstName")} error={errorText(errors.first_name?.message) || errorText(errors.first_name_am?.message)}>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <Input {...register("first_name")} maxLength={80} required />
+              <p className="mt-0.5 text-xs text-ink-faint">{t("students.labels.english")}</p>
+            </div>
+            <div>
+              <Input {...register("first_name_am")} maxLength={80} required />
+              <p className="mt-0.5 text-xs text-ink-faint">{t("students.labels.amharic")}</p>
+            </div>
+          </div>
+        </Field>
+        <Field label={t("students.middleName")} error={errorText(errors.middle_name?.message) || errorText(errors.middle_name_am?.message)}>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <Input {...register("middle_name")} maxLength={80} required />
+              <p className="mt-0.5 text-xs text-ink-faint">{t("students.labels.english")}</p>
+            </div>
+            <div>
+              <Input {...register("middle_name_am")} maxLength={80} required />
+              <p className="mt-0.5 text-xs text-ink-faint">{t("students.labels.amharic")}</p>
+            </div>
+          </div>
+        </Field>
+        <Field label={t("students.lastName")} error={errorText(errors.last_name?.message) || errorText(errors.last_name_am?.message)}>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <Input {...register("last_name")} maxLength={80} required />
+              <p className="mt-0.5 text-xs text-ink-faint">{t("students.labels.english")}</p>
+            </div>
+            <div>
+              <Input {...register("last_name_am")} maxLength={80} required />
+              <p className="mt-0.5 text-xs text-ink-faint">{t("students.labels.amharic")}</p>
+            </div>
+          </div>
+        </Field>
         <Field label={t("students.admissionNo")} error={errorText(errors.admission_no?.message)}>
           <Input {...register("admission_no")} placeholder="ADM-2018-001" maxLength={20} required />
         </Field>
