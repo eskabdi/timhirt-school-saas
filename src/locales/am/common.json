@@ -2,6 +2,8 @@
   "app": { "name": "ትምህርት", "tagline": "የትምህርት ቤት አስተዳደር ሥርዓት" },
   "weekdays": ["", "እሁድ", "ሰኞ", "ማክሰኞ", "ረቡዕ", "ሐሙስ", "ዓርብ", "ቅዳሜ"],
   "timetable": { "room": "ክፍል ቁጥር {room}", "myTitle": "የእኔ መርሃ ግብር" },
+  "events": { "title": "ዝግጅቶች እና የትምህርት ዘመን መቁጠሪያ",
+    "eventType": { "holiday": "በዓል", "exam_window": "የፈተና ጊዜ", "national": "ብሔራዊ", "custom": "ልዩ" } },
   "idCards": { "type": "ዓይነት", "verifyCode": "የማረጋገጫ ኮድ", "issued": "የተሰጠበት ቀን",
     "subjectType": { "student": "ተማሪ", "staff": "ሰራተኛ" },
     "verifyTitle": "መታወቂያ / የምስክር ወረቀት አረጋግጥ", "verifyPlaceholder": "የማረጋገጫ ኮድ", "check": "አረጋግጥ",

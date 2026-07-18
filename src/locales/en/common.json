@@ -2,6 +2,8 @@
   "app": { "name": "Timhirt", "tagline": "School management for Ethiopia" },
   "weekdays": ["", "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
   "timetable": { "room": "Room {room}", "myTitle": "My timetable" },
+  "events": { "title": "Events & Academic Calendar",
+    "eventType": { "holiday": "Holiday", "exam_window": "Exam Window", "national": "National", "custom": "Custom" } },
   "idCards": { "type": "Type", "verifyCode": "Verify code", "issued": "Issued",
     "subjectType": { "student": "Student", "staff": "Staff" },
     "verifyTitle": "Verify ID / Certificate", "verifyPlaceholder": "Verification code", "check": "Check",

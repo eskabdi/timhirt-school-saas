@@ -2,6 +2,8 @@
   "app": { "name": "Timhirt", "tagline": "Sirna bulchiinsa mana barumsaa" },
   "weekdays": ["", "Dilbata", "Wiixata", "Kibxata", "Roobii", "Kamiisa", "Jimaata", "Sanbata"],
   "timetable": { "room": "Lakk. Kutaa {room}", "myTitle": "Sagantaa Koo" },
+  "events": { "title": "Sagantaalee fi Kalandara Barnootaa",
+    "eventType": { "holiday": "Ayyaana", "exam_window": "Yeroo Qormaataa", "national": "Biyyaalessaa", "custom": "Addaa" } },
   "idCards": { "type": "Gosa", "verifyCode": "Koodii Mirkaneessaa", "issued": "Guyyaa Kenname",
     "subjectType": { "student": "Barataa", "staff": "Hojjetaa" },
     "verifyTitle": "Waraqaa Eenyummaa / Ragaa Mirkaneessi", "verifyPlaceholder": "Koodii Mirkaneessaa", "check": "Mirkaneessi",
