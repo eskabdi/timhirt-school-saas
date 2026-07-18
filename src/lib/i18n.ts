@@ -10,10 +10,13 @@ import { initReactI18next } from "react-i18next";
 
 import enCommon from "@/locales/en/common.json";
 import enCalendar from "@/locales/en/calendar.json";
+import enApply from "@/locales/en/apply.json";
 import amCommon from "@/locales/am/common.json";
 import amCalendar from "@/locales/am/calendar.json";
+import amApply from "@/locales/am/apply.json";
 import omCommon from "@/locales/om/common.json";
 import omCalendar from "@/locales/om/calendar.json";
+import omApply from "@/locales/om/apply.json";
 
 export const SUPPORTED_LOCALES = ["en", "am", "om"] as const;
 export type AppLocale = (typeof SUPPORTED_LOCALES)[number];
@@ -24,9 +27,9 @@ i18n
   .use(initReactI18next)
   .init({
     resources: {
-      en: { common: enCommon, calendar: enCalendar },
-      am: { common: amCommon, calendar: amCalendar },
-      om: { common: omCommon, calendar: omCalendar },
+      en: { common: enCommon, calendar: enCalendar, apply: enApply },
+      am: { common: amCommon, calendar: amCalendar, apply: amApply },
+      om: { common: omCommon, calendar: omCalendar, apply: omApply },
     },
     supportedLngs: [...SUPPORTED_LOCALES],
     fallbackLng: "en",

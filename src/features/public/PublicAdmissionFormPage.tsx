@@ -14,6 +14,17 @@
 // grade before they're even an enrolled student is a data-layer integration
 // this pass didn't build; flagged here rather than silently faked, same
 // spirit as DESIGN_SYSTEM.md's own "where the data layer pushed back" notes.
+//
+// Every string on this page routes through the "apply" i18n namespace so the
+// LanguageSwitcher actually changes the page's content, not just currency
+// formatting (§16.2). The applicant's name/guardian-name fields are the one
+// exception: they collect two distinct DATA values — an English spelling and
+// an Amharic spelling — regardless of UI language, so both inputs always
+// stay, captioned by t("labels.english")/t("labels.amharic") rather than a
+// language toggle. Zod messages are short stable codes ("required", not a
+// full sentence) translated at error-collection time, since the schema
+// itself is built once at module load and can't react to a later language
+// switch.
 // ============================================================================
 import { useState } from "react";
 import { useParams } from "react-router-dom";
@@ -32,33 +43,26 @@ import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { toIsoDate } from "@/lib/ethiopian-date";
 import { cn } from "@/lib/utils";
 
-const STEP_LABELS = [
-  { en: "Student Info", am: "የተማሪ መረጃ" },
-  { en: "Guardian Details", am: "የአሳዳጊ መረጃ" },
-  { en: "Documents", am: "ሰነዶች" },
-  { en: "Fees", am: "ክፍያ" },
-];
-
 const step1Schema = z.object({
-  applicant_first_name: z.string().trim().min(1, "Required"),
-  applicant_first_name_am: z.string().trim().min(1, "Required"),
-  applicant_middle_name: z.string().trim().min(1, "Required"),
-  applicant_middle_name_am: z.string().trim().min(1, "Required"),
-  applicant_last_name: z.string().trim().min(1, "Required"),
-  applicant_last_name_am: z.string().trim().min(1, "Required"),
-  gender: z.enum(["male", "female"], { errorMap: () => ({ message: "Required" }) }),
-  desired_class_id: z.string().uuid("Select a grade"),
+  applicant_first_name: z.string().trim().min(1, "required"),
+  applicant_first_name_am: z.string().trim().min(1, "required"),
+  applicant_middle_name: z.string().trim().min(1, "required"),
+  applicant_middle_name_am: z.string().trim().min(1, "required"),
+  applicant_last_name: z.string().trim().min(1, "required"),
+  applicant_last_name_am: z.string().trim().min(1, "required"),
+  gender: z.enum(["male", "female"], { errorMap: () => ({ message: "required" }) }),
+  desired_class_id: z.string().uuid("select_grade"),
 });
 type Step1Fields = z.infer<typeof step1Schema>;
 type Step1Draft = Record<keyof Step1Fields, string>;
 
 const step2Schema = z.object({
-  guardian_name: z.string().trim().min(1, "Required"),
-  guardian_name_am: z.string().trim().min(1, "Required"),
-  guardian_relationship: z.enum(["father", "mother", "guardian", "other"], { errorMap: () => ({ message: "Required" }) }),
+  guardian_name: z.string().trim().min(1, "required"),
+  guardian_name_am: z.string().trim().min(1, "required"),
+  guardian_relationship: z.enum(["father", "mother", "guardian", "other"], { errorMap: () => ({ message: "required" }) }),
   guardian_occupation: z.string().trim().max(120).optional(),
-  guardian_phone: z.string().regex(/^\+?[0-9]{7,15}$/, "Invalid phone number"),
-  guardian_email: z.string().email("Invalid email").optional().or(z.literal("")),
+  guardian_phone: z.string().regex(/^\+?[0-9]{7,15}$/, "invalid_phone"),
+  guardian_email: z.string().email("invalid_email").optional().or(z.literal("")),
   guardian_region: z.string().trim().optional(),
   guardian_subcity: z.string().trim().optional(),
   guardian_woreda_kebele: z.string().trim().optional(),
@@ -68,11 +72,11 @@ const step2Schema = z.object({
 type DocType = "birth_certificate" | "transcript" | "photo" | "payment_receipt";
 interface UploadState { status: "idle" | "uploading" | "done" | "error"; fileName?: string; fileSize?: number; }
 
-function StepperHeader({ step }: { step: number }) {
+function StepperHeader({ step, labels }: { step: number; labels: string[] }) {
   return (
     <div className="mb-8">
       <div className="flex items-center">
-        {STEP_LABELS.map((_, i) => {
+        {labels.map((_, i) => {
           const n = i + 1;
           const isDone = n < step;
           const isActive = n === step;
@@ -84,18 +88,17 @@ function StepperHeader({ step }: { step: number }) {
               )}>
                 {isDone ? "✓" : n}
               </div>
-              {n < STEP_LABELS.length && <div className={cn("h-0.5 flex-1", isDone ? "bg-navy" : "bg-line")} />}
+              {n < labels.length && <div className={cn("h-0.5 flex-1", isDone ? "bg-navy" : "bg-line")} />}
             </div>
           );
         })}
       </div>
       <div className="mt-2 flex">
-        {STEP_LABELS.map((label, i) => {
+        {labels.map((label, i) => {
           const n = i + 1;
           return (
-            <div key={n} className={cn("flex-1 text-center", n === STEP_LABELS.length && "flex-none w-9")}>
-              <p className={cn("text-sm font-semibold", n === step ? "text-navy" : "text-ink")}>{label.en}</p>
-              <p className="text-xs text-ink-faint">{label.am}</p>
+            <div key={n} className={cn("flex-1 text-center", n === labels.length && "flex-none w-9")}>
+              <p className={cn("text-sm font-semibold", n === step ? "text-navy" : "text-ink")}>{label}</p>
             </div>
           );
         })}
@@ -104,10 +107,8 @@ function StepperHeader({ step }: { step: number }) {
   );
 }
 
-function BilingualField({ labelEn, labelAm, error, children }: {
-  labelEn: string; labelAm: string; error?: string; children: React.ReactNode;
-}) {
-  return <Field label={`${labelEn} / ${labelAm}`} error={error}>{children}</Field>;
+function BilingualField({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
+  return <Field label={label} error={error}>{children}</Field>;
 }
 
 async function fetchAdmissionMeta(tenantSlug: string) {
@@ -118,12 +119,11 @@ async function fetchAdmissionMeta(tenantSlug: string) {
 }
 
 function DocumentUploadSlot({
-  applicationId, docType, titleEn, titleAm, description, accept, maxSizeLabel, required, extraFields, onUploaded,
+  applicationId, docType, title, description, accept, maxSizeLabel, required, extraFields, onUploaded,
 }: {
   applicationId: string;
   docType: DocType;
-  titleEn: string;
-  titleAm: string;
+  title: string;
   description: string;
   accept: string;
   maxSizeLabel: string;
@@ -131,6 +131,7 @@ function DocumentUploadSlot({
   extraFields?: () => Record<string, string> | null;
   onUploaded?: () => void;
 }) {
+  const { t } = useTranslation("apply");
   const [state, setState] = useState<UploadState>({ status: "idle" });
 
   const handleFile = async (file: File) => {
@@ -158,27 +159,25 @@ function DocumentUploadSlot({
     <Panel className={cn(state.status === "done" && "border-ok")}>
       <div className="flex flex-wrap items-center justify-between gap-6 p-5">
         <div className="min-w-0 flex-1">
-          <h3 className="font-display text-base font-bold text-ink">
-            {titleEn} <span className="font-sans text-sm font-normal text-ink-faint">({titleAm})</span>
-          </h3>
+          <h3 className="font-display text-base font-bold text-ink">{title}</h3>
           <p className="mt-1 text-sm text-ink-faint">{description}</p>
           <div className="mt-2">
-            {state.status === "done" ? <Badge tone="ok">Uploaded successfully</Badge>
-              : state.status === "error" ? <Badge tone="danger">Upload failed — try again</Badge>
-              : <Badge tone={required ? "danger" : "neutral"}>{required ? "Not Uploaded" : "Optional"}</Badge>}
+            {state.status === "done" ? <Badge tone="ok">{t("upload.uploaded")}</Badge>
+              : state.status === "error" ? <Badge tone="danger">{t("upload.failed")}</Badge>
+              : <Badge tone={required ? "danger" : "neutral"}>{required ? t("upload.notUploaded") : t("upload.optional")}</Badge>}
           </div>
         </div>
         <div className="w-72 shrink-0">
           {state.status === "done" ? (
             <div className="flex items-center justify-between rounded-control border border-line bg-card px-3 py-2 text-sm">
               <span className="truncate text-ink">{state.fileName}</span>
-              <button type="button" aria-label="Remove" className="text-ink-faint hover:text-danger"
+              <button type="button" aria-label={t("upload.remove")} className="text-ink-faint hover:text-danger"
                 onClick={() => setState({ status: "idle" })}>✕</button>
             </div>
           ) : (
             <label className="flex cursor-pointer flex-col items-center gap-1 rounded-control border-2 border-dashed border-line px-4 py-6 text-center hover:border-navy">
               <span className="text-sm font-medium text-navy">
-                {state.status === "uploading" ? "Uploading…" : "Click to upload or drag and drop"}
+                {state.status === "uploading" ? t("upload.uploading") : t("upload.clickOrDrag")}
               </span>
               <span className="text-xs text-ink-faint">{maxSizeLabel}</span>
               <input type="file" accept={accept} className="hidden" disabled={state.status === "uploading"}
@@ -193,7 +192,7 @@ function DocumentUploadSlot({
 
 export function PublicAdmissionFormPage() {
   const { tenantSlug } = useParams();
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation("apply");
   const [step, setStep] = useState(1);
   const [applicationId, setApplicationId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -239,10 +238,10 @@ export function PublicAdmissionFormPage() {
 
   const submitStep1 = () => {
     const parsed = step1Schema.safeParse(s1);
-    if (!dob) { setS1Errors({ date_of_birth: "Required" }); return; }
+    if (!dob) { setS1Errors({ date_of_birth: t("errors.required") }); return; }
     if (!parsed.success) {
       const errs: Record<string, string> = {};
-      for (const issue of parsed.error.issues) errs[issue.path[0] as string] = issue.message;
+      for (const issue of parsed.error.issues) errs[issue.path[0] as string] = t(`errors.${issue.message}`);
       setS1Errors(errs);
       return;
     }
@@ -254,7 +253,7 @@ export function PublicAdmissionFormPage() {
     const parsed = step2Schema.safeParse(s2);
     if (!parsed.success) {
       const errs: Record<string, string> = {};
-      for (const issue of parsed.error.issues) errs[issue.path[0] as string] = issue.message;
+      for (const issue of parsed.error.issues) errs[issue.path[0] as string] = t(`errors.${issue.message}`);
       setS2Errors(errs);
       return;
     }
@@ -277,7 +276,7 @@ export function PublicAdmissionFormPage() {
       setApplicationId(data.application_id);
       setStep(3);
     } catch {
-      setSubmitError("Something went wrong submitting your application. Please try again.");
+      setSubmitError(t("errors.submitFailed"));
     } finally {
       setSubmitting(false);
     }
@@ -285,7 +284,7 @@ export function PublicAdmissionFormPage() {
 
   const goToFees = () => {
     if (!birthCertDone || !photoDone) {
-      setDocsError("Please upload the birth certificate and student photograph before continuing.");
+      setDocsError(t("errors.docsIncomplete"));
       return;
     }
     setDocsError(null);
@@ -293,7 +292,7 @@ export function PublicAdmissionFormPage() {
   };
 
   const completeRegistration = () => {
-    if (!receiptDone) { setFeesError("Please upload your payment receipt before completing registration."); return; }
+    if (!receiptDone) { setFeesError(t("errors.receiptMissing")); return; }
     setFeesError(null);
     setCompleted(true);
   };
@@ -302,97 +301,114 @@ export function PublicAdmissionFormPage() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-page px-4">
         <Card className="max-w-md text-center">
-          <Badge tone="ok" className="mx-auto">Submitted</Badge>
-          <h1 className="mt-3 font-display text-xl font-bold text-ink">Registration received</h1>
-          <p className="mt-2 text-sm text-ink-faint">
-            Thank you — we'll review the application and be in touch. / እናመሰግናለን፣ ማመልከቻውን እንገመግማለን።
-          </p>
+          <Badge tone="ok" className="mx-auto">{t("completed.badge")}</Badge>
+          <h1 className="mt-3 font-display text-xl font-bold text-ink">{t("completed.heading")}</h1>
+          <p className="mt-2 text-sm text-ink-faint">{t("completed.message")}</p>
         </Card>
       </div>
     );
   }
 
+  const stepLabels = [t("steps.step1"), t("steps.step2"), t("steps.step3"), t("steps.step4")];
+
   return (
     <div className="min-h-screen bg-page">
       <header className="flex items-center justify-between border-b border-line bg-card px-6 py-4">
-        <span className="font-display text-lg font-bold text-navy">{meta?.tenantName ?? "School Information System"}</span>
+        <span className="font-display text-lg font-bold text-navy">{meta?.tenantName ?? t("schoolFallback")}</span>
         <LanguageSwitcher />
       </header>
 
       <div className="mx-auto max-w-3xl px-4 py-10">
         <div className="mb-8 text-center">
-          <h1 className="font-display text-3xl font-bold text-navy">Student Registration</h1>
+          <h1 className="font-display text-3xl font-bold text-navy">{t("title")}</h1>
           {meta?.tenantName && <p className="text-sm font-medium text-ink-soft">{meta.tenantName}</p>}
-          <p className="text-ink-faint">ተማሪ ምዝገባ</p>
         </div>
 
-        <StepperHeader step={step} />
+        <StepperHeader step={step} labels={stepLabels} />
 
         {step === 1 && (
           <Panel>
             <div className="border-b border-line px-6 py-5">
-              <h2 className="font-display text-xl font-bold text-ink">1. Student Information / የተማሪ መረጃ</h2>
+              <h2 className="font-display text-xl font-bold text-ink">{t("step1.heading")}</h2>
             </div>
             <div className="space-y-4 p-6">
               <div className="grid gap-4 md:grid-cols-2">
-                <BilingualField labelEn="First Name (English)" labelAm="ስም (አማርኛ)" error={s1Errors.applicant_first_name || s1Errors.applicant_first_name_am}>
+                <BilingualField label={t("step1.firstName")} error={s1Errors.applicant_first_name || s1Errors.applicant_first_name_am}>
                   <div className="grid grid-cols-2 gap-2">
-                    <Input placeholder="Enter first name" value={s1.applicant_first_name} maxLength={80}
-                      onChange={(e) => setS1((v) => ({ ...v, applicant_first_name: e.target.value }))} />
-                    <Input placeholder="ስም አስገባ" value={s1.applicant_first_name_am} maxLength={80}
-                      onChange={(e) => setS1((v) => ({ ...v, applicant_first_name_am: e.target.value }))} />
+                    <div>
+                      <Input placeholder={t("step1.firstNamePlaceholderEn")} value={s1.applicant_first_name} maxLength={80}
+                        onChange={(e) => setS1((v) => ({ ...v, applicant_first_name: e.target.value }))} />
+                      <p className="mt-0.5 text-xs text-ink-faint">{t("labels.english")}</p>
+                    </div>
+                    <div>
+                      <Input placeholder={t("step1.firstNamePlaceholderAm")} value={s1.applicant_first_name_am} maxLength={80}
+                        onChange={(e) => setS1((v) => ({ ...v, applicant_first_name_am: e.target.value }))} />
+                      <p className="mt-0.5 text-xs text-ink-faint">{t("labels.amharic")}</p>
+                    </div>
                   </div>
                 </BilingualField>
               </div>
               <div className="grid gap-4 md:grid-cols-2">
-                <BilingualField labelEn="Middle Name" labelAm="የአባት ስም" error={s1Errors.applicant_middle_name || s1Errors.applicant_middle_name_am}>
+                <BilingualField label={t("step1.middleName")} error={s1Errors.applicant_middle_name || s1Errors.applicant_middle_name_am}>
                   <div className="grid grid-cols-2 gap-2">
-                    <Input placeholder="Enter middle name" value={s1.applicant_middle_name} maxLength={80}
-                      onChange={(e) => setS1((v) => ({ ...v, applicant_middle_name: e.target.value }))} />
-                    <Input placeholder="የአባት ስም አስገባ" value={s1.applicant_middle_name_am} maxLength={80}
-                      onChange={(e) => setS1((v) => ({ ...v, applicant_middle_name_am: e.target.value }))} />
+                    <div>
+                      <Input placeholder={t("step1.middleNamePlaceholderEn")} value={s1.applicant_middle_name} maxLength={80}
+                        onChange={(e) => setS1((v) => ({ ...v, applicant_middle_name: e.target.value }))} />
+                      <p className="mt-0.5 text-xs text-ink-faint">{t("labels.english")}</p>
+                    </div>
+                    <div>
+                      <Input placeholder={t("step1.middleNamePlaceholderAm")} value={s1.applicant_middle_name_am} maxLength={80}
+                        onChange={(e) => setS1((v) => ({ ...v, applicant_middle_name_am: e.target.value }))} />
+                      <p className="mt-0.5 text-xs text-ink-faint">{t("labels.amharic")}</p>
+                    </div>
                   </div>
                 </BilingualField>
               </div>
               <div className="grid gap-4 md:grid-cols-2">
-                <BilingualField labelEn="Last Name" labelAm="የአያት ስም" error={s1Errors.applicant_last_name || s1Errors.applicant_last_name_am}>
+                <BilingualField label={t("step1.lastName")} error={s1Errors.applicant_last_name || s1Errors.applicant_last_name_am}>
                   <div className="grid grid-cols-2 gap-2">
-                    <Input placeholder="Enter last name" value={s1.applicant_last_name} maxLength={80}
-                      onChange={(e) => setS1((v) => ({ ...v, applicant_last_name: e.target.value }))} />
-                    <Input placeholder="የአያት ስም አስገባ" value={s1.applicant_last_name_am} maxLength={80}
-                      onChange={(e) => setS1((v) => ({ ...v, applicant_last_name_am: e.target.value }))} />
+                    <div>
+                      <Input placeholder={t("step1.lastNamePlaceholderEn")} value={s1.applicant_last_name} maxLength={80}
+                        onChange={(e) => setS1((v) => ({ ...v, applicant_last_name: e.target.value }))} />
+                      <p className="mt-0.5 text-xs text-ink-faint">{t("labels.english")}</p>
+                    </div>
+                    <div>
+                      <Input placeholder={t("step1.lastNamePlaceholderAm")} value={s1.applicant_last_name_am} maxLength={80}
+                        onChange={(e) => setS1((v) => ({ ...v, applicant_last_name_am: e.target.value }))} />
+                      <p className="mt-0.5 text-xs text-ink-faint">{t("labels.amharic")}</p>
+                    </div>
                   </div>
                 </BilingualField>
               </div>
-              <BilingualField labelEn="Date of Birth" labelAm="የትውልድ ቀን" error={s1Errors.date_of_birth}>
+              <BilingualField label={t("step1.dob")} error={s1Errors.date_of_birth}>
                 <EthDatePicker value={dob} onChange={setDob} />
-                <p className="mt-1 text-xs text-ink-faint">Ethiopian Calendar format</p>
+                <p className="mt-1 text-xs text-ink-faint">{t("step1.ecFormat")}</p>
               </BilingualField>
               <div className="grid gap-4 md:grid-cols-2">
-                <BilingualField labelEn="Gender" labelAm="ፆታ" error={s1Errors.gender}>
+                <BilingualField label={t("step1.gender")} error={s1Errors.gender}>
                   <div className="flex gap-6 pt-2">
                     <label className="flex items-center gap-2 text-sm text-ink">
                       <input type="radio" name="gender" checked={s1.gender === "male"}
-                        onChange={() => setS1((v) => ({ ...v, gender: "male" }))} /> Male / ወንድ
+                        onChange={() => setS1((v) => ({ ...v, gender: "male" }))} /> {t("step1.male")}
                     </label>
                     <label className="flex items-center gap-2 text-sm text-ink">
                       <input type="radio" name="gender" checked={s1.gender === "female"}
-                        onChange={() => setS1((v) => ({ ...v, gender: "female" }))} /> Female / ሴት
+                        onChange={() => setS1((v) => ({ ...v, gender: "female" }))} /> {t("step1.female")}
                     </label>
                   </div>
                 </BilingualField>
-                <BilingualField labelEn="Applying for Grade" labelAm="የሚመዘገቡበት ክፍል" error={s1Errors.desired_class_id}>
+                <BilingualField label={t("step1.grade")} error={s1Errors.desired_class_id}>
                   <select value={s1.desired_class_id} className="w-full rounded-control border border-line bg-card px-3 py-2 text-sm text-ink"
                     onChange={(e) => setS1((v) => ({ ...v, desired_class_id: e.target.value }))}>
-                    <option value="">Select Grade</option>
+                    <option value="">{t("step1.selectGrade")}</option>
                     {classes?.map((c) => <option key={c.id} value={c.id}>{c.name} {c.section}</option>)}
                   </select>
                 </BilingualField>
               </div>
             </div>
             <div className="flex justify-between border-t border-line px-6 py-4">
-              <Button variant="ghost">Cancel</Button>
-              <Button onClick={submitStep1}>Next Step →</Button>
+              <Button variant="ghost">{t("step1.cancel")}</Button>
+              <Button onClick={submitStep1}>{t("step1.next")}</Button>
             </div>
           </Panel>
         )}
@@ -400,101 +416,101 @@ export function PublicAdmissionFormPage() {
         {step === 2 && (
           <Panel>
             <div className="border-b border-line px-6 py-5">
-              <h2 className="font-display text-xl font-bold text-ink">2. Guardian Details / የአሳዳጊ መረጃ</h2>
+              <h2 className="font-display text-xl font-bold text-ink">{t("step2.heading")}</h2>
             </div>
             <div className="space-y-4 p-6">
               <div className="grid gap-4 md:grid-cols-2">
-                <Field label="Primary Guardian Name (English)" error={s2Errors.guardian_name}>
-                  <Input placeholder="e.g. Abebe Kebede" maxLength={120} value={s2.guardian_name}
+                <Field label={t("step2.guardianNameEn")} error={s2Errors.guardian_name}>
+                  <Input placeholder={t("step2.guardianNamePlaceholderEn")} maxLength={120} value={s2.guardian_name}
                     onChange={(e) => setS2((v) => ({ ...v, guardian_name: e.target.value }))} />
                 </Field>
-                <Field label="Primary Guardian Name (Amharic)" error={s2Errors.guardian_name_am}>
-                  <Input placeholder="አበበ ከበደ" maxLength={120} value={s2.guardian_name_am}
+                <Field label={t("step2.guardianNameAm")} error={s2Errors.guardian_name_am}>
+                  <Input placeholder={t("step2.guardianNamePlaceholderAm")} maxLength={120} value={s2.guardian_name_am}
                     onChange={(e) => setS2((v) => ({ ...v, guardian_name_am: e.target.value }))} />
                 </Field>
               </div>
               <div className="grid gap-4 md:grid-cols-2">
-                <Field label="Relationship to Student" error={s2Errors.guardian_relationship}>
+                <Field label={t("step2.relationship")} error={s2Errors.guardian_relationship}>
                   <select value={s2.guardian_relationship} className="w-full rounded-control border border-line bg-card px-3 py-2 text-sm text-ink"
                     onChange={(e) => setS2((v) => ({ ...v, guardian_relationship: e.target.value }))}>
-                    <option value="">Select Relationship</option>
-                    <option value="father">Father</option>
-                    <option value="mother">Mother</option>
-                    <option value="guardian">Guardian</option>
-                    <option value="other">Other</option>
+                    <option value="">{t("step2.selectRelationship")}</option>
+                    <option value="father">{t("step2.father")}</option>
+                    <option value="mother">{t("step2.mother")}</option>
+                    <option value="guardian">{t("step2.guardian")}</option>
+                    <option value="other">{t("step2.other")}</option>
                   </select>
                 </Field>
-                <Field label="Occupation">
-                  <Input placeholder="e.g. Teacher, Engineer" maxLength={120} value={s2.guardian_occupation}
+                <Field label={t("step2.occupation")}>
+                  <Input placeholder={t("step2.occupationPlaceholder")} maxLength={120} value={s2.guardian_occupation}
                     onChange={(e) => setS2((v) => ({ ...v, guardian_occupation: e.target.value }))} />
                 </Field>
               </div>
               <div className="grid gap-4 md:grid-cols-2">
-                <Field label="Phone Number" error={s2Errors.guardian_phone}>
+                <Field label={t("step2.phone")} error={s2Errors.guardian_phone}>
                   <Input placeholder="+251 911 234 567" maxLength={15} value={s2.guardian_phone}
                     onChange={(e) => setS2((v) => ({ ...v, guardian_phone: e.target.value }))} />
                 </Field>
-                <Field label="Email Address" error={s2Errors.guardian_email}>
+                <Field label={t("step2.email")} error={s2Errors.guardian_email}>
                   <Input type="email" placeholder="email@example.com" maxLength={254} value={s2.guardian_email}
                     onChange={(e) => setS2((v) => ({ ...v, guardian_email: e.target.value }))} />
                 </Field>
               </div>
 
-              <p className="pt-2 text-xs font-semibold uppercase tracking-wide text-ink-faint">Residential Address</p>
+              <p className="pt-2 text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("step2.residentialAddress")}</p>
               <div className="grid gap-4 md:grid-cols-3">
-                <Field label="Region">
+                <Field label={t("step2.region")}>
                   <Input value={s2.guardian_region} maxLength={80}
                     onChange={(e) => setS2((v) => ({ ...v, guardian_region: e.target.value }))} />
                 </Field>
-                <Field label="Sub-city">
-                  <Input placeholder="e.g. Bole" maxLength={80} value={s2.guardian_subcity}
+                <Field label={t("step2.subcity")}>
+                  <Input placeholder={t("step2.subcityPlaceholder")} maxLength={80} value={s2.guardian_subcity}
                     onChange={(e) => setS2((v) => ({ ...v, guardian_subcity: e.target.value }))} />
                 </Field>
-                <Field label="Woreda / Kebele">
-                  <Input placeholder="Woreda 03" maxLength={80} value={s2.guardian_woreda_kebele}
+                <Field label={t("step2.woreda")}>
+                  <Input placeholder={t("step2.woredaPlaceholder")} maxLength={80} value={s2.guardian_woreda_kebele}
                     onChange={(e) => setS2((v) => ({ ...v, guardian_woreda_kebele: e.target.value }))} />
                 </Field>
               </div>
-              <Field label="House Number">
-                <Input placeholder="New / Old" maxLength={40} value={s2.guardian_house_number}
+              <Field label={t("step2.houseNumber")}>
+                <Input placeholder={t("step2.houseNumberPlaceholder")} maxLength={40} value={s2.guardian_house_number}
                   onChange={(e) => setS2((v) => ({ ...v, guardian_house_number: e.target.value }))} />
               </Field>
               {submitError && <p role="alert" className="text-sm text-danger">{submitError}</p>}
             </div>
             <div className="flex justify-between border-t border-line px-6 py-4">
-              <Button variant="ghost" onClick={() => setStep(1)}>Back</Button>
-              <Button onClick={submitStep2} disabled={submitting}>{submitting ? "Submitting…" : "Next Step →"}</Button>
+              <Button variant="ghost" onClick={() => setStep(1)}>{t("step2.back")}</Button>
+              <Button onClick={submitStep2} disabled={submitting}>{submitting ? t("step2.submitting") : t("step2.next")}</Button>
             </div>
           </Panel>
         )}
 
         {step === 3 && applicationId && (
           <div className="space-y-4">
-            <p className="text-sm text-ink-faint">Step 3 of 4: Upload required identification and academic records.</p>
+            <p className="text-sm text-ink-faint">{t("step3.intro")}</p>
             <DocumentUploadSlot
               applicationId={applicationId} docType="birth_certificate"
-              titleEn="Birth Certificate" titleAm="የልደት የምስክር ወረቀት"
-              description="Official Kebele or Hospital issued certificate. Must be clear and legible."
-              accept="application/pdf,image/jpeg,image/png" maxSizeLabel="PDF, JPG or PNG (MAX. 5MB)"
+              title={t("step3.birthCertTitle")}
+              description={t("step3.birthCertDesc")}
+              accept="application/pdf,image/jpeg,image/png" maxSizeLabel={t("step3.maxSize5mb")}
               required onUploaded={() => setBirthCertDone(true)}
             />
             <DocumentUploadSlot
               applicationId={applicationId} docType="transcript"
-              titleEn="Previous Academic Transcript" titleAm="የትምህርት ማስረጃ"
-              description="Most recent report card or national exam results, if applicable."
-              accept="application/pdf,image/jpeg,image/png" maxSizeLabel="PDF, JPG or PNG (MAX. 5MB)"
+              title={t("step3.transcriptTitle")}
+              description={t("step3.transcriptDesc")}
+              accept="application/pdf,image/jpeg,image/png" maxSizeLabel={t("step3.maxSize5mb")}
             />
             <DocumentUploadSlot
               applicationId={applicationId} docType="photo"
-              titleEn="Student Photograph" titleAm="የተማሪ ፎቶግራፍ"
-              description="Recent passport-sized photo with white background."
-              accept="image/jpeg,image/png" maxSizeLabel="JPG or PNG (MAX. 2MB)"
+              title={t("step3.photoTitle")}
+              description={t("step3.photoDesc")}
+              accept="image/jpeg,image/png" maxSizeLabel={t("step3.maxSize2mb")}
               required onUploaded={() => setPhotoDone(true)}
             />
             {docsError && <p role="alert" className="text-sm text-danger">{docsError}</p>}
             <div className="flex justify-between border-t border-line pt-4">
-              <Button variant="ghost" onClick={() => setStep(2)}>Back to Guardian Details</Button>
-              <Button onClick={goToFees}>Continue to Fees →</Button>
+              <Button variant="ghost" onClick={() => setStep(2)}>{t("step3.back")}</Button>
+              <Button onClick={goToFees}>{t("step3.next")}</Button>
             </div>
           </div>
         )}
@@ -503,34 +519,34 @@ export function PublicAdmissionFormPage() {
           <div className="space-y-4">
             <Panel>
               <div className="border-b border-line px-6 py-5">
-                <h2 className="font-display text-xl font-bold text-ink">Fee Breakdown</h2>
+                <h2 className="font-display text-xl font-bold text-ink">{t("step4.feeBreakdown")}</h2>
               </div>
               <div className="divide-y divide-line px-6">
                 <div className="flex items-center justify-between py-3 text-sm text-ink">
-                  <span>Registration Fee</span><span className="tabular-nums">{formatETB(REGISTRATION_FEE, i18n.resolvedLanguage!)}</span>
+                  <span>{t("step4.registrationFee")}</span><span className="tabular-nums">{formatETB(REGISTRATION_FEE, i18n.resolvedLanguage!)}</span>
                 </div>
                 <div className="flex items-center justify-between py-3 text-sm text-ink">
-                  <span>First Term Tuition</span><span className="tabular-nums">{formatETB(FIRST_TERM_TUITION, i18n.resolvedLanguage!)}</span>
+                  <span>{t("step4.firstTermTuition")}</span><span className="tabular-nums">{formatETB(FIRST_TERM_TUITION, i18n.resolvedLanguage!)}</span>
                 </div>
                 <div className="flex items-center justify-between rounded-control bg-navy-wash px-3 py-3 text-sm text-ink">
                   <label className="flex items-center gap-2">
                     <input type="checkbox" checked={busOpted} onChange={(e) => setBusOpted(e.target.checked)} />
                     <span>
-                      School Bus (Optional)
-                      <span className="block text-xs text-ink-faint">Round trip transportation for the first term.</span>
+                      {t("step4.schoolBus")}
+                      <span className="block text-xs text-ink-faint">{t("step4.schoolBusDesc")}</span>
                     </span>
                   </label>
                   <span className="tabular-nums">{formatETB(BUS_FEE, i18n.resolvedLanguage!)}</span>
                 </div>
               </div>
               <div className="flex items-center justify-between px-6 py-4 font-display text-lg font-bold text-navy">
-                <span>Total Amount</span><span className="tabular-nums">{formatETB(total, i18n.resolvedLanguage!)}</span>
+                <span>{t("step4.totalAmount")}</span><span className="tabular-nums">{formatETB(total, i18n.resolvedLanguage!)}</span>
               </div>
             </Panel>
 
             <Panel>
               <div className="border-b border-line px-6 py-5">
-                <h2 className="font-display text-xl font-bold text-ink">Payment Method</h2>
+                <h2 className="font-display text-xl font-bold text-ink">{t("step4.paymentMethod")}</h2>
               </div>
               <div className="grid grid-cols-3 gap-3 p-6">
                 {([["cbe", "CBE"], ["awash_bank", "Awash Bank"], ["telebirr", "Telebirr"]] as const).map(([value, label]) => (
@@ -546,9 +562,9 @@ export function PublicAdmissionFormPage() {
               <div className="px-6 pb-6">
                 <DocumentUploadSlot
                   applicationId={applicationId} docType="payment_receipt"
-                  titleEn="Upload Payment Receipt" titleAm="የክፍያ ደረሰኝ"
-                  description="Upload proof of payment for the total amount above."
-                  accept="application/pdf,image/jpeg,image/png" maxSizeLabel="PDF, JPG, PNG (Max 5MB)"
+                  title={t("step4.uploadReceiptTitle")}
+                  description={t("step4.uploadReceiptDesc")}
+                  accept="application/pdf,image/jpeg,image/png" maxSizeLabel={t("step4.maxSize5mbAlt")}
                   required
                   extraFields={() => ({
                     payment_method: paymentMethod,
@@ -561,8 +577,8 @@ export function PublicAdmissionFormPage() {
             </Panel>
             {feesError && <p role="alert" className="text-sm text-danger">{feesError}</p>}
             <div className="flex justify-between border-t border-line pt-4">
-              <Button variant="ghost" onClick={() => setStep(3)}>Back</Button>
-              <Button onClick={completeRegistration}>Complete Registration</Button>
+              <Button variant="ghost" onClick={() => setStep(3)}>{t("step4.back")}</Button>
+              <Button onClick={completeRegistration}>{t("step4.complete")}</Button>
             </div>
           </div>
         )}
