@@ -1,12 +1,14 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { EthDate } from "@/components/EthDate";
+import { Avatar } from "@/components/ui/Avatar";
 import { useSession } from "@/features/auth/useSession";
 import { useEnabledModules } from "@/features/auth/useEnabledModules";
+import { ChangePasswordModal } from "@/features/auth/ChangePasswordModal";
 import { supabase } from "@/lib/supabase";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 
 const ADMIN_REG = ["school_admin", "registrar"];
@@ -108,13 +110,23 @@ export function DashboardShell() {
   const queryClient = useQueryClient();
   const location = useLocation();
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+
+  const isSuperAdmin = profile?.role === "super_admin";
+
+  const { data: tenant } = useQuery({
+    queryKey: ["sidebar-tenant", profile?.tenant_id],
+    enabled: !!profile?.tenant_id,
+    queryFn: async () => (await supabase.from("tenants").select("name").eq("id", profile!.tenant_id!).single()).data,
+  });
+  const brandName = tenant?.name ?? t("app.name");
 
   const signOut = async () => {
     await supabase.auth.signOut();
     queryClient.clear(); // §6.3 mandatory — no stale cross-tenant data in memory
   };
-
-  const isSuperAdmin = profile?.role === "super_admin";
 
   const toggleSection = (key: string) => {
     setCollapsed((prev) => {
@@ -124,12 +136,24 @@ export function DashboardShell() {
     });
   };
 
+  useEffect(() => {
+    if (!userMenuOpen) return;
+    const onDocMouseDown = (e: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) setUserMenuOpen(false);
+    };
+    document.addEventListener("mousedown", onDocMouseDown);
+    return () => document.removeEventListener("mousedown", onDocMouseDown);
+  }, [userMenuOpen]);
+
   return (
     <div className="flex min-h-screen bg-page">
       <aside className="flex w-60 flex-col border-r border-line bg-sidebar">
-        <div className="border-b border-line px-5 py-4">
-          <h1 className="font-display text-xl font-bold text-navy">{t("app.name")}</h1>
-          <p className="text-xs text-ink-faint">{t("app.tagline")}</p>
+        <div className="flex items-center gap-2.5 border-b border-line px-5 py-4">
+          <Avatar name={brandName} size="md" />
+          <div className="min-w-0">
+            <h1 className="truncate font-display text-base font-bold leading-tight text-navy">{brandName}</h1>
+            <p className="truncate text-xs text-ink-faint">{t("app.tagline")}</p>
+          </div>
         </div>
         <nav className="flex-1 space-y-4 overflow-y-auto p-3">
           {NAV.map((section, si) => {
@@ -178,9 +202,6 @@ export function DashboardShell() {
             );
           })}
         </nav>
-        <button onClick={signOut} className="border-t border-line px-5 py-3 text-left text-sm text-ink-faint hover:text-ink">
-          {t("nav.signOut")}
-        </button>
       </aside>
 
       <div className="flex flex-1 flex-col">
@@ -189,10 +210,49 @@ export function DashboardShell() {
             {t("dashboard.today")}: <span className="font-medium text-ink"><EthDate value={new Date()} /></span>
           </div>
           <div className="flex items-center gap-3">
-            <span className="text-sm text-ink-soft">{profile?.full_name}</span>
             <LanguageSwitcher />
+            <div className="relative" ref={userMenuRef}>
+              <button
+                type="button"
+                onClick={() => setUserMenuOpen((v) => !v)}
+                aria-expanded={userMenuOpen}
+                aria-haspopup="menu"
+                className="flex items-center gap-2 rounded-control px-2 py-1.5 hover:bg-sidebar"
+              >
+                <Avatar name={profile?.full_name ?? "?"} size="sm" />
+                <span className="text-sm text-ink-soft">{profile?.full_name}</span>
+                <svg viewBox="0 0 12 12" className={cn("h-3 w-3 text-ink-faint transition-transform", userMenuOpen ? "rotate-180" : "")} aria-hidden>
+                  <path d="M2.5 4.5 6 8l3.5-3.5" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+              {userMenuOpen && (
+                <div role="menu" className="absolute right-0 z-20 mt-1 w-56 rounded-panel border border-line bg-card py-1 shadow-lg">
+                  <div className="px-4 py-2 text-xs text-ink-faint">
+                    {t("userMenu.role")}: <span className="font-medium text-ink">{profile ? t(`roles.${profile.role}`) : "—"}</span>
+                  </div>
+                  <div className="border-t border-line" />
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => { setChangingPassword(true); setUserMenuOpen(false); }}
+                    className="block w-full px-4 py-2 text-left text-sm text-ink hover:bg-sidebar"
+                  >
+                    {t("userMenu.changePassword")}
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={signOut}
+                    className="block w-full px-4 py-2 text-left text-sm text-danger hover:bg-danger-tint"
+                  >
+                    {t("userMenu.logout")}
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </header>
+        {changingPassword && <ChangePasswordModal onClose={() => setChangingPassword(false)} />}
         <main className="flex-1 p-6">
           <Outlet />
         </main>
