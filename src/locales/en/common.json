@@ -33,5 +33,6 @@
   "hr": { "employees": "Employees", "payrollRuns": "Payroll runs", "runPayroll": "Run payroll", "period": "Period", "statusLabel": "Status", "grossTotal": "Gross total", "employeesCount": "{count, plural, one {# employee} other {# employees}}", "draft": "Draft", "approved": "Approved", "paid": "Paid", "void": "Void", "approve": "Approve", "prepared": "Prepared by", "recalculate": "Recalculate", "leaveRequests": "Leave requests", "pending": "Pending", "approveLeave": "Approve", "reject": "Reject", "netPay": "Net pay", "payslip": "Payslip", "sodNote": "A run cannot be approved by the person who prepared it." },
   "dashboard": { "welcome": "Welcome back", "today": "Today", "studentsCard": "Active students", "attendanceCard": "Attendance today", "payrollCard": "Payroll status", "feesCard": "Fees collected (month)" },
   "errors": { "generic": "An unexpected error occurred", "forbidden": "You do not have access to this." },
+  "noRecordsYet": "No records yet.",
   "actions": { "retry": "Retry", "close": "Close" }
 }

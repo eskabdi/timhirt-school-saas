@@ -1,9 +1,11 @@
+import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { Card } from "@/components/ui/Card";
 import { Panel } from "@/components/ui/Panel";
 
 export function HostelPage() {
+  const { t } = useTranslation();
   const { data } = useQuery({
     queryKey: ["hostel_allocations"],
     queryFn: async () => {
@@ -14,9 +16,9 @@ export function HostelPage() {
   });
   return (
     <div className="space-y-4">
-      <h1 className="font-display text-2xl font-bold text-ink">Hostel</h1>
+      <h1 className="font-display text-2xl font-bold text-ink">{t("nav.hostel")}</h1>
       {!data?.length ? (
-        <Card className="py-12 text-center text-ink-faint">No records yet.</Card>
+        <Card className="py-12 text-center text-ink-faint">{t("noRecordsYet")}</Card>
       ) : (
         <Panel>
           <table className="w-full text-sm">

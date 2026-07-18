@@ -32,5 +32,6 @@
   "hr": { "employees": "Hojjettoota", "payrollRuns": "Marsaa mindaa", "runPayroll": "Mindaa kaffali", "period": "Yeroo", "statusLabel": "Haala", "grossTotal": "Waliigala mindaa", "employeesCount": "{count, plural, one {hojjetaa #} other {hojjettoota #}}", "draft": "Wixinee", "approved": "Mirkanaa'eera", "paid": "Kaffalameera", "void": "Haqameera", "approve": "Mirkaneessi", "prepared": "Kan qopheesse", "recalculate": "Irra deebi'ii shallagi", "leaveRequests": "Gaaffii eeyyamaa", "pending": "Eegamaa jira", "approveLeave": "Mirkaneessi", "reject": "Didi", "netPay": "Kaffaltii qulqulluu", "payslip": "Waraqaa mindaa", "sodNote": "Namni marsaa qopheesse ofii isaatii mirkaneessuu hin danda'u." },
   "dashboard": { "welcome": "Baga nagaan dhufte", "today": "Har'a", "studentsCard": "Barattoota sochii", "attendanceCard": "Hordoffii har'aa", "payrollCard": "Haala mindaa", "feesCard": "Kaffaltii walitti qabame (ji'a)" },
   "errors": { "generic": "Dogoggorri hin eegamne uumameera", "forbidden": "Kana ilaaluuf hayyama hin qabdu." },
+  "noRecordsYet": "Ammatti galmeen hin jiru.",
   "actions": { "retry": "Irra deebi'i yaali", "close": "Cufi" }
 }

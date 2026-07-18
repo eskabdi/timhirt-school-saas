@@ -32,5 +32,6 @@
   "hr": { "employees": "ሠራተኞች", "payrollRuns": "የደመወዝ ዙሮች", "runPayroll": "ደመወዝ አስሂድ", "period": "ወቅት", "statusLabel": "ሁኔታ", "grossTotal": "ጠቅላላ ደመወዝ", "employeesCount": "{count, plural, one {# ሠራተኛ} other {# ሠራተኞች}}", "draft": "ረቂቅ", "approved": "ጸድቋል", "paid": "ተከፍሏል", "void": "ተሰርዟል", "approve": "አጽድቅ", "prepared": "ያዘጋጀው", "recalculate": "እንደገና አስላ", "leaveRequests": "የፈቃድ ጥያቄዎች", "pending": "በመጠባበቅ ላይ", "approveLeave": "አጽድቅ", "reject": "እምቢ", "netPay": "የተጣራ ክፍያ", "payslip": "የደመወዝ ወረቀት", "sodNote": "ዙሩን ያዘጋጀው ሰው ራሱ ማጽደቅ አይችልም።" },
   "dashboard": { "welcome": "እንኳን ደህና መጡ", "today": "ዛሬ", "studentsCard": "ንቁ ተማሪዎች", "attendanceCard": "የዛሬ ክትትል", "payrollCard": "የደመወዝ ሁኔታ", "feesCard": "የተሰበሰበ ክፍያ (ወር)" },
   "errors": { "generic": "ያልተጠበቀ ስህተት ተከስቷል", "forbidden": "ይህን ለማየት ፈቃድ የለዎትም።" },
+  "noRecordsYet": "እስካሁን መዝገብ የለም።",
   "actions": { "retry": "እንደገና ሞክር", "close": "ዝጋ" }
 }
