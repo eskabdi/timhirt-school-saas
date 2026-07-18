@@ -2,6 +2,8 @@
   "app": { "name": "Timhirt", "tagline": "School management for Ethiopia" },
   "weekdays": ["", "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
   "timetable": { "room": "Room {room}", "myTitle": "My timetable" },
+  "communication": { "title": "Communication Hub", "titleLabel": "Title", "message": "Message", "audience": "Audience",
+    "all": "All", "staff": "Staff", "parents": "Parents", "publish": "Publish" },
   "fees": { "structuresTitle": "Fee structures", "invoicesTitle": "Invoices", "student": "Student", "due": "Due", "amount": "Amount", "status": "Status", "payViaChapa": "Pay via Chapa",
     "cycle": { "monthly": "Monthly", "term": "Term", "annual": "Annual", "once": "One-time" },
     "invoiceStatus": { "pending": "Pending", "partial": "Partial", "paid": "Paid", "overdue": "Overdue" } },

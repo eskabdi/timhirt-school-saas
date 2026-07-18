@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useSession } from "@/features/auth/useSession";
@@ -6,8 +7,10 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card } from "@/components/ui/Card";
 import { Field } from "@/components/ui/Field";
+import { tField } from "@/lib/i18n";
 
 export function AnnouncementsPage() {
+  const { t, i18n } = useTranslation();
   const { profile } = useSession();
   const qc = useQueryClient();
   const [title, setTitle] = useState("");
@@ -37,26 +40,28 @@ export function AnnouncementsPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="font-display text-2xl font-bold">Communication Hub</h1>
+      <h1 className="font-display text-2xl font-bold text-ink">{t("communication.title")}</h1>
       <Card className="max-w-xl space-y-3">
-        <Field label="Title"><Input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={150} /></Field>
-        <Field label="Message">
+        <Field label={t("communication.titleLabel")}><Input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={150} /></Field>
+        <Field label={t("communication.message")}>
           <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={3} maxLength={3000}
-            className="w-full rounded-control border border-line px-3 py-2 text-sm" />
+            className="w-full rounded-control border border-line bg-card px-3 py-2 text-sm text-ink" />
         </Field>
-        <Field label="Audience">
+        <Field label={t("communication.audience")}>
           <select value={audience} onChange={(e) => setAudience(e.target.value as typeof audience)}
-            className="w-full rounded-control border border-line px-3 py-2 text-sm">
-            <option value="all">All</option><option value="staff">Staff</option><option value="parents">Parents</option>
+            className="w-full rounded-control border border-line bg-card px-3 py-2 text-sm text-ink">
+            <option value="all">{t("communication.all")}</option>
+            <option value="staff">{t("communication.staff")}</option>
+            <option value="parents">{t("communication.parents")}</option>
           </select>
         </Field>
-        <Button onClick={() => publish.mutate()} disabled={!title || !body}>Publish</Button>
+        <Button onClick={() => publish.mutate()} disabled={!title || !body}>{t("communication.publish")}</Button>
       </Card>
       <div className="space-y-2">
         {announcements?.map((a) => (
           <Card key={a.id}>
-            <p className="font-medium">{a.title_i18n?.en}</p>
-            <p className="text-sm text-ink-faint">{a.body_i18n?.en}</p>
+            <p className="font-medium text-ink">{tField(a.title_i18n, i18n.resolvedLanguage!)}</p>
+            <p className="text-sm text-ink-faint">{tField(a.body_i18n, i18n.resolvedLanguage!)}</p>
           </Card>
         ))}
       </div>

@@ -2,6 +2,8 @@
   "app": { "name": "Timhirt", "tagline": "Sirna bulchiinsa mana barumsaa" },
   "weekdays": ["", "Dilbata", "Wiixata", "Kibxata", "Roobii", "Kamiisa", "Jimaata", "Sanbata"],
   "timetable": { "room": "Lakk. Kutaa {room}", "myTitle": "Sagantaa Koo" },
+  "communication": { "title": "Giddugala Walqunnamtii", "titleLabel": "Mata Duree", "message": "Ergaa", "audience": "Fudhattoota",
+    "all": "Hunda", "staff": "Hojjettoota", "parents": "Warra", "publish": "Maxxansi" },
   "fees": { "structuresTitle": "Caasaalee Kaffaltii", "invoicesTitle": "Waraqaalee Kaffaltii", "student": "Barataa", "due": "Guyyaa Xumuraa", "amount": "Hamma", "status": "Haala", "payViaChapa": "Chapaan Kaffali",
     "cycle": { "monthly": "Ji'a ji'aan", "term": "Semistara", "annual": "Waggaa waggaan", "once": "Yeroo tokko" },
     "invoiceStatus": { "pending": "Eegamaa jira", "partial": "Gar-tokkee Kaffalame", "paid": "Kaffalameera", "overdue": "Guyyaan Darbeera" } },
