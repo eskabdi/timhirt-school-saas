@@ -4,11 +4,14 @@
 // scripted scanner can't enumerate verify_code values unrate-limited.
 import { useState } from "react";
 import { useParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
 export function IDVerificationPage() {
+  const { t } = useTranslation();
   const params = useParams();
   const [code, setCode] = useState(params.code ?? "");
   const [result, setResult] = useState<{ valid: boolean; subject_type?: string; issued_on?: string; tenant_name?: string } | null>(null);
@@ -32,18 +35,24 @@ export function IDVerificationPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-page px-4">
+      <div className="absolute right-4 top-4"><LanguageSwitcher /></div>
       <Card className="w-full max-w-sm text-center">
-        <h1 className="mb-4 font-display text-xl font-bold text-ink">Verify ID / Certificate</h1>
+        <h1 className="mb-4 font-display text-xl font-bold text-ink">{t("idCards.verifyTitle")}</h1>
         <div className="flex gap-2">
-          <Input value={code} onChange={(e) => setCode(e.target.value)} placeholder="Verification code" maxLength={64} />
-          <Button onClick={verify} disabled={busy || !code}>{busy ? "…" : "Check"}</Button>
+          <Input value={code} onChange={(e) => setCode(e.target.value)} placeholder={t("idCards.verifyPlaceholder")} maxLength={64} />
+          <Button onClick={verify} disabled={busy || !code}>{busy ? "…" : t("idCards.check")}</Button>
         </div>
         {result && (
           <div className="mt-4 rounded-panel bg-sidebar p-4 text-sm">
             {result.valid ? (
-              <p className="text-ok">✓ Valid {result.subject_type} record — {result.tenant_name}</p>
+              <p className="text-ok">
+                {t("idCards.validRecord", {
+                  type: t(`idCards.subjectType.${result.subject_type}`),
+                  tenant: result.tenant_name,
+                })}
+              </p>
             ) : (
-              <p className="text-danger">Not found or invalid code.</p>
+              <p className="text-danger">{t("idCards.notFound")}</p>
             )}
           </div>
         )}
