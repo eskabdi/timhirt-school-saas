@@ -23,6 +23,8 @@ export function StudentFormPage() {
     resolver: zodResolver(studentSchema),
   });
 
+  const errorText = (code?: string) => code && t(`students.errors.${code}`);
+
   const mutation = useMutation({
     mutationFn: (input: StudentInput) => createStudent(profile!.tenant_id!, input),
     onSuccess: () => {
@@ -36,21 +38,21 @@ export function StudentFormPage() {
       <h1 className="mb-4 font-display text-xl font-bold text-ink">{t("students.add")}</h1>
       <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4" noValidate>
         <div className="grid grid-cols-2 gap-4">
-          <Field label={t("students.firstName")} error={errors.first_name?.message}>
+          <Field label={t("students.firstName")} error={errorText(errors.first_name?.message)}>
             <Input {...register("first_name")} maxLength={80} required />
           </Field>
-          <Field label={t("students.lastName")} error={errors.last_name?.message}>
+          <Field label={t("students.lastName")} error={errorText(errors.last_name?.message)}>
             <Input {...register("last_name")} maxLength={80} required />
           </Field>
         </div>
-        <Field label={t("students.admissionNo")} error={errors.admission_no?.message}>
+        <Field label={t("students.admissionNo")} error={errorText(errors.admission_no?.message)}>
           <Input {...register("admission_no")} placeholder="ADM-2018-001" maxLength={20} required />
         </Field>
-        <Field label={t("students.dob")} error={errors.date_of_birth?.message}>
+        <Field label={t("students.dob")} error={errorText(errors.date_of_birth?.message)}>
           <Controller name="date_of_birth" control={control}
             render={({ field }) => <EthDatePicker value={field.value ?? null} onChange={field.onChange} />} />
         </Field>
-        <Field label={t("students.gender")} error={errors.gender?.message}>
+        <Field label={t("students.gender")} error={errorText(errors.gender?.message)}>
           <select {...register("gender")} className="w-full rounded-control border border-line bg-card px-3 py-2 text-sm text-ink" required>
             <option value="">—</option>
             <option value="male">{t("students.male")}</option>
@@ -58,7 +60,7 @@ export function StudentFormPage() {
             <option value="other">{t("students.other")}</option>
           </select>
         </Field>
-        <Field label={t("students.class")} error={errors.class_id?.message}>
+        <Field label={t("students.class")} error={errorText(errors.class_id?.message)}>
           <select {...register("class_id")} className="w-full rounded-control border border-line bg-card px-3 py-2 text-sm text-ink" required>
             <option value="">—</option>
             {classes?.map((c) => <option key={c.id} value={c.id}>{c.name} {c.section}</option>)}
