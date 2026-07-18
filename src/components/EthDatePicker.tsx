@@ -27,6 +27,10 @@ interface Props {
 // weekday abbreviation to fall back on without risking an invented one.
 const WEEKDAYS = ["S", "M", "T", "W", "T", "F", "S"];
 
+// Year-grid page size — clicking the header opens a grid of years so a
+// distant birth year is one or two clicks away, not dozens of month steps.
+const YEARS_PER_PAGE = 12;
+
 export function EthDatePicker({ value, onChange, geez = false, id }: Props) {
   const { t } = useTranslation("calendar");
   const months = t("months", { returnObjects: true }) as string[];
@@ -35,16 +39,25 @@ export function EthDatePicker({ value, onChange, geez = false, id }: Props) {
 
   const initial: Eth = value ? toEthiopian(value) : todayEthiopian();
   const [view, setView] = useState<{ year: number; month: number }>({ year: initial.year, month: initial.month });
+  // "days" = normal month grid; "years" = year-selection grid.
+  const [mode, setMode] = useState<"days" | "years">("days");
+  const [yearGridStart, setYearGridStart] = useState(initial.year - 6);
   const selected = value ? toEthiopian(value) : null;
   const today = todayEthiopian();
 
   // Re-anchor the visible month to the current selection (or today) each
-  // time the popover opens, so it never reopens on a stale month.
+  // time the popover opens, so it never reopens on a stale month or in year mode.
   useEffect(() => {
     if (!open) return;
     const base = value ? toEthiopian(value) : todayEthiopian();
     setView({ year: base.year, month: base.month });
+    setMode("days");
+    setYearGridStart(base.year - 6);
   }, [open]);
+
+  // Open the year grid centred on the month currently in view.
+  const openYearGrid = () => { setYearGridStart(view.year - 6); setMode("years"); };
+  const selectYear = (y: number) => { setView((v) => ({ ...v, year: y })); setMode("days"); };
 
   useEffect(() => {
     if (!open) return;
@@ -111,43 +124,83 @@ export function EthDatePicker({ value, onChange, geez = false, id }: Props) {
       {open && (
         <div className="absolute z-20 mt-1 w-72 rounded-panel border border-line bg-card p-3 shadow-lg" role="dialog" aria-label={t("pickDate")}>
           <div className="mb-2 flex items-center justify-between">
-            <button type="button" onClick={() => move(-1)} aria-label="Previous month"
+            <button
+              type="button"
+              onClick={() => (mode === "days" ? move(-1) : setYearGridStart((s) => s - YEARS_PER_PAGE))}
+              aria-label={mode === "days" ? "Previous month" : "Previous years"}
               className="rounded-control px-2 py-1 text-ink-faint hover:bg-sidebar">‹</button>
-            <div className="font-display text-sm font-bold text-ink">
-              {months[view.month - 1]} {geez ? toGeez(view.year) : view.year} {t("eraSuffix")}
-            </div>
-            <button type="button" onClick={() => move(1)} aria-label="Next month"
+            <button
+              type="button"
+              onClick={() => (mode === "days" ? openYearGrid() : setMode("days"))}
+              aria-label={mode === "days" ? "Select year" : "Back to days"}
+              className="rounded-control px-2 py-1 font-display text-sm font-bold text-ink hover:bg-sidebar">
+              {mode === "days"
+                ? `${months[view.month - 1]} ${geez ? toGeez(view.year) : view.year} ${t("eraSuffix")}`
+                : `${geez ? toGeez(yearGridStart) : yearGridStart}–${geez ? toGeez(yearGridStart + YEARS_PER_PAGE - 1) : yearGridStart + YEARS_PER_PAGE - 1} ${t("eraSuffix")}`}
+            </button>
+            <button
+              type="button"
+              onClick={() => (mode === "days" ? move(1) : setYearGridStart((s) => s + YEARS_PER_PAGE))}
+              aria-label={mode === "days" ? "Next month" : "Next years"}
               className="rounded-control px-2 py-1 text-ink-faint hover:bg-sidebar">›</button>
           </div>
 
-          <div className="grid grid-cols-7 gap-1 text-center text-xs font-medium text-ink-faint">
-            {WEEKDAYS.map((w, i) => <div key={i} className="py-1">{w}</div>)}
-          </div>
+          {mode === "years" ? (
+            <div className="grid grid-cols-3 gap-1" role="grid">
+              {Array.from({ length: YEARS_PER_PAGE }, (_, i) => yearGridStart + i).map((y) => {
+                const isSelectedYear = selected?.year === y;
+                const isCurrentYear = today.year === y;
+                return (
+                  <button
+                    key={y}
+                    type="button"
+                    role="gridcell"
+                    aria-selected={isSelectedYear}
+                    onClick={() => selectYear(y)}
+                    className={cn(
+                      "flex h-10 items-center justify-center rounded-control text-sm tabular-nums transition-colors",
+                      isSelectedYear ? "bg-navy font-semibold text-white"
+                        : isCurrentYear ? "ring-1 ring-inset ring-navy text-ink hover:bg-navy-wash"
+                        : "text-ink hover:bg-navy-wash",
+                    )}
+                  >
+                    {geez ? toGeez(y) : y}
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-7 gap-1 text-center text-xs font-medium text-ink-faint">
+                {WEEKDAYS.map((w, i) => <div key={i} className="py-1">{w}</div>)}
+              </div>
 
-          <div className="grid grid-cols-7 gap-1" role="grid">
-            {Array.from({ length: leadingBlanks }, (_, i) => <div key={`blank-${i}`} />)}
-            {days.map((d) => {
-              const isSelected = selected?.year === view.year && selected?.month === view.month && selected?.day === d;
-              const isToday = today.year === view.year && today.month === view.month && today.day === d;
-              return (
-                <button
-                  key={d}
-                  type="button"
-                  role="gridcell"
-                  aria-selected={isSelected}
-                  onClick={() => selectDay(d)}
-                  className={cn(
-                    "flex h-9 w-9 items-center justify-center rounded-full text-sm tabular-nums transition-colors",
-                    isSelected ? "bg-navy font-semibold text-white"
-                      : isToday ? "ring-1 ring-inset ring-navy text-ink hover:bg-navy-wash"
-                      : "text-ink hover:bg-navy-wash",
-                  )}
-                >
-                  {geez ? toGeez(d) : d}
-                </button>
-              );
-            })}
-          </div>
+              <div className="grid grid-cols-7 gap-1" role="grid">
+                {Array.from({ length: leadingBlanks }, (_, i) => <div key={`blank-${i}`} />)}
+                {days.map((d) => {
+                  const isSelected = selected?.year === view.year && selected?.month === view.month && selected?.day === d;
+                  const isToday = today.year === view.year && today.month === view.month && today.day === d;
+                  return (
+                    <button
+                      key={d}
+                      type="button"
+                      role="gridcell"
+                      aria-selected={isSelected}
+                      onClick={() => selectDay(d)}
+                      className={cn(
+                        "flex h-9 w-9 items-center justify-center rounded-full text-sm tabular-nums transition-colors",
+                        isSelected ? "bg-navy font-semibold text-white"
+                          : isToday ? "ring-1 ring-inset ring-navy text-ink hover:bg-navy-wash"
+                          : "text-ink hover:bg-navy-wash",
+                      )}
+                    >
+                      {geez ? toGeez(d) : d}
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          )}
 
           {value && (
             <p className="mt-2 border-t border-line pt-2 text-xs text-ink-faint">
