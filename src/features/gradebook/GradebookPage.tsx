@@ -1,10 +1,13 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { tField } from "@/lib/i18n";
 
 export function GradebookPage() {
+  const { t, i18n } = useTranslation();
   const qc = useQueryClient();
   const [examId, setExamId] = useState("");
   const [subjectId, setSubjectId] = useState("");
@@ -29,13 +32,13 @@ export function GradebookPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="font-display text-2xl font-bold">Gradebook</h1>
+      <h1 className="font-display text-2xl font-bold text-ink">{t("gradebook.title")}</h1>
       <div className="flex gap-3">
-        <select value={examId} onChange={(e) => setExamId(e.target.value)} className="rounded-control border border-line px-3 py-2 text-sm">
-          <option value="">Exam</option>{exams?.map((e) => <option key={e.id} value={e.id}>{e.name_i18n?.en} (/{e.max_score})</option>)}
+        <select value={examId} onChange={(e) => setExamId(e.target.value)} className="rounded-control border border-line bg-card px-3 py-2 text-sm text-ink">
+          <option value="">{t("gradebook.exam")}</option>{exams?.map((e) => <option key={e.id} value={e.id}>{tField(e.name_i18n, i18n.resolvedLanguage!)} (/{e.max_score})</option>)}
         </select>
-        <select value={subjectId} onChange={(e) => setSubjectId(e.target.value)} className="rounded-control border border-line px-3 py-2 text-sm">
-          <option value="">Subject</option>{subjects?.map((s) => <option key={s.id} value={s.id}>{s.name_i18n?.en}</option>)}
+        <select value={subjectId} onChange={(e) => setSubjectId(e.target.value)} className="rounded-control border border-line bg-card px-3 py-2 text-sm text-ink">
+          <option value="">{t("gradebook.subject")}</option>{subjects?.map((s) => <option key={s.id} value={s.id}>{tField(s.name_i18n, i18n.resolvedLanguage!)}</option>)}
         </select>
       </div>
       {examId && subjectId && (
@@ -44,16 +47,16 @@ export function GradebookPage() {
             <tbody className="divide-y divide-line">
               {students?.map((s) => (
                 <tr key={s.id}>
-                  <td className="py-2 font-medium">{s.first_name} {s.last_name}</td>
+                  <td className="py-2 font-medium text-ink">{s.first_name} {s.last_name}</td>
                   <td className="py-2">
-                    <input type="number" min={0} className="w-20 rounded-control border border-line px-2 py-1 text-sm"
+                    <input type="number" min={0} className="w-20 rounded-control border border-line bg-card px-2 py-1 text-sm text-ink"
                       value={scores[s.id] ?? ""} onChange={(e) => setScores((sc) => ({ ...sc, [s.id]: Number(e.target.value) }))} />
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-          <Button className="mt-3" onClick={() => save.mutate()} disabled={save.isPending}>Save grades</Button>
+          <Button className="mt-3" onClick={() => save.mutate()} disabled={save.isPending}>{t("gradebook.saveGrades")}</Button>
         </Card>
       )}
     </div>

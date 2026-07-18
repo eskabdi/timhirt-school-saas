@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useSession } from "@/features/auth/useSession";
@@ -7,8 +8,10 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Field } from "@/components/ui/Field";
+import { tField } from "@/lib/i18n";
 
 export function ExamsPage() {
+  const { t, i18n } = useTranslation();
   const { profile } = useSession();
   const qc = useQueryClient();
   const [name, setName] = useState("");
@@ -34,16 +37,16 @@ export function ExamsPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="font-display text-2xl font-bold">Exams</h1>
+      <h1 className="font-display text-2xl font-bold text-ink">{t("gradebook.exams")}</h1>
       <Card className="max-w-md space-y-3">
-        <Field label="Name"><Input value={name} onChange={(e) => setName(e.target.value)} maxLength={100} /></Field>
-        <Field label="Max score"><Input type="number" value={maxScore} onChange={(e) => setMaxScore(Number(e.target.value))} /></Field>
-        <Field label="Window start (EC)"><EthDatePicker value={start} onChange={setStart} /></Field>
-        <Button onClick={() => create.mutate()} disabled={!name}>Create exam</Button>
+        <Field label={t("gradebook.name")}><Input value={name} onChange={(e) => setName(e.target.value)} maxLength={100} /></Field>
+        <Field label={t("gradebook.maxScore")}><Input type="number" value={maxScore} onChange={(e) => setMaxScore(Number(e.target.value))} /></Field>
+        <Field label={t("gradebook.windowStart")}><EthDatePicker value={start} onChange={setStart} /></Field>
+        <Button onClick={() => create.mutate()} disabled={!name}>{t("gradebook.createExam")}</Button>
       </Card>
       <div className="space-y-2">
         {exams?.map((e) => (
-          <Card key={e.id} className="flex justify-between text-sm"><span>{e.name_i18n?.en}</span><span className="text-ink-faint">/{e.max_score}</span></Card>
+          <Card key={e.id} className="flex justify-between text-sm text-ink"><span>{tField(e.name_i18n, i18n.resolvedLanguage!)}</span><span className="text-ink-faint">/{e.max_score}</span></Card>
         ))}
       </div>
     </div>
