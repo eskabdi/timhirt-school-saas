@@ -10,7 +10,7 @@ import { useTranslation } from "react-i18next";
 const STATUS_TONE = { pending: "neutral", partial: "navy", paid: "ok", overdue: "danger" } as const;
 
 export function InvoicesPage() {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { data: invoices } = useQuery({
     queryKey: ["invoices"],
     queryFn: async () => {
@@ -38,11 +38,11 @@ export function InvoicesPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="font-display text-2xl font-bold text-ink">Invoices</h1>
+      <h1 className="font-display text-2xl font-bold text-ink">{t("fees.invoicesTitle")}</h1>
       <Panel>
         <table className="w-full text-sm">
           <thead className="bg-sidebar text-left text-xs uppercase text-ink-faint">
-            <tr><th className="px-4 py-2">Student</th><th className="px-4 py-2">Due</th><th className="px-4 py-2">Amount</th><th className="px-4 py-2">Status</th><th></th></tr>
+            <tr><th className="px-4 py-2">{t("fees.student")}</th><th className="px-4 py-2">{t("fees.due")}</th><th className="px-4 py-2">{t("fees.amount")}</th><th className="px-4 py-2">{t("fees.status")}</th><th></th></tr>
           </thead>
           <tbody className="divide-y divide-line">
             {invoices?.map((inv) => (
@@ -50,10 +50,10 @@ export function InvoicesPage() {
                 <td className="px-4 py-2 font-medium text-ink">{(inv.students as any)?.first_name} {(inv.students as any)?.last_name}</td>
                 <td className="px-4 py-2 text-ink-faint"><EthDate value={inv.due_date} /></td>
                 <td className="px-4 py-2 text-ink">{formatETB(Number(inv.amount_due) - Number(inv.amount_paid), i18n.resolvedLanguage!)}</td>
-                <td className="px-4 py-2"><Badge tone={STATUS_TONE[inv.status as keyof typeof STATUS_TONE] ?? "neutral"}>{inv.status}</Badge></td>
+                <td className="px-4 py-2"><Badge tone={STATUS_TONE[inv.status as keyof typeof STATUS_TONE] ?? "neutral"}>{t(`fees.invoiceStatus.${inv.status}`)}</Badge></td>
                 <td className="px-4 py-2">
                   {inv.status !== "paid" && (
-                    <Button variant="ghost" onClick={() => pay.mutate(inv.id)} disabled={pay.isPending}>Pay via Chapa</Button>
+                    <Button variant="ghost" onClick={() => pay.mutate(inv.id)} disabled={pay.isPending}>{t("fees.payViaChapa")}</Button>
                   )}
                 </td>
               </tr>
