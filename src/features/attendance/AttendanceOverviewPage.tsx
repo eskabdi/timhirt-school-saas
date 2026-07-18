@@ -1,8 +1,10 @@
+import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { Card } from "@/components/ui/Card";
 
 export function AttendanceOverviewPage() {
+  const { t } = useTranslation();
   const { data: classes } = useQuery({
     queryKey: ["classes"],
     queryFn: async () => (await supabase.from("classes").select("id,name,section")).data ?? [],
@@ -24,7 +26,7 @@ export function AttendanceOverviewPage() {
   });
   return (
     <div className="space-y-4">
-      <h1 className="font-display text-2xl font-bold">Attendance overview (30 days)</h1>
+      <h1 className="font-display text-2xl font-bold text-ink">{t("attendance.overview")}</h1>
       <div className="grid gap-3 md:grid-cols-3">
         {classes?.map((c) => {
           const e = byClass.get(c.id) ?? { present: 0, absent: 0 };
@@ -32,9 +34,9 @@ export function AttendanceOverviewPage() {
           const pct = total ? Math.round((e.present / total) * 100) : 0;
           return (
             <Card key={c.id}>
-              <p className="font-medium">{c.name} {c.section}</p>
-              <p className="mt-1 font-display text-2xl font-bold">{pct}%</p>
-              <p className="text-xs text-ink-faint">{e.present} present · {e.absent} absent</p>
+              <p className="font-medium text-ink">{c.name} {c.section}</p>
+              <p className="mt-1 font-display text-2xl font-bold text-ink">{pct}%</p>
+              <p className="text-xs text-ink-faint">{t("attendance.presentAbsent", { present: e.present, absent: e.absent })}</p>
             </Card>
           );
         })}
