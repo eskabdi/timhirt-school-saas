@@ -1,5 +1,7 @@
 {
   "app": { "name": "Timhirt", "tagline": "Sirna bulchiinsa mana barumsaa" },
+  "weekdays": ["", "Dilbata", "Wiixata", "Kibxata", "Roobii", "Kamiisa", "Jimaata", "Sanbata"],
+  "timetable": { "room": "Lakk. Kutaa {room}", "myTitle": "Sagantaa Koo" },
   "nav": { "dashboard": "Gabatee", "students": "Barattoota", "attendance": "Hordoffii", "hr": "HR fi Mindaa", "leave": "Eeyyama", "payroll": "Mindaa", "signOut": "Ba'i",
     "admissions": "Galmee", "idCards": "Waraqaa Eenyummaa", "attendanceOverview": "Ilaalcha Hordoffii", "timetable": "Sagantaa", "gradebook": "Galmee Qabxii", "assignments": "Hojii Manaa",
     "feeStructures": "Caasaa Kaffaltii", "invoices": "Waraqaa Kaffaltii", "inventory": "Meeshaalee", "reports": "Gabaasa",

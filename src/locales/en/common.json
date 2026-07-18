@@ -1,5 +1,7 @@
 {
   "app": { "name": "Timhirt", "tagline": "School management for Ethiopia" },
+  "weekdays": ["", "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
+  "timetable": { "room": "Room {room}", "myTitle": "My timetable" },
   "nav": { "dashboard": "Dashboard", "students": "Students", "attendance": "Attendance", "hr": "HR & Payroll", "leave": "Leave", "payroll": "Payroll", "signOut": "Sign out",
     "admissions": "Admissions", "idCards": "ID Cards", "attendanceOverview": "Attendance Overview", "timetable": "Timetable", "gradebook": "Gradebook", "assignments": "Assignments",
     "feeStructures": "Fee Structures", "invoices": "Invoices", "inventory": "Inventory", "reports": "Reports",

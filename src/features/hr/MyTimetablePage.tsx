@@ -1,11 +1,13 @@
+import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useSession } from "@/features/auth/useSession";
 import { Card } from "@/components/ui/Card";
-
-const DAYS = ["", "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+import { tField } from "@/lib/i18n";
 
 export function MyTimetablePage() {
+  const { t, i18n } = useTranslation();
+  const weekdays = t("weekdays", { returnObjects: true }) as string[];
   const { profile } = useSession();
   const { data: slots } = useQuery({
     queryKey: ["my-timetable", profile?.id],
@@ -21,12 +23,12 @@ export function MyTimetablePage() {
   });
   return (
     <div className="space-y-4">
-      <h1 className="font-display text-2xl font-bold">My timetable</h1>
+      <h1 className="font-display text-2xl font-bold text-ink">{t("timetable.myTitle")}</h1>
       <div className="space-y-2">
         {slots?.map((s, i) => (
-          <Card key={i} className="flex items-center justify-between text-sm">
-            <span className="font-medium">{DAYS[s.day_of_week]} {s.starts_at?.slice(0,5)}–{s.ends_at?.slice(0,5)}</span>
-            <span>{(s.subjects as any)?.name_i18n?.en} · {(s.classes as any)?.name} {(s.classes as any)?.section}</span>
+          <Card key={i} className="flex items-center justify-between text-sm text-ink">
+            <span className="font-medium">{weekdays[s.day_of_week]} {s.starts_at?.slice(0,5)}–{s.ends_at?.slice(0,5)}</span>
+            <span>{tField((s.subjects as any)?.name_i18n, i18n.resolvedLanguage!)} · {(s.classes as any)?.name} {(s.classes as any)?.section}</span>
           </Card>
         ))}
       </div>
