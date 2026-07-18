@@ -110,11 +110,11 @@ function BilingualField({ labelEn, labelAm, error, children }: {
   return <Field label={`${labelEn} / ${labelAm}`} error={error}>{children}</Field>;
 }
 
-async function fetchClasses(tenantSlug: string) {
+async function fetchAdmissionMeta(tenantSlug: string) {
   const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/submit-admission?tenant_slug=${encodeURIComponent(tenantSlug)}`);
-  if (!res.ok) return [];
-  const data = (await res.json()) as { classes: { id: string; name: string; section: string }[] };
-  return data.classes;
+  if (!res.ok) return { tenantName: null, classes: [] };
+  const data = (await res.json()) as { tenant_name: string; classes: { id: string; name: string; section: string }[] };
+  return { tenantName: data.tenant_name, classes: data.classes };
 }
 
 function DocumentUploadSlot({
@@ -225,11 +225,12 @@ export function PublicAdmissionFormPage() {
   const [receiptDone, setReceiptDone] = useState(false);
   const [feesError, setFeesError] = useState<string | null>(null);
 
-  const { data: classes } = useQuery({
-    queryKey: ["public-classes", tenantSlug],
-    queryFn: () => fetchClasses(tenantSlug!),
+  const { data: meta } = useQuery({
+    queryKey: ["public-admission-meta", tenantSlug],
+    queryFn: () => fetchAdmissionMeta(tenantSlug!),
     enabled: !!tenantSlug,
   });
+  const classes = meta?.classes;
 
   const REGISTRATION_FEE = 500;
   const FIRST_TERM_TUITION = 4500;
@@ -314,13 +315,14 @@ export function PublicAdmissionFormPage() {
   return (
     <div className="min-h-screen bg-page">
       <header className="flex items-center justify-between border-b border-line bg-card px-6 py-4">
-        <span className="font-display text-lg font-bold text-navy">School Information System</span>
+        <span className="font-display text-lg font-bold text-navy">{meta?.tenantName ?? "School Information System"}</span>
         <LanguageSwitcher />
       </header>
 
       <div className="mx-auto max-w-3xl px-4 py-10">
         <div className="mb-8 text-center">
           <h1 className="font-display text-3xl font-bold text-navy">Student Registration</h1>
+          {meta?.tenantName && <p className="text-sm font-medium text-ink-soft">{meta.tenantName}</p>}
           <p className="text-ink-faint">ተማሪ ምዝገባ</p>
         </div>
 

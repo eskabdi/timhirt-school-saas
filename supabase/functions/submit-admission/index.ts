@@ -64,14 +64,14 @@ Deno.serve(async (req) => {
       if (!/^[a-z0-9][a-z0-9-]{1,40}$/.test(tenantSlug)) return errors.badRequest();
 
       const db = adminClient();
-      const { data: tenant } = await db.from("tenants").select("id").eq("slug", tenantSlug).maybeSingle();
+      const { data: tenant } = await db.from("tenants").select("id, name").eq("slug", tenantSlug).maybeSingle();
       if (!tenant) return errors.badRequest();
 
       const { data: classes, error } = await db.from("classes")
         .select("id, name, section").eq("tenant_id", tenant.id).order("name");
       if (error) throw error;
 
-      return json({ classes: classes ?? [] }, 200);
+      return json({ tenant_name: tenant.name, classes: classes ?? [] }, 200);
     } catch (err) {
       console.error("submit-admission (GET) failed", { message: (err as Error).message });
       return errors.internal();
