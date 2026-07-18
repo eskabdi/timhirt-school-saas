@@ -1,4 +1,5 @@
 import { useParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { Card } from "@/components/ui/Card";
@@ -10,11 +11,11 @@ const STAGE_TONE = {
   applied: "neutral", shortlisted: "navy", offered: "late", registered: "ok", rejected: "danger",
 } as const;
 
-const DOC_LABELS: Record<string, string> = {
-  birth_certificate_path: "Birth Certificate",
-  transcript_path: "Academic Transcript",
-  photo_path: "Student Photograph",
-  payment_receipt_path: "Payment Receipt",
+const DOC_KEYS: Record<string, string> = {
+  birth_certificate_path: "birthCertificate",
+  transcript_path: "transcript",
+  photo_path: "photo",
+  payment_receipt_path: "receipt",
 };
 
 async function signedUrlsFor(paths: Record<string, string | null>) {
@@ -29,6 +30,7 @@ async function signedUrlsFor(paths: Record<string, string | null>) {
 }
 
 export function AdmissionDetailPage() {
+  const { t } = useTranslation();
   const { id } = useParams();
   const { data } = useQuery({
     queryKey: ["admission", id],
@@ -59,32 +61,32 @@ export function AdmissionDetailPage() {
       <Card>
         <div className="flex items-center justify-between">
           <h1 className="font-display text-xl font-bold text-ink">{data.applicant_name}</h1>
-          <Badge tone={STAGE_TONE[data.stage as keyof typeof STAGE_TONE] ?? "neutral"}>{data.stage}</Badge>
+          <Badge tone={STAGE_TONE[data.stage as keyof typeof STAGE_TONE] ?? "neutral"}>{t(`admissions.stage.${data.stage}`)}</Badge>
         </div>
 
         {hasBilingualName && (
           <dl className="mt-4 grid grid-cols-2 gap-4 text-sm">
-            <div><dt className="text-ink-faint">First name</dt><dd className="text-ink">{data.applicant_first_name} / {data.applicant_first_name_am}</dd></div>
-            <div><dt className="text-ink-faint">Middle name</dt><dd className="text-ink">{data.applicant_middle_name} / {data.applicant_middle_name_am}</dd></div>
-            <div><dt className="text-ink-faint">Last name</dt><dd className="text-ink">{data.applicant_last_name} / {data.applicant_last_name_am}</dd></div>
-            <div><dt className="text-ink-faint">Gender</dt><dd className="capitalize text-ink">{data.gender}</dd></div>
+            <div><dt className="text-ink-faint">{t("admissions.firstName")}</dt><dd className="text-ink">{data.applicant_first_name} / {data.applicant_first_name_am}</dd></div>
+            <div><dt className="text-ink-faint">{t("admissions.middleName")}</dt><dd className="text-ink">{data.applicant_middle_name} / {data.applicant_middle_name_am}</dd></div>
+            <div><dt className="text-ink-faint">{t("admissions.lastName")}</dt><dd className="text-ink">{data.applicant_last_name} / {data.applicant_last_name_am}</dd></div>
+            <div><dt className="text-ink-faint">{t("admissions.gender")}</dt><dd className="text-ink">{t(`students.${data.gender}`)}</dd></div>
           </dl>
         )}
         <dl className="mt-4 grid grid-cols-2 gap-4 text-sm">
-          <div><dt className="text-ink-faint">Date of birth</dt><dd className="text-ink"><EthDate value={data.date_of_birth} /></dd></div>
+          <div><dt className="text-ink-faint">{t("admissions.dob")}</dt><dd className="text-ink"><EthDate value={data.date_of_birth} /></dd></div>
         </dl>
       </Card>
 
       <Panel>
-        <PanelHeader title="Guardian" />
+        <PanelHeader title={t("admissions.guardian")} />
         <dl className="grid grid-cols-2 gap-4 p-5 text-sm">
-          <div><dt className="text-ink-faint">Name</dt><dd className="text-ink">{data.guardian_name}{data.guardian_name_am ? ` / ${data.guardian_name_am}` : ""}</dd></div>
-          <div><dt className="text-ink-faint">Relationship</dt><dd className="capitalize text-ink">{data.guardian_relationship ?? "—"}</dd></div>
-          <div><dt className="text-ink-faint">Occupation</dt><dd className="text-ink">{data.guardian_occupation ?? "—"}</dd></div>
-          <div><dt className="text-ink-faint">Phone</dt><dd className="text-ink">{data.guardian_phone}</dd></div>
-          <div><dt className="text-ink-faint">Email</dt><dd className="text-ink">{data.guardian_email ?? "—"}</dd></div>
+          <div><dt className="text-ink-faint">{t("admissions.name")}</dt><dd className="text-ink">{data.guardian_name}{data.guardian_name_am ? ` / ${data.guardian_name_am}` : ""}</dd></div>
+          <div><dt className="text-ink-faint">{t("admissions.relationship")}</dt><dd className="text-ink">{data.guardian_relationship ? t(`admissions.relationshipType.${data.guardian_relationship}`) : "—"}</dd></div>
+          <div><dt className="text-ink-faint">{t("admissions.occupation")}</dt><dd className="text-ink">{data.guardian_occupation ?? "—"}</dd></div>
+          <div><dt className="text-ink-faint">{t("admissions.phone")}</dt><dd className="text-ink">{data.guardian_phone}</dd></div>
+          <div><dt className="text-ink-faint">{t("admissions.email")}</dt><dd className="text-ink">{data.guardian_email ?? "—"}</dd></div>
           <div>
-            <dt className="text-ink-faint">Address</dt>
+            <dt className="text-ink-faint">{t("admissions.address")}</dt>
             <dd className="text-ink">
               {[data.guardian_house_number, data.guardian_woreda_kebele, data.guardian_subcity, data.guardian_region]
                 .filter(Boolean).join(", ") || "—"}
@@ -94,18 +96,18 @@ export function AdmissionDetailPage() {
       </Panel>
 
       <Panel>
-        <PanelHeader title="Documents" />
+        <PanelHeader title={t("admissions.documents")} />
         <ul className="divide-y divide-line px-5">
-          {Object.entries(DOC_LABELS).map(([key, label]) => {
+          {Object.entries(DOC_KEYS).map(([key, labelKey]) => {
             const path = data[key as keyof typeof data] as string | null;
             const url = docUrls?.[key];
             return (
               <li key={key} className="flex items-center justify-between py-3 text-sm">
-                <span className="text-ink">{label}</span>
+                <span className="text-ink">{t(`admissions.docLabels.${labelKey}`)}</span>
                 {path ? (
-                  url ? <a href={url} target="_blank" rel="noreferrer" className="text-navy hover:underline">View</a>
-                    : <span className="text-ink-faint">Loading…</span>
-                ) : <Badge tone="danger">Not uploaded</Badge>}
+                  url ? <a href={url} target="_blank" rel="noreferrer" className="text-navy hover:underline">{t("admissions.view")}</a>
+                    : <span className="text-ink-faint">{t("admissions.loading")}</span>
+                ) : <Badge tone="danger">{t("admissions.notUploaded")}</Badge>}
               </li>
             );
           })}
@@ -114,11 +116,11 @@ export function AdmissionDetailPage() {
 
       {data.payment_method && (
         <Panel>
-          <PanelHeader title="Payment" />
+          <PanelHeader title={t("admissions.payment")} />
           <dl className="grid grid-cols-2 gap-4 p-5 text-sm">
-            <div><dt className="text-ink-faint">Method</dt><dd className="uppercase text-ink">{data.payment_method}</dd></div>
-            <div><dt className="text-ink-faint">Total</dt><dd className="tabular-nums text-ink">{data.fees_total_etb} ETB</dd></div>
-            <div><dt className="text-ink-faint">School bus</dt><dd className="text-ink">{data.bus_service_opted ? "Yes" : "No"}</dd></div>
+            <div><dt className="text-ink-faint">{t("admissions.method")}</dt><dd className="text-ink">{t(`admissions.paymentMethod.${data.payment_method}`)}</dd></div>
+            <div><dt className="text-ink-faint">{t("admissions.total")}</dt><dd className="tabular-nums text-ink">{data.fees_total_etb} ETB</dd></div>
+            <div><dt className="text-ink-faint">{t("admissions.schoolBus")}</dt><dd className="text-ink">{data.bus_service_opted ? t("admissions.yes") : t("admissions.no")}</dd></div>
           </dl>
         </Panel>
       )}
