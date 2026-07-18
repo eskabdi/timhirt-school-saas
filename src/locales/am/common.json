@@ -2,6 +2,7 @@
   "app": { "name": "ትምህርት", "tagline": "የትምህርት ቤት አስተዳደር ሥርዓት" },
   "weekdays": ["", "እሁድ", "ሰኞ", "ማክሰኞ", "ረቡዕ", "ሐሙስ", "ዓርብ", "ቅዳሜ"],
   "timetable": { "room": "ክፍል ቁጥር {room}", "myTitle": "የእኔ መርሃ ግብር" },
+  "assignments": { "title": "ስራዎች", "new": "አዲስ ስራ", "titleLabel": "ርዕስ", "class": "ክፍል", "subject": "የትምህርት ዓይነት", "dueDate": "የመጨረሻ ቀን", "due": "የመጨረሻ ቀን", "create": "ፍጠር" },
   "admissions": { "title": "ምዝገባ",
     "stage": { "applied": "ማመልከቻ ገብቷል", "shortlisted": "አጭር ዝርዝር ውስጥ", "offered": "ዕድል ተሰጥቷል", "registered": "ተመዝግቧል", "rejected": "ውድቅ ተደርጓል" },
     "firstName": "ስም", "middleName": "የአባት ስም", "lastName": "የአያት ስም", "gender": "ፆታ", "dob": "የትውልድ ቀን",

@@ -2,6 +2,7 @@
   "app": { "name": "Timhirt", "tagline": "School management for Ethiopia" },
   "weekdays": ["", "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
   "timetable": { "room": "Room {room}", "myTitle": "My timetable" },
+  "assignments": { "title": "Assignments", "new": "New assignment", "titleLabel": "Title", "class": "Class", "subject": "Subject", "dueDate": "Due date", "due": "Due", "create": "Create" },
   "admissions": { "title": "Admissions",
     "stage": { "applied": "Applied", "shortlisted": "Shortlisted", "offered": "Offered", "registered": "Registered", "rejected": "Rejected" },
     "firstName": "First name", "middleName": "Middle name", "lastName": "Last name", "gender": "Gender", "dob": "Date of birth",
