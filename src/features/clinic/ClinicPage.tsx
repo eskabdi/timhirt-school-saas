@@ -5,6 +5,7 @@
 // still governs which rows are visible — school_admin only, per §policy).
 // LOW fix: replaced ad-hoc toLocaleDateString with the EC-aware <EthDate/>.
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useSession } from "@/features/auth/useSession";
@@ -14,6 +15,7 @@ import { Field } from "@/components/ui/Field";
 import { EthDate } from "@/components/EthDate";
 
 export function ClinicPage() {
+  const { t } = useTranslation();
   const { profile } = useSession();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
@@ -57,26 +59,26 @@ export function ClinicPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="font-display text-2xl font-bold">Clinic</h1>
-        <Button onClick={() => setOpen((v) => !v)}>{open ? "Cancel" : "Log visit"}</Button>
+        <h1 className="font-display text-2xl font-bold text-ink">{t("clinic.title")}</h1>
+        <Button onClick={() => setOpen((v) => !v)}>{open ? t("clinic.cancel") : t("clinic.logVisit")}</Button>
       </div>
       {open && (
         <Card className="max-w-xl space-y-3">
-          <Field label="Student">
-            <select value={studentId} onChange={(e) => setStudentId(e.target.value)} className="w-full rounded-control border border-line px-3 py-2 text-sm">
+          <Field label={t("clinic.student")}>
+            <select value={studentId} onChange={(e) => setStudentId(e.target.value)} className="w-full rounded-control border border-line bg-card px-3 py-2 text-sm text-ink">
               <option value="">—</option>
               {students?.map((s) => <option key={s.id} value={s.id}>{s.first_name} {s.last_name}</option>)}
             </select>
           </Field>
-          <Field label="Complaint">
+          <Field label={t("clinic.complaint")}>
             <textarea value={complaint} onChange={(e) => setComplaint(e.target.value)} maxLength={500} rows={2}
-              className="w-full rounded-control border border-line px-3 py-2 text-sm" />
+              className="w-full rounded-control border border-line bg-card px-3 py-2 text-sm text-ink" />
           </Field>
-          <Field label="Treatment given">
+          <Field label={t("clinic.treatmentGiven")}>
             <textarea value={treatment} onChange={(e) => setTreatment(e.target.value)} maxLength={1000} rows={2}
-              className="w-full rounded-control border border-line px-3 py-2 text-sm" />
+              className="w-full rounded-control border border-line bg-card px-3 py-2 text-sm text-ink" />
           </Field>
-          <Button onClick={() => create.mutate()} disabled={!studentId || !complaint}>Save</Button>
+          <Button onClick={() => create.mutate()} disabled={!studentId || !complaint}>{t("clinic.save")}</Button>
         </Card>
       )}
       <div className="space-y-2">
@@ -86,20 +88,20 @@ export function ClinicPage() {
               onClick={() => setExpanded((cur) => (cur === v.id ? null : v.id))}
               className="flex w-full items-center justify-between text-left"
             >
-              <span className="font-medium">{(v.students as any)?.first_name} {(v.students as any)?.last_name}</span>
+              <span className="font-medium text-ink">{(v.students as any)?.first_name} {(v.students as any)?.last_name}</span>
               <span className="text-ink-faint"><EthDate value={v.visit_date.slice(0, 10)} /></span>
             </button>
             {expanded === v.id && detail && (
               <div className="mt-3 space-y-1 border-t border-line pt-3 text-ink-faint">
-                <p><span className="font-medium text-ink">Complaint:</span> {detail.complaint || "—"}</p>
-                <p><span className="font-medium text-ink">Treatment:</span> {detail.treatment || "—"}</p>
-                <p><span className="font-medium text-ink">Medication:</span> {detail.medication || "—"}</p>
+                <p><span className="font-medium text-ink">{t("clinic.complaint")}:</span> {detail.complaint || "—"}</p>
+                <p><span className="font-medium text-ink">{t("clinic.treatment")}:</span> {detail.treatment || "—"}</p>
+                <p><span className="font-medium text-ink">{t("clinic.medication")}:</span> {detail.medication || "—"}</p>
               </div>
             )}
           </Card>
         ))}
       </div>
-      <p className="text-xs text-ink-faint">🔒 Medical details are restricted — visible to school administrators only.</p>
+      <p className="text-xs text-ink-faint">{t("clinic.restrictedNote")}</p>
     </div>
   );
 }
