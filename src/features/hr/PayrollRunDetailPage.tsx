@@ -61,7 +61,7 @@ export function PayrollRunDetailPage() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <h1 className="font-display text-2xl font-bold text-ink">{run.ec_year} / {String(run.ec_month).padStart(2, "0")}</h1>
-          <Badge tone={STATUS_TONE[run.status as keyof typeof STATUS_TONE] ?? "neutral"}>{run.status}</Badge>
+          <Badge tone={STATUS_TONE[run.status as keyof typeof STATUS_TONE] ?? "neutral"}>{t(`hr.${run.status}`)}</Badge>
         </div>
         {canApprove && <Button onClick={() => approve.mutate()} disabled={approve.isPending}>{t("hr.approve")}</Button>}
       </div>
@@ -78,7 +78,7 @@ export function PayrollRunDetailPage() {
         <PanelHeader title={t("hr.payrollRuns")} />
         <table className="w-full text-sm">
           <thead className="bg-sidebar text-left text-xs uppercase text-ink-faint">
-            <tr><th className="px-5 py-3">Employee</th><th className="px-5 py-3">Gross</th><th className="px-5 py-3">Tax</th><th className="px-5 py-3">Pension</th><th className="px-5 py-3">{t("hr.netPay")}</th><th></th></tr>
+            <tr><th className="px-5 py-3">{t("hr.employee")}</th><th className="px-5 py-3">{t("hr.gross")}</th><th className="px-5 py-3">{t("hr.tax")}</th><th className="px-5 py-3">{t("hr.pensionCol")}</th><th className="px-5 py-3">{t("hr.netPay")}</th><th></th></tr>
           </thead>
           <tbody className="divide-y divide-line">
             {payslips?.map((p) => (
@@ -112,6 +112,6 @@ function PayslipLink({ payslipId }: { payslipId: string }) {
       return res.json() as Promise<{ url: string }>;
     },
   });
-  if (mutation.data?.url) return <a href={mutation.data.url} target="_blank" rel="noreferrer" className="text-navy hover:underline">Open</a>;
+  if (mutation.data?.url) return <a href={mutation.data.url} target="_blank" rel="noreferrer" className="text-navy hover:underline">{t("hr.open")}</a>;
   return <button onClick={() => mutation.mutate()} className="text-sm text-ink-faint hover:text-ink">{t("hr.payslip")}</button>;
 }

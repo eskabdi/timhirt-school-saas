@@ -8,9 +8,10 @@ import { EthDate } from "@/components/EthDate";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { toIsoDate } from "@/lib/ethiopian-date";
+import { tField } from "@/lib/i18n";
 
 export function MyLeavePage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { profile } = useSession();
   const qc = useQueryClient();
   const [starts, setStarts] = useState<Date | null>(null);
@@ -48,26 +49,26 @@ export function MyLeavePage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="font-display text-2xl font-bold">{t("nav.leave")}</h1>
+      <h1 className="font-display text-2xl font-bold text-ink">{t("nav.leave")}</h1>
       <Card className="max-w-lg space-y-3">
         <select value={leaveTypeId} onChange={(e) => setLeaveTypeId(e.target.value)}
-          className="w-full rounded-control border border-line px-3 py-2 text-sm">
-          <option value="">Leave type</option>
-          {leaveTypes?.map((lt) => <option key={lt.id} value={lt.id}>{lt.name_i18n?.en ?? lt.id}</option>)}
+          className="w-full rounded-control border border-line bg-card px-3 py-2 text-sm text-ink">
+          <option value="">{t("hr.leaveType")}</option>
+          {leaveTypes?.map((lt) => <option key={lt.id} value={lt.id}>{tField(lt.name_i18n, i18n.resolvedLanguage!) || lt.id}</option>)}
         </select>
         <div className="flex gap-3">
           <EthDatePicker value={starts} onChange={setStarts} />
           <EthDatePicker value={ends} onChange={setEnds} />
         </div>
         <Button onClick={() => file.mutate()} disabled={!starts || !ends || !leaveTypeId || file.isPending}>
-          Submit request
+          {t("hr.submitRequest")}
         </Button>
       </Card>
       <div className="space-y-2">
         {myRequests?.map((r) => (
-          <Card key={r.id} className="flex items-center justify-between text-sm">
+          <Card key={r.id} className="flex items-center justify-between text-sm text-ink">
             <span><EthDate value={r.starts_on} /> — <EthDate value={r.ends_on} /></span>
-            <span className="capitalize">{t(`hr.${r.status === "approved" ? "approved" : r.status === "rejected" ? "void" : "pending"}`)}</span>
+            <span>{t(`hr.${r.status === "approved" ? "approved" : r.status === "rejected" ? "rejected" : r.status === "cancelled" ? "cancelled" : "pending"}`)}</span>
           </Card>
         ))}
       </div>

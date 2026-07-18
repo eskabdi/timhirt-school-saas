@@ -30,7 +30,7 @@ export function LeaveApprovalsPage() {
     <div className="space-y-4">
       <h1 className="font-display text-2xl font-bold text-ink">{t("hr.leaveRequests")}</h1>
       {!requests?.length ? (
-        <Card className="py-12 text-center text-ink-faint">{t("hr.pending")}: 0</Card>
+        <Card className="py-12 text-center text-ink-faint">{t("hr.pendingCount", { count: 0 })}</Card>
       ) : (
         <div className="space-y-2">
           {requests.map((r) => (
