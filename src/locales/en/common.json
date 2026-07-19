@@ -58,7 +58,7 @@
     "admissions": "Admissions", "idCards": "ID Cards", "attendanceOverview": "Attendance Overview", "timetable": "Timetable", "gradebook": "Gradebook", "assignments": "Assignments",
     "feeStructures": "Fee Structures", "invoices": "Invoices", "inventory": "Inventory", "reports": "Reports",
     "communication": "Communication", "hostel": "Hostel", "discipline": "Discipline", "clinic": "Clinic", "library": "Library", "transport": "Transport", "events": "Events",
-    "employees": "Employees", "myTimetable": "My Timetable", "myLeave": "My Leave", "myPayslips": "My Payslips",
+    "employees": "Employees", "myTimetable": "My Timetable", "myClasses": "My Classes", "myLeave": "My Leave", "myPayslips": "My Payslips",
     "classes": "Classes", "subjects": "Subjects", "teachers": "Teachers", "academicYears": "Academic Years", "promotion": "Grade Promotion", "gradingScales": "Grading Scales", "branding": "Branding", "idCardTemplate": "ID Card Template", "users": "Users", "calendarSettings": "Calendar",
     "portal": "Portal", "grades": "Grades", "makePayment": "Make Payment",
     "section": { "academics": "Academics", "finance": "Finance", "operations": "Operations", "hr": "HR & Payroll", "mySpace": "My Space", "settings": "Settings" }
@@ -88,6 +88,7 @@
     "leaveType": "Leave type", "submitRequest": "Submit request", "rejected": "Rejected", "cancelled": "Cancelled" },
   "dashboard": { "welcome": "Welcome back", "today": "Today", "studentsCard": "Active students", "attendanceCard": "Attendance today", "payrollCard": "Payroll status", "feesCard": "Fees collected (month)" },
   "errors": { "generic": "An unexpected error occurred", "forbidden": "You do not have access to this." },
+  "my": { "classesTitle": "My Classes", "todaySchedule": "Today's Schedule", "todayPeriod": "Today", "attendance": "Attendance", "gradebook": "Gradebook", "assignments": "Assignments", "homeroom": "Homeroom", "noStudents": "No students in homeroom.", "noClasses": "No classes assigned." },
   "noRecordsYet": "No records yet.",
   "actions": { "retry": "Retry", "close": "Close" }
 }

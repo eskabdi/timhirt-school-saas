@@ -56,6 +56,7 @@ import { LeaveApprovalsPage } from "@/features/hr/LeaveApprovalsPage";
 import { PayrollRunsPage } from "@/features/hr/PayrollRunsPage";
 import { PayrollRunDetailPage } from "@/features/hr/PayrollRunDetailPage";
 import { MyTimetablePage } from "@/features/hr/MyTimetablePage";
+import { MyClassesPage } from "@/features/hr/MyClassesPage";
 import { MyLeavePage } from "@/features/hr/MyLeavePage";
 import { MyPayslipsPage } from "@/features/hr/MyPayslipsPage";
 
@@ -249,7 +250,10 @@ export const router = createBrowserRouter([
           },
           {
             element: <RequireModule module="timetable" />,
-            children: [{ path: "my/timetable", element: <MyTimetablePage /> }],
+            children: [
+              { path: "my/timetable", element: <MyTimetablePage /> },
+              { path: "my/classes", element: <MyClassesPage /> },
+            ],
           },
 
           // HR & Payroll

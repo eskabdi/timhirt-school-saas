@@ -75,6 +75,7 @@ const NAV: NavSection[] = [
     section: "nav.section.mySpace",
     items: [
       { to: "/my/timetable", key: "nav.myTimetable", roles: ["teacher"], module: "timetable" },
+      { to: "/my/classes", key: "nav.myClasses", roles: ["teacher"], module: "timetable" },
       { to: "/my/leave", key: "nav.myLeave", roles: STAFF, module: "hr_payroll" },
       { to: "/my/payslips", key: "nav.myPayslips", roles: STAFF, module: "hr_payroll" },
     ],
