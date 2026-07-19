@@ -42,67 +42,42 @@ create policy "audit_logs_admin_read" on audit_logs
     and tenant_id = auth.jwt()->'app_metadata'->>'tenant_id'::uuid
   );
 
--- Function to log changes
+-- Function to log changes (only during authenticated operations, not migrations/tests)
 create or replace function audit_log_trigger_fn()
 returns trigger as $$
 declare
   v_tenant_id uuid;
   v_user_id uuid;
-  v_old_values jsonb;
-  v_new_values jsonb;
 begin
-  -- Get tenant_id based on context
-  -- Different tables have tenant_id in different ways
-  if TG_TABLE_NAME in ('students', 'classes', 'subjects', 'teachers', 'class_subject_teachers', 'timetable_slots') then
-    if TG_OP = 'DELETE' then
-      v_tenant_id := old.tenant_id;
-      v_user_id := (auth.jwt()->'sub')::uuid;
-      v_old_values := row_to_json(old.*);
-      v_new_values := null;
-    else
-      v_tenant_id := new.tenant_id;
-      v_user_id := (auth.jwt()->'sub')::uuid;
-      v_old_values := case when TG_OP = 'INSERT' then null else row_to_json(old.*) end;
-      v_new_values := row_to_json(new.*);
-    end if;
-  elsif TG_TABLE_NAME in ('student_grades', 'attendance', 'assignments', 'invoice_payments') then
-    -- These tables may not have direct tenant_id, need to get through joins
-    if TG_OP = 'DELETE' then
-      v_user_id := (auth.jwt()->'sub')::uuid;
-      v_old_values := row_to_json(old.*);
-      v_new_values := null;
-    else
-      v_user_id := (auth.jwt()->'sub')::uuid;
-      v_old_values := case when TG_OP = 'INSERT' then null else row_to_json(old.*) end;
-      v_new_values := row_to_json(new.*);
-    end if;
-    -- Get tenant_id from current session
-    v_tenant_id := (auth.jwt()->'app_metadata'->>'tenant_id')::uuid;
-  else
-    -- For other tables, try to get tenant_id from new row
-    if TG_OP = 'DELETE' then
-      v_tenant_id := (auth.jwt()->'app_metadata'->>'tenant_id')::uuid;
-      v_user_id := (auth.jwt()->'sub')::uuid;
-      v_old_values := row_to_json(old.*);
-      v_new_values := null;
-    else
-      v_tenant_id := (auth.jwt()->'app_metadata'->>'tenant_id')::uuid;
-      v_user_id := (auth.jwt()->'sub')::uuid;
-      v_old_values := case when TG_OP = 'INSERT' then null else row_to_json(old.*) end;
-      v_new_values := row_to_json(new.*);
-    end if;
+  -- Only log if we have valid auth context (skip during migrations, tests, seed)
+  if auth.jwt() is null or auth.jwt()->>'app_metadata' is null then
+    return case when TG_OP = 'DELETE' then old else new end;
   end if;
+
+  -- Extract tenant_id and user_id from different table structures
+  if TG_TABLE_NAME in ('students', 'classes', 'subjects', 'teachers', 'class_subject_teachers', 'timetable_slots', 'admission_applications') then
+    v_tenant_id := case when TG_OP = 'DELETE' then old.tenant_id else new.tenant_id end;
+  else
+    v_tenant_id := (auth.jwt()->'app_metadata'->>'tenant_id')::uuid;
+  end if;
+
+  -- Only log if tenant_id is valid
+  if v_tenant_id is null then
+    return case when TG_OP = 'DELETE' then old else new end;
+  end if;
+
+  v_user_id := (auth.jwt()->>'sub')::uuid;
 
   insert into audit_logs (
     tenant_id, user_id, action, table_name, record_id,
-    old_values, new_values, ip_address, user_agent, created_at
+    old_values, new_values, created_at
   ) values (
     v_tenant_id, v_user_id, TG_OP, TG_TABLE_NAME,
     case when TG_OP = 'DELETE' then old.id else new.id end,
-    v_old_values, v_new_values,
-    inet_client_addr(), current_setting('application_name', true),
+    case when TG_OP = 'INSERT' then null else to_jsonb(old) end,
+    case when TG_OP = 'DELETE' then null else to_jsonb(new) end,
     now()
-  );
+  ) on conflict do nothing;
 
   return case when TG_OP = 'DELETE' then old else new end;
 end;
