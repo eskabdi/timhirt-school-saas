@@ -92,6 +92,7 @@ const NAV: NavSection[] = [
       { to: "/settings/branding", key: "nav.branding", roles: ["school_admin"] },
       { to: "/settings/id-card-template", key: "nav.idCardTemplate", roles: ["school_admin"] },
       { to: "/settings/users", key: "nav.users", roles: ["school_admin"] },
+      { to: "/settings/audit-logs", key: "nav.auditLogs", roles: ["school_admin"] },
       { to: "/settings/calendar", key: "nav.calendarSettings", roles: ["school_admin"] },
     ],
   },

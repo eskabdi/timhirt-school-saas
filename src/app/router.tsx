@@ -80,6 +80,7 @@ import { CalendarPreferencesPage } from "@/features/settings/CalendarPreferences
 import { ClassesPage } from "@/features/settings/ClassesPage";
 import { SubjectsPage } from "@/features/settings/SubjectsPage";
 import { TeachersPage } from "@/features/settings/TeachersPage";
+import { AuditLogsPage } from "@/features/settings/AuditLogsPage";
 
 import { TenantsManagementPage } from "@/features/platform/TenantsManagementPage";
 import { TenantDetailPage } from "@/features/platform/TenantDetailPage";
@@ -190,6 +191,7 @@ export const router = createBrowserRouter([
               { path: "settings/branding", element: <BrandingPage /> },
               { path: "settings/id-card-template", element: <IdCardTemplateDesignerPage /> },
               { path: "settings/users", element: <UsersPage /> },
+              { path: "settings/audit-logs", element: <AuditLogsPage /> },
               { path: "settings/calendar", element: <CalendarPreferencesPage /> },
             ],
           },
