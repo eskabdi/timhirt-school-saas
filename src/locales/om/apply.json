@@ -100,6 +100,21 @@
   "completed": {
     "badge": "Ergameera",
     "heading": "Galmeen keessan qeebalameera",
-    "message": "Galatoomaa — iyyata keessan ni ilaalla, ni qunnamna."
+    "message": "Galatoomaa — iyyata keessan ni ilaalla, ni qunnamna.",
+    "trackingCodeLabel": "Koodii hordoffii keessan",
+    "trackingCodeHint": "Koodii kana olkaa'aa — haala iyyata keessanii ilaaluuf isin barbaachisa."
+  },
+  "checkStatus": "Haala Iyyataa Ilaali",
+  "status": {
+    "title": "Haala Iyyataa Ilaali",
+    "codeLabel": "Koodii hordoffii",
+    "codePlaceholder": "fkn ABCDE-FGHJK",
+    "submit": "Haala Ilaali",
+    "checking": "Ilaalaa jira…",
+    "checkFailed": "Dogoggorri uumameera. Maaloo irra deebi'ii yaali.",
+    "notFound": "Koodii kanaaf iyyanni hin argamne.",
+    "backToApply": "← Gara Iyyataatti Deebi'i",
+    "grade": "Sadarkaa",
+    "submitted": "Guyyaa Ergame"
   }
 }

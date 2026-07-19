@@ -41,5 +41,8 @@ verify_jwt = false                     # public verification; rate-limited in-co
 [functions.submit-admission]
 verify_jwt = false                     # public form; rate-limited + tenant-scoped in-code
 
+[functions.check-admission-status]
+verify_jwt = false                     # public status lookup; rate-limited in-code
+
 [functions.chapa-webhook]
 verify_jwt = false                     # HMAC signature verified in-code instead

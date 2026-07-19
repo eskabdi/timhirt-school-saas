@@ -100,6 +100,21 @@
   "completed": {
     "badge": "ገብቷል",
     "heading": "ምዝገባ ተቀብለናል",
-    "message": "እናመሰግናለን — ማመልከቻውን እንገመግማለን እና እናገኝዎታለን።"
+    "message": "እናመሰግናለን — ማመልከቻውን እንገመግማለን እና እናገኝዎታለን።",
+    "trackingCodeLabel": "የክትትል ኮድዎ",
+    "trackingCodeHint": "ይህን ኮድ ያስቀምጡ — የማመልከቻዎን ሁኔታ ለማየት ያስፈልግዎታል።"
+  },
+  "checkStatus": "የማመልከቻ ሁኔታ ይመልከቱ",
+  "status": {
+    "title": "የማመልከቻ ሁኔታ ይመልከቱ",
+    "codeLabel": "የክትትል ኮድ",
+    "codePlaceholder": "ለምሳሌ ABCDE-FGHJK",
+    "submit": "ሁኔታ ይመልከቱ",
+    "checking": "በመፈተሽ ላይ…",
+    "checkFailed": "የሆነ ስህተት ተከስቷል። እባክዎ እንደገና ይሞክሩ።",
+    "notFound": "ለዚህ ኮድ ምንም ማመልከቻ አልተገኘም።",
+    "backToApply": "← ወደ ማመልከቻው ተመለስ",
+    "grade": "ክፍል ደረጃ",
+    "submitted": "የገባበት ቀን"
   }
 }

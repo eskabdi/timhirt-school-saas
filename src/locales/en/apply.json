@@ -100,6 +100,21 @@
   "completed": {
     "badge": "Submitted",
     "heading": "Registration received",
-    "message": "Thank you — we'll review the application and be in touch."
+    "message": "Thank you — we'll review the application and be in touch.",
+    "trackingCodeLabel": "Your tracking code",
+    "trackingCodeHint": "Save this code — you'll need it to check your application status."
+  },
+  "checkStatus": "Check application status",
+  "status": {
+    "title": "Check Application Status",
+    "codeLabel": "Tracking code",
+    "codePlaceholder": "e.g. ABCDE-FGHJK",
+    "submit": "Check status",
+    "checking": "Checking…",
+    "checkFailed": "Something went wrong. Please try again.",
+    "notFound": "No application found for that code.",
+    "backToApply": "← Back to application",
+    "grade": "Grade",
+    "submitted": "Submitted"
   }
 }

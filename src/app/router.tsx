@@ -84,6 +84,7 @@ import { BillingPage } from "@/features/platform/BillingPage";
 import { StatutoryConfigPage } from "@/features/platform/StatutoryConfigPage";
 
 import { PublicAdmissionFormPage } from "@/features/public/PublicAdmissionFormPage";
+import { AdmissionStatusPage } from "@/features/public/AdmissionStatusPage";
 import { IDVerificationPage } from "@/features/public/IDVerificationPage";
 
 const FINANCE = ["school_admin", "accountant"];
@@ -97,6 +98,7 @@ export const router = createBrowserRouter([
   { path: "/login", element: <LoginPage /> },
   { path: "/accept-invite", element: <AcceptInvitePage /> },
   { path: "/apply/:tenantSlug", element: <PublicAdmissionFormPage /> },
+  { path: "/apply/:tenantSlug/status", element: <AdmissionStatusPage /> },
   { path: "/verify/:code?", element: <IDVerificationPage /> },
 
   // ---------- Authenticated ----------

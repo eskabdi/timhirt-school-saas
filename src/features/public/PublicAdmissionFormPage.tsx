@@ -27,7 +27,7 @@
 // switch.
 // ============================================================================
 import { useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { z } from "zod";
@@ -195,6 +195,7 @@ export function PublicAdmissionFormPage() {
   const { t, i18n } = useTranslation("apply");
   const [step, setStep] = useState(1);
   const [applicationId, setApplicationId] = useState<string | null>(null);
+  const [trackingCode, setTrackingCode] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [completed, setCompleted] = useState(false);
@@ -272,8 +273,9 @@ export function PublicAdmissionFormPage() {
         }),
       });
       if (!res.ok) throw new Error("Failed to submit");
-      const data = (await res.json()) as { application_id: string };
+      const data = (await res.json()) as { application_id: string; tracking_code: string };
       setApplicationId(data.application_id);
+      setTrackingCode(data.tracking_code);
       setStep(3);
     } catch {
       setSubmitError(t("errors.submitFailed"));
@@ -304,6 +306,18 @@ export function PublicAdmissionFormPage() {
           <Badge tone="ok" className="mx-auto">{t("completed.badge")}</Badge>
           <h1 className="mt-3 font-display text-xl font-bold text-ink">{t("completed.heading")}</h1>
           <p className="mt-2 text-sm text-ink-faint">{t("completed.message")}</p>
+          {trackingCode && (
+            <div className="mt-4 rounded-control border border-line bg-page p-4">
+              <p className="text-xs font-medium uppercase tracking-wide text-ink-faint">{t("completed.trackingCodeLabel")}</p>
+              <p className="mt-1 font-mono text-lg font-bold tracking-widest text-navy">
+                {trackingCode.slice(0, 5)}-{trackingCode.slice(5)}
+              </p>
+              <p className="mt-2 text-xs text-ink-faint">{t("completed.trackingCodeHint")}</p>
+            </div>
+          )}
+          <Link to={`/apply/${tenantSlug}/status`} className="mt-4 block text-sm text-navy hover:underline">
+            {t("checkStatus")}
+          </Link>
         </Card>
       </div>
     );
@@ -315,7 +329,10 @@ export function PublicAdmissionFormPage() {
     <div className="min-h-screen bg-page">
       <header className="flex items-center justify-between border-b border-line bg-card px-6 py-4">
         <span className="font-display text-lg font-bold text-navy">{meta?.tenantName ?? t("schoolFallback")}</span>
-        <LanguageSwitcher />
+        <div className="flex items-center gap-4">
+          <Link to={`/apply/${tenantSlug}/status`} className="text-sm text-navy hover:underline">{t("checkStatus")}</Link>
+          <LanguageSwitcher />
+        </div>
       </header>
 
       <div className="mx-auto max-w-3xl px-4 py-10">

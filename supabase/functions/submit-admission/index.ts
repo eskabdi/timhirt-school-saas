@@ -57,6 +57,19 @@ function adminClient() {
   );
 }
 
+// Unambiguous alphabet (no 0/O/1/I/L) — this code is read off a screen and
+// typed back in later on check-admission-status, not scanned from a QR code
+// like id_cards.verify_code, so it needs to survive a parent squinting at a
+// low-end phone. 10 chars ~= 50 bits of entropy (see migration
+// 20260719000002) — enumerating another applicant's status this way is
+// computationally infeasible, and the lookup endpoint is rate-limited too.
+const CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+function generateTrackingCode(): string {
+  const bytes = new Uint8Array(10);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => CODE_ALPHABET[b % CODE_ALPHABET.length]).join("");
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -119,10 +132,12 @@ Deno.serve(async (req) => {
     if (!cls?.length) return errors.badRequest();
 
     const applicantName = `${p.applicant_first_name} ${p.applicant_middle_name} ${p.applicant_last_name}`;
+    const trackingCode = generateTrackingCode();
 
     const { data: application, error } = await db.from("admission_applications").insert({
       tenant_id: tenant.id,
       applicant_name: applicantName,
+      tracking_code: trackingCode,
       applicant_first_name: p.applicant_first_name,
       applicant_first_name_am: p.applicant_first_name_am,
       applicant_middle_name: p.applicant_middle_name,
@@ -146,7 +161,7 @@ Deno.serve(async (req) => {
     }).select("id").single();
     if (error) throw error;
 
-    return json({ application_id: application.id }, 201);
+    return json({ application_id: application.id, tracking_code: trackingCode }, 201);
   } catch (err) {
     console.error("submit-admission failed", { message: (err as Error).message });
     return errors.internal();
