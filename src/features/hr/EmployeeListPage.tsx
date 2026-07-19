@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { supabase } from "@/lib/supabase";
@@ -6,11 +6,13 @@ import { Card } from "@/components/ui/Card";
 import { Panel } from "@/components/ui/Panel";
 import { Badge } from "@/components/ui/Badge";
 import { EthDate } from "@/components/EthDate";
+import { onRowDoubleClick } from "@/lib/utils";
 
 const STATUS_TONE = { active: "ok", on_leave: "late", terminated: "danger" } as const;
 
 export function EmployeeListPage() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const { data: employees } = useQuery({
     queryKey: ["employees"],
     queryFn: async () => {
@@ -33,7 +35,7 @@ export function EmployeeListPage() {
             </thead>
             <tbody className="divide-y divide-line">
               {employees.map((e) => (
-                <tr key={e.id} className="hover:bg-sidebar">
+                <tr key={e.id} className="cursor-pointer hover:bg-sidebar" onDoubleClick={onRowDoubleClick(navigate, `/hr/employees/${e.id}`)}>
                   <td className="px-4 py-2"><Link to={`/hr/employees/${e.id}`} className="font-medium text-navy hover:underline">{e.employee_no}</Link></td>
                   <td className="px-4 py-2 text-ink">{e.full_name}</td>
                   <td className="px-4 py-2 text-ink-faint">{t(`hr.employeeType.${e.employee_type}`)}</td>

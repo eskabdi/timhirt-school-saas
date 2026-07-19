@@ -1,16 +1,18 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { listStudents } from "./api";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card } from "@/components/ui/Card";
 import { Panel } from "@/components/ui/Panel";
 import { EthDate } from "@/components/EthDate";
+import { onRowDoubleClick } from "@/lib/utils";
 
 export function StudentsListPage() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const { data: students, isLoading } = useQuery({
     queryKey: ["students", search],
@@ -44,7 +46,7 @@ export function StudentsListPage() {
             </thead>
             <tbody className="divide-y divide-line">
               {students.map((s) => (
-                <tr key={s.id} className="hover:bg-sidebar">
+                <tr key={s.id} className="cursor-pointer hover:bg-sidebar" onDoubleClick={onRowDoubleClick(navigate, `/students/${s.id}`)}>
                   <td className="px-5 py-3">
                     <Link to={`/students/${s.id}`} className="font-medium text-navy hover:underline">{s.admission_no}</Link>
                   </td>

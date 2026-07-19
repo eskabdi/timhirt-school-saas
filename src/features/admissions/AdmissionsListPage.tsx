@@ -17,7 +17,7 @@
 // button instead.
 // ============================================================================
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -26,6 +26,7 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { EthDate } from "@/components/EthDate";
 import { EnrollStudentModal } from "./EnrollStudentModal";
+import { onRowDoubleClick } from "@/lib/utils";
 
 const STAGES = ["applied", "shortlisted", "offered", "registered", "rejected"] as const;
 const STAGE_TONE = {
@@ -39,6 +40,7 @@ interface EnrollTarget {
 
 export function AdmissionsListPage() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const qc = useQueryClient();
   const [enrolling, setEnrolling] = useState<EnrollTarget | null>(null);
 
@@ -82,7 +84,7 @@ export function AdmissionsListPage() {
             </thead>
             <tbody className="divide-y divide-line">
               {apps.map((a) => (
-                <tr key={a.id} className="hover:bg-sidebar">
+                <tr key={a.id} className="cursor-pointer hover:bg-sidebar" onDoubleClick={onRowDoubleClick(navigate, `/admissions/${a.id}`)}>
                   <td className="px-4 py-3">
                     <Link to={`/admissions/${a.id}`} className="font-medium text-navy hover:underline">{a.applicant_name}</Link>
                   </td>

@@ -8,7 +8,7 @@
 // slug is create-only: it's embedded in the public /apply/:tenantSlug URL,
 // so changing it later would break any link already shared with applicants.
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -21,6 +21,7 @@ import { Field } from "@/components/ui/Field";
 import { Card } from "@/components/ui/Card";
 import { Panel } from "@/components/ui/Panel";
 import { Badge } from "@/components/ui/Badge";
+import { onRowDoubleClick } from "@/lib/utils";
 
 const STATUS_TONE = { active: "ok", suspended: "danger" } as const;
 
@@ -113,6 +114,7 @@ function NewTenantForm({ onDone }: { onDone: () => void }) {
 
 export function TenantsManagementPage() {
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const [creating, setCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
@@ -160,7 +162,11 @@ export function TenantsManagementPage() {
           </thead>
           <tbody className="divide-y divide-line">
             {tenants?.map((t) => (
-              <tr key={t.id}>
+              <tr
+                key={t.id}
+                className={editingId === t.id ? undefined : "cursor-pointer"}
+                onDoubleClick={editingId === t.id ? undefined : onRowDoubleClick(navigate, `/platform/tenants/${t.id}`)}
+              >
                 <td className="px-4 py-2 font-medium">
                   {editingId === t.id ? (
                     <Input
