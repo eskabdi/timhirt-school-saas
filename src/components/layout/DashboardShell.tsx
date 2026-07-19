@@ -94,6 +94,7 @@ const NAV: NavSection[] = [
       { to: "/settings/users", key: "nav.users", roles: ["school_admin"] },
       { to: "/settings/roles", key: "nav.roles", roles: ["school_admin"] },
       { to: "/settings/configuration", key: "nav.configuration", roles: ["school_admin"] },
+      { to: "/settings/import-export", key: "nav.importExport", roles: ["school_admin"] },
       { to: "/settings/audit-logs", key: "nav.auditLogs", roles: ["school_admin"] },
       { to: "/settings/backups", key: "nav.backups", roles: ["school_admin"] },
       { to: "/settings/calendar", key: "nav.calendarSettings", roles: ["school_admin"] },
