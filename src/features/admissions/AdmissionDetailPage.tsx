@@ -1,11 +1,14 @@
-import { useParams } from "react-router-dom";
+import { useState } from "react";
+import { Link, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
 import { Panel, PanelHeader } from "@/components/ui/Panel";
 import { EthDate } from "@/components/EthDate";
+import { EnrollStudentModal } from "./EnrollStudentModal";
 
 const STAGE_TONE = {
   applied: "neutral", shortlisted: "navy", offered: "late", registered: "ok", rejected: "danger",
@@ -32,6 +35,7 @@ async function signedUrlsFor(paths: Record<string, string | null>) {
 export function AdmissionDetailPage() {
   const { t } = useTranslation();
   const { id } = useParams();
+  const [enrolling, setEnrolling] = useState(false);
   const { data } = useQuery({
     queryKey: ["admission", id],
     queryFn: async () => {
@@ -123,6 +127,35 @@ export function AdmissionDetailPage() {
             <div><dt className="text-ink-faint">{t("admissions.schoolBus")}</dt><dd className="text-ink">{data.bus_service_opted ? t("admissions.yes") : t("admissions.no")}</dd></div>
           </dl>
         </Panel>
+      )}
+
+      <Panel>
+        <PanelHeader title={t("admissions.enroll.title")} />
+        <div className="p-5">
+          {data.converted_student_id ? (
+            <p className="text-sm text-ink">
+              {t("admissions.enroll.alreadyEnrolled")}{" "}
+              <Link to={`/students/${data.converted_student_id}`} className="text-navy hover:underline">{t("admissions.view")}</Link>
+            </p>
+          ) : data.stage === "registered" ? (
+            <Button onClick={() => setEnrolling(true)}>{t("admissions.enroll.submit")}</Button>
+          ) : (
+            <p className="text-sm text-ink-faint">{t("admissions.enroll.notRegistered")}</p>
+          )}
+        </div>
+      </Panel>
+
+      {enrolling && (
+        <EnrollStudentModal
+          application={{
+            id: data.id,
+            tenant_id: data.tenant_id,
+            desired_grade: data.desired_grade,
+            applicant_first_name: data.applicant_first_name,
+            applicant_last_name: data.applicant_last_name,
+          }}
+          onClose={() => setEnrolling(false)}
+        />
       )}
     </div>
   );

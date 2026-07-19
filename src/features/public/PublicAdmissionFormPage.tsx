@@ -51,7 +51,7 @@ const step1Schema = z.object({
   applicant_last_name: z.string().trim().min(1, "required"),
   applicant_last_name_am: z.string().trim().min(1, "required"),
   gender: z.enum(["male", "female"], { errorMap: () => ({ message: "required" }) }),
-  desired_class_id: z.string().uuid("select_grade"),
+  desired_grade: z.string().trim().min(1, "select_grade"),
 });
 type Step1Fields = z.infer<typeof step1Schema>;
 type Step1Draft = Record<keyof Step1Fields, string>;
@@ -113,9 +113,9 @@ function BilingualField({ label, error, children }: { label: string; error?: str
 
 async function fetchAdmissionMeta(tenantSlug: string) {
   const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/submit-admission?tenant_slug=${encodeURIComponent(tenantSlug)}`);
-  if (!res.ok) return { tenantName: null, classes: [] };
-  const data = (await res.json()) as { tenant_name: string; classes: { id: string; name: string; section: string }[] };
-  return { tenantName: data.tenant_name, classes: data.classes };
+  if (!res.ok) return { tenantName: null, grades: [] };
+  const data = (await res.json()) as { tenant_name: string; grades: { name: string; grade_level: number | null }[] };
+  return { tenantName: data.tenant_name, grades: data.grades };
 }
 
 function DocumentUploadSlot({
@@ -204,7 +204,7 @@ export function PublicAdmissionFormPage() {
     applicant_first_name: "", applicant_first_name_am: "",
     applicant_middle_name: "", applicant_middle_name_am: "",
     applicant_last_name: "", applicant_last_name_am: "",
-    gender: "", desired_class_id: "",
+    gender: "", desired_grade: "",
   });
   const [s1Errors, setS1Errors] = useState<Record<string, string>>({});
 
@@ -229,7 +229,7 @@ export function PublicAdmissionFormPage() {
     queryFn: () => fetchAdmissionMeta(tenantSlug!),
     enabled: !!tenantSlug,
   });
-  const classes = meta?.classes;
+  const grades = meta?.grades;
 
   const REGISTRATION_FEE = 500;
   const FIRST_TERM_TUITION = 4500;
@@ -397,11 +397,11 @@ export function PublicAdmissionFormPage() {
                     </label>
                   </div>
                 </BilingualField>
-                <BilingualField label={t("step1.grade")} error={s1Errors.desired_class_id}>
-                  <select value={s1.desired_class_id} className="w-full rounded-control border border-line bg-card px-3 py-2 text-sm text-ink"
-                    onChange={(e) => setS1((v) => ({ ...v, desired_class_id: e.target.value }))}>
+                <BilingualField label={t("step1.grade")} error={s1Errors.desired_grade}>
+                  <select value={s1.desired_grade} className="w-full rounded-control border border-line bg-card px-3 py-2 text-sm text-ink"
+                    onChange={(e) => setS1((v) => ({ ...v, desired_grade: e.target.value }))}>
                     <option value="">{t("step1.selectGrade")}</option>
-                    {classes?.map((c) => <option key={c.id} value={c.id}>{c.name} {c.section}</option>)}
+                    {grades?.map((g) => <option key={g.name} value={g.name}>{g.name}</option>)}
                   </select>
                 </BilingualField>
               </div>

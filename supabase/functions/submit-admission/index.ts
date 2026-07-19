@@ -7,13 +7,19 @@
 // tenant_id from the client). A CAPTCHA/Turnstile token would be verified
 // here in production before insert (left as an integration point).
 //
-// GET ?tenant_slug=... additionally exposes the tenant's class list (for the
+// GET ?tenant_slug=... additionally exposes the tenant's grade list (for the
 // stepper's "Applying for Grade" picker) — `classes` has no anon RLS policy
 // either (tenant-scoped, authenticated-only), and this codebase's convention
 // is every public flow goes through an Edge Function with service_role,
 // never a direct anon-callable RPC (see verify-id's comment on the same
 // point) — so this stays in the one function rather than adding a new
 // anon-executable database function.
+//
+// The applicant chooses only a grade (e.g. "Grade 5"), never a specific
+// section — sections (A/B/C…) are assigned by the admin at enrollment time
+// based on remaining capacity, so the picker is deduplicated by class name
+// and ordered by grade_level (falls back to name for legacy classes that
+// predate that column).
 // ============================================================================
 import { z } from "npm:zod@3";
 import { createClient } from "npm:@supabase/supabase-js@2";
@@ -30,7 +36,7 @@ const Payload = z.object({
   applicant_last_name_am: z.string().trim().min(1).max(80),
   date_of_birth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   gender: z.enum(["male", "female", "other"]),
-  desired_class_id: z.string().uuid(),
+  desired_grade: z.string().trim().min(1).max(40),
 
   guardian_name: z.string().trim().min(1).max(120),
   guardian_name_am: z.string().trim().min(1).max(120),
@@ -68,10 +74,23 @@ Deno.serve(async (req) => {
       if (!tenant) return errors.badRequest();
 
       const { data: classes, error } = await db.from("classes")
-        .select("id, name, section").eq("tenant_id", tenant.id).order("name");
+        .select("name, grade_level").eq("tenant_id", tenant.id);
       if (error) throw error;
 
-      return json({ tenant_name: tenant.name, classes: classes ?? [] }, 200);
+      const byName = new Map<string, number | null>();
+      for (const c of classes ?? []) {
+        if (!byName.has(c.name)) byName.set(c.name, c.grade_level);
+      }
+      const grades = [...byName.entries()]
+        .map(([name, grade_level]) => ({ name, grade_level }))
+        .sort((a, b) => {
+          if (a.grade_level == null && b.grade_level == null) return a.name.localeCompare(b.name);
+          if (a.grade_level == null) return 1;
+          if (b.grade_level == null) return -1;
+          return a.grade_level - b.grade_level;
+        });
+
+      return json({ tenant_name: tenant.name, grades }, 200);
     } catch (err) {
       console.error("submit-admission (GET) failed", { message: (err as Error).message });
       return errors.internal();
@@ -93,8 +112,11 @@ Deno.serve(async (req) => {
     const { data: tenant } = await db.from("tenants").select("id").eq("slug", p.tenant_slug).maybeSingle();
     if (!tenant) return errors.badRequest();
 
-    const { data: cls } = await db.from("classes").select("id").eq("id", p.desired_class_id).eq("tenant_id", tenant.id).maybeSingle();
-    if (!cls) return errors.badRequest();
+    // Multiple sections can share a grade name (e.g. "Grade 5" A/B/C), so
+    // this only confirms the grade exists for the tenant — .maybeSingle()
+    // would throw on more than one match.
+    const { data: cls } = await db.from("classes").select("id").eq("name", p.desired_grade).eq("tenant_id", tenant.id).limit(1);
+    if (!cls?.length) return errors.badRequest();
 
     const applicantName = `${p.applicant_first_name} ${p.applicant_middle_name} ${p.applicant_last_name}`;
 
@@ -109,7 +131,7 @@ Deno.serve(async (req) => {
       applicant_last_name_am: p.applicant_last_name_am,
       date_of_birth: p.date_of_birth,
       gender: p.gender,
-      desired_class_id: p.desired_class_id,
+      desired_grade: p.desired_grade,
       guardian_name: p.guardian_name,
       guardian_name_am: p.guardian_name_am,
       guardian_relationship: p.guardian_relationship,
