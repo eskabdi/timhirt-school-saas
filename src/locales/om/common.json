@@ -52,7 +52,7 @@
     "feeStructures": "Caasaa Kaffaltii", "invoices": "Waraqaa Kaffaltii", "inventory": "Meeshaalee", "reports": "Gabaasa",
     "communication": "Walqunnamtii", "hostel": "Iddoo Jireenyaa", "discipline": "Amala", "clinic": "Kilinika", "library": "Mana Kitaabaa", "transport": "Geejjiba", "events": "Sagantaalee",
     "employees": "Hojjettoota", "myTimetable": "Sagantaa Koo", "myLeave": "Eeyyama Koo", "myPayslips": "Waraqaa Mindaa Koo",
-    "classes": "Kutaalee", "subjects": "Gosoota Barnootaa", "academicYears": "Waggoota Barnootaa", "promotion": "Guddina Sadarkaa", "gradingScales": "Madaallii Qabxii", "branding": "Moggaasa Dhaabbataa", "users": "Fayyadamtoota", "calendarSettings": "Kalorii",
+    "classes": "Kutaalee", "subjects": "Gosoota Barnootaa", "academicYears": "Waggoota Barnootaa", "promotion": "Guddina Sadarkaa", "gradingScales": "Madaallii Qabxii", "branding": "Moggaasa Dhaabbataa", "idCardTemplate": "Bifa Waraqaa Eenyummaa", "users": "Fayyadamtoota", "calendarSettings": "Kalorii",
     "portal": "Portal", "grades": "Qabxiiwwan", "makePayment": "Kaffaltii Godhi",
     "section": { "academics": "Barnoota", "finance": "Maallaqa", "operations": "Tajaajila", "hr": "HR fi Mindaa", "mySpace": "Iddoo Koo", "settings": "Qindaa'ina" }
   },

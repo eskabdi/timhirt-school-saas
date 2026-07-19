@@ -17,6 +17,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { convertImageToPng } from "@/lib/image";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Field } from "@/components/ui/Field";
@@ -27,6 +28,7 @@ interface Application {
   desired_grade: string | null;
   applicant_first_name: string | null;
   applicant_last_name: string | null;
+  photo_path: string | null;
 }
 
 interface ProvisionedAccount {
@@ -53,6 +55,30 @@ async function callFunction(name: string, body: unknown) {
   });
   if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? `${name} failed`);
   return res.json();
+}
+
+// Best-effort: the application's photo (Step 3 of the public stepper) is the
+// only source of a real student photo anywhere in this app — there's no
+// separate avatar upload feature. Copying it into student-photos here is
+// what lets issue-id-card embed an actual photo instead of an initials
+// placeholder. Never blocks or fails enrollment: a missing/broken photo
+// just means the card falls back to initials, same as before this existed.
+async function copyApplicationPhoto(tenantId: string, photoPath: string, studentId: string) {
+  try {
+    const { data: blob, error: dlErr } = await supabase.storage.from("admission-documents").download(photoPath);
+    if (dlErr || !blob) return;
+    // Normalized to PNG regardless of the original upload's format — see
+    // src/lib/image.ts for why (pdf-lib can't embed WebP).
+    const png = blob.type === "application/pdf" ? null : await convertImageToPng(blob).catch(() => null);
+    if (!png) return;
+    const destPath = `${tenantId}/${studentId}/${crypto.randomUUID()}.png`;
+    const { error: upErr } = await supabase.storage.from("student-photos")
+      .upload(destPath, png, { contentType: "image/png" });
+    if (upErr) return;
+    await supabase.from("students").update({ avatar_path: destPath }).eq("id", studentId);
+  } catch {
+    // best-effort — see comment above
+  }
 }
 
 export function EnrollStudentModal({ application, onClose }: { application: Application; onClose: () => void }) {
@@ -119,6 +145,12 @@ export function EnrollStudentModal({ application, onClose }: { application: Appl
           });
           if (invErr) throw invErr;
         }
+      }
+
+      // Runs before issue-id-card so the card can embed the real photo
+      // instead of an initials placeholder when one exists.
+      if (application.photo_path) {
+        await copyApplicationPhoto(application.tenant_id, application.photo_path, studentId);
       }
 
       // Independent follow-ups — a failure in either must not look like the

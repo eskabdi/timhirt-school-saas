@@ -52,7 +52,7 @@
     "feeStructures": "Fee Structures", "invoices": "Invoices", "inventory": "Inventory", "reports": "Reports",
     "communication": "Communication", "hostel": "Hostel", "discipline": "Discipline", "clinic": "Clinic", "library": "Library", "transport": "Transport", "events": "Events",
     "employees": "Employees", "myTimetable": "My Timetable", "myLeave": "My Leave", "myPayslips": "My Payslips",
-    "classes": "Classes", "subjects": "Subjects", "academicYears": "Academic Years", "promotion": "Grade Promotion", "gradingScales": "Grading Scales", "branding": "Branding", "users": "Users", "calendarSettings": "Calendar",
+    "classes": "Classes", "subjects": "Subjects", "academicYears": "Academic Years", "promotion": "Grade Promotion", "gradingScales": "Grading Scales", "branding": "Branding", "idCardTemplate": "ID Card Template", "users": "Users", "calendarSettings": "Calendar",
     "portal": "Portal", "grades": "Grades", "makePayment": "Make Payment",
     "section": { "academics": "Academics", "finance": "Finance", "operations": "Operations", "hr": "HR & Payroll", "mySpace": "My Space", "settings": "Settings" }
   },

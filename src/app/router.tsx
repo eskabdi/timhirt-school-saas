@@ -71,6 +71,7 @@ import { AcademicYearsPage } from "@/features/settings/AcademicYearsPage";
 import { PromotionPage } from "@/features/settings/PromotionPage";
 import { GradingScalesPage } from "@/features/settings/GradingScalesPage";
 import { BrandingPage } from "@/features/settings/BrandingPage";
+import { IdCardTemplateDesignerPage } from "@/features/settings/IdCardTemplateDesignerPage";
 import { UsersPage } from "@/features/settings/UsersPage";
 import { CalendarPreferencesPage } from "@/features/settings/CalendarPreferencesPage";
 import { ClassesPage } from "@/features/settings/ClassesPage";
@@ -182,6 +183,7 @@ export const router = createBrowserRouter([
               { path: "settings/promotion", element: <PromotionPage /> },
               { path: "settings/grading-scales", element: <GradingScalesPage /> },
               { path: "settings/branding", element: <BrandingPage /> },
+              { path: "settings/id-card-template", element: <IdCardTemplateDesignerPage /> },
               { path: "settings/users", element: <UsersPage /> },
               { path: "settings/calendar", element: <CalendarPreferencesPage /> },
             ],

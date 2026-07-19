@@ -2,7 +2,7 @@
 // never the verify_id_card() RPC directly — anon's execute grant on that RPC
 // is revoked (migration 010) precisely so this is the only path in, and a
 // scripted scanner can't enumerate verify_code values unrate-limited.
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Card } from "@/components/ui/Card";
@@ -32,6 +32,13 @@ export function IDVerificationPage() {
       setBusy(false);
     }
   };
+
+  // Arriving via a scanned QR code (id card back, issue-id-card) means the
+  // code is already known — verify immediately instead of making them tap
+  // the button on a card they just scanned.
+  useEffect(() => {
+    if (params.code) verify();
+  }, []);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-page px-4">

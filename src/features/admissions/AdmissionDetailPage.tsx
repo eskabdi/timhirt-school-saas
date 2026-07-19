@@ -153,6 +153,7 @@ export function AdmissionDetailPage() {
             desired_grade: data.desired_grade,
             applicant_first_name: data.applicant_first_name,
             applicant_last_name: data.applicant_last_name,
+            photo_path: data.photo_path,
           }}
           onClose={() => setEnrolling(false)}
         />

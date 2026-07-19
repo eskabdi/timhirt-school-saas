@@ -88,6 +88,7 @@ const NAV: NavSection[] = [
       { to: "/settings/promotion", key: "nav.promotion", roles: ["school_admin"] },
       { to: "/settings/grading-scales", key: "nav.gradingScales", roles: ["school_admin"] },
       { to: "/settings/branding", key: "nav.branding", roles: ["school_admin"] },
+      { to: "/settings/id-card-template", key: "nav.idCardTemplate", roles: ["school_admin"] },
       { to: "/settings/users", key: "nav.users", roles: ["school_admin"] },
       { to: "/settings/calendar", key: "nav.calendarSettings", roles: ["school_admin"] },
     ],
