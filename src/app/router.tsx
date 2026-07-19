@@ -78,6 +78,7 @@ import { UsersPage } from "@/features/settings/UsersPage";
 import { CalendarPreferencesPage } from "@/features/settings/CalendarPreferencesPage";
 import { ClassesPage } from "@/features/settings/ClassesPage";
 import { SubjectsPage } from "@/features/settings/SubjectsPage";
+import { TeachersPage } from "@/features/settings/TeachersPage";
 
 import { TenantsManagementPage } from "@/features/platform/TenantsManagementPage";
 import { TenantDetailPage } from "@/features/platform/TenantDetailPage";
@@ -149,6 +150,7 @@ export const router = createBrowserRouter([
             children: [
               { path: "classes", element: <ClassesPage /> },
               { path: "subjects", element: <SubjectsPage /> },
+              { path: "settings/teachers", element: <TeachersPage /> },
               {
                 element: <RequireModule module="fees" />,
                 children: [{ path: "fees/structures", element: <FeeStructuresPage /> }],

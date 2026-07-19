@@ -59,7 +59,7 @@
     "feeStructures": "Fee Structures", "invoices": "Invoices", "inventory": "Inventory", "reports": "Reports",
     "communication": "Communication", "hostel": "Hostel", "discipline": "Discipline", "clinic": "Clinic", "library": "Library", "transport": "Transport", "events": "Events",
     "employees": "Employees", "myTimetable": "My Timetable", "myLeave": "My Leave", "myPayslips": "My Payslips",
-    "classes": "Classes", "subjects": "Subjects", "academicYears": "Academic Years", "promotion": "Grade Promotion", "gradingScales": "Grading Scales", "branding": "Branding", "idCardTemplate": "ID Card Template", "users": "Users", "calendarSettings": "Calendar",
+    "classes": "Classes", "subjects": "Subjects", "teachers": "Teachers", "academicYears": "Academic Years", "promotion": "Grade Promotion", "gradingScales": "Grading Scales", "branding": "Branding", "idCardTemplate": "ID Card Template", "users": "Users", "calendarSettings": "Calendar",
     "portal": "Portal", "grades": "Grades", "makePayment": "Make Payment",
     "section": { "academics": "Academics", "finance": "Finance", "operations": "Operations", "hr": "HR & Payroll", "mySpace": "My Space", "settings": "Settings" }
   },
@@ -69,6 +69,7 @@
   "userMenu": { "role": "Role", "changePassword": "Change password", "logout": "Logout" },
   "roles": { "super_admin": "Super Admin", "school_admin": "School Admin", "teacher": "Teacher", "hr_officer": "HR Officer",
     "accountant": "Accountant", "registrar": "Registrar", "student": "Student", "parent": "Parent" },
+  "teachers": { "title": "Teachers", "inviteTitle": "Invite teacher", "fullName": "Full name", "email": "Email", "staffNo": "Staff No.", "invite": "Invite", "inviting": "Inviting…", "inviteSent": "Invitation email sent", "empty": "No teachers yet.", "noAssignments": "No class assignments yet.", "subject": "Subject", "assign": "Assign", "remove": "Remove" },
   "students": { "title": "Students", "add": "Add student", "search": "Search by name or student no.", "admissionNo": "Student No.", "firstName": "First name", "middleName": "Middle name", "lastName": "Last name", "dob": "Date of birth", "gender": "Gender", "class": "Class", "status": "Status", "empty": "No students yet. Add the first student to begin.", "created": "Student added", "male": "Male", "female": "Female", "other": "Other", "save": "Save student", "cancel": "Cancel",
     "labels": { "english": "English", "amharic": "Amharic" },
     "active": "Active", "graduated": "Graduated", "transferred": "Transferred",

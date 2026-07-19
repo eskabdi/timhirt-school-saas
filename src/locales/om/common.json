@@ -59,7 +59,7 @@
     "feeStructures": "Caasaa Kaffaltii", "invoices": "Waraqaa Kaffaltii", "inventory": "Meeshaalee", "reports": "Gabaasa",
     "communication": "Walqunnamtii", "hostel": "Iddoo Jireenyaa", "discipline": "Amala", "clinic": "Kilinika", "library": "Mana Kitaabaa", "transport": "Geejjiba", "events": "Sagantaalee",
     "employees": "Hojjettoota", "myTimetable": "Sagantaa Koo", "myLeave": "Eeyyama Koo", "myPayslips": "Waraqaa Mindaa Koo",
-    "classes": "Kutaalee", "subjects": "Gosoota Barnootaa", "academicYears": "Waggoota Barnootaa", "promotion": "Guddina Sadarkaa", "gradingScales": "Madaallii Qabxii", "branding": "Moggaasa Dhaabbataa", "idCardTemplate": "Bifa Waraqaa Eenyummaa", "users": "Fayyadamtoota", "calendarSettings": "Kalorii",
+    "classes": "Kutaalee", "subjects": "Gosoota Barnootaa", "teachers": "Barsiisota", "academicYears": "Waggoota Barnootaa", "promotion": "Guddina Sadarkaa", "gradingScales": "Madaallii Qabxii", "branding": "Moggaasa Dhaabbataa", "idCardTemplate": "Bifa Waraqaa Eenyummaa", "users": "Fayyadamtoota", "calendarSettings": "Kalorii",
     "portal": "Portal", "grades": "Qabxiiwwan", "makePayment": "Kaffaltii Godhi",
     "section": { "academics": "Barnoota", "finance": "Maallaqa", "operations": "Tajaajila", "hr": "HR fi Mindaa", "mySpace": "Iddoo Koo", "settings": "Qindaa'ina" }
   },
@@ -69,6 +69,7 @@
   "userMenu": { "role": "Gahee", "changePassword": "Jecha Darbii Jijjiiri", "logout": "Ba'i" },
   "roles": { "super_admin": "Bulchaa Ol'aanaa", "school_admin": "Bulchaa Mana Barumsaa", "teacher": "Barsiisaa", "hr_officer": "Qindeessaa HR",
     "accountant": "Herregaa", "registrar": "Galmeessaa", "student": "Barataa", "parent": "Warra" },
+  "teachers": { "title": "Barsiisota", "inviteTitle": "Barsiisaa Afeerraa", "fullName": "Maqaa Guutuu", "email": "Imeelii", "staffNo": "Lakk. Hojjetaa", "invite": "Afeerraa", "inviting": "Afeeraa jira…", "inviteSent": "Imeelii Affeerraa Ergameera", "empty": "Ammatti barsiisaan hin jiru.", "noAssignments": "Kutaa yookaan gosa barnootaa hin ramadamne.", "subject": "Gosa Barnootaa", "assign": "Ramadi", "remove": "Balleessi" },
   "students": { "title": "Barattoota", "add": "Barataa dabali", "search": "Maqaan ykn lakkoofsa barataan barbaadi", "admissionNo": "Lakk. Barataa", "firstName": "Maqaa", "middleName": "Maqaa Abbaa", "lastName": "Maqaa Akaakayyuu", "dob": "Guyyaa dhalootaa", "gender": "Saala", "class": "Kutaa", "status": "Haala", "empty": "Ammatti barataan hin jiru. Barataa jalqabaa dabali.", "created": "Barataan dabalameera", "male": "Dhiira", "female": "Dubara", "other": "Kan biraa", "save": "Barataa olkaa'i", "cancel": "Haqi",
     "labels": { "english": "Ingiliffaa", "amharic": "Amaariffaa" },
     "active": "Hojiirra jiru", "graduated": "Eebbifame", "transferred": "Dabarfame",

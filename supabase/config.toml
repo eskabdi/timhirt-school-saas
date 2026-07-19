@@ -37,6 +37,8 @@ verify_jwt = true
 verify_jwt = true
 [functions.issue-id-card]
 verify_jwt = true
+[functions.invite-staff]
+verify_jwt = true
 [functions.provision-portal-accounts]
 verify_jwt = true
 [functions.verify-id]
