@@ -83,6 +83,7 @@ import { TeachersPage } from "@/features/settings/TeachersPage";
 import { AuditLogsPage } from "@/features/settings/AuditLogsPage";
 import { BackupsPage } from "@/features/settings/BackupsPage";
 import { RolesPage } from "@/features/settings/RolesPage";
+import { ConfigurationPage } from "@/features/settings/ConfigurationPage";
 
 import { TenantsManagementPage } from "@/features/platform/TenantsManagementPage";
 import { TenantDetailPage } from "@/features/platform/TenantDetailPage";
@@ -194,6 +195,7 @@ export const router = createBrowserRouter([
               { path: "settings/id-card-template", element: <IdCardTemplateDesignerPage /> },
               { path: "settings/users", element: <UsersPage /> },
               { path: "settings/roles", element: <RolesPage /> },
+              { path: "settings/configuration", element: <ConfigurationPage /> },
               { path: "settings/audit-logs", element: <AuditLogsPage /> },
               { path: "settings/backups", element: <BackupsPage /> },
               { path: "settings/calendar", element: <CalendarPreferencesPage /> },
