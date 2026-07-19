@@ -107,7 +107,7 @@ function generateVerifyCode(): string {
 function resolveFieldValue(key: FieldKey, data: CardData, customText?: string): string {
   switch (key) {
     case "full_name": return data.fullName;
-    case "admission_no": return `Admission No: ${data.admissionNo}`;
+    case "admission_no": return `Student No: ${data.admissionNo}`;
     case "class_label": return `Class: ${data.classLabel}`;
     case "dob": return `DOB (GC): ${data.dob}`;
     case "tenant_name": return data.tenantName;

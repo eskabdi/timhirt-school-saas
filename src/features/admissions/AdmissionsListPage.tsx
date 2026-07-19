@@ -11,7 +11,7 @@
 // needs to act on, it's a real student now, found in Students instead.
 // Reaching the 'registered' stage on its own does NOT hide a row: enrolling
 // is a distinct, deliberate action (picking a section against live
-// capacity, assigning an admission number), not something that should
+// capacity; the Student Number is generated automatically), not one that should
 // happen as a side effect of a stage-label click. A row at 'registered'
 // shows an "Enroll" action in place of the (now redundant) Registered
 // button instead.

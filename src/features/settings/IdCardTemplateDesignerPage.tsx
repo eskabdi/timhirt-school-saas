@@ -49,7 +49,7 @@ const SCALE = 3; // on-screen px per point
 const FIELD_TYPES: { key: FieldKey; label: string; w: number; h: number; fontSize: number; isImage?: boolean }[] = [
   { key: "photo", label: "Photo", w: 55, h: 65, fontSize: 0, isImage: true },
   { key: "full_name", label: "Full Name", w: 140, h: 14, fontSize: 11 },
-  { key: "admission_no", label: "Admission No.", w: 140, h: 10, fontSize: 7 },
+  { key: "admission_no", label: "Student No.", w: 140, h: 10, fontSize: 7 },
   { key: "class_label", label: "Class", w: 140, h: 10, fontSize: 7 },
   { key: "dob", label: "Date of Birth", w: 140, h: 10, fontSize: 7 },
   { key: "tenant_name", label: "School Name", w: 140, h: 12, fontSize: 9 },

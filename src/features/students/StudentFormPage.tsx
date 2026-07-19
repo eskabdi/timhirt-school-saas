@@ -73,9 +73,6 @@ export function StudentFormPage() {
             </div>
           </div>
         </Field>
-        <Field label={t("students.admissionNo")} error={errorText(errors.admission_no?.message)}>
-          <Input {...register("admission_no")} placeholder="ADM-2018-001" maxLength={20} required />
-        </Field>
         <Field label={t("students.dob")} error={errorText(errors.date_of_birth?.message)}>
           <Controller name="date_of_birth" control={control}
             render={({ field }) => <EthDatePicker value={field.value ?? null} onChange={field.onChange} />} />

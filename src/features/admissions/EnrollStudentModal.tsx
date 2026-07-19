@@ -19,7 +19,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { convertImageToPng } from "@/lib/image";
 import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
 import { Field } from "@/components/ui/Field";
 
 interface Application {
@@ -85,7 +84,6 @@ export function EnrollStudentModal({ application, onClose }: { application: Appl
   const { t } = useTranslation();
   const qc = useQueryClient();
   const [classId, setClassId] = useState("");
-  const [admissionNo, setAdmissionNo] = useState("");
   const [feeStructureId, setFeeStructureId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<EnrollResult | null>(null);
@@ -125,10 +123,11 @@ export function EnrollStudentModal({ application, onClose }: { application: Appl
 
   const enroll = useMutation({
     mutationFn: async (): Promise<EnrollResult> => {
+      // Student Number is generated DB-side (students_set_admission_no
+      // trigger, migration 20260719000005) — nothing to type here.
       const { data, error: rpcErr } = await supabase.rpc("enroll_admission_application", {
         p_application_id: application.id,
         p_class_id: classId,
-        p_admission_no: admissionNo,
       });
       if (rpcErr) throw rpcErr;
       const studentId = data as string;
@@ -248,10 +247,6 @@ export function EnrollStudentModal({ application, onClose }: { application: Appl
               {sections?.length === 0 && <p className="text-xs text-ink-faint">{t("admissions.enroll.noSections")}</p>}
             </Field>
 
-            <Field label={t("students.admissionNo")}>
-              <Input value={admissionNo} onChange={(e) => setAdmissionNo(e.target.value)} placeholder="ADM-2018-001" maxLength={20} />
-            </Field>
-
             <Field label={t("admissions.enroll.feeStructure")}>
               <select value={feeStructureId} onChange={(e) => setFeeStructureId(e.target.value)} disabled={!classId}
                 className="w-full rounded-control border border-line bg-card px-3 py-2 text-sm text-ink">
@@ -266,7 +261,7 @@ export function EnrollStudentModal({ application, onClose }: { application: Appl
 
             <Button
               onClick={() => enroll.mutate()}
-              disabled={enroll.isPending || !classId || !admissionNo}
+              disabled={enroll.isPending || !classId}
               className="w-full"
             >
               {enroll.isPending ? t("admissions.enroll.submitting") : t("admissions.enroll.submit")}

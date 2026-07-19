@@ -69,7 +69,7 @@
   "userMenu": { "role": "Gahee", "changePassword": "Jecha Darbii Jijjiiri", "logout": "Ba'i" },
   "roles": { "super_admin": "Bulchaa Ol'aanaa", "school_admin": "Bulchaa Mana Barumsaa", "teacher": "Barsiisaa", "hr_officer": "Qindeessaa HR",
     "accountant": "Herregaa", "registrar": "Galmeessaa", "student": "Barataa", "parent": "Warra" },
-  "students": { "title": "Barattoota", "add": "Barataa dabali", "search": "Maqaan ykn lakkoofsa galmeen barbaadi", "admissionNo": "Lakk. galmee", "firstName": "Maqaa", "middleName": "Maqaa Abbaa", "lastName": "Maqaa Akaakayyuu", "dob": "Guyyaa dhalootaa", "gender": "Saala", "class": "Kutaa", "status": "Haala", "empty": "Ammatti barataan hin jiru. Barataa jalqabaa dabali.", "created": "Barataan dabalameera", "male": "Dhiira", "female": "Dubara", "other": "Kan biraa", "save": "Barataa olkaa'i", "cancel": "Haqi",
+  "students": { "title": "Barattoota", "add": "Barataa dabali", "search": "Maqaan ykn lakkoofsa barataan barbaadi", "admissionNo": "Lakk. Barataa", "firstName": "Maqaa", "middleName": "Maqaa Abbaa", "lastName": "Maqaa Akaakayyuu", "dob": "Guyyaa dhalootaa", "gender": "Saala", "class": "Kutaa", "status": "Haala", "empty": "Ammatti barataan hin jiru. Barataa jalqabaa dabali.", "created": "Barataan dabalameera", "male": "Dhiira", "female": "Dubara", "other": "Kan biraa", "save": "Barataa olkaa'i", "cancel": "Haqi",
     "labels": { "english": "Ingiliffaa", "amharic": "Amaariffaa" },
     "active": "Hojiirra jiru", "graduated": "Eebbifame", "transferred": "Dabarfame",
     "errors": { "required": "Barbaachisaadha", "letters_only": "Qubee qofa", "admission_no_format": "fkn. ADM-2018-001", "must_be_past": "Guyyaa darbe ta'uu qaba", "select_class": "Kutaa filadhu" } },

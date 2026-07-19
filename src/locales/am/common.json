@@ -69,7 +69,7 @@
   "userMenu": { "role": "ሚና", "changePassword": "የይለፍ ቃል ቀይር", "logout": "ውጣ" },
   "roles": { "super_admin": "ልዕለ አስተዳዳሪ", "school_admin": "የትምህርት ቤት አስተዳዳሪ", "teacher": "መምህር", "hr_officer": "የሰው ኃይል ኃላፊ",
     "accountant": "የሂሳብ ሹም", "registrar": "ሬጅስትራር", "student": "ተማሪ", "parent": "ወላጅ" },
-  "students": { "title": "ተማሪዎች", "add": "ተማሪ ጨምር", "search": "በስም ወይም በመግቢያ ቁጥር ፈልግ", "admissionNo": "የመግቢያ ቁጥር", "firstName": "ስም", "middleName": "የአባት ስም", "lastName": "የአያት ስም", "dob": "የትውልድ ቀን", "gender": "ፆታ", "class": "ክፍል", "status": "ሁኔታ", "empty": "እስካሁን ተማሪ የለም። የመጀመሪያውን ተማሪ ይጨምሩ።", "created": "ተማሪ ተጨምሯል", "male": "ወንድ", "female": "ሴት", "other": "ሌላ", "save": "ተማሪ አስቀምጥ", "cancel": "ሰርዝ",
+  "students": { "title": "ተማሪዎች", "add": "ተማሪ ጨምር", "search": "በስም ወይም በተማሪ ቁጥር ፈልግ", "admissionNo": "የተማሪ ቁጥር", "firstName": "ስም", "middleName": "የአባት ስም", "lastName": "የአያት ስም", "dob": "የትውልድ ቀን", "gender": "ፆታ", "class": "ክፍል", "status": "ሁኔታ", "empty": "እስካሁን ተማሪ የለም። የመጀመሪያውን ተማሪ ይጨምሩ።", "created": "ተማሪ ተጨምሯል", "male": "ወንድ", "female": "ሴት", "other": "ሌላ", "save": "ተማሪ አስቀምጥ", "cancel": "ሰርዝ",
     "labels": { "english": "እንግሊዝኛ", "amharic": "አማርኛ" },
     "active": "ንቁ", "graduated": "ተመርቋል", "transferred": "ተዛውሯል",
     "errors": { "required": "ያስፈልጋል", "letters_only": "ፊደላት ብቻ", "admission_no_format": "ለምሳሌ ADM-2018-001", "must_be_past": "ያለፈ ቀን መሆን አለበት", "select_class": "ክፍል ይምረጡ" } },
