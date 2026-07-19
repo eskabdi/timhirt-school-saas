@@ -30,6 +30,7 @@ import { ReportCardBatchPage } from "@/features/gradebook/ReportCardBatchPage";
 
 import { FeeStructuresPage } from "@/features/fees/FeeStructuresPage";
 import { InvoicesPage } from "@/features/fees/InvoicesPage";
+import { InvoiceDetailPage } from "@/features/fees/InvoiceDetailPage";
 
 import { AnnouncementsPage } from "@/features/communication/AnnouncementsPage";
 
@@ -66,6 +67,7 @@ import { StudentAssignmentsPage } from "@/features/portal/StudentAssignmentsPage
 import { ParentPortalPage } from "@/features/portal/ParentPortalPage";
 import { ParentChildPage } from "@/features/portal/ParentChildPage";
 import { ParentPaymentPage } from "@/features/portal/ParentPaymentPage";
+import { ParentInvoiceDetailPage } from "@/features/portal/ParentInvoiceDetailPage";
 
 import { AcademicYearsPage } from "@/features/settings/AcademicYearsPage";
 import { PromotionPage } from "@/features/settings/PromotionPage";
@@ -195,7 +197,10 @@ export const router = createBrowserRouter([
             children: [
               {
                 element: <RequireModule module="fees" />,
-                children: [{ path: "fees/invoices", element: <InvoicesPage /> }],
+                children: [
+                  { path: "fees/invoices", element: <InvoicesPage /> },
+                  { path: "fees/invoices/:id", element: <InvoiceDetailPage /> },
+                ],
               },
               {
                 element: <RequireModule module="inventory" />,
@@ -298,6 +303,7 @@ export const router = createBrowserRouter([
               { path: "portal", element: <ParentPortalPage /> },
               { path: "portal/child/:id", element: <ParentChildPage /> },
               { path: "portal/pay", element: <ParentPaymentPage /> },
+              { path: "portal/pay/:id", element: <ParentInvoiceDetailPage /> },
             ],
           },
         ],

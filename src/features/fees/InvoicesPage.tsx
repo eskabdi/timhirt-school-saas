@@ -1,16 +1,19 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/Button";
 import { Panel } from "@/components/ui/Panel";
 import { Badge } from "@/components/ui/Badge";
 import { EthDate } from "@/components/EthDate";
 import { formatETB } from "@/lib/i18n";
+import { onRowDoubleClick } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
 
 const STATUS_TONE = { pending: "neutral", partial: "navy", paid: "ok", overdue: "danger" } as const;
 
 export function InvoicesPage() {
   const { t, i18n } = useTranslation();
+  const navigate = useNavigate();
   const { data: invoices } = useQuery({
     queryKey: ["invoices"],
     queryFn: async () => {
@@ -46,8 +49,10 @@ export function InvoicesPage() {
           </thead>
           <tbody className="divide-y divide-line">
             {invoices?.map((inv) => (
-              <tr key={inv.id}>
-                <td className="px-4 py-2 font-medium text-ink">{(inv.students as any)?.first_name} {(inv.students as any)?.last_name}</td>
+              <tr key={inv.id} className="cursor-pointer hover:bg-sidebar" onDoubleClick={onRowDoubleClick(navigate, inv.id)}>
+                <td className="px-4 py-2 font-medium text-ink">
+                  <Link to={inv.id} className="hover:underline">{(inv.students as any)?.first_name} {(inv.students as any)?.last_name}</Link>
+                </td>
                 <td className="px-4 py-2 text-ink-faint"><EthDate value={inv.due_date} /></td>
                 <td className="px-4 py-2 text-ink">{formatETB(Number(inv.amount_due) - Number(inv.amount_paid), i18n.resolvedLanguage!)}</td>
                 <td className="px-4 py-2"><Badge tone={STATUS_TONE[inv.status as keyof typeof STATUS_TONE] ?? "neutral"}>{t(`fees.invoiceStatus.${inv.status}`)}</Badge></td>
