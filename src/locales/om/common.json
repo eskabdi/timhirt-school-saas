@@ -59,7 +59,7 @@
     "feeStructures": "Caasaa Kaffaltii", "invoices": "Waraqaa Kaffaltii", "inventory": "Meeshaalee", "reports": "Gabaasa",
     "communication": "Walqunnamtii", "hostel": "Iddoo Jireenyaa", "discipline": "Amala", "clinic": "Kilinika", "library": "Mana Kitaabaa", "transport": "Geejjiba", "events": "Sagantaalee",
     "employees": "Hojjettoota", "myTimetable": "Sagantaa Koo", "myClasses": "Kutaalee Koo", "myLeave": "Eeyyama Koo", "myPayslips": "Waraqaa Mindaa Koo",
-    "classes": "Kutaalee", "subjects": "Gosoota Barnootaa", "teachers": "Barsiisota", "academicYears": "Waggoota Barnootaa", "promotion": "Guddina Sadarkaa", "gradingScales": "Madaallii Qabxii", "branding": "Moggaasa Dhaabbataa", "idCardTemplate": "Bifa Waraqaa Eenyummaa", "users": "Fayyadamtoota", "roles": "Giddaroonni", "configuration": "Qindaa'ina", "importExport": "Seena/Baasii", "auditLogs": "Galmee Jijjiirama", "backups": "Kufaatinsa Duubaa", "calendarSettings": "Kalorii",
+    "classes": "Kutaalee", "subjects": "Gosoota Barnootaa", "teachers": "Barsiisota", "academicYears": "Waggoota Barnootaa", "promotion": "Guddina Sadarkaa", "gradingScales": "Madaallii Qabxii", "branding": "Moggaasa Dhaabbataa", "idCardTemplate": "Bifa Waraqaa Eenyummaa", "users": "Fayyadamtoota", "roles": "Giddaroonni", "configuration": "Qindaa'ina", "importExport": "Seena/Baasii", "healthMonitoring": "Hordoffii Fayyaa Sirni", "auditLogs": "Galmee Jijjiirama", "backups": "Kufaatinsa Duubaa", "calendarSettings": "Kalorii",
     "portal": "Portal", "grades": "Qabxiiwwan", "makePayment": "Kaffaltii Godhi",
     "section": { "academics": "Barnoota", "finance": "Maallaqa", "operations": "Tajaajila", "hr": "HR fi Mindaa", "mySpace": "Iddoo Koo", "settings": "Qindaa'ina" }
   },
@@ -94,6 +94,7 @@
   "config": { "title": "Qindaa'ina Sirni", "subtitle": "Gorsaa fayyaa fi gigiraa feeshinoota bulchi", "featureToggles": "Feeshinoota Jijjiira", "systemSettings": "Qindaa'inni Sirni", "noFlags": "Feeshini baandiiraa hin jiru.", "noConfig": "Qindaa'inni hin jiru.", "enabled": "Seene", "disabled": "Hafe", "currentValue": "Gatiha Ammaa", "true": "Seene", "false": "Hafe" },
   "importExport": { "title": "Seena/Baasii", "subtitle": "Seenuu ykn baasuu odeeffannoo CSV fakkaachuu", "import": "Odeeffannoo seenuu", "export": "Odeeffannoo baasuu", "entityType": "Akaakuu Mudde", "selectFile": "Fayla CSV filladhu", "startImport": "Seenuu jalqabsicha", "startExport": "Baasuu jalqabsicha", "jobHistory": "Seenaa Hojii", "noJobs": "Ammatti hojiin hin jiru.", "rows": "sararoonni", "errors": "dogoggora" },
   "my": { "classesTitle": "Kutaalee Koo", "todaySchedule": "Sagantaa Har'aa", "todayPeriod": "Har'a", "attendance": "Hordoffii", "gradebook": "Galmee Qabxii", "assignments": "Hojii Manaa", "homeroom": "Kutaa Jedhaatti", "noStudents": "Kutaa jedhaatti barataan hin jiru.", "noClasses": "Kutaa ramadamte hin jiru." },
+  "health": { "alerts": "Ajjeesota Fayyaa", "noAlerts": "Ajjeesni socho'u hin jiru. Sirni fayyaa qaba.", "title": "Hordoffii Fayyaa Sirni", "subtitle": "Raawwii sirni, humna, fi ajjeesota barbaachisu hordoffi" },
   "noRecordsYet": "Ammatti galmeen hin jiru.",
-  "actions": { "retry": "Irra deebi'i yaali", "close": "Cufi" }
+  "actions": { "retry": "Irra deebi'i yaali", "refresh": "Haaroomsi", "close": "Cufi" }
 }

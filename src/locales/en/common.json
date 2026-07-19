@@ -59,7 +59,7 @@
     "feeStructures": "Fee Structures", "invoices": "Invoices", "inventory": "Inventory", "reports": "Reports",
     "communication": "Communication", "hostel": "Hostel", "discipline": "Discipline", "clinic": "Clinic", "library": "Library", "transport": "Transport", "events": "Events",
     "employees": "Employees", "myTimetable": "My Timetable", "myClasses": "My Classes", "myLeave": "My Leave", "myPayslips": "My Payslips",
-    "classes": "Classes", "subjects": "Subjects", "teachers": "Teachers", "academicYears": "Academic Years", "promotion": "Grade Promotion", "gradingScales": "Grading Scales", "branding": "Branding", "idCardTemplate": "ID Card Template", "users": "Users", "roles": "Roles", "configuration": "Configuration", "importExport": "Import/Export", "auditLogs": "Audit Logs", "backups": "Backups", "calendarSettings": "Calendar",
+    "classes": "Classes", "subjects": "Subjects", "teachers": "Teachers", "academicYears": "Academic Years", "promotion": "Grade Promotion", "gradingScales": "Grading Scales", "branding": "Branding", "idCardTemplate": "ID Card Template", "users": "Users", "roles": "Roles", "configuration": "Configuration", "importExport": "Import/Export", "healthMonitoring": "Health Monitoring", "auditLogs": "Audit Logs", "backups": "Backups", "calendarSettings": "Calendar",
     "portal": "Portal", "grades": "Grades", "makePayment": "Make Payment",
     "section": { "academics": "Academics", "finance": "Finance", "operations": "Operations", "hr": "HR & Payroll", "mySpace": "My Space", "settings": "Settings" }
   },
@@ -94,6 +94,7 @@
   "config": { "title": "System Configuration", "subtitle": "Manage application settings and feature toggles", "featureToggles": "Feature Toggles", "systemSettings": "System Settings", "noFlags": "No feature flags available.", "noConfig": "No configuration available.", "enabled": "Enabled", "disabled": "Disabled", "currentValue": "Current value", "true": "Enabled", "false": "Disabled" },
   "importExport": { "title": "Import/Export", "subtitle": "Bulk upload or download data in CSV format", "import": "Import Data", "export": "Export Data", "entityType": "Entity Type", "selectFile": "Select CSV file", "startImport": "Start Import", "startExport": "Start Export", "jobHistory": "Job History", "noJobs": "No jobs yet.", "rows": "rows", "errors": "errors" },
   "my": { "classesTitle": "My Classes", "todaySchedule": "Today's Schedule", "todayPeriod": "Today", "attendance": "Attendance", "gradebook": "Gradebook", "assignments": "Assignments", "homeroom": "Homeroom", "noStudents": "No students in homeroom.", "noClasses": "No classes assigned." },
+  "health": { "alerts": "Health Alerts", "noAlerts": "No active alerts. System is healthy.", "title": "System Health Monitoring", "subtitle": "Monitor system performance, capacity, and critical alerts" },
   "noRecordsYet": "No records yet.",
-  "actions": { "retry": "Retry", "close": "Close" }
+  "actions": { "retry": "Retry", "refresh": "Refresh", "close": "Close" }
 }

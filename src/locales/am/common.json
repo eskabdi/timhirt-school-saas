@@ -59,7 +59,7 @@
     "feeStructures": "የክፍያ አወቃቀር", "invoices": "ደረሰኞች", "inventory": "እቃ ንብረት", "reports": "ሪፖርቶች",
     "communication": "ግንኙነት", "hostel": "ማደሪያ", "discipline": "ስነ ስርዓት", "clinic": "ክሊኒክ", "library": "ቤተ መጻሕፍት", "transport": "ትራንስፖርት", "events": "ዝግጅቶች",
     "employees": "ሠራተኞች", "myTimetable": "የእኔ መርሃ ግብር", "myClasses": "የእኔ ክፍሎች", "myLeave": "የእኔ ፈቃድ", "myPayslips": "የእኔ ደመወዝ ወረቀት",
-    "classes": "ክፍሎች", "subjects": "የትምህርት ዓይነቶች", "teachers": "አስተማሪዎች", "academicYears": "የትምህርት ዓመታት", "promotion": "የክፍል ዕድገት", "gradingScales": "የውጤት መለኪያ", "branding": "ብራንዲንግ", "idCardTemplate": "የመታወቂያ ካርድ አብነት", "users": "ተጠቃሚዎች", "roles": "ሚናዎች", "configuration": "ምዝገባ", "importExport": "ወደ ውስጥ/ወደ ውጪ ማምጣት", "auditLogs": "የተለውጡ ነገሮች መዝገብ", "backups": "ወደ ኃላ ፍልሰት", "calendarSettings": "የቀን መቁጠሪያ",
+    "classes": "ክፍሎች", "subjects": "የትምህርት ዓይነቶች", "teachers": "አስተማሪዎች", "academicYears": "የትምህርት ዓመታት", "promotion": "የክፍል ዕድገት", "gradingScales": "የውጤት መለኪያ", "branding": "ብራንዲንግ", "idCardTemplate": "የመታወቂያ ካርድ አብነት", "users": "ተጠቃሚዎች", "roles": "ሚናዎች", "configuration": "ምዝገባ", "importExport": "ወደ ውስጥ/ወደ ውጪ ማምጣት", "healthMonitoring": "የስርዓት ጤና ክትትል", "auditLogs": "የተለውጡ ነገሮች መዝገብ", "backups": "ወደ ኃላ ፍልሰት", "calendarSettings": "የቀን መቁጠሪያ",
     "portal": "መግቢያ", "grades": "ውጤቶች", "makePayment": "ክፍያ ፈጽም",
     "section": { "academics": "ትምህርታዊ", "finance": "ፋይናንስ", "operations": "አገልግሎቶች", "hr": "ሰው ኃይል እና ደመወዝ", "mySpace": "የእኔ ገጽ", "settings": "ቅንብሮች" }
   },
@@ -94,6 +94,7 @@
   "config": { "title": "ስርዓት ምዝገባ", "subtitle": "የመተግበሪያ ቅንብሮች እና ንብረት መቀየሪያ ያስተዳድሩ", "featureToggles": "ንብረት መቀየሪያ", "systemSettings": "ስርዓት ቅንብሮች", "noFlags": "የሚገኙ ንብረት ባንዲራ የሉም።", "noConfig": "ሚና ምዝገባ የለም።", "enabled": "ነቅቋል", "disabled": "ጠፍቷል", "currentValue": "አሁን ያለው እሴት", "true": "ነቅቋል", "false": "ጠፍቷል" },
   "importExport": { "title": "ወደ ውስጥ/ወደ ውጪ ማምጣት", "subtitle": "ውሂብ በCSV ቅርፀት ወደ ውስጥ ማምጣት ወይም ወደ ውጪ ማወጣት", "import": "ውሂብ ወደ ውስጥ ያምጡ", "export": "ውሂብ ወደ ውጪ ያወጡ", "entityType": "ይዘት ዓይነት", "selectFile": "CSV ፋይል ይምረጡ", "startImport": "ወደ ውስጥ ማምጣት ይጀምሩ", "startExport": "ወደ ውጪ ማወጣት ይጀምሩ", "jobHistory": "ስራ ታሪክ", "noJobs": "ገና ስራ የለም።", "rows": "ረድፎች", "errors": "ስህተቶች" },
   "my": { "classesTitle": "የእኔ ክፍሎች", "todaySchedule": "የዛሬ መርሃ ግብር", "todayPeriod": "ዛሬ", "attendance": "ክትትል", "gradebook": "ውጤት መዝገብ", "assignments": "ስራዎች", "homeroom": "የመደበኛ ክፍል", "noStudents": "በመደበኛ ክፍሉ ተማሪ የለም።", "noClasses": "የተመደበ ክፍል የለም።" },
+  "health": { "alerts": "ጤና ተንቦዎች", "noAlerts": "ንቁ ተንቦ የለም። ስርዓት ጤናማ ነው።", "title": "የስርዓት ጤና ክትትል", "subtitle": "የስርዓት አፈጻጸም፣ አቅም እና ወሳኝ ተንቦዎች ይከታተሉ" },
   "noRecordsYet": "እስካሁን መዝገብ የለም።",
-  "actions": { "retry": "እንደገና ሞክር", "close": "ዝጋ" }
+  "actions": { "retry": "እንደገና ሞክር", "refresh": "ዝመናአስገባ", "close": "ዝጋ" }
 }
