@@ -4,7 +4,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useSession } from "@/features/auth/useSession";
 import { Button } from "@/components/ui/Button";
-import { Dialog } from "@/components/ui/Dialog";
 import { z } from "zod";
 
 interface Role {
@@ -230,87 +229,92 @@ export function RolesPage() {
       )}
 
       {showCreateDialog && (
-        <Dialog title={t("rolesPage.createRole")} onClose={() => setShowCreateDialog(false)}>
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-ink">
-                {t("rolesPage.roleName")}
-              </label>
-              <input
-                type="text"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="mt-1 w-full rounded border border-line px-3 py-2 text-sm"
-                placeholder={t("rolesPage.roleNamePlaceholder")}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-ink">
-                {t("rolesPage.description")}
-              </label>
-              <textarea
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                className="mt-1 w-full rounded border border-line px-3 py-2 text-sm"
-                placeholder={t("rolesPage.descriptionPlaceholder")}
-                rows={3}
-              />
-            </div>
-            <div className="flex gap-2 justify-end">
-              <Button variant="ghost" onClick={() => setShowCreateDialog(false)}>
-                {t("common.cancel")}
-              </Button>
-              <Button variant="primary" onClick={handleCreateRole} disabled={createRoleMutation.isPending}>
-                {t("common.create")}
-              </Button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="w-full max-w-md rounded-lg bg-card p-6 shadow-lg">
+            <h2 className="text-lg font-bold text-ink mb-4">{t("rolesPage.createRole")}</h2>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-ink">
+                  {t("rolesPage.roleName")}
+                </label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  className="mt-1 w-full rounded border border-line px-3 py-2 text-sm"
+                  placeholder={t("rolesPage.roleNamePlaceholder")}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-ink">
+                  {t("rolesPage.description")}
+                </label>
+                <textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  className="mt-1 w-full rounded border border-line px-3 py-2 text-sm"
+                  placeholder={t("rolesPage.descriptionPlaceholder")}
+                  rows={3}
+                />
+              </div>
+              <div className="flex gap-2 justify-end pt-4 border-t border-line">
+                <Button variant="ghost" onClick={() => setShowCreateDialog(false)}>
+                  {t("common.cancel")}
+                </Button>
+                <Button variant="primary" onClick={handleCreateRole} disabled={createRoleMutation.isPending}>
+                  {t("common.create")}
+                </Button>
+              </div>
             </div>
           </div>
-        </Dialog>
+        </div>
       )}
 
       {showPermissionsDialog && selectedRole && (
-        <Dialog
-          title={t("rolesPage.managePermissionsFor") + " " + selectedRole.name}
-          onClose={() => setShowPermissionsDialog(false)}
-        >
-          <div className="space-y-6 max-h-96 overflow-y-auto">
-            {Object.entries(groupedPermissions).map(([module, perms]) => (
-              <div key={module}>
-                <h4 className="font-semibold text-ink mb-3 capitalize">{module}</h4>
-                <div className="space-y-2">
-                  {perms.map((perm) => (
-                    <label key={perm.id} className="flex items-start gap-3 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={selectedPermissions.has(perm.id)}
-                        onChange={() => togglePermission(perm.id)}
-                        className="mt-1"
-                      />
-                      <div>
-                        <div className="font-medium text-sm text-ink">{perm.key}</div>
-                        {perm.description && (
-                          <div className="text-xs text-ink-faint">{perm.description}</div>
-                        )}
-                      </div>
-                    </label>
-                  ))}
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="w-full max-w-2xl rounded-lg bg-card p-6 shadow-lg max-h-96 overflow-y-auto">
+            <h2 className="text-lg font-bold text-ink mb-4">
+              {t("rolesPage.managePermissionsFor")} {selectedRole.name}
+            </h2>
+            <div className="space-y-6">
+              {Object.entries(groupedPermissions).map(([module, perms]) => (
+                <div key={module}>
+                  <h4 className="font-semibold text-ink mb-3 capitalize">{module}</h4>
+                  <div className="space-y-2">
+                    {perms.map((perm) => (
+                      <label key={perm.id} className="flex items-start gap-3 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={selectedPermissions.has(perm.id)}
+                          onChange={() => togglePermission(perm.id)}
+                          className="mt-1"
+                        />
+                        <div>
+                          <div className="font-medium text-sm text-ink">{perm.key}</div>
+                          {perm.description && (
+                            <div className="text-xs text-ink-faint">{perm.description}</div>
+                          )}
+                        </div>
+                      </label>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
+            <div className="flex gap-2 justify-end border-t border-line pt-4 mt-4">
+              <Button variant="ghost" onClick={() => setShowPermissionsDialog(false)}>
+                {t("common.cancel")}
+              </Button>
+              <Button
+                variant="primary"
+                onClick={handleSavePermissions}
+                disabled={updatePermissionsMutation.isPending}
+              >
+                {t("common.save")}
+              </Button>
+            </div>
           </div>
-          <div className="flex gap-2 justify-end border-t border-line pt-4 mt-4">
-            <Button variant="ghost" onClick={() => setShowPermissionsDialog(false)}>
-              {t("common.cancel")}
-            </Button>
-            <Button
-              variant="primary"
-              onClick={handleSavePermissions}
-              disabled={updatePermissionsMutation.isPending}
-            >
-              {t("common.save")}
-            </Button>
-          </div>
-        </Dialog>
+        </div>
       )}
     </div>
   );
