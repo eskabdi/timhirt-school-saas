@@ -12,14 +12,7 @@ create table audit_logs (
   record_id uuid not null,
   old_values jsonb,
   new_values jsonb,
-  ip_address inet,
-  user_agent text,
-  created_at timestamp with time zone not null default now(),
-
-  constraint audit_logs_id_primary_key primary key (id)
-) partition by range (created_at) (
-  partition audit_logs_recent values from ('2024-01-01') to ('2025-01-01'),
-  partition audit_logs_archive values from ('2025-01-01') to (maxvalue)
+  created_at timestamp with time zone not null default now()
 );
 
 create index idx_audit_logs_tenant_id on audit_logs(tenant_id);
