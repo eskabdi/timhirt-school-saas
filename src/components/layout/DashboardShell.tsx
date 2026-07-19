@@ -85,6 +85,7 @@ const NAV: NavSection[] = [
       { to: "/classes", key: "nav.classes", roles: ["school_admin"] },
       { to: "/subjects", key: "nav.subjects", roles: ["school_admin"] },
       { to: "/settings/academic-years", key: "nav.academicYears", roles: ["school_admin"] },
+      { to: "/settings/promotion", key: "nav.promotion", roles: ["school_admin"] },
       { to: "/settings/grading-scales", key: "nav.gradingScales", roles: ["school_admin"] },
       { to: "/settings/branding", key: "nav.branding", roles: ["school_admin"] },
       { to: "/settings/users", key: "nav.users", roles: ["school_admin"] },

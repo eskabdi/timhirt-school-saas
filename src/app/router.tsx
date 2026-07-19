@@ -68,6 +68,7 @@ import { ParentChildPage } from "@/features/portal/ParentChildPage";
 import { ParentPaymentPage } from "@/features/portal/ParentPaymentPage";
 
 import { AcademicYearsPage } from "@/features/settings/AcademicYearsPage";
+import { PromotionPage } from "@/features/settings/PromotionPage";
 import { GradingScalesPage } from "@/features/settings/GradingScalesPage";
 import { BrandingPage } from "@/features/settings/BrandingPage";
 import { UsersPage } from "@/features/settings/UsersPage";
@@ -176,6 +177,7 @@ export const router = createBrowserRouter([
                 children: [{ path: "events", element: <EventsCalendarPage /> }],
               },
               { path: "settings/academic-years", element: <AcademicYearsPage /> },
+              { path: "settings/promotion", element: <PromotionPage /> },
               { path: "settings/grading-scales", element: <GradingScalesPage /> },
               { path: "settings/branding", element: <BrandingPage /> },
               { path: "settings/users", element: <UsersPage /> },
