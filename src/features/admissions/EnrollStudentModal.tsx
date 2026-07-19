@@ -5,8 +5,13 @@
 // admin assigns a specific section, filtered to remaining capacity for that
 // grade. Enrollment itself runs through the enroll_admission_application()
 // Postgres function (atomic: student + guardian + application update in one
-// transaction), then an optional first invoice is created separately since
-// not every grade has a matching fee structure.
+// transaction), then two independent follow-ups run automatically: issuing
+// a CR-80 ID card (issue-id-card) and provisioning student + guardian
+// portal logins (provision-portal-accounts). Either can fail without
+// undoing the enrollment that already succeeded, so their results/errors
+// are surfaced separately rather than rolled into one all-or-nothing call.
+// An optional first invoice is created inline too, since not every grade
+// has a matching fee structure.
 // ============================================================================
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -24,6 +29,32 @@ interface Application {
   applicant_last_name: string | null;
 }
 
+interface ProvisionedAccount {
+  kind: "student" | "guardian";
+  method: "password" | "email_invite" | "existing_account";
+  email: string;
+  temp_password?: string;
+}
+
+interface EnrollResult {
+  studentId: string;
+  idCardUrl: string | null;
+  idCardError: string | null;
+  accounts: ProvisionedAccount[];
+  accountsError: string | null;
+}
+
+async function callFunction(name: string, body: unknown) {
+  const { data: { session } } = await supabase.auth.getSession();
+  const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${name}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token}` },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? `${name} failed`);
+  return res.json();
+}
+
 export function EnrollStudentModal({ application, onClose }: { application: Application; onClose: () => void }) {
   const { t } = useTranslation();
   const qc = useQueryClient();
@@ -31,7 +62,7 @@ export function EnrollStudentModal({ application, onClose }: { application: Appl
   const [admissionNo, setAdmissionNo] = useState("");
   const [feeStructureId, setFeeStructureId] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
+  const [result, setResult] = useState<EnrollResult | null>(null);
 
   const { data: sections } = useQuery({
     queryKey: ["admission-enroll-sections", application.tenant_id, application.desired_grade],
@@ -67,7 +98,7 @@ export function EnrollStudentModal({ application, onClose }: { application: Appl
   });
 
   const enroll = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (): Promise<EnrollResult> => {
       const { data, error: rpcErr } = await supabase.rpc("enroll_admission_application", {
         p_application_id: application.id,
         p_class_id: classId,
@@ -89,28 +120,84 @@ export function EnrollStudentModal({ application, onClose }: { application: Appl
           if (invErr) throw invErr;
         }
       }
-      return studentId;
+
+      // Independent follow-ups — a failure in either must not look like the
+      // enrollment itself failed, since by this point it already succeeded.
+      const [cardRes, accountsRes] = await Promise.allSettled([
+        callFunction("issue-id-card", { student_id: studentId }),
+        callFunction("provision-portal-accounts", { student_id: studentId }),
+      ]);
+
+      return {
+        studentId,
+        idCardUrl: cardRes.status === "fulfilled" ? (cardRes.value.url as string) : null,
+        idCardError: cardRes.status === "rejected" ? String(cardRes.reason) : null,
+        accounts: accountsRes.status === "fulfilled" ? (accountsRes.value.accounts as ProvisionedAccount[]) : [],
+        accountsError: accountsRes.status === "rejected" ? String(accountsRes.reason) : null,
+      };
     },
-    onSuccess: () => {
-      setSuccess(true);
+    onSuccess: (r) => {
+      setResult(r);
       qc.invalidateQueries({ queryKey: ["admission", application.id] });
       qc.invalidateQueries({ queryKey: ["admissions"] });
       qc.invalidateQueries({ queryKey: ["students"] });
-      setTimeout(onClose, 1200);
     },
     onError: (err: unknown) => setError(err instanceof Error ? err.message : String(err)),
   });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 px-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 px-4" onClick={result ? undefined : onClose}>
       <div className="w-full max-w-md rounded-panel border border-line bg-card p-6 shadow-lg" onClick={(e) => e.stopPropagation()}>
         <div className="mb-4 flex items-center justify-between">
           <h2 className="font-display text-lg font-bold text-ink">{t("admissions.enroll.title")}</h2>
-          <button type="button" aria-label={t("actions.close")} onClick={onClose} className="text-ink-faint hover:text-ink">✕</button>
+          {!result && <button type="button" aria-label={t("actions.close")} onClick={onClose} className="text-ink-faint hover:text-ink">✕</button>}
         </div>
 
-        {success ? (
-          <p className="text-sm text-ok">{t("admissions.enroll.success")}</p>
+        {result ? (
+          <div className="space-y-4">
+            <p className="text-sm text-ok">{t("admissions.enroll.success")}</p>
+
+            <div className="rounded-control border border-line p-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("admissions.enroll.idCardReady")}</p>
+              {result.idCardUrl ? (
+                <a href={result.idCardUrl} target="_blank" rel="noreferrer" className="mt-1 block text-sm text-navy hover:underline">
+                  {t("admissions.enroll.downloadIdCard")}
+                </a>
+              ) : (
+                <p className="mt-1 text-sm text-danger">{t("admissions.enroll.idCardFailed")}</p>
+              )}
+            </div>
+
+            <div className="rounded-control border border-line p-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("admissions.enroll.portalAccounts")}</p>
+              {result.accountsError ? (
+                <p className="mt-1 text-sm text-danger">{t("admissions.enroll.accountsFailed")}</p>
+              ) : result.accounts.length === 0 ? (
+                <p className="mt-1 text-sm text-ink-faint">{t("admissions.enroll.alreadyLinked")}</p>
+              ) : (
+                <div className="mt-2 space-y-2">
+                  {result.accounts.map((a, i) => (
+                    <div key={i} className="rounded-control bg-page p-2 text-sm">
+                      <p className="font-medium text-ink">{t(`admissions.enroll.${a.kind}`)}</p>
+                      {a.method === "email_invite" ? (
+                        <p className="text-ink-faint">{t("admissions.enroll.inviteSent")}: {a.email}</p>
+                      ) : a.method === "existing_account" ? (
+                        <p className="text-ink-faint">{t("admissions.enroll.alreadyLinked")}: {a.email}</p>
+                      ) : (
+                        <>
+                          <p className="text-ink-faint">{t("admissions.enroll.loginEmail")}: <span className="font-mono">{a.email}</span></p>
+                          <p className="text-ink-faint">{t("admissions.enroll.tempPassword")}: <span className="font-mono">{a.temp_password}</span></p>
+                        </>
+                      )}
+                    </div>
+                  ))}
+                  <p className="text-xs text-danger">{t("admissions.enroll.copyWarning")}</p>
+                </div>
+              )}
+            </div>
+
+            <Button onClick={onClose} className="w-full">{t("admissions.enroll.done")}</Button>
+          </div>
         ) : (
           <div className="space-y-4">
             <Field label={t("admissions.enroll.assignSection")}>

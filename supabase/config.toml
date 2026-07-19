@@ -35,6 +35,10 @@ verify_jwt = true                      # super_admin only, checked in-code
 verify_jwt = true
 [functions.generate-payslip-pdf]
 verify_jwt = true
+[functions.issue-id-card]
+verify_jwt = true
+[functions.provision-portal-accounts]
+verify_jwt = true
 [functions.verify-id]
 verify_jwt = false                     # public verification; rate-limited in-code
 
