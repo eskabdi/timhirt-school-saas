@@ -46,11 +46,23 @@ alter table health_alerts enable row level security;
 create policy "system_health_read" on system_health
   for select using (tenant_id = auth.jwt()->'app_metadata'->>'tenant_id'::uuid);
 
+create policy "system_health_insert" on system_health
+  for insert with check (tenant_id = auth.jwt()->'app_metadata'->>'tenant_id'::uuid);
+
 create policy "health_alerts_read" on health_alerts
   for select using (tenant_id = auth.jwt()->'app_metadata'->>'tenant_id'::uuid);
 
+create policy "health_alerts_insert" on health_alerts
+  for insert with check (tenant_id = auth.jwt()->'app_metadata'->>'tenant_id'::uuid);
+
 create policy "health_alerts_admin_update" on health_alerts
   for update using (
+    tenant_id = auth.jwt()->'app_metadata'->>'tenant_id'::uuid
+    and auth.jwt()->'app_metadata'->>'role' = 'school_admin'
+  );
+
+create policy "health_alerts_admin_delete" on health_alerts
+  for delete using (
     tenant_id = auth.jwt()->'app_metadata'->>'tenant_id'::uuid
     and auth.jwt()->'app_metadata'->>'role' = 'school_admin'
   );
