@@ -33,7 +33,7 @@ import { InvoicesPage } from "@/features/fees/InvoicesPage";
 
 import { AnnouncementsPage } from "@/features/communication/AnnouncementsPage";
 
-import { AdmissionsKanbanPage } from "@/features/admissions/AdmissionsKanbanPage";
+import { AdmissionsListPage } from "@/features/admissions/AdmissionsListPage";
 import { AdmissionDetailPage } from "@/features/admissions/AdmissionDetailPage";
 
 import { AssignmentsTeacherPage } from "@/features/assignments/AssignmentsTeacherPage";
@@ -128,7 +128,7 @@ export const router = createBrowserRouter([
               {
                 element: <RequireModule module="admissions" />,
                 children: [
-                  { path: "admissions", element: <AdmissionsKanbanPage /> },
+                  { path: "admissions", element: <AdmissionsListPage /> },
                   { path: "admissions/:id", element: <AdmissionDetailPage /> },
                 ],
               },

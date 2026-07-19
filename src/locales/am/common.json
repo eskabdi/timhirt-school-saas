@@ -17,7 +17,7 @@
   "assignments": { "title": "ስራዎች", "new": "አዲስ ስራ", "titleLabel": "ርዕስ", "class": "ክፍል", "subject": "የትምህርት ዓይነት", "dueDate": "የመጨረሻ ቀን", "due": "የመጨረሻ ቀን", "create": "ፍጠር" },
   "admissions": { "title": "ምዝገባ",
     "stage": { "applied": "ማመልከቻ ገብቷል", "shortlisted": "አጭር ዝርዝር ውስጥ", "offered": "ዕድል ተሰጥቷል", "registered": "ተመዝግቧል", "rejected": "ውድቅ ተደርጓል" },
-    "firstName": "ስም", "middleName": "የአባት ስም", "lastName": "የአያት ስም", "gender": "ፆታ", "dob": "የትውልድ ቀን",
+    "firstName": "ስም", "middleName": "የአባት ስም", "lastName": "የአያት ስም", "gender": "ፆታ", "dob": "የትውልድ ቀን", "grade": "ክፍል ደረጃ",
     "guardian": "አሳዳጊ", "name": "ስም", "relationship": "ግንኙነት", "occupation": "ሥራ", "phone": "ስልክ", "email": "ኢሜይል", "address": "አድራሻ",
     "relationshipType": { "father": "አባት", "mother": "እናት", "guardian": "አሳዳጊ", "other": "ሌላ" },
     "documents": "ሰነዶች", "view": "ይመልከቱ", "loading": "በመጫን ላይ…", "notUploaded": "አልተሰቀለም",

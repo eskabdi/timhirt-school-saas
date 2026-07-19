@@ -17,7 +17,7 @@
   "assignments": { "title": "Assignments", "new": "New assignment", "titleLabel": "Title", "class": "Class", "subject": "Subject", "dueDate": "Due date", "due": "Due", "create": "Create" },
   "admissions": { "title": "Admissions",
     "stage": { "applied": "Applied", "shortlisted": "Shortlisted", "offered": "Offered", "registered": "Registered", "rejected": "Rejected" },
-    "firstName": "First name", "middleName": "Middle name", "lastName": "Last name", "gender": "Gender", "dob": "Date of birth",
+    "firstName": "First name", "middleName": "Middle name", "lastName": "Last name", "gender": "Gender", "dob": "Date of birth", "grade": "Grade",
     "guardian": "Guardian", "name": "Name", "relationship": "Relationship", "occupation": "Occupation", "phone": "Phone", "email": "Email", "address": "Address",
     "relationshipType": { "father": "Father", "mother": "Mother", "guardian": "Guardian", "other": "Other" },
     "documents": "Documents", "view": "View", "loading": "Loading…", "notUploaded": "Not uploaded",
