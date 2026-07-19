@@ -3,7 +3,7 @@
 -- ============================================================================
 
 -- Create audit_logs table to store all changes
-create table audit_logs (
+create table if not exists audit_logs (
   id uuid primary key default gen_random_uuid(),
   tenant_id uuid not null references tenants(id) on delete cascade,
   user_id uuid references auth.users(id) on delete set null,
