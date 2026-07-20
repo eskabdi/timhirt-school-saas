@@ -1,30 +1,71 @@
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { useSession } from "@/features/auth/useSession";
 import { Card } from "@/components/ui/Card";
 import { Panel } from "@/components/ui/Panel";
 import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { Field } from "@/components/ui/Field";
+import { Modal } from "@/components/ui/Modal";
 
 const STATUS_TONE = { queued: "neutral", processing: "navy", done: "ok", failed: "danger" } as const;
+const EXPORT_TYPES = ["enrollment_census", "performance_summary"] as const;
+type ExportType = (typeof EXPORT_TYPES)[number];
+
+interface Export { id: string; export_type: string; ec_year: number; status: string; }
 
 export function ReportsPage() {
   const { t } = useTranslation();
+  const { profile } = useSession();
+  const qc = useQueryClient();
+  const [show, setShow] = useState(false);
+  const [type, setType] = useState<ExportType>("enrollment_census");
+  const [ecYear, setEcYear] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
   const { data } = useQuery({
     queryKey: ["moe_exports"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("moe_exports").select("id,export_type,ec_year,status").limit(200);
-      if (error) throw error;
-      return data;
-    },
+    queryFn: async () =>
+      ((await supabase.from("moe_exports").select("id,export_type,ec_year,status").order("created_at", { ascending: false }).limit(200)).data ?? []) as Export[],
   });
+  const { data: activeYear } = useQuery({
+    queryKey: ["reports_active_year"],
+    queryFn: async () => (await supabase.from("academic_years").select("ec_year").eq("status", "active").maybeSingle()).data,
+  });
+
+  const generate = useMutation({
+    mutationFn: async () => {
+      const yr = ecYear !== "" ? Number(ecYear) : activeYear?.ec_year;
+      if (!yr) throw new Error("Enter an Ethiopian year.");
+      const { error } = await supabase.from("moe_exports").insert({
+        tenant_id: profile!.tenant_id, export_type: type, ec_year: yr, status: "queued", created_by: profile!.id,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["moe_exports"] }); setShow(false); setEcYear(""); setError(null); },
+    onError: (e: unknown) => setError(e instanceof Error ? e.message : "Failed"),
+  });
+
   return (
     <div className="space-y-4">
-      <h1 className="font-display text-2xl font-bold text-ink">{t("reports.title")}</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="font-display text-2xl font-bold text-ink">{t("reports.title")}</h1>
+        <Button onClick={() => { setEcYear(activeYear?.ec_year ? String(activeYear.ec_year) : ""); setShow(true); }}>+ Generate export</Button>
+      </div>
+
+      {error && <Card className="border-danger bg-danger-tint py-3 text-sm text-danger">{error}</Card>}
+
       {!data?.length ? (
         <Card className="py-12 text-center text-ink-faint">{t("reports.empty")}</Card>
       ) : (
         <Panel>
           <table className="w-full text-sm">
+            <thead className="bg-sidebar text-left text-xs uppercase text-ink-faint">
+              <tr><th className="px-4 py-2">Export</th><th className="px-4 py-2">EC year</th><th className="px-4 py-2">Status</th></tr>
+            </thead>
             <tbody className="divide-y divide-line">
               {data.map((row) => (
                 <tr key={row.id} className="hover:bg-sidebar">
@@ -39,6 +80,21 @@ export function ReportsPage() {
           </table>
         </Panel>
       )}
+
+      <Modal open={show} onClose={() => setShow(false)} title="Generate MoE export">
+        <div className="space-y-3">
+          <Field label="Export type">
+            <select value={type} onChange={(e) => setType(e.target.value as ExportType)} className="w-full rounded-control border border-line bg-card px-3 py-2 text-sm text-ink">
+              {EXPORT_TYPES.map((ty) => <option key={ty} value={ty}>{t(`reports.exportType.${ty}`)}</option>)}
+            </select>
+          </Field>
+          <Field label="Ethiopian year"><Input type="number" value={ecYear} onChange={(e) => setEcYear(e.target.value)} placeholder="2018" /></Field>
+        </div>
+        <div className="mt-4 flex justify-end gap-2 border-t border-line pt-3">
+          <Button variant="ghost" onClick={() => setShow(false)}>Cancel</Button>
+          <Button onClick={() => generate.mutate()} disabled={generate.isPending}>Generate</Button>
+        </div>
+      </Modal>
     </div>
   );
 }
