@@ -37,6 +37,10 @@ create policy "backup_jobs_admin_access" on backup_jobs
   for all using (
     (select public.get_role_for_user(auth.uid())) = 'school_admin'
     and tenant_id = (select public.get_tenant_id_for_user(auth.uid()))
+  )
+  with check (
+    (select public.get_role_for_user(auth.uid())) = 'school_admin'
+    and tenant_id = (select public.get_tenant_id_for_user(auth.uid()))
   );
 
 -- Table to track restore operations
@@ -68,6 +72,10 @@ create policy "restore_jobs_tenant_isolation" on restore_jobs
 
 create policy "restore_jobs_admin_access" on restore_jobs
   for all using (
+    (select public.get_role_for_user(auth.uid())) = 'school_admin'
+    and tenant_id = (select public.get_tenant_id_for_user(auth.uid()))
+  )
+  with check (
     (select public.get_role_for_user(auth.uid())) = 'school_admin'
     and tenant_id = (select public.get_tenant_id_for_user(auth.uid()))
   );

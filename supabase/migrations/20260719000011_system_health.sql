@@ -59,6 +59,10 @@ create policy "health_alerts_admin_update" on health_alerts
   for update using (
     tenant_id = (select public.get_tenant_id_for_user(auth.uid()))
     and (select public.get_role_for_user(auth.uid())) = 'school_admin'
+  )
+  with check (
+    tenant_id = (select public.get_tenant_id_for_user(auth.uid()))
+    and (select public.get_role_for_user(auth.uid())) = 'school_admin'
   );
 
 create policy "health_alerts_admin_delete" on health_alerts

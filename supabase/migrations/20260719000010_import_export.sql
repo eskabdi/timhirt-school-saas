@@ -48,6 +48,10 @@ create policy "data_jobs_admin_update" on data_jobs
   for update using (
     tenant_id = (select public.get_tenant_id_for_user(auth.uid()))
     and (select public.get_role_for_user(auth.uid())) = 'school_admin'
+  )
+  with check (
+    tenant_id = (select public.get_tenant_id_for_user(auth.uid()))
+    and (select public.get_role_for_user(auth.uid())) = 'school_admin'
   );
 
 -- Function to create import job

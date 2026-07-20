@@ -38,6 +38,8 @@ create policy "audit_logs_admin_read" on audit_logs
     and tenant_id = (select public.get_tenant_id_for_user(auth.uid()))
   );
 
+-- Audit logs are append-only: no update or delete policies needed
+
 -- Function to log changes (only during authenticated operations, not migrations/tests)
 create or replace function audit_log_trigger_fn()
 returns trigger as $$
