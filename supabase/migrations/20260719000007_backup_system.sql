@@ -31,12 +31,12 @@ alter table backup_jobs enable row level security;
 
 -- RLS policy: school admins can only see their tenant's backups
 create policy "backup_jobs_tenant_isolation" on backup_jobs
-  for select using (tenant_id = auth.jwt()->'app_metadata'->>'tenant_id'::uuid);
+  for select using (tenant_id = (select public.get_tenant_id_for_user(auth.uid())));
 
 create policy "backup_jobs_admin_access" on backup_jobs
   for all using (
-    auth.jwt()->'app_metadata'->>'role' = 'school_admin'
-    and tenant_id = auth.jwt()->'app_metadata'->>'tenant_id'::uuid
+    (select public.get_role_for_user(auth.uid())) = 'school_admin'
+    and tenant_id = (select public.get_tenant_id_for_user(auth.uid()))
   );
 
 -- Table to track restore operations
@@ -64,12 +64,12 @@ create index idx_restore_jobs_status on restore_jobs(status);
 alter table restore_jobs enable row level security;
 
 create policy "restore_jobs_tenant_isolation" on restore_jobs
-  for select using (tenant_id = auth.jwt()->'app_metadata'->>'tenant_id'::uuid);
+  for select using (tenant_id = (select public.get_tenant_id_for_user(auth.uid())));
 
 create policy "restore_jobs_admin_access" on restore_jobs
   for all using (
-    auth.jwt()->'app_metadata'->>'role' = 'school_admin'
-    and tenant_id = auth.jwt()->'app_metadata'->>'tenant_id'::uuid
+    (select public.get_role_for_user(auth.uid())) = 'school_admin'
+    and tenant_id = (select public.get_tenant_id_for_user(auth.uid()))
   );
 
 -- Function to cleanup expired backups

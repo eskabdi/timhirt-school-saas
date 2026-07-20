@@ -156,8 +156,8 @@ declare
   v_tenant_id uuid;
   v_has_permission boolean;
 begin
-  -- Get tenant_id from current context
-  v_tenant_id := (auth.jwt()->'app_metadata'->>'tenant_id')::uuid;
+  -- Get tenant_id from user record
+  v_tenant_id := public.get_tenant_id_for_user(p_user_id);
 
   -- Check if user has the permission through custom role or built-in role
   select exists(

@@ -29,13 +29,13 @@ alter table audit_logs enable row level security;
 
 -- RLS policy: users can only see audit logs for their tenant
 create policy "audit_logs_tenant_isolation" on audit_logs
-  for select using (tenant_id = auth.jwt()->'app_metadata'->>'tenant_id'::uuid);
+  for select using (tenant_id = (select public.get_tenant_id_for_user(auth.uid())));
 
 -- Super admin and school admin can read all audit logs for their tenant
 create policy "audit_logs_admin_read" on audit_logs
   for select using (
-    auth.jwt()->'app_metadata'->>'role' in ('super_admin', 'school_admin')
-    and tenant_id = auth.jwt()->'app_metadata'->>'tenant_id'::uuid
+    (select public.get_role_for_user(auth.uid())) in ('super_admin', 'school_admin')
+    and tenant_id = (select public.get_tenant_id_for_user(auth.uid()))
   );
 
 -- Function to log changes (only during authenticated operations, not migrations/tests)
@@ -46,23 +46,22 @@ declare
   v_user_id uuid;
 begin
   -- Only log if we have valid auth context (skip during migrations, tests, seed)
-  if auth.jwt() is null or auth.jwt()->>'app_metadata' is null then
+  v_user_id := auth.uid();
+  if v_user_id is null then
     return case when TG_OP = 'DELETE' then old else new end;
   end if;
 
-  -- Extract tenant_id and user_id from different table structures
+  -- Extract tenant_id from different table structures
   if TG_TABLE_NAME in ('students', 'classes', 'subjects', 'teachers', 'class_subject_teachers', 'timetable_slots', 'admission_applications') then
     v_tenant_id := case when TG_OP = 'DELETE' then old.tenant_id else new.tenant_id end;
   else
-    v_tenant_id := (auth.jwt()->'app_metadata'->>'tenant_id')::uuid;
+    v_tenant_id := public.get_tenant_id_for_user(v_user_id);
   end if;
 
   -- Only log if tenant_id is valid
   if v_tenant_id is null then
     return case when TG_OP = 'DELETE' then old else new end;
   end if;
-
-  v_user_id := (auth.jwt()->>'sub')::uuid;
 
   insert into audit_logs (
     tenant_id, user_id, action, table_name, record_id,
