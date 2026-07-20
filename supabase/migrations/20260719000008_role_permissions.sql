@@ -13,8 +13,7 @@ create table roles (
   created_at timestamp with time zone not null default now(),
   updated_at timestamp with time zone not null default now(),
 
-  unique(tenant_id, name),
-  constraint roles_id_primary_key primary key (id)
+  unique(tenant_id, name)
 );
 
 create index idx_roles_tenant_id on roles(tenant_id);
@@ -28,9 +27,7 @@ create table permissions (
   resource text not null,  -- e.g., "students", "grades", "payroll_runs"
   action text not null,  -- e.g., "read", "write", "delete", "approve"
   description text,
-  created_at timestamp with time zone not null default now(),
-
-  constraint permissions_id_primary_key primary key (id)
+  created_at timestamp with time zone not null default now()
 );
 
 create index idx_permissions_module on permissions(module);
@@ -43,8 +40,7 @@ create table role_permissions (
   permission_id uuid not null references permissions(id) on delete cascade,
   created_at timestamp with time zone not null default now(),
 
-  unique(role_id, permission_id),
-  constraint role_permissions_id_primary_key primary key (id)
+  unique(role_id, permission_id)
 );
 
 create index idx_role_permissions_role_id on role_permissions(role_id);
@@ -59,8 +55,7 @@ create table user_roles (
   assigned_at timestamp with time zone not null default now(),
   assigned_by uuid references auth.users(id) on delete set null,
 
-  unique(user_id, tenant_id, role_id),
-  constraint user_roles_id_primary_key primary key (id)
+  unique(user_id, tenant_id, role_id)
 );
 
 create index idx_user_roles_user_id on user_roles(user_id);

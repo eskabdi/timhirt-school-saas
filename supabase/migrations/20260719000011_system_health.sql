@@ -125,9 +125,9 @@ $$ language plpgsql security definer;
 -- Grant necessary permissions
 grant select on system_health to authenticated;
 grant select on health_alerts to authenticated;
-grant usage on function record_health_metric to authenticated;
-grant usage on function create_health_alert to authenticated;
-grant usage on function acknowledge_alert to authenticated;
+grant execute on function record_health_metric to authenticated;
+grant execute on function create_health_alert to authenticated;
+grant execute on function acknowledge_alert to authenticated;
 
 comment on table system_health is 'Track system health metrics for monitoring';
 comment on table health_alerts is 'Alert on critical system health issues';

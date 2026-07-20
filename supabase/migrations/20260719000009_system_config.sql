@@ -127,8 +127,8 @@ on conflict (tenant_id, key) do nothing;
 -- Grant necessary permissions
 grant select on system_config to authenticated;
 grant select on feature_flags to authenticated;
-grant usage on function get_config to authenticated;
-grant usage on function is_feature_enabled to authenticated;
+grant execute on function get_config to authenticated;
+grant execute on function is_feature_enabled to authenticated;
 
 comment on table system_config is 'System-wide and tenant-level configuration settings';
 comment on table feature_flags is 'Feature toggles for enabling/disabling functionality per tenant';

@@ -17,9 +17,7 @@ create table backup_jobs (
   checksum text,
   retention_days integer default 365,
   created_at timestamp with time zone not null default now(),
-  updated_at timestamp with time zone not null default now(),
-
-  constraint backup_jobs_id_primary_key primary key (id)
+  updated_at timestamp with time zone not null default now()
 );
 
 create index idx_backup_jobs_tenant_id on backup_jobs(tenant_id);
@@ -55,9 +53,7 @@ create table restore_jobs (
   completed_at timestamp with time zone,
   error_message text,
   initiated_by uuid references auth.users(id) on delete set null,
-  created_at timestamp with time zone not null default now(),
-
-  constraint restore_jobs_id_primary_key primary key (id)
+  created_at timestamp with time zone not null default now()
 );
 
 create index idx_restore_jobs_tenant_id on restore_jobs(tenant_id);

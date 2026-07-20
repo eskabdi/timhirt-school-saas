@@ -143,11 +143,11 @@ $$ language plpgsql security definer;
 
 -- Grant necessary permissions
 grant select on data_jobs to authenticated;
-grant usage on function create_import_job to authenticated;
-grant usage on function create_export_job to authenticated;
-grant usage on function update_job_progress to authenticated;
-grant usage on function complete_job to authenticated;
-grant usage on function fail_job to authenticated;
+grant execute on function create_import_job to authenticated;
+grant execute on function create_export_job to authenticated;
+grant execute on function update_job_progress to authenticated;
+grant execute on function complete_job to authenticated;
+grant execute on function fail_job to authenticated;
 
 comment on table data_jobs is 'Track import/export jobs for bulk data operations';
 comment on function create_import_job is 'Create a new import job';
