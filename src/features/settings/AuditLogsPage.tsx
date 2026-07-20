@@ -8,15 +8,17 @@ import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { EthDate } from "@/components/EthDate";
 
+// Mirrors the core audit_logs schema (20260713000001_core.sql): append-only,
+// PII-redacted, written by public.audit_trigger().
 interface AuditLog {
-  id: string;
-  action: string;
+  id: number;
+  action: string; // stored lowercase: 'insert' | 'update' | 'delete'
   table_name: string;
-  record_id: string;
-  user_id: string;
+  row_id: string | null;
+  actor_id: string | null;
   created_at: string;
-  old_values: Record<string, unknown> | null;
-  new_values: Record<string, unknown> | null;
+  old_data: Record<string, unknown> | null;
+  new_data: Record<string, unknown> | null;
 }
 
 export function AuditLogsPage() {
@@ -41,7 +43,7 @@ export function AuditLogsPage() {
         .limit(500);
 
       if (tableFilter) q = q.eq("table_name", tableFilter);
-      if (actionFilter) q = q.eq("action", actionFilter);
+      if (actionFilter) q = q.eq("action", actionFilter.toLowerCase());
 
       const { data, error } = await q;
       if (error) throw error;
@@ -69,10 +71,10 @@ export function AuditLogsPage() {
     if (!logs) return;
     const rows = logs.map((l) => [
       l.created_at,
-      l.action,
+      l.action.toUpperCase(),
       l.table_name,
-      users?.get(l.user_id as any)?.full_name || l.user_id || "—",
-      l.record_id,
+      users?.get(l.actor_id as any)?.full_name || l.actor_id || "—",
+      l.row_id ?? "—",
     ]);
     const csv = [
       [t("audit.timestamp"), t("audit.action"), t("audit.table"), t("audit.user"), t("audit.recordId")],
@@ -158,23 +160,25 @@ export function AuditLogsPage() {
                     <EthDate value={new Date(log.created_at)} /> {log.created_at.slice(11, 19)}
                   </td>
                   <td className="px-4 py-3 text-sm">
-                    <span className="text-ink-soft">{users?.get(log.user_id as any)?.full_name || "—"}</span>
+                    <span className="text-ink-soft">{users?.get(log.actor_id as any)?.full_name || "—"}</span>
                   </td>
                   <td className="px-4 py-3">
                     <span
                       className={`inline-block rounded-control px-2 py-1 text-xs font-medium ${
-                        log.action === "INSERT"
+                        log.action === "insert"
                           ? "bg-ok-tint text-ok"
-                          : log.action === "UPDATE"
+                          : log.action === "update"
                             ? "bg-navy-wash text-navy"
                             : "bg-danger-tint text-danger"
                       }`}
                     >
-                      {log.action}
+                      {log.action.toUpperCase()}
                     </span>
                   </td>
                   <td className="px-4 py-3 font-mono text-xs text-ink-soft">{log.table_name}</td>
-                  <td className="px-4 py-3 font-mono text-xs text-ink-soft">{log.record_id.slice(0, 8)}…</td>
+                  <td className="px-4 py-3 font-mono text-xs text-ink-soft">
+                    {log.row_id ? `${log.row_id.slice(0, 8)}…` : "—"}
+                  </td>
                 </tr>
               ))}
             </tbody>
