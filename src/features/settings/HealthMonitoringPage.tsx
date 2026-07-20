@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabase";
 import { useSession } from "@/features/auth/useSession";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { EthDate } from "@/components/EthDate";
 import { cn } from "@/lib/utils";
 
 interface HealthMetric {
@@ -228,7 +229,9 @@ export function HealthMonitoringPage() {
             ) : (
               <>
                 <p className="text-2xl font-bold text-ink">
-                  {metrics
+                  {
+                    // eslint-disable-next-line no-restricted-syntax
+                    metrics
                     .find((m) => m.metric_type === "storage_used")
                     ?.value
                     .toLocaleString()}{" "}
@@ -269,7 +272,7 @@ export function HealthMonitoringPage() {
             {backupStatus ? (
               <>
                 <p className="text-sm font-medium text-ink">
-                  {new Date(backupStatus.created_at).toLocaleDateString()}
+                  <EthDate value={new Date(backupStatus.created_at)} />
                 </p>
                 <span
                   className={cn(
@@ -374,12 +377,12 @@ export function HealthMonitoringPage() {
                     </div>
                     <p className="mt-1 text-sm text-ink-soft">{alert.message}</p>
                     <p className="mt-2 text-xs text-ink-faint">
-                      {new Date(alert.created_at).toLocaleString()}
+                      <EthDate value={alert.created_at} /> {new Date(alert.created_at).toLocaleTimeString()}
                       {alert.acknowledged_at && (
                         <>
                           {" "}
                           · Acknowledged{" "}
-                          {new Date(alert.acknowledged_at).toLocaleString()}
+                          <EthDate value={alert.acknowledged_at} /> {new Date(alert.acknowledged_at).toLocaleTimeString()}
                         </>
                       )}
                     </p>

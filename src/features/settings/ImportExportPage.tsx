@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useSession } from "@/features/auth/useSession";
 import { Button } from "@/components/ui/Button";
+import { EthDate } from "@/components/EthDate";
 
 interface DataJob {
   id: string;
@@ -227,7 +228,7 @@ export function ImportExportPage() {
                       </span>
                     </div>
                     <div className="text-xs text-ink-faint mt-2">
-                      {new Date(job.created_at).toLocaleDateString()}
+                      <EthDate value={new Date(job.created_at)} />
                     </div>
                   </div>
                   {job.status === "processing" && (
