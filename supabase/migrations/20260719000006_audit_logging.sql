@@ -54,7 +54,7 @@ begin
   end if;
 
   -- Extract tenant_id from different table structures
-  if TG_TABLE_NAME in ('students', 'classes', 'subjects', 'teachers', 'class_subject_teachers', 'timetable_slots', 'admission_applications') then
+  if TG_TABLE_NAME in ('students', 'classes', 'subjects', 'teachers', 'class_subject_teachers', 'timetable_slots', 'admission_applications', 'grades', 'attendance', 'invoice_payments') then
     v_tenant_id := case when TG_OP = 'DELETE' then old.tenant_id else new.tenant_id end;
   else
     v_tenant_id := public.get_tenant_id_for_user(v_user_id);
@@ -90,7 +90,7 @@ create trigger audit_teachers_trigger after insert or update or delete on teache
 create trigger audit_classes_trigger after insert or update or delete on classes
   for each row execute function audit_log_trigger_fn();
 
-create trigger audit_student_grades_trigger after insert or update or delete on student_grades
+create trigger audit_grades_trigger after insert or update or delete on grades
   for each row execute function audit_log_trigger_fn();
 
 create trigger audit_attendance_trigger after insert or update or delete on attendance
