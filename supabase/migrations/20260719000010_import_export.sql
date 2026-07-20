@@ -33,21 +33,21 @@ alter table data_jobs enable row level security;
 -- RLS policies: users can only see their tenant's jobs, admins can see all
 create policy "data_jobs_read" on data_jobs
   for select using (
-    tenant_id = auth.jwt()->'app_metadata'->>'tenant_id'::uuid
-    and (user_id = auth.jwt()->>'sub'::uuid
-         or auth.jwt()->'app_metadata'->>'role' = 'school_admin')
+    tenant_id = (select public.get_tenant_id_for_user(auth.uid()))
+    and (user_id = auth.uid()
+         or (select public.get_role_for_user(auth.uid())) = 'school_admin')
   );
 
 create policy "data_jobs_write" on data_jobs
   for insert with check (
-    tenant_id = auth.jwt()->'app_metadata'->>'tenant_id'::uuid
-    and user_id = auth.jwt()->>'sub'::uuid
+    tenant_id = (select public.get_tenant_id_for_user(auth.uid()))
+    and user_id = auth.uid()
   );
 
 create policy "data_jobs_admin_update" on data_jobs
   for update using (
-    tenant_id = auth.jwt()->'app_metadata'->>'tenant_id'::uuid
-    and auth.jwt()->'app_metadata'->>'role' = 'school_admin'
+    tenant_id = (select public.get_tenant_id_for_user(auth.uid()))
+    and (select public.get_role_for_user(auth.uid())) = 'school_admin'
   );
 
 -- Function to create import job

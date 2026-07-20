@@ -75,12 +75,12 @@ alter table user_roles enable row level security;
 
 -- RLS policies
 create policy "roles_tenant_isolation" on roles
-  for select using (tenant_id = auth.jwt()->'app_metadata'->>'tenant_id'::uuid);
+  for select using (tenant_id = (select public.get_tenant_id_for_user(auth.uid())));
 
 create policy "roles_admin_manage" on roles
   for all using (
-    auth.jwt()->'app_metadata'->>'role' = 'school_admin'
-    and tenant_id = auth.jwt()->'app_metadata'->>'tenant_id'::uuid
+    (select public.get_role_for_user(auth.uid())) = 'school_admin'
+    and tenant_id = (select public.get_tenant_id_for_user(auth.uid()))
   );
 
 create policy "permissions_public_read" on permissions
@@ -88,16 +88,16 @@ create policy "permissions_public_read" on permissions
 
 create policy "role_permissions_tenant_isolation" on role_permissions
   for all using (
-    role_id in (select id from roles where tenant_id = auth.jwt()->'app_metadata'->>'tenant_id'::uuid)
+    role_id in (select id from roles where tenant_id = (select public.get_tenant_id_for_user(auth.uid())))
   );
 
 create policy "user_roles_tenant_isolation" on user_roles
-  for select using (tenant_id = auth.jwt()->'app_metadata'->>'tenant_id'::uuid);
+  for select using (tenant_id = (select public.get_tenant_id_for_user(auth.uid())));
 
 create policy "user_roles_admin_manage" on user_roles
   for all using (
-    auth.jwt()->'app_metadata'->>'role' = 'school_admin'
-    and tenant_id = auth.jwt()->'app_metadata'->>'tenant_id'::uuid
+    (select public.get_role_for_user(auth.uid())) = 'school_admin'
+    and tenant_id = (select public.get_tenant_id_for_user(auth.uid()))
   );
 
 -- Insert default permissions for all modules

@@ -43,25 +43,25 @@ alter table feature_flags enable row level security;
 -- RLS policies: school_admin can manage tenant config, super_admin can manage system config
 create policy "system_config_read" on system_config
   for select using (
-    (tenant_id is null and auth.jwt()->>'role' = 'super_admin')
-    or (tenant_id = auth.jwt()->'app_metadata'->>'tenant_id'::uuid
-        and auth.jwt()->'app_metadata'->>'role' in ('school_admin', 'super_admin'))
+    (tenant_id is null and (select public.get_role_for_user(auth.uid())) = 'super_admin')
+    or (tenant_id = (select public.get_tenant_id_for_user(auth.uid()))
+        and (select public.get_role_for_user(auth.uid())) in ('school_admin', 'super_admin'))
   );
 
 create policy "system_config_write" on system_config
   for all using (
-    (tenant_id is null and auth.jwt()->>'role' = 'super_admin')
-    or (tenant_id = auth.jwt()->'app_metadata'->>'tenant_id'::uuid
-        and auth.jwt()->'app_metadata'->>'role' = 'school_admin')
+    (tenant_id is null and (select public.get_role_for_user(auth.uid())) = 'super_admin')
+    or (tenant_id = (select public.get_tenant_id_for_user(auth.uid()))
+        and (select public.get_role_for_user(auth.uid())) = 'school_admin')
   );
 
 create policy "feature_flags_read" on feature_flags
-  for select using (tenant_id = auth.jwt()->'app_metadata'->>'tenant_id'::uuid);
+  for select using (tenant_id = (select public.get_tenant_id_for_user(auth.uid())));
 
 create policy "feature_flags_write" on feature_flags
   for all using (
-    tenant_id = auth.jwt()->'app_metadata'->>'tenant_id'::uuid
-    and auth.jwt()->'app_metadata'->>'role' = 'school_admin'
+    tenant_id = (select public.get_tenant_id_for_user(auth.uid()))
+    and (select public.get_role_for_user(auth.uid())) = 'school_admin'
   );
 
 -- Helper function to get config value
