@@ -99,6 +99,7 @@ const NAV: NavSection[] = [
       { to: "/settings/audit-logs", key: "nav.auditLogs", roles: ["school_admin"] },
       { to: "/settings/backups", key: "nav.backups", roles: ["school_admin"] },
       { to: "/settings/calendar", key: "nav.calendarSettings", roles: ["school_admin"] },
+      { to: "/reports/custom", key: "nav.customReport", roles: ["school_admin"] },
     ],
   },
   {

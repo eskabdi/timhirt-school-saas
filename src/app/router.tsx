@@ -86,6 +86,7 @@ import { RolesPage } from "@/features/settings/RolesPage";
 import { ConfigurationPage } from "@/features/settings/ConfigurationPage";
 import { ImportExportPage } from "@/features/settings/ImportExportPage";
 import { HealthMonitoringPage } from "@/features/settings/HealthMonitoringPage";
+import { CustomReportBuilderPage } from "@/features/reports/CustomReportBuilderPage";
 
 import { TenantsManagementPage } from "@/features/platform/TenantsManagementPage";
 import { TenantDetailPage } from "@/features/platform/TenantDetailPage";
@@ -200,6 +201,7 @@ export const router = createBrowserRouter([
               { path: "settings/configuration", element: <ConfigurationPage /> },
               { path: "settings/import-export", element: <ImportExportPage /> },
               { path: "settings/health-monitoring", element: <HealthMonitoringPage /> },
+              { path: "reports/custom", element: <CustomReportBuilderPage /> },
               { path: "settings/audit-logs", element: <AuditLogsPage /> },
               { path: "settings/backups", element: <BackupsPage /> },
               { path: "settings/calendar", element: <CalendarPreferencesPage /> },

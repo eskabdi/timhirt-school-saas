@@ -1,157 +1,176 @@
-import { useState } from "react";
-import { useTranslation } from "react-i18next";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { useSession } from "@/features/auth/useSession";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
-import { Field } from "@/components/ui/Field";
-import { Modal } from "@/components/ui/Modal";
 import { tField } from "@/lib/i18n";
+import { useTranslation } from "react-i18next";
 
-// day_of_week is 1=Sunday..7=Saturday; the school week shows Monday(2)-Friday(6).
-const WEEKDAY_INDEXES = [2, 3, 4, 5, 6];
+const DAYS = [
+  { dow: 2, label: "MONDAY" }, { dow: 3, label: "TUESDAY" }, { dow: 4, label: "WEDNESDAY" },
+  { dow: 5, label: "THURSDAY" }, { dow: 6, label: "FRIDAY" },
+];
+// Subject → colour family (left border + tint), matching the reference cards.
+const PALETTE = [
+  { bar: "#1a56db", bg: "#eff4ff", text: "#1a56db" },
+  { bar: "#006c4a", bg: "#e8f6f0", text: "#006c4a" },
+  { bar: "#b45309", bg: "#faf3e8", text: "#92400e" },
+  { bar: "#b91c1c", bg: "#fdeeee", text: "#b91c1c" },
+  { bar: "#6d28d9", bg: "#f3eefb", text: "#6d28d9" },
+];
+const colorFor = (key: string) => PALETTE[[...key].reduce((a, c) => a + c.charCodeAt(0), 0) % PALETTE.length];
+const initials = (s: string) => s.split(/\s+/).map((w) => w[0]).slice(0, 2).join("").toUpperCase();
 
 interface Slot {
   id: string; day_of_week: number; starts_at: string; ends_at: string; room: string | null;
-  class_id: string; subject_id: string; teacher_id: string;
+  class_id: string; teacher_id: string;
+  subjects: { name_i18n: Record<string, string>; code: string } | null;
+  teachers: { staff_no: string; users: { full_name: string } | null } | null;
   classes: { name: string; section: string | null } | null;
-  subjects: { name_i18n: Record<string, string> } | null;
-  teachers: { staff_no: string } | null;
 }
-type SlotForm = { classId: string; subjectId: string; teacherId: string; day: number; start: string; end: string; room: string };
-const emptyForm: SlotForm = { classId: "", subjectId: "", teacherId: "", day: 2, start: "08:00", end: "08:45", room: "" };
 
 export function TimetableEditorPage() {
-  const { t, i18n } = useTranslation();
-  const { profile } = useSession();
-  const qc = useQueryClient();
-  const weekdays = t("weekdays", { returnObjects: true }) as string[];
-  const [showCreate, setShowCreate] = useState(false);
-  const [form, setForm] = useState<SlotForm>(emptyForm);
-  const [editing, setEditing] = useState<Slot | null>(null);
-  const [editForm, setEditForm] = useState<SlotForm>(emptyForm);
-  const [error, setError] = useState<string | null>(null);
+  const { i18n } = useTranslation();
+  const [view, setView] = useState<"Weekly" | "Teacher View" | "Room View">("Weekly");
+  const [classId, setClassId] = useState("");
 
+  const { data: classes } = useQuery({ queryKey: ["tt-classes"], queryFn: async () => (await supabase.from("classes").select("id,name,section,grade_level").order("grade_level")).data ?? [] });
   const { data: slots } = useQuery({
-    queryKey: ["timetable"],
+    queryKey: ["tt-master"],
     queryFn: async () => {
       const { data, error } = await supabase.from("timetable_slots")
-        .select("id, day_of_week, starts_at, ends_at, room, class_id, subject_id, teacher_id, classes(name,section), subjects(name_i18n), teachers(staff_no)")
-        .order("day_of_week").order("starts_at");
+        .select("id, day_of_week, starts_at, ends_at, room, class_id, teacher_id, subjects(name_i18n, code), teachers(staff_no, users(full_name)), classes(name, section)")
+        .order("starts_at");
       if (error) throw error;
       return (data ?? []) as unknown as Slot[];
     },
   });
-  const { data: classes } = useQuery({ queryKey: ["tt_classes"], queryFn: async () => (await supabase.from("classes").select("id,name,section").order("grade_level")).data ?? [] });
-  const { data: subjects } = useQuery({ queryKey: ["tt_subjects"], queryFn: async () => (await supabase.from("subjects").select("id,name_i18n,code").order("code")).data ?? [] });
-  const { data: teachers } = useQuery({ queryKey: ["tt_teachers"], queryFn: async () => (await supabase.from("teachers").select("id,staff_no").order("staff_no")).data ?? [] });
 
-  const payload = (f: SlotForm) => ({
-    class_id: f.classId, subject_id: f.subjectId, teacher_id: f.teacherId,
-    day_of_week: f.day, starts_at: f.start, ends_at: f.end, room: f.room || null,
-  });
+  const filtered = useMemo(() => (slots ?? []).filter((s) => !classId || s.class_id === classId), [slots, classId]);
 
-  const create = useMutation({
-    mutationFn: async () => { const { error } = await supabase.from("timetable_slots").insert({ tenant_id: profile!.tenant_id, ...payload(form) }); if (error) throw error; },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["timetable"] }); setShowCreate(false); setForm(emptyForm); setError(null); },
-    onError: (e: unknown) => setError(e instanceof Error ? e.message : "Failed"),
-  });
-  const update = useMutation({
-    mutationFn: async () => { const { error } = await supabase.from("timetable_slots").update(payload(editForm)).eq("id", editing!.id); if (error) throw error; },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["timetable"] }); setEditing(null); setError(null); },
-    onError: (e: unknown) => setError(e instanceof Error ? e.message : "Failed"),
-  });
-  const remove = useMutation({
-    mutationFn: async (id: string) => { const { error } = await supabase.from("timetable_slots").delete().eq("id", id); if (error) throw error; },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["timetable"] }),
-    onError: (e: unknown) => setError(e instanceof Error ? e.message : "Failed"),
-  });
+  // Period rows = distinct start times in the filtered set.
+  const periods = useMemo(() => [...new Set(filtered.map((s) => s.starts_at))].sort(), [filtered]);
 
-  const openEdit = (s: Slot) => {
-    setEditing(s);
-    setEditForm({ classId: s.class_id, subjectId: s.subject_id, teacherId: s.teacher_id, day: s.day_of_week, start: s.starts_at.slice(0, 5), end: s.ends_at.slice(0, 5), room: s.room ?? "" });
-  };
+  const conflicts = useMemo(() => {
+    const seen = new Map<string, Slot>(); const out: { title: string; detail: string; day: string; time: string }[] = [];
+    for (const s of slots ?? []) {
+      const key = `${s.teacher_id}-${s.day_of_week}-${s.starts_at}`;
+      if (seen.has(key)) {
+        const other = seen.get(key)!;
+        out.push({
+          title: "Teacher Double Booking",
+          detail: `${s.teachers?.users?.full_name ?? s.teachers?.staff_no ?? "Teacher"} assigned to ${other.classes?.name ?? ""} and ${s.classes?.name ?? ""} simultaneously.`,
+          day: DAYS.find((d) => d.dow === s.day_of_week)?.label ?? "", time: s.starts_at.slice(0, 5),
+        });
+      } else seen.set(key, s);
+    }
+    return out;
+  }, [slots]);
 
-  const fields = (f: SlotForm, set: (f: SlotForm) => void) => (
-    <div className="space-y-3">
-      <Field label="Class">
-        <select value={f.classId} onChange={(e) => set({ ...f, classId: e.target.value })} className="w-full rounded-control border border-line bg-card px-3 py-2 text-sm text-ink">
-          <option value="">Select class</option>
-          {classes?.map((c) => <option key={c.id} value={c.id}>{c.name} {c.section}</option>)}
-        </select>
-      </Field>
-      <Field label="Subject">
-        <select value={f.subjectId} onChange={(e) => set({ ...f, subjectId: e.target.value })} className="w-full rounded-control border border-line bg-card px-3 py-2 text-sm text-ink">
-          <option value="">Select subject</option>
-          {subjects?.map((s) => <option key={s.id} value={s.id}>{tField(s.name_i18n, i18n.resolvedLanguage!) || s.code}</option>)}
-        </select>
-      </Field>
-      <Field label="Teacher">
-        <select value={f.teacherId} onChange={(e) => set({ ...f, teacherId: e.target.value })} className="w-full rounded-control border border-line bg-card px-3 py-2 text-sm text-ink">
-          <option value="">Select teacher</option>
-          {teachers?.map((tt) => <option key={tt.id} value={tt.id}>{tt.staff_no}</option>)}
-        </select>
-      </Field>
-      <Field label="Day">
-        <select value={f.day} onChange={(e) => set({ ...f, day: Number(e.target.value) })} className="w-full rounded-control border border-line bg-card px-3 py-2 text-sm text-ink">
-          {WEEKDAY_INDEXES.map((d) => <option key={d} value={d}>{weekdays[d]}</option>)}
-        </select>
-      </Field>
-      <div className="flex gap-3">
-        <Field label="Start"><Input type="time" value={f.start} onChange={(e) => set({ ...f, start: e.target.value })} /></Field>
-        <Field label="End"><Input type="time" value={f.end} onChange={(e) => set({ ...f, end: e.target.value })} /></Field>
-      </div>
-      <Field label="Room"><Input value={f.room} onChange={(e) => set({ ...f, room: e.target.value })} placeholder="Room 12" /></Field>
-    </div>
-  );
+  const health = useMemo(() => {
+    const cells = periods.length * DAYS.length;
+    const coverage = cells ? Math.round((filtered.length / cells) * 100) : 0;
+    const teachers = new Set(filtered.map((s) => s.teacher_id));
+    const util = filtered.length ? Math.min(100, Math.round((filtered.length / (teachers.size * periods.length || 1)) * 100)) : 0;
+    return { coverage, util };
+  }, [filtered, periods]);
 
-  const valid = (f: SlotForm) => f.classId && f.subjectId && f.teacherId && f.end > f.start;
+  const cellFor = (dow: number, time: string) => filtered.find((s) => s.day_of_week === dow && s.starts_at === time);
+  const fmt = (t: string) => { const parts = t.split(":").map(Number); const h = parts[0] ?? 0; const m = parts[1] ?? 0; const ap = h >= 12 ? "PM" : "AM"; const hh = h % 12 || 12; return `${hh}:${m.toString().padStart(2, "0")} ${ap}`; };
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="font-display text-2xl font-bold text-ink">{t("nav.timetable")}</h1>
-        <Button onClick={() => { setForm(emptyForm); setShowCreate(true); }}>+ Add slot</Button>
-      </div>
-
-      {error && <Card className="border-danger bg-danger-tint py-3 text-sm text-danger">{error}</Card>}
-
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
-        {WEEKDAY_INDEXES.map((dow) => (
-          <div key={dow} className="space-y-2">
-            <h2 className="text-xs font-semibold uppercase text-ink-faint">{weekdays[dow]}</h2>
-            {slots?.filter((s) => s.day_of_week === dow).map((s) => (
-              <Card key={s.id} className="group p-3">
-                <p className="text-sm font-medium text-ink">{tField(s.subjects?.name_i18n, i18n.resolvedLanguage!)}</p>
-                <p className="text-xs text-ink-faint">{s.classes?.name} {s.classes?.section} · {s.starts_at?.slice(0, 5)}–{s.ends_at?.slice(0, 5)}</p>
-                {s.room && <p className="text-xs text-ink-faint">{t("timetable.room", { room: s.room })}</p>}
-                <div className="mt-2 flex gap-1">
-                  <Button variant="ghost" className="px-2 py-0.5 text-xs" onClick={() => openEdit(s)}>Edit</Button>
-                  <Button variant="ghost" className="px-2 py-0.5 text-xs text-danger" onClick={() => remove.mutate(s.id)}>Delete</Button>
-                </div>
-              </Card>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="font-display text-3xl font-bold text-ink">Timetable Master / የጊዜ ሰሌዳ</h1>
+          <p className="text-sm text-ink-faint">Academic Year 2016 EC • Semester 1</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex overflow-hidden rounded-control border border-line">
+            {(["Weekly", "Teacher View", "Room View"] as const).map((v) => (
+              <button key={v} onClick={() => setView(v)} className={`px-3 py-1.5 text-sm font-medium ${view === v ? "bg-navy-wash text-navy" : "bg-card text-ink-soft"}`}>{v}</button>
             ))}
           </div>
-        ))}
+          <Button variant="ghost" className="border border-line">⬇ Export PDF</Button>
+          <Button variant="ghost" className="border border-line">🖨 Print</Button>
+        </div>
       </div>
 
-      <Modal open={showCreate} onClose={() => setShowCreate(false)} title="Add timetable slot">
-        {fields(form, setForm)}
-        <div className="mt-4 flex justify-end gap-2 border-t border-line pt-3">
-          <Button variant="ghost" onClick={() => setShowCreate(false)}>Cancel</Button>
-          <Button onClick={() => create.mutate()} disabled={!valid(form) || create.isPending}>Create</Button>
-        </div>
-      </Modal>
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="text-sm text-ink-soft">Grade</span>
+        <select value={classId} onChange={(e) => setClassId(e.target.value)} className="rounded-control border border-line bg-card px-3 py-1.5 text-sm text-ink">
+          <option value="">All grades</option>
+          {classes?.map((c) => <option key={c.id} value={c.id}>{c.name} {c.section}</option>)}
+        </select>
+      </div>
 
-      <Modal open={!!editing} onClose={() => setEditing(null)} title="Edit slot">
-        {fields(editForm, setEditForm)}
-        <div className="mt-4 flex justify-end gap-2 border-t border-line pt-3">
-          <Button variant="ghost" onClick={() => setEditing(null)}>Cancel</Button>
-          <Button onClick={() => update.mutate()} disabled={!valid(editForm) || update.isPending}>Save</Button>
+      <div className="grid gap-4 lg:grid-cols-3">
+        {/* Grid */}
+        <Card className="overflow-x-auto p-0 lg:col-span-2">
+          <table className="w-full border-collapse text-sm">
+            <thead>
+              <tr className="bg-navy-wash">
+                <th className="w-24 border-b border-line px-3 py-3 text-left text-ink-soft">Time</th>
+                {DAYS.map((d) => <th key={d.dow} className="border-b border-l border-line px-3 py-3 text-center font-bold text-navy">{d.label}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {periods.length ? periods.map((time) => (
+                <tr key={time}>
+                  <td className="border-b border-line px-3 py-4 align-top text-xs font-semibold text-ink">{fmt(time)}</td>
+                  {DAYS.map((d) => {
+                    const s = cellFor(d.dow, time);
+                    const c = s ? colorFor(s.subjects?.code ?? "") : null;
+                    return (
+                      <td key={d.dow} className="border-b border-l border-line p-1.5 align-top">
+                        {s && c ? (
+                          <div className="rounded-md p-2" style={{ background: c.bg, borderLeft: `3px solid ${c.bar}` }}>
+                            <p className="text-sm font-semibold" style={{ color: c.text }}>{tField(s.subjects?.name_i18n, i18n.resolvedLanguage!) || s.subjects?.code}</p>
+                            <p className="mt-1 flex justify-between text-xs text-ink-faint">
+                              <span>{initials(s.teachers?.users?.full_name ?? s.teachers?.staff_no ?? "")}</span>
+                              <span>{s.room ?? ""}</span>
+                            </p>
+                          </div>
+                        ) : <div className="py-3 text-center text-xs text-ink-faint">No Session</div>}
+                      </td>
+                    );
+                  })}
+                </tr>
+              )) : <tr><td colSpan={6} className="py-16 text-center text-ink-faint">No timetable slots. Add them in the timetable editor.</td></tr>}
+            </tbody>
+          </table>
+        </Card>
+
+        {/* Side panel */}
+        <div className="space-y-4">
+          <Card className="border-danger/40">
+            <h2 className="flex items-center gap-2 font-bold text-danger">⚠ CONFLICTS &amp; WARNINGS ({conflicts.length})</h2>
+            <div className="mt-3 space-y-3">
+              {conflicts.length ? conflicts.slice(0, 4).map((c, i) => (
+                <div key={i} className="rounded-lg border border-line p-3">
+                  <p className="font-semibold text-ink">{c.title}</p>
+                  <p className="mt-1 text-sm text-ink-soft">{c.detail}</p>
+                  <div className="mt-2 flex gap-2 text-xs"><span className="rounded bg-danger-tint px-2 py-0.5 text-danger">{c.day}</span><span className="text-ink-faint">{c.time}</span></div>
+                </div>
+              )) : <p className="text-sm text-ink-faint">No conflicts detected.</p>}
+            </div>
+          </Card>
+          <Card>
+            <h2 className="text-sm font-bold uppercase tracking-wide text-ink">Timetable Health</h2>
+            <div className="mt-3 space-y-3">
+              <div>
+                <div className="flex justify-between text-sm"><span className="text-ink-soft">Class Coverage</span><span className="font-bold text-navy">{health.coverage}%</span></div>
+                <div className="mt-1 h-2 rounded-full bg-navy-wash"><div className="h-2 rounded-full bg-navy" style={{ width: `${health.coverage}%` }} /></div>
+              </div>
+              <div>
+                <div className="flex justify-between text-sm"><span className="text-ink-soft">Teacher Utilization</span><span className="font-bold text-ok">{health.util}%</span></div>
+                <div className="mt-1 h-2 rounded-full bg-ok-tint"><div className="h-2 rounded-full bg-ok" style={{ width: `${health.util}%` }} /></div>
+              </div>
+            </div>
+            <Button variant="ghost" className="mt-4 w-full border border-line text-navy">Auto-Resolve Conflicts</Button>
+          </Card>
         </div>
-      </Modal>
+      </div>
     </div>
   );
 }

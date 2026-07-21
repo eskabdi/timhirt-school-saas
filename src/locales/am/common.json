@@ -59,7 +59,7 @@
     "feeStructures": "የክፍያ አወቃቀር", "invoices": "ደረሰኞች", "inventory": "እቃ ንብረት", "reports": "ሪፖርቶች",
     "communication": "ግንኙነት", "hostel": "ማደሪያ", "discipline": "ስነ ስርዓት", "clinic": "ክሊኒክ", "library": "ቤተ መጻሕፍት", "transport": "ትራንስፖርት", "events": "ዝግጅቶች",
     "employees": "ሠራተኞች", "myTimetable": "የእኔ መርሃ ግብር", "myClasses": "የእኔ ክፍሎች", "myLeave": "የእኔ ፈቃድ", "myPayslips": "የእኔ ደመወዝ ወረቀት",
-    "classes": "ክፍሎች", "subjects": "የትምህርት ዓይነቶች", "teachers": "አስተማሪዎች", "academicYears": "የትምህርት ዓመታት", "promotion": "የክፍል ዕድገት", "gradingScales": "የውጤት መለኪያ", "branding": "ብራንዲንግ", "idCardTemplate": "የመታወቂያ ካርድ አብነት", "users": "ተጠቃሚዎች", "roles": "ሚናዎች", "configuration": "ምዝገባ", "importExport": "ወደ ውስጥ/ወደ ውጪ ማምጣት", "healthMonitoring": "የስርዓት ጤና ክትትል", "auditLogs": "የተለውጡ ነገሮች መዝገብ", "backups": "ወደ ኃላ ፍልሰት", "calendarSettings": "የቀን መቁጠሪያ",
+    "classes": "ክፍሎች", "subjects": "የትምህርት ዓይነቶች", "teachers": "አስተማሪዎች", "academicYears": "የትምህርት ዓመታት", "promotion": "የክፍል ዕድገት", "gradingScales": "የውጤት መለኪያ", "branding": "ብራንዲንግ", "idCardTemplate": "የመታወቂያ ካርድ አብነት", "users": "ተጠቃሚዎች", "roles": "ሚናዎች", "configuration": "ምዝገባ", "importExport": "ወደ ውስጥ/ወደ ውጪ ማምጣት", "healthMonitoring": "የስርዓት ጤና ክትትል", "auditLogs": "የተለውጡ ነገሮች መዝገብ", "backups": "ወደ ኃላ ፍልሰት", "customReport": "ብጁ ሪፖርት", "calendarSettings": "የቀን መቁጠሪያ",
     "portal": "መግቢያ", "grades": "ውጤቶች", "makePayment": "ክፍያ ፈጽም",
     "section": { "academics": "ትምህርታዊ", "finance": "ፋይናንስ", "operations": "አገልግሎቶች", "hr": "ሰው ኃይል እና ደመወዝ", "mySpace": "የእኔ ገጽ", "settings": "ቅንብሮች" }
   },
