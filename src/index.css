@@ -10,3 +10,15 @@
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* Print Report: only the active print target is sent to the printer/PDF —
+   the app chrome (sidebar nav, header buttons, tab bar) is excluded. Toggled
+   by adding .print-scope to the target and .print-only for print headers. */
+@media print {
+  body * { visibility: hidden !important; }
+  #print-scope, #print-scope * { visibility: visible !important; }
+  #print-scope { position: absolute !important; left: 0; top: 0; width: 100%; padding: 0 !important; }
+  .no-print { display: none !important; }
+  .print-only { display: block !important; }
+}
+.print-only { display: none; }

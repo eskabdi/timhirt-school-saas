@@ -9,6 +9,8 @@ import { EthDate } from "@/components/EthDate";
 import { AcademicRecordTab } from "./tabs/AcademicRecordTab";
 import { AttendanceTab } from "./tabs/AttendanceTab";
 import { BehavioralTab } from "./tabs/BehavioralTab";
+import { PrintIDCardModal } from "./PrintIDCardModal";
+import { EditProfileModal } from "./EditProfileModal";
 
 const TABS = ["Personal Info", "Academic Record", "Attendance", "Behavioral"] as const;
 type Tab = (typeof TABS)[number];
@@ -24,6 +26,8 @@ function gc(value: string | null): string {
 export function StudentDetailPage() {
   const { id } = useParams();
   const [tab, setTab] = useState<Tab>("Personal Info");
+  const [showIdCard, setShowIdCard] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
 
   const { data: student, isLoading } = useQuery({
     queryKey: ["student-profile", id],
@@ -95,12 +99,12 @@ export function StudentDetailPage() {
   return (
     <div className="space-y-4">
       {/* Top bar */}
-      <div className="flex items-center justify-between">
+      <div className="no-print flex items-center justify-between">
         <p className="text-sm text-ink-faint"><Link to="/students" className="hover:underline">Students</Link> › {gradeLabel} › <span className="text-navy">Profile</span></p>
         <div className="flex gap-2">
-          <Button variant="ghost" className="border border-line">🪪 Print ID Card</Button>
-          <Button variant="ghost" className="border border-line">🖨 Print Report</Button>
-          <Button>✎ Edit Profile</Button>
+          <Button variant="ghost" className="border border-line" onClick={() => setShowIdCard(true)}>🪪 Print ID Card</Button>
+          <Button variant="ghost" className="border border-line" onClick={() => window.print()}>🖨 Print Report</Button>
+          <Button onClick={() => setShowEdit(true)}>✎ Edit Profile</Button>
         </div>
       </div>
 
@@ -128,13 +132,20 @@ export function StudentDetailPage() {
       </Card>
 
       {/* Tabs */}
-      <div className="flex gap-6 border-b border-line">
+      <div className="no-print flex gap-6 border-b border-line">
         {TABS.map((tb) => (
           <button key={tb} onClick={() => setTab(tb)}
             className={`-mb-px border-b-2 px-1 pb-2 text-sm font-medium ${tab === tb ? "border-navy text-navy" : "border-transparent text-ink-faint hover:text-ink"}`}>
             {tb}
           </button>
         ))}
+      </div>
+
+      {/* Print Report scopes to this container only (see index.css @media print) */}
+      <div id="print-scope">
+      <div className="print-only mb-4">
+        <h2 className="font-display text-xl font-bold text-ink">{fullName} — {tab}</h2>
+        <p className="text-sm text-ink-faint">St. No: {student.admission_no} · {gradeLabel}</p>
       </div>
 
       {tab === "Personal Info" && (
@@ -189,6 +200,18 @@ export function StudentDetailPage() {
           {sidebar}
         </div>
       )}
+      </div>
+
+      <PrintIDCardModal studentId={student.id} studentName={fullName} open={showIdCard} onClose={() => setShowIdCard(false)} />
+      <EditProfileModal
+        open={showEdit}
+        onClose={() => setShowEdit(false)}
+        student={{
+          id: student.id, first_name: student.first_name, middle_name: student.middle_name, last_name: student.last_name,
+          date_of_birth: student.date_of_birth, gender: student.gender, primary_language: student.primary_language,
+          blood_type: student.blood_type, roll_number: student.roll_number, admission_date: student.admission_date,
+        }}
+      />
     </div>
   );
 }
