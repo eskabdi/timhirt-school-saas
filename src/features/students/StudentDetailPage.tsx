@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { EthDate } from "@/components/EthDate";
 import { AcademicRecordTab } from "./tabs/AcademicRecordTab";
 import { AttendanceTab } from "./tabs/AttendanceTab";
+import { BehavioralTab } from "./tabs/BehavioralTab";
 
 const TABS = ["Personal Info", "Academic Record", "Attendance", "Behavioral"] as const;
 type Tab = (typeof TABS)[number];
@@ -64,6 +65,31 @@ export function StudentDetailPage() {
       <p className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{label}</p>
       <p className="mt-2 font-display text-2xl font-bold text-ink">{value}</p>
     </Card>
+  );
+
+  const sidebar = (
+    <div className="space-y-4">
+      <Card>
+        <div className="mb-3 flex items-center gap-2"><span className="text-navy">🔗</span><h2 className="font-semibold text-ink">Primary Guardian</h2></div>
+        <div className="flex items-center gap-2">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-navy-wash text-sm font-bold text-navy">{guardian ? "G" : "—"}</div>
+          <span className="text-sm capitalize text-ink-faint">{guardian?.relationship ?? "—"}</span>
+        </div>
+        <div className="mt-3 space-y-1 text-sm text-ink-soft">
+          <p>📞 {guardian?.phone ?? "—"}</p>
+          <p>✉ {guardian?.email ?? "—"}</p>
+        </div>
+        <Button variant="ghost" className="mt-3 w-full border border-line">Contact Guardian</Button>
+      </Card>
+      <Card>
+        <h2 className="mb-3 border-b border-line pb-2 font-semibold text-ink">Recent Absences</h2>
+        <button onClick={() => setTab("Attendance")} className="w-full rounded-control bg-navy-wash py-2 text-sm text-navy">View Attendance Log</button>
+      </Card>
+      <Card className="bg-navy-wash">
+        <h2 className="text-xs font-bold uppercase tracking-wide text-navy">Admin Notes</h2>
+        <p className="mt-2 text-sm text-ink-faint">No notes.</p>
+      </Card>
+    </div>
   );
 
   return (
@@ -151,34 +177,18 @@ export function StudentDetailPage() {
             </Card>
           </div>
 
-          <div className="space-y-4">
-            <Card>
-              <div className="mb-3 flex items-center gap-2"><span className="text-navy">🔗</span><h2 className="font-semibold text-ink">Primary Guardian</h2></div>
-              <div className="flex items-center gap-2">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-navy-wash text-sm font-bold text-navy">{guardian ? "G" : "—"}</div>
-                <span className="text-sm capitalize text-ink-faint">{guardian?.relationship ?? "—"}</span>
-              </div>
-              <div className="mt-3 space-y-1 text-sm text-ink-soft">
-                <p>📞 {guardian?.phone ?? "—"}</p>
-                <p>✉ {guardian?.email ?? "—"}</p>
-              </div>
-              <Button variant="ghost" className="mt-3 w-full border border-line">Contact Guardian</Button>
-            </Card>
-            <Card>
-              <h2 className="mb-3 border-b border-line pb-2 font-semibold text-ink">Recent Absences</h2>
-              <button onClick={() => setTab("Attendance")} className="w-full rounded-control bg-navy-wash py-2 text-sm text-navy">View Attendance Log</button>
-            </Card>
-            <Card className="bg-navy-wash">
-              <h2 className="text-xs font-bold uppercase tracking-wide text-navy">Admin Notes</h2>
-              <p className="mt-2 text-sm text-ink-faint">No notes.</p>
-            </Card>
-          </div>
+          {sidebar}
         </div>
       )}
 
       {tab === "Academic Record" && <AcademicRecordTab studentId={student.id} />}
       {tab === "Attendance" && <AttendanceTab studentId={student.id} />}
-      {tab === "Behavioral" && <Card className="py-12 text-center text-ink-faint">No behavioral records.</Card>}
+      {tab === "Behavioral" && (
+        <div className="grid gap-4 lg:grid-cols-3">
+          <div className="lg:col-span-2"><BehavioralTab studentId={student.id} /></div>
+          {sidebar}
+        </div>
+      )}
     </div>
   );
 }
