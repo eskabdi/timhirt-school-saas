@@ -28,7 +28,7 @@ import { Button } from "@/components/ui/Button";
 type FieldKey =
   | "photo" | "full_name" | "admission_no" | "class_label" | "dob"
   | "tenant_name" | "issued_date" | "guardian_contact" | "verify_code"
-  | "qr_code" | "static_text";
+  | "qr_code" | "barcode" | "static_text";
 
 interface FieldPlacement {
   id: string;
@@ -73,6 +73,7 @@ const FIELD_TYPES: { key: FieldKey; label: string; w: number; h: number; fontSiz
   { key: "guardian_contact", label: "Guardian Contact", w: 180, h: 12, fontSize: 8 },
   { key: "verify_code", label: "Verification Code", w: 180, h: 10, fontSize: 7 },
   { key: "qr_code", label: "QR Code", w: 60, h: 60, fontSize: 0, isImage: true },
+  { key: "barcode", label: "Barcode", w: 100, h: 26, fontSize: 0, isImage: true },
   { key: "static_text", label: "Custom Text", w: 140, h: 10, fontSize: 7 },
 ];
 const FIELD_LABEL: Record<FieldKey, string> = Object.fromEntries(FIELD_TYPES.map((f) => [f.key, f.label])) as Record<FieldKey, string>;
@@ -257,7 +258,7 @@ export function IdCardTemplateDesignerPage() {
           >
             {current.fields.map((f) => {
               const selected = f.id === selectedId;
-              const isImage = f.field_key === "photo" || f.field_key === "qr_code";
+              const isImage = f.field_key === "photo" || f.field_key === "qr_code" || f.field_key === "barcode";
               return (
                 <div
                   key={f.id}
@@ -345,7 +346,7 @@ export function IdCardTemplateDesignerPage() {
               </label>
             )}
 
-            {selectedField.field_key !== "photo" && selectedField.field_key !== "qr_code" && (
+            {selectedField.field_key !== "photo" && selectedField.field_key !== "qr_code" && selectedField.field_key !== "barcode" && (
               <>
                 <label className="block space-y-1 text-xs text-ink-faint">
                   Font (Amharic / English)

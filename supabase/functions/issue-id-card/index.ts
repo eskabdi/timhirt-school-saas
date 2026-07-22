@@ -25,6 +25,7 @@
 import { z } from "npm:zod@3";
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage, type PDFImage } from "npm:pdf-lib@1";
 import { toDataURL as qrToDataURL } from "npm:qrcode@1";
+import bwipjs from "npm:bwip-js@4";
 import { requireRole, errors, json, rateLimit, corsHeaders, type AuthContext } from "../_shared/security.ts";
 
 const Payload = z.object({ student_id: z.string().uuid() });
@@ -37,7 +38,7 @@ const GREY: [number, number, number] = [0.45, 0.45, 0.45];
 type FieldKey =
   | "photo" | "full_name" | "admission_no" | "class_label" | "dob"
   | "tenant_name" | "issued_date" | "guardian_contact" | "verify_code"
-  | "qr_code" | "static_text";
+  | "qr_code" | "barcode" | "static_text";
 
 interface FieldPlacement {
   id: string;
@@ -150,6 +151,7 @@ function renderSide(
   page: PDFPage, font: PDFFont, boldFont: PDFFont,
   template: CardSideTemplate, data: CardData, brandColor: [number, number, number],
   avatarImg: PDFImage | null, qrImg: PDFImage | null, backgroundImg: PDFImage | null,
+  barcodeImg: PDFImage | null,
 ) {
   if (backgroundImg) {
     page.drawImage(backgroundImg, { x: 0, y: 0, width: W, height: H });
@@ -168,6 +170,10 @@ function renderSide(
     }
     if (f.field_key === "qr_code") {
       if (qrImg) drawImageBox(page, qrImg, box);
+      continue;
+    }
+    if (f.field_key === "barcode") {
+      if (barcodeImg) drawImageBox(page, barcodeImg, box);
       continue;
     }
 
@@ -247,13 +253,24 @@ Deno.serve(async (req) => {
       qrImg = null;
     }
 
+    // Code128 barcode of the student number (admission no). Independent of the
+    // QR block above — nothing there changes. Rendered only where a school has
+    // placed a "barcode" field via the template designer.
+    let barcodeImg: PDFImage | null = null;
+    try {
+      const png = await bwipjs.toBuffer({ bcid: "code128", text: data.admissionNo, scale: 3, height: 8, includetext: false, paddingwidth: 2, paddingheight: 2, backgroundcolor: "FFFFFF" });
+      barcodeImg = await pdfDoc.embedPng(new Uint8Array(png));
+    } catch {
+      barcodeImg = null;
+    }
+
     const frontBg = frontTemplate.backgroundPath ? await embedPngFromStorage(pdfDoc, ctx.adminClient, "id-card-templates", frontTemplate.backgroundPath) : null;
     const backBg = backTemplate.backgroundPath ? await embedPngFromStorage(pdfDoc, ctx.adminClient, "id-card-templates", backTemplate.backgroundPath) : null;
 
     const frontPage = pdfDoc.addPage([W, H]);
-    renderSide(frontPage, font, boldFont, frontTemplate, data, brandColor, avatarImg, null, frontBg);
+    renderSide(frontPage, font, boldFont, frontTemplate, data, brandColor, avatarImg, null, frontBg, barcodeImg);
     const backPage = pdfDoc.addPage([W, H]);
-    renderSide(backPage, font, boldFont, backTemplate, data, brandColor, null, qrImg, backBg);
+    renderSide(backPage, font, boldFont, backTemplate, data, brandColor, null, qrImg, backBg, barcodeImg);
 
     const pdfBytes = await pdfDoc.save();
     const path = `${student.tenant_id}/${student.id}/${crypto.randomUUID()}.pdf`;
