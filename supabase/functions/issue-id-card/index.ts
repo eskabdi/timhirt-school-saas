@@ -24,6 +24,7 @@
 // ============================================================================
 import { z } from "npm:zod@3";
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage, type PDFImage } from "npm:pdf-lib@1";
+import fontkit from "npm:@pdf-lib/fontkit@1";
 import { toDataURL as qrToDataURL } from "npm:qrcode@1";
 import bwipjs from "npm:bwip-js@4";
 import { requireRole, errors, json, rateLimit, corsHeaders, type AuthContext } from "../_shared/security.ts";
@@ -49,6 +50,29 @@ interface FieldPlacement {
   align?: "left" | "center" | "right";
   bold?: boolean;
   text?: string;    // static_text only
+  fontFamily?: string; // "default" (Helvetica) | "NotoSerifEthiopic" | "Tayitu" | "Jiret"
+}
+
+// Uploaded Ethiopic/Latin fonts, served from the deployed frontend's /public.
+// Fetched + subset-embedded per document only when a field actually uses them.
+const FONT_URLS: Record<string, string> = {
+  NotoSerifEthiopic: "/fonts/NotoSerifEthiopic-Regular.ttf",
+  Tayitu: "/fonts/Tayitu.ttf",
+  Jiret: "/fonts/Jiret.ttf",
+};
+const fontByteCache: Record<string, Uint8Array | null> = {};
+async function loadFontBytes(appUrl: string, key: string): Promise<Uint8Array | null> {
+  if (key in fontByteCache) return fontByteCache[key];
+  try {
+    const res = await fetch(`${appUrl}${FONT_URLS[key]}`);
+    if (!res.ok) throw new Error(`font ${key} ${res.status}`);
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    fontByteCache[key] = bytes;
+    return bytes;
+  } catch {
+    fontByteCache[key] = null;
+    return null;
+  }
 }
 interface CardSideTemplate { backgroundPath: string | null; fields: FieldPlacement[] }
 interface IdCardTemplate { front?: CardSideTemplate; back?: CardSideTemplate }
@@ -122,9 +146,12 @@ function resolveFieldValue(key: FieldKey, data: CardData, customText?: string): 
 
 /** Draws left/center/right-aligned, vertically-centered single-line text
  *  clipped (by truncation, not real clipping) to stay inside its box. */
-function drawTextInBox(page: PDFPage, font: PDFFont, raw: string, box: { x: number; y: number; w: number; h: number }, opts: { size: number; color: [number, number, number]; align?: "left" | "center" | "right" }) {
+function drawTextInBox(page: PDFPage, font: PDFFont, raw: string, box: { x: number; y: number; w: number; h: number }, opts: { size: number; color: [number, number, number]; align?: "left" | "center" | "right"; allowUnicode?: boolean }) {
   const size = opts.size;
-  let text = asciiOnly(raw);
+  // Helvetica has no Ethiopic glyphs and pdf-lib throws on them, so the default
+  // path strips to ASCII. A custom embedded font (Noto/Tayitu/Jiret) does have
+  // them — keep the raw text (incl. Amharic) in that case.
+  let text = opts.allowUnicode ? raw : asciiOnly(raw);
   const maxChars = Math.max(1, Math.floor(box.w / (size * 0.55)));
   if (text.length > maxChars) text = text.slice(0, Math.max(0, maxChars - 1)) + ".";
   const width = font.widthOfTextAtSize(text, size);
@@ -151,7 +178,7 @@ function renderSide(
   page: PDFPage, font: PDFFont, boldFont: PDFFont,
   template: CardSideTemplate, data: CardData, brandColor: [number, number, number],
   avatarImg: PDFImage | null, qrImg: PDFImage | null, backgroundImg: PDFImage | null,
-  barcodeImg: PDFImage | null,
+  barcodeImg: PDFImage | null, customFonts: Record<string, PDFFont>,
 ) {
   if (backgroundImg) {
     page.drawImage(backgroundImg, { x: 0, y: 0, width: W, height: H });
@@ -179,10 +206,12 @@ function renderSide(
 
     const value = resolveFieldValue(f.field_key, data, f.text);
     if (!value) continue;
-    drawTextInBox(page, f.bold ? boldFont : font, value, box, {
+    const custom = f.fontFamily && f.fontFamily !== "default" ? customFonts[f.fontFamily] : undefined;
+    drawTextInBox(page, custom ?? (f.bold ? boldFont : font), value, box, {
       size: f.fontSize ?? 7,
       color: hexToRgb01(f.color, BLACK),
       align: f.align ?? "left",
+      allowUnicode: !!custom,
     });
   }
 }
@@ -267,10 +296,29 @@ Deno.serve(async (req) => {
     const frontBg = frontTemplate.backgroundPath ? await embedPngFromStorage(pdfDoc, ctx.adminClient, "id-card-templates", frontTemplate.backgroundPath) : null;
     const backBg = backTemplate.backgroundPath ? await embedPngFromStorage(pdfDoc, ctx.adminClient, "id-card-templates", backTemplate.backgroundPath) : null;
 
+    // Embed only the custom fonts a field actually uses (Noto/Tayitu/Jiret),
+    // so text placed with an Amharic/English font renders in that face. Failures
+    // (font unreachable, subset error) fall back to Helvetica per field.
+    const customFonts: Record<string, PDFFont> = {};
+    const usedFonts = new Set<string>();
+    for (const s of [frontTemplate, backTemplate]) {
+      for (const f of s.fields) {
+        if (f.fontFamily && f.fontFamily !== "default" && FONT_URLS[f.fontFamily]) usedFonts.add(f.fontFamily);
+      }
+    }
+    if (usedFonts.size) {
+      pdfDoc.registerFontkit(fontkit);
+      for (const key of usedFonts) {
+        const bytes = await loadFontBytes(appUrl, key);
+        if (!bytes) continue;
+        try { customFonts[key] = await pdfDoc.embedFont(bytes, { subset: true }); } catch { /* keep Helvetica fallback */ }
+      }
+    }
+
     const frontPage = pdfDoc.addPage([W, H]);
-    renderSide(frontPage, font, boldFont, frontTemplate, data, brandColor, avatarImg, null, frontBg, barcodeImg);
+    renderSide(frontPage, font, boldFont, frontTemplate, data, brandColor, avatarImg, null, frontBg, barcodeImg, customFonts);
     const backPage = pdfDoc.addPage([W, H]);
-    renderSide(backPage, font, boldFont, backTemplate, data, brandColor, null, qrImg, backBg, barcodeImg);
+    renderSide(backPage, font, boldFont, backTemplate, data, brandColor, null, qrImg, backBg, barcodeImg, customFonts);
 
     const pdfBytes = await pdfDoc.save();
     const path = `${student.tenant_id}/${student.id}/${crypto.randomUUID()}.pdf`;
