@@ -115,7 +115,7 @@ const NAV: NavSection[] = [
 ];
 
 export function DashboardShell() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { profile } = useSession();
   const modules = useEnabledModules();
   const queryClient = useQueryClient();
@@ -132,7 +132,21 @@ export function DashboardShell() {
     enabled: !!profile?.tenant_id,
     queryFn: async () => (await supabase.from("tenants").select("name").eq("id", profile!.tenant_id!).single()).data,
   });
-  const brandName = tenant?.name ?? t("app.name");
+  // Shares the ["tenant-config", …] key with BrandingPage, so saving branding
+  // refreshes the nav name + logo immediately.
+  const { data: brandConfig } = useQuery({
+    queryKey: ["tenant-config", profile?.tenant_id],
+    enabled: !!profile?.tenant_id,
+    queryFn: async () => (await supabase.from("tenant_configs").select("settings").eq("tenant_id", profile!.tenant_id!).maybeSingle()).data,
+  });
+  const branding = brandConfig?.settings?.branding as { nameEn?: string; nameAm?: string; nameOm?: string; logoPath?: string | null } | undefined;
+  const lang = i18n.resolvedLanguage;
+  const brandName =
+    (lang === "am" ? branding?.nameAm : lang === "om" ? branding?.nameOm : branding?.nameEn) ||
+    branding?.nameEn || tenant?.name || t("app.name");
+  const logoUrl = branding?.logoPath
+    ? supabase.storage.from("branding").getPublicUrl(branding.logoPath).data.publicUrl
+    : null;
 
   const signOut = async () => {
     await supabase.auth.signOut();
@@ -160,7 +174,9 @@ export function DashboardShell() {
     <div className="flex min-h-screen bg-page">
       <aside className="flex w-60 flex-col border-r border-line bg-sidebar">
         <div className="flex items-center gap-2.5 border-b border-line px-5 py-4">
-          <Avatar name={brandName} size="md" />
+          {logoUrl
+            ? <img src={logoUrl} alt="" className="h-9 w-9 shrink-0 rounded-full object-cover" />
+            : <Avatar name={brandName} size="md" />}
           <div className="min-w-0">
             <h1 className="truncate font-display text-base font-bold leading-tight text-navy">{brandName}</h1>
             <p className="truncate text-xs text-ink-faint">{t("app.tagline")}</p>

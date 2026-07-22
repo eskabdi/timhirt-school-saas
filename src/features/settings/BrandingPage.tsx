@@ -28,17 +28,23 @@ export function BrandingPage() {
   const { profile } = useSession();
   const qc = useQueryClient();
   const [b, setB] = useState<Branding>(DEFAULTS);
+  const [toast, setToast] = useState<string | null>(null);
   const logoInput = useRef<HTMLInputElement>(null);
   const sealInput = useRef<HTMLInputElement>(null);
 
   const { data: config } = useQuery({
-    queryKey: ["tenant-config"],
+    queryKey: ["tenant-config", profile?.tenant_id],
     enabled: !!profile?.tenant_id,
     queryFn: async () => (await supabase.from("tenant_configs").select("settings").eq("tenant_id", profile!.tenant_id!).maybeSingle()).data,
   });
   useEffect(() => {
     if (config?.settings?.branding) setB({ ...DEFAULTS, ...config.settings.branding });
   }, [config]);
+  useEffect(() => {
+    if (!toast) return;
+    const h = setTimeout(() => setToast(null), 2800);
+    return () => clearTimeout(h);
+  }, [toast]);
 
   const upload = async (file: File, kind: "logo" | "seal") => {
     const path = `${profile!.tenant_id}/${kind}-${Date.now()}.${file.name.split(".").pop()}`;
@@ -53,8 +59,14 @@ export function BrandingPage() {
       const { error } = await supabase.from("tenant_configs").upsert({ tenant_id: profile!.tenant_id, settings });
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["tenant-config"] }),
+    // Shares the ["tenant-config", …] key with the sidebar, so the nav name +
+    // logo refresh the moment the save lands.
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["tenant-config"] }); setToast("Branding saved successfully."); },
+    onError: (e: unknown) => setToast(e instanceof Error ? e.message : "Save failed."),
   });
+
+  // "Reset All Branding Data" restores ONLY the colour palette to defaults.
+  const resetPalette = () => setB((prev) => ({ ...prev, primaryColor: DEFAULTS.primaryColor, secondaryColor: DEFAULTS.secondaryColor, accentColor: DEFAULTS.accentColor }));
 
   const sectionHead = (icon: string, label: string) => (
     <div className="flex items-center gap-2 text-ink"><span className="text-navy">{icon}</span><h2 className="text-sm font-bold uppercase tracking-wide">{label}</h2></div>
@@ -70,6 +82,11 @@ export function BrandingPage() {
 
   return (
     <div className="space-y-4">
+      {toast && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-lg bg-ok px-4 py-3 text-sm font-medium text-white shadow-lg">
+          <span>✓</span>{toast}
+        </div>
+      )}
       <div className="flex items-start justify-between">
         <div>
           <h1 className="font-display text-3xl font-bold text-ink">School Branding</h1>
@@ -175,7 +192,8 @@ export function BrandingPage() {
 
           <Card className="space-y-3 border-danger bg-danger-tint">
             <h2 className="text-sm font-bold uppercase text-danger">Advanced Actions</h2>
-            <button onClick={() => confirm("Reset all branding data?") && setB(DEFAULTS)} className="w-full rounded-control border border-danger bg-card py-3 text-sm font-medium text-danger">Reset All Branding Data</button>
+            <button onClick={() => { if (confirm("Reset the colour palette to defaults?")) resetPalette(); }} className="w-full rounded-control border border-danger bg-card py-3 text-sm font-medium text-danger">Reset All Branding Data</button>
+            <p className="text-xs text-ink-faint">Restores the colour palette to the system defaults. Name, logo, motto, and localization are unchanged.</p>
           </Card>
         </div>
       </div>
