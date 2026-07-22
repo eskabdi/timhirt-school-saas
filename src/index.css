@@ -2,6 +2,24 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ID card / Ethiopic display fonts (uploaded, served from /public/fonts).
+   Used by the ID Card Template Designer preview and text-field font picker. */
+@font-face {
+  font-family: "NotoSerifEthiopic";
+  src: url("/fonts/NotoSerifEthiopic-Regular.ttf") format("truetype");
+  font-weight: normal; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: "Tayitu";
+  src: url("/fonts/Tayitu.ttf") format("truetype");
+  font-weight: normal; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: "Jiret";
+  src: url("/fonts/Jiret.ttf") format("truetype");
+  font-weight: normal; font-style: normal; font-display: swap;
+}
+
 @layer base {
   body { @apply bg-page text-ink font-sans antialiased; }
   :focus-visible { @apply outline-none ring-2 ring-navy ring-offset-2 ring-offset-page; }

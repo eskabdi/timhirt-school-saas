@@ -39,7 +39,23 @@ interface FieldPlacement {
   align?: "left" | "center" | "right";
   bold?: boolean;
   text?: string;
+  fontFamily?: string;
 }
+
+// Text-field fonts. `css` drives the on-screen designer preview (@font-face in
+// index.css); `value` is what's stored + read by the PDF renderer. Default =
+// Helvetica (Latin only); the three Ethiopic faces the school uploaded render
+// Amharic (ግዕዝ) as well as Latin.
+const FONT_OPTIONS: { value: string; label: string; css: string }[] = [
+  { value: "default", label: "Default (Latin)", css: "inherit" },
+  { value: "NotoSerifEthiopic", label: "Noto Serif Ethiopic — ኖቶ", css: "NotoSerifEthiopic" },
+  { value: "Tayitu", label: "Tayitu — ጣይቱ", css: "Tayitu" },
+  { value: "Jiret", label: "Jiret — ጅሬት", css: "Jiret" },
+];
+const fontCss = (v: string | undefined) => FONT_OPTIONS.find((f) => f.value === v)?.css ?? "inherit";
+
+type ResizeCorner = "nw" | "ne" | "sw" | "se";
+const MIN_W = 8, MIN_H = 6;
 interface CardSideTemplate { backgroundPath: string | null; fields: FieldPlacement[] }
 interface TemplateConfig { front: CardSideTemplate; back: CardSideTemplate }
 
@@ -77,6 +93,7 @@ export function IdCardTemplateDesignerPage() {
   const [bgUrl, setBgUrl] = useState<string | null>(null);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const dragState = useRef<{ id: string; startX: number; startY: number; origX: number; origY: number } | null>(null);
+  const resizeState = useRef<{ id: string; corner: ResizeCorner; startX: number; startY: number; origX: number; origY: number; origW: number; origH: number } | null>(null);
 
   const { data: config } = useQuery({
     queryKey: ["tenant-config"],
@@ -134,6 +151,12 @@ export function IdCardTemplateDesignerPage() {
     dragState.current = { id: field.id, startX: e.clientX, startY: e.clientY, origX: field.x, origY: field.y };
   };
 
+  const onResizeMouseDown = (e: React.MouseEvent, field: FieldPlacement, corner: ResizeCorner) => {
+    e.stopPropagation();
+    setSelectedId(field.id);
+    resizeState.current = { id: field.id, corner, startX: e.clientX, startY: e.clientY, origX: field.x, origY: field.y, origW: field.w, origH: field.h };
+  };
+
   // Listeners attach once (mount) rather than re-attaching on every drag
   // frame. Both `side` and `current.fields` are mirrored into refs so onMove
   // always reads live state instead of closing over the values from mount --
@@ -146,6 +169,24 @@ export function IdCardTemplateDesignerPage() {
 
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
+      const s = sideRef.current;
+      const resize = resizeState.current;
+      if (resize) {
+        const dx = (e.clientX - resize.startX) / SCALE;
+        const dy = (e.clientY - resize.startY) / SCALE;
+        let x = resize.origX, y = resize.origY, w = resize.origW, h = resize.origH;
+        if (resize.corner === "se") { w = resize.origW + dx; h = resize.origH + dy; }
+        else if (resize.corner === "sw") { x = resize.origX + dx; w = resize.origW - dx; h = resize.origH + dy; }
+        else if (resize.corner === "ne") { y = resize.origY + dy; w = resize.origW + dx; h = resize.origH - dy; }
+        else { x = resize.origX + dx; y = resize.origY + dy; w = resize.origW - dx; h = resize.origH - dy; }
+        // Enforce minimums without letting the left/top edge cross the anchor.
+        if (w < MIN_W) { if (resize.corner === "sw" || resize.corner === "nw") x = resize.origX + resize.origW - MIN_W; w = MIN_W; }
+        if (h < MIN_H) { if (resize.corner === "ne" || resize.corner === "nw") y = resize.origY + resize.origH - MIN_H; h = MIN_H; }
+        x = clamp(x, 0, CARD_W - MIN_W); y = clamp(y, 0, CARD_H - MIN_H);
+        w = clamp(w, MIN_W, CARD_W - x); h = clamp(h, MIN_H, CARD_H - y);
+        setTemplate((t) => ({ ...t, [s]: { ...t[s], fields: t[s].fields.map((f) => (f.id === resize.id ? { ...f, x, y, w, h } : f)) } }));
+        return;
+      }
       const drag = dragState.current;
       if (!drag) return;
       const field = fieldsRef.current.find((f) => f.id === drag.id);
@@ -154,13 +195,12 @@ export function IdCardTemplateDesignerPage() {
       const dy = (e.clientY - drag.startY) / SCALE;
       const nx = clamp(drag.origX + dx, 0, CARD_W - field.w);
       const ny = clamp(drag.origY + dy, 0, CARD_H - field.h);
-      const s = sideRef.current;
       setTemplate((t) => ({
         ...t,
         [s]: { ...t[s], fields: t[s].fields.map((f) => (f.id === drag.id ? { ...f, x: nx, y: ny } : f)) },
       }));
     };
-    const onUp = () => { dragState.current = null; };
+    const onUp = () => { dragState.current = null; resizeState.current = null; };
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
     return () => {
@@ -196,9 +236,10 @@ export function IdCardTemplateDesignerPage() {
     <div className="space-y-4">
       <h1 className="font-display text-2xl font-bold">ID Card Template</h1>
       <p className="max-w-2xl text-sm text-ink-faint">
-        Design the front and back of the printed student ID card. Add fields from the palette, drag them into
-        place, and upload a background image for your school's own artwork. Leaving a side untouched keeps the
-        built-in default layout.
+        Design the front and back of the printed student ID card. Add fields from the palette, <strong>drag them
+        to reposition</strong>, and <strong>drag the four corner handles to resize</strong>. Text fields can use
+        an Amharic/English font (Noto Serif Ethiopic, Tayitu, or Jiret). Upload a background image for your
+        school's artwork; leaving a side untouched keeps the built-in default layout.
       </p>
 
       <div className="flex items-center gap-2">
@@ -214,27 +255,48 @@ export function IdCardTemplateDesignerPage() {
             className="relative overflow-hidden rounded-control border border-line bg-card shadow-sm"
             style={{ width: CARD_W * SCALE, height: CARD_H * SCALE, backgroundImage: bgUrl ? `url(${bgUrl})` : undefined, backgroundSize: "cover" }}
           >
-            {current.fields.map((f) => (
-              <div
-                key={f.id}
-                onMouseDown={(e) => onFieldMouseDown(e, f)}
-                className="absolute cursor-move select-none overflow-hidden border"
-                style={{
-                  left: f.x * SCALE, top: f.y * SCALE, width: f.w * SCALE, height: f.h * SCALE,
-                  borderColor: f.id === selectedId ? "#1E2A70" : "rgba(0,0,0,0.2)",
-                  borderWidth: f.id === selectedId ? 2 : 1,
-                  backgroundColor: f.field_key === "photo" || f.field_key === "qr_code" ? "rgba(0,0,0,0.05)" : "transparent",
-                  display: "flex", alignItems: "center",
-                  justifyContent: f.align === "center" ? "center" : f.align === "right" ? "flex-end" : "flex-start",
-                  fontSize: (f.fontSize ?? 7) * SCALE * 0.8,
-                  fontWeight: f.bold ? 700 : 400,
-                  color: f.color ?? "#000000",
-                  padding: "0 2px",
-                }}
-              >
-                {f.field_key === "static_text" ? (f.text || "Custom Text") : FIELD_LABEL[f.field_key]}
-              </div>
-            ))}
+            {current.fields.map((f) => {
+              const selected = f.id === selectedId;
+              const isImage = f.field_key === "photo" || f.field_key === "qr_code";
+              return (
+                <div
+                  key={f.id}
+                  onMouseDown={(e) => onFieldMouseDown(e, f)}
+                  className="absolute cursor-move select-none overflow-visible border"
+                  style={{
+                    left: f.x * SCALE, top: f.y * SCALE, width: f.w * SCALE, height: f.h * SCALE,
+                    borderColor: selected ? "#1E2A70" : "rgba(0,0,0,0.2)",
+                    borderWidth: selected ? 2 : 1,
+                    backgroundColor: isImage ? "rgba(0,0,0,0.05)" : "transparent",
+                    display: "flex", alignItems: "center",
+                    justifyContent: f.align === "center" ? "center" : f.align === "right" ? "flex-end" : "flex-start",
+                    fontSize: (f.fontSize ?? 7) * SCALE * 0.8,
+                    fontWeight: f.bold ? 700 : 400,
+                    fontFamily: fontCss(f.fontFamily),
+                    color: f.color ?? "#000000",
+                    padding: "0 2px",
+                  }}
+                >
+                  <span className="overflow-hidden whitespace-nowrap">
+                    {f.field_key === "static_text" ? (f.text || "Custom Text") : FIELD_LABEL[f.field_key]}
+                  </span>
+                  {selected && (["nw", "ne", "sw", "se"] as ResizeCorner[]).map((corner) => (
+                    <div
+                      key={corner}
+                      onMouseDown={(e) => onResizeMouseDown(e, f, corner)}
+                      className="absolute z-10 h-2.5 w-2.5 rounded-sm border border-white bg-navy"
+                      style={{
+                        cursor: corner === "nw" || corner === "se" ? "nwse-resize" : "nesw-resize",
+                        left: corner === "nw" || corner === "sw" ? -6 : undefined,
+                        right: corner === "ne" || corner === "se" ? -6 : undefined,
+                        top: corner === "nw" || corner === "ne" ? -6 : undefined,
+                        bottom: corner === "sw" || corner === "se" ? -6 : undefined,
+                      }}
+                    />
+                  ))}
+                </div>
+              );
+            })}
           </div>
 
           <div className="flex flex-wrap gap-2">
@@ -285,6 +347,19 @@ export function IdCardTemplateDesignerPage() {
 
             {selectedField.field_key !== "photo" && selectedField.field_key !== "qr_code" && (
               <>
+                <label className="block space-y-1 text-xs text-ink-faint">
+                  Font (Amharic / English)
+                  <select
+                    value={selectedField.fontFamily ?? "default"}
+                    onChange={(e) => patchField(selectedField.id, { fontFamily: e.target.value })}
+                    className="w-full rounded-control border border-line bg-card px-2 py-1 text-sm text-ink"
+                    style={{ fontFamily: fontCss(selectedField.fontFamily) }}
+                  >
+                    {FONT_OPTIONS.map((fo) => (
+                      <option key={fo.value} value={fo.value} style={{ fontFamily: fo.css }}>{fo.label}</option>
+                    ))}
+                  </select>
+                </label>
                 <label className="block space-y-1 text-xs text-ink-faint">
                   Font size
                   <input
