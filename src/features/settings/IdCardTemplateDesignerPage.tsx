@@ -26,7 +26,7 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 
 type FieldKey =
-  | "photo" | "full_name" | "admission_no" | "class_label" | "dob"
+  | "photo" | "full_name" | "full_name_am" | "admission_no" | "class_label" | "dob"
   | "tenant_name" | "issued_date" | "guardian_contact" | "verify_code"
   | "qr_code" | "barcode" | "static_text";
 
@@ -62,9 +62,10 @@ interface TemplateConfig { front: CardSideTemplate; back: CardSideTemplate }
 const CARD_W = 243, CARD_H = 153; // points, must match issue-id-card
 const SCALE = 3; // on-screen px per point
 
-const FIELD_TYPES: { key: FieldKey; label: string; w: number; h: number; fontSize: number; isImage?: boolean }[] = [
+const FIELD_TYPES: { key: FieldKey; label: string; w: number; h: number; fontSize: number; isImage?: boolean; defaultFont?: string }[] = [
   { key: "photo", label: "Photo", w: 55, h: 65, fontSize: 0, isImage: true },
-  { key: "full_name", label: "Full Name", w: 140, h: 14, fontSize: 11 },
+  { key: "full_name", label: "Full Name (EN)", w: 140, h: 14, fontSize: 11 },
+  { key: "full_name_am", label: "Full Name (አማ)", w: 140, h: 14, fontSize: 11, defaultFont: "NotoSerifEthiopic" },
   { key: "admission_no", label: "Student No.", w: 140, h: 10, fontSize: 7 },
   { key: "class_label", label: "Class", w: 140, h: 10, fontSize: 7 },
   { key: "dob", label: "Date of Birth", w: 140, h: 10, fontSize: 7 },
@@ -133,6 +134,7 @@ export function IdCardTemplateDesignerPage() {
       w: type.w, h: type.h, fontSize: type.fontSize || undefined,
       color: "#000000", align: "left",
       text: type.key === "static_text" ? "Label" : undefined,
+      fontFamily: type.defaultFont,
     };
     updateSide((s) => ({ ...s, fields: [...s.fields, field] }));
     setSelectedId(field.id);

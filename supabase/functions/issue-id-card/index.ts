@@ -37,7 +37,7 @@ const BLACK: [number, number, number] = [0, 0, 0];
 const GREY: [number, number, number] = [0.45, 0.45, 0.45];
 
 type FieldKey =
-  | "photo" | "full_name" | "admission_no" | "class_label" | "dob"
+  | "photo" | "full_name" | "full_name_am" | "admission_no" | "class_label" | "dob"
   | "tenant_name" | "issued_date" | "guardian_contact" | "verify_code"
   | "qr_code" | "barcode" | "static_text";
 
@@ -78,7 +78,7 @@ interface CardSideTemplate { backgroundPath: string | null; fields: FieldPlaceme
 interface IdCardTemplate { front?: CardSideTemplate; back?: CardSideTemplate }
 
 interface CardData {
-  tenantName: string; fullName: string; admissionNo: string; classLabel: string;
+  tenantName: string; fullName: string; fullNameAm: string; admissionNo: string; classLabel: string;
   dob: string; issuedDate: string; guardianContact: string; verifyCode: string;
 }
 
@@ -132,6 +132,7 @@ function generateVerifyCode(): string {
 function resolveFieldValue(key: FieldKey, data: CardData, customText?: string): string {
   switch (key) {
     case "full_name": return data.fullName;
+    case "full_name_am": return data.fullNameAm;
     case "admission_no": return `Student No: ${data.admissionNo}`;
     case "class_label": return `Class: ${data.classLabel}`;
     case "dob": return `DOB (GC): ${data.dob}`;
@@ -240,7 +241,7 @@ Deno.serve(async (req) => {
     if (!parsed.success) return errors.badRequest();
 
     const { data: student } = await ctx.userClient.from("students")
-      .select("id, tenant_id, first_name, middle_name, last_name, admission_no, date_of_birth, avatar_path, class:classes(name, section)")
+      .select("id, tenant_id, first_name, middle_name, last_name, first_name_am, middle_name_am, last_name_am, admission_no, date_of_birth, avatar_path, class:classes(name, section)")
       .eq("id", parsed.data.student_id).maybeSingle();
     if (!student) return errors.badRequest();
 
@@ -258,6 +259,7 @@ Deno.serve(async (req) => {
     const data: CardData = {
       tenantName: tenant?.name ?? "School",
       fullName: [student.first_name, student.middle_name, student.last_name].filter(Boolean).join(" ") || "Student",
+      fullNameAm: [student.first_name_am, student.middle_name_am, student.last_name_am].filter(Boolean).join(" "),
       admissionNo: student.admission_no,
       classLabel: student.class ? `${student.class.name} ${student.class.section ?? ""}`.trim() : "-",
       dob: student.date_of_birth,
