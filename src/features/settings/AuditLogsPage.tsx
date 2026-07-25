@@ -126,9 +126,9 @@ export function AuditLogsPage() {
               className="w-full rounded-control border border-line bg-card px-3 py-2 text-sm text-ink"
             >
               <option value="">—</option>
-              <option value="INSERT">INSERT</option>
-              <option value="UPDATE">UPDATE</option>
-              <option value="DELETE">DELETE</option>
+              <option value="INSERT">{t("audit.insert")}</option>
+              <option value="UPDATE">{t("audit.update")}</option>
+              <option value="DELETE">{t("audit.delete")}</option>
             </select>
           </div>
         </div>

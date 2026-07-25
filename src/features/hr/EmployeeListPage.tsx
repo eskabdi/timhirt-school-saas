@@ -57,7 +57,7 @@ export function EmployeeListPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="font-display text-2xl font-bold text-ink">{t("hr.employees")}</h1>
-        <Button onClick={() => setShow(true)}>+ Add employee</Button>
+        <Button onClick={() => setShow(true)}>+ {t("hrPages.addEmployee")}</Button>
       </div>
 
       {error && <Card className="border-danger bg-danger-tint py-3 text-sm text-danger">{error}</Card>}
@@ -87,20 +87,20 @@ export function EmployeeListPage() {
         </Panel>
       )}
 
-      <Modal open={show} onClose={() => setShow(false)} title="Add employee">
+      <Modal open={show} onClose={() => setShow(false)} title={t("hrPages.addEmployee")}>
         <div className="space-y-3">
-          <Field label="Employee no. (A-Z, 0-9, - /)"><Input value={form.employeeNo} onChange={(e) => setForm({ ...form, employeeNo: e.target.value.toUpperCase() })} placeholder="EMP-001" /></Field>
-          <Field label="Full name"><Input value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} /></Field>
-          <Field label="Type">
+          <Field label={t("hrPages.employeeNo")}><Input value={form.employeeNo} onChange={(e) => setForm({ ...form, employeeNo: e.target.value.toUpperCase() })} placeholder="EMP-001" /></Field>
+          <Field label={t("hrPages.fullName")}><Input value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} /></Field>
+          <Field label={t("hrPages.type")}>
             <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value as EmpType })} className="w-full rounded-control border border-line bg-card px-3 py-2 text-sm text-ink">
               {TYPES.map((ty) => <option key={ty} value={ty}>{t(`hr.employeeType.${ty}`)}</option>)}
             </select>
           </Field>
-          <Field label="Hire date"><EthDatePicker value={form.hireDate} onChange={(d) => setForm({ ...form, hireDate: d })} /></Field>
+          <Field label={t("hrPages.hireDate")}><EthDatePicker value={form.hireDate} onChange={(d) => setForm({ ...form, hireDate: d })} /></Field>
         </div>
         <div className="mt-4 flex justify-end gap-2 border-t border-line pt-3">
-          <Button variant="ghost" onClick={() => setShow(false)}>Cancel</Button>
-          <Button onClick={() => create.mutate()} disabled={!form.employeeNo || !form.fullName || !form.hireDate || create.isPending}>Create</Button>
+          <Button variant="ghost" onClick={() => setShow(false)}>{t("common.cancel")}</Button>
+          <Button onClick={() => create.mutate()} disabled={!form.employeeNo || !form.fullName || !form.hireDate || create.isPending}>{t("hrPages.create")}</Button>
         </div>
       </Modal>
     </div>

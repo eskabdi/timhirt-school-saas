@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useSession } from "@/features/auth/useSession";
@@ -6,6 +7,7 @@ import { Card } from "@/components/ui/Card";
 const DAYS = ["", "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 export function StudentTimetablePage() {
+  const { t } = useTranslation();
   const { profile } = useSession();
   const { data: slots } = useQuery({
     queryKey: ["student-timetable", profile?.id],
@@ -21,7 +23,7 @@ export function StudentTimetablePage() {
   });
   return (
     <div className="space-y-2">
-      <h1 className="font-display text-2xl font-bold">My timetable</h1>
+      <h1 className="font-display text-2xl font-bold">{t("portalPages.myTimetable")}</h1>
       {slots?.map((s, i) => (
         <Card key={i} className="flex justify-between text-sm">
           <span>{DAYS[s.day_of_week]} {s.starts_at?.slice(0,5)}</span><span>{(s.subjects as any)?.name_i18n?.en}</span>

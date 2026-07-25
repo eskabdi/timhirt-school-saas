@@ -42,10 +42,21 @@ for (const root of ROOTS) {
       const bare = line.trim();
       if (bare.startsWith("//") || bare.startsWith("*") || bare.startsWith("/*")) return;
 
+      // TypeScript generics (`Record<string, string>`, `Map<a, b>`) and arrow
+      // return types look like JSX text to the pattern below; skip declaration
+      // lines outright.
+      const isTypeLine = /^(export\s+)?(interface|type)\s/.test(bare)
+        || /[?]?:\s*\(?[^=]*=>/.test(bare)
+        || /^\w+\??:\s/.test(bare);
+
       // 1. JSX text nodes:  >Some Text<
-      for (const m of line.matchAll(/>([^<>{}\n]+)</g)) {
-        const txt = m[1];
-        if (looksLikeCopy(txt) && !/^\s*[{}]/.test(txt)) findings.push({ file, n, kind: "jsx-text", txt: txt.trim() });
+      if (!isTypeLine) {
+        for (const m of line.matchAll(/>([^<>{}\n]+)</g)) {
+          const txt = m[1];
+          // `=> Foo<` is an arrow returning a generic, not markup.
+          if (line[m.index - 1] === "=") continue;
+          if (looksLikeCopy(txt) && !/^\s*[{}]/.test(txt)) findings.push({ file, n, kind: "jsx-text", txt: txt.trim() });
+        }
       }
       // 2. User-facing string attributes
       for (const m of line.matchAll(/\b(placeholder|title|label|aria-label|alt)=["']([^"'{}]+)["']/g)) {

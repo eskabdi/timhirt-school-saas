@@ -96,7 +96,7 @@ export function MyLeavePage() {
             <div className="flex items-center gap-3">
               <span>{t(`hr.${r.status === "approved" ? "approved" : r.status === "rejected" ? "rejected" : r.status === "cancelled" ? "cancelled" : "pending"}`)}</span>
               {r.status === "pending" && (
-                <Button variant="ghost" className="px-2 py-1 text-xs text-danger" onClick={() => cancel.mutate(r.id)} disabled={cancel.isPending}>Cancel</Button>
+                <Button variant="ghost" className="px-2 py-1 text-xs text-danger" onClick={() => cancel.mutate(r.id)} disabled={cancel.isPending}>{t("common.cancel")}</Button>
               )}
             </div>
           </Card>

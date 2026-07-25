@@ -85,22 +85,22 @@ export function FinancialReportPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="font-display text-2xl font-bold text-ink">Financial Report</h1>
+      <h1 className="font-display text-2xl font-bold text-ink">{t("reportPages.financialTitle")}</h1>
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-        <ReportStat label="Total invoiced" value={loading ? "—" : fmtEtb(stats.totalInvoiced)} />
-        <ReportStat label="Total collected" value={loading ? "—" : fmtEtb(stats.totalCollected)} tone="ok" />
-        <ReportStat label="Outstanding" value={loading ? "—" : fmtEtb(stats.outstanding)} tone="danger" />
-        <ReportStat label="Collection rate" value={loading ? "—" : `${stats.rate.toFixed(1)}%`} tone="navy" />
+        <ReportStat label={t("reportPages.totalInvoiced")} value={loading ? "—" : fmtEtb(stats.totalInvoiced)} />
+        <ReportStat label={t("reportPages.totalCollected")} value={loading ? "—" : fmtEtb(stats.totalCollected)} tone="ok" />
+        <ReportStat label={t("reportPages.outstanding")} value={loading ? "—" : fmtEtb(stats.outstanding)} tone="danger" />
+        <ReportStat label={t("reportPages.collectionRate")} value={loading ? "—" : `${stats.rate.toFixed(1)}%`} tone="navy" />
       </div>
 
-      <ReportSection title="Collections — last 6 months">
+      <ReportSection title={t("reportPages.collectionsLast6")}>
         <ReportBarChart bars={byMonth} />
       </ReportSection>
 
       <div className="grid gap-4 md:grid-cols-2">
         <Panel>
-          <div className="border-b border-line px-5 py-4"><h2 className="font-semibold text-ink">By payment method</h2></div>
+          <div className="border-b border-line px-5 py-4"><h2 className="font-semibold text-ink">{t("reportPages.byPaymentMethod")}</h2></div>
           {!byProvider.length ? (
             <p className="px-5 py-8 text-center text-sm text-ink-faint">{t("noRecordsYet")}</p>
           ) : (
@@ -118,7 +118,7 @@ export function FinancialReportPage() {
         </Panel>
 
         <Panel>
-          <div className="border-b border-line px-5 py-4"><h2 className="font-semibold text-ink">Invoice status</h2></div>
+          <div className="border-b border-line px-5 py-4"><h2 className="font-semibold text-ink">{t("reportPages.invoiceStatus")}</h2></div>
           {!byStatus.length ? (
             <p className="px-5 py-8 text-center text-sm text-ink-faint">{t("noRecordsYet")}</p>
           ) : (

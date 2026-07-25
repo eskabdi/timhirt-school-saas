@@ -7,6 +7,7 @@
 // scopes "for all" to super_admin) — no Edge Function needed for that part.
 // slug is create-only: it's embedded in the public /apply/:tenantSlug URL,
 // so changing it later would break any link already shared with applicants.
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
@@ -50,6 +51,7 @@ async function callOnboardTenant(input: TenantInput) {
 }
 
 function NewTenantForm({ onDone }: { onDone: () => void }) {
+  const { t } = useTranslation();
   const { register, handleSubmit, setValue, formState: { errors } } = useForm<TenantInput>({
     resolver: zodResolver(tenantSchema),
     defaultValues: { default_locale: "am" },
@@ -67,13 +69,13 @@ function NewTenantForm({ onDone }: { onDone: () => void }) {
 
   return (
     <Card className="max-w-xl">
-      <h2 className="mb-4 font-display text-lg font-bold text-ink">New tenant</h2>
+      <h2 className="mb-4 font-display text-lg font-bold text-ink">{t("platformPagesX.newTenant")}</h2>
       <form
         onSubmit={handleSubmit((v) => create.mutate(v))}
         className="space-y-4"
         noValidate
       >
-        <Field label="School name" error={errors.name?.message}>
+        <Field label={t("platformPagesX.schoolName")} error={errors.name?.message}>
           <Input
             maxLength={120}
             {...register("name", {
@@ -81,23 +83,23 @@ function NewTenantForm({ onDone }: { onDone: () => void }) {
             })}
           />
         </Field>
-        <Field label="Slug (used in the public admissions URL)" error={errors.slug?.message}>
+        <Field label={t("platformPagesX.slugHint")} error={errors.slug?.message}>
           <Input
             maxLength={40}
             {...register("slug", { onChange: () => setSlugEdited(true) })}
           />
         </Field>
-        <Field label="Admin full name" error={errors.admin_full_name?.message}>
+        <Field label={t("platformPagesX.adminFullName")} error={errors.admin_full_name?.message}>
           <Input maxLength={120} {...register("admin_full_name")} />
         </Field>
-        <Field label="Admin email" error={errors.admin_email?.message}>
+        <Field label={t("platformPagesX.adminEmail")} error={errors.admin_email?.message}>
           <Input type="email" maxLength={254} {...register("admin_email")} />
         </Field>
-        <Field label="Default locale" error={errors.default_locale?.message}>
+        <Field label={t("platformPagesX.defaultLocale")} error={errors.default_locale?.message}>
           <select {...register("default_locale")} className="w-full rounded-control border border-line bg-card px-3 py-2 text-sm text-ink">
-            <option value="am">Amharic</option>
-            <option value="en">English</option>
-            <option value="om">Afaan Oromoo</option>
+            <option value="am">{t("platformPagesX.amharic")}</option>
+            <option value="en">{t("platformPagesX.english")}</option>
+            <option value="om">{t("platformPagesX.oromo")}</option>
           </select>
         </Field>
         {create.isError && <p role="alert" className="text-sm text-danger">{(create.error as Error).message}</p>}
@@ -105,7 +107,7 @@ function NewTenantForm({ onDone }: { onDone: () => void }) {
           <Button type="submit" disabled={create.isPending}>
             {create.isPending ? "Creating…" : "Create tenant"}
           </Button>
-          <Button type="button" variant="ghost" onClick={onDone}>Cancel</Button>
+          <Button type="button" variant="ghost" onClick={onDone}>{t("common.cancel")}</Button>
         </div>
       </form>
     </Card>
@@ -113,6 +115,7 @@ function NewTenantForm({ onDone }: { onDone: () => void }) {
 }
 
 export function TenantsManagementPage() {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const navigate = useNavigate();
   const [creating, setCreating] = useState(false);
@@ -143,8 +146,8 @@ export function TenantsManagementPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="font-display text-2xl font-bold text-ink">Tenants</h1>
-        {!creating && <Button onClick={() => setCreating(true)}>New tenant</Button>}
+        <h1 className="font-display text-2xl font-bold text-ink">{t("reportPages.tenants")}</h1>
+        {!creating && <Button onClick={() => setCreating(true)}>{t("platformPagesX.newTenant")}</Button>}
       </div>
 
       {creating && <NewTenantForm onDone={() => setCreating(false)} />}
@@ -153,62 +156,62 @@ export function TenantsManagementPage() {
         <table className="w-full text-sm">
           <thead className="bg-sidebar text-left text-xs uppercase text-ink-faint">
             <tr>
-              <th className="px-4 py-2">Name</th>
-              <th className="px-4 py-2">Slug</th>
-              <th className="px-4 py-2">Status</th>
-              <th className="px-4 py-2">Created</th>
+              <th className="px-4 py-2">{t("common.name")}</th>
+              <th className="px-4 py-2">{t("platformPagesX.slug")}</th>
+              <th className="px-4 py-2">{t("students.status")}</th>
+              <th className="px-4 py-2">{t("platformPagesX.created")}</th>
               <th className="px-4 py-2" />
             </tr>
           </thead>
           <tbody className="divide-y divide-line">
-            {tenants?.map((t) => (
+            {tenants?.map((row) => (
               <tr
-                key={t.id}
-                className={editingId === t.id ? undefined : "cursor-pointer"}
-                onDoubleClick={editingId === t.id ? undefined : onRowDoubleClick(navigate, `/platform/tenants/${t.id}`)}
+                key={row.id}
+                className={editingId === row.id ? undefined : "cursor-pointer"}
+                onDoubleClick={editingId === row.id ? undefined : onRowDoubleClick(navigate, `/platform/tenants/${row.id}`)}
               >
                 <td className="px-4 py-2 font-medium">
-                  {editingId === t.id ? (
+                  {editingId === row.id ? (
                     <Input
                       autoFocus
                       value={editName}
                       maxLength={120}
                       onChange={(e) => setEditName(e.target.value)}
                       onKeyDown={(e) => {
-                        if (e.key === "Enter" && editName.trim()) rename.mutate({ id: t.id, name: editName.trim() });
+                        if (e.key === "Enter" && editName.trim()) rename.mutate({ id: row.id, name: editName.trim() });
                         if (e.key === "Escape") setEditingId(null);
                       }}
                     />
-                  ) : <Link to={`/platform/tenants/${t.id}`} className="text-navy hover:underline">{t.name}</Link>}
+                  ) : <Link to={`/platform/tenants/${row.id}`} className="text-navy hover:underline">{row.name}</Link>}
                 </td>
-                <td className="px-4 py-2 text-ink-faint">{t.slug}</td>
+                <td className="px-4 py-2 text-ink-faint">{row.slug}</td>
                 <td className="px-4 py-2">
-                  <Badge tone={STATUS_TONE[t.status as keyof typeof STATUS_TONE] ?? "neutral"}>{t.status}</Badge>
+                  <Badge tone={STATUS_TONE[row.status as keyof typeof STATUS_TONE] ?? "neutral"}>{row.status}</Badge>
                 </td>
-                <td className="px-4 py-2 text-ink-faint"><EthDate value={t.created_at.slice(0, 10)} /></td>
+                <td className="px-4 py-2 text-ink-faint"><EthDate value={row.created_at.slice(0, 10)} /></td>
                 <td className="px-4 py-2 text-right">
-                  {editingId === t.id ? (
+                  {editingId === row.id ? (
                     <div className="flex justify-end gap-1">
                       <Button
                         variant="ghost"
                         disabled={!editName.trim() || rename.isPending}
-                        onClick={() => rename.mutate({ id: t.id, name: editName.trim() })}
+                        onClick={() => rename.mutate({ id: row.id, name: editName.trim() })}
                       >
                         Save
                       </Button>
-                      <Button variant="ghost" onClick={() => setEditingId(null)}>Cancel</Button>
+                      <Button variant="ghost" onClick={() => setEditingId(null)}>{t("common.cancel")}</Button>
                     </div>
                   ) : (
                     <div className="flex justify-end gap-1">
-                      <Button variant="ghost" onClick={() => { setEditingId(t.id); setEditName(t.name); }}>
+                      <Button variant="ghost" onClick={() => { setEditingId(row.id); setEditName(row.name); }}>
                         Edit
                       </Button>
-                      {t.status === "suspended" ? (
-                        <Button variant="ghost" onClick={() => setStatus.mutate({ id: t.id, status: "active" })}>
+                      {row.status === "suspended" ? (
+                        <Button variant="ghost" onClick={() => setStatus.mutate({ id: row.id, status: "active" })}>
                           Reactivate
                         </Button>
                       ) : (
-                        <Button variant="danger" onClick={() => setStatus.mutate({ id: t.id, status: "suspended" })}>
+                        <Button variant="danger" onClick={() => setStatus.mutate({ id: row.id, status: "suspended" })}>
                           Suspend
                         </Button>
                       )}

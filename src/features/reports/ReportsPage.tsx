@@ -53,7 +53,7 @@ export function ReportsPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="font-display text-2xl font-bold text-ink">{t("reports.title")}</h1>
-        <Button onClick={() => { setEcYear(activeYear?.ec_year ? String(activeYear.ec_year) : ""); setShow(true); }}>+ Generate export</Button>
+        <Button onClick={() => { setEcYear(activeYear?.ec_year ? String(activeYear.ec_year) : ""); setShow(true); }}>+ {t("reportPages.generateExport")}</Button>
       </div>
 
       {error && <Card className="border-danger bg-danger-tint py-3 text-sm text-danger">{error}</Card>}
@@ -64,7 +64,7 @@ export function ReportsPage() {
         <Panel>
           <table className="w-full text-sm">
             <thead className="bg-sidebar text-left text-xs uppercase text-ink-faint">
-              <tr><th className="px-4 py-2">Export</th><th className="px-4 py-2">EC year</th><th className="px-4 py-2">Status</th></tr>
+              <tr><th className="px-4 py-2">{t("reportPages.export")}</th><th className="px-4 py-2">{t("reportPages.ecYear")}</th><th className="px-4 py-2">{t("students.status")}</th></tr>
             </thead>
             <tbody className="divide-y divide-line">
               {data.map((row) => (
@@ -81,18 +81,18 @@ export function ReportsPage() {
         </Panel>
       )}
 
-      <Modal open={show} onClose={() => setShow(false)} title="Generate MoE export">
+      <Modal open={show} onClose={() => setShow(false)} title={t("reportPages.generateMoe")}>
         <div className="space-y-3">
-          <Field label="Export type">
+          <Field label={t("reportPages.exportType")}>
             <select value={type} onChange={(e) => setType(e.target.value as ExportType)} className="w-full rounded-control border border-line bg-card px-3 py-2 text-sm text-ink">
               {EXPORT_TYPES.map((ty) => <option key={ty} value={ty}>{t(`reports.exportType.${ty}`)}</option>)}
             </select>
           </Field>
-          <Field label="Ethiopian year"><Input type="number" value={ecYear} onChange={(e) => setEcYear(e.target.value)} placeholder="2018" /></Field>
+          <Field label={t("reportPages.ethiopianYear")}><Input type="number" value={ecYear} onChange={(e) => setEcYear(e.target.value)} placeholder="2018" /></Field>
         </div>
         <div className="mt-4 flex justify-end gap-2 border-t border-line pt-3">
-          <Button variant="ghost" onClick={() => setShow(false)}>Cancel</Button>
-          <Button onClick={() => generate.mutate()} disabled={generate.isPending}>Generate</Button>
+          <Button variant="ghost" onClick={() => setShow(false)}>{t("common.cancel")}</Button>
+          <Button onClick={() => generate.mutate()} disabled={generate.isPending}>{t("reportPages.generate")}</Button>
         </div>
       </Modal>
     </div>

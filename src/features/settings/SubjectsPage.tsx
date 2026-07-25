@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -8,6 +9,7 @@ import { Card } from "@/components/ui/Card";
 import { Field } from "@/components/ui/Field";
 
 export function SubjectsPage() {
+  const { t } = useTranslation();
   const { profile } = useSession();
   const qc = useQueryClient();
   const [nameEn, setNameEn] = useState("");
@@ -28,12 +30,12 @@ export function SubjectsPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="font-display text-2xl font-bold">Subjects</h1>
+      <h1 className="font-display text-2xl font-bold">{t("settingsPages.subjects")}</h1>
       <Card className="flex flex-wrap gap-2">
-        <Field label="Code"><Input value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} maxLength={12} /></Field>
-        <Field label="Name (English)"><Input value={nameEn} onChange={(e) => setNameEn(e.target.value)} maxLength={80} /></Field>
-        <Field label="ስም (Amharic)"><Input value={nameAm} onChange={(e) => setNameAm(e.target.value)} maxLength={80} /></Field>
-        <Button onClick={() => create.mutate()} disabled={!code || !nameEn}>Add</Button>
+        <Field label={t("common.code")}><Input value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} maxLength={12} /></Field>
+        <Field label={t("common.nameEnglish")}><Input value={nameEn} onChange={(e) => setNameEn(e.target.value)} maxLength={80} /></Field>
+        <Field label={t("common.nameAmharic")}><Input value={nameAm} onChange={(e) => setNameAm(e.target.value)} maxLength={80} /></Field>
+        <Button onClick={() => create.mutate()} disabled={!code || !nameEn}>{t("common.add")}</Button>
       </Card>
       <div className="grid gap-2 md:grid-cols-3">
         {subjects?.map((s) => <Card key={s.id} className="text-sm"><span className="font-mono text-xs text-ink-faint">{s.code}</span> {s.name_i18n?.en}</Card>)}

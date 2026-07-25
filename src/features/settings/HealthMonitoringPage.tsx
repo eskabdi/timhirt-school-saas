@@ -204,13 +204,13 @@ export function HealthMonitoringPage() {
         {/* Database Status */}
         <Card className="p-4">
           <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase text-ink-faint">Database</p>
+            <p className="text-xs font-semibold uppercase text-ink-faint">{t("health2.database")}</p>
             <div className="flex items-baseline justify-between">
               <p className="text-2xl font-bold text-ink">
                 {metricsLoading ? "—" : "Active"}
               </p>
               {metricsLoading ? (
-                <span className="text-xs text-ink-faint">Loading…</span>
+                <span className="text-xs text-ink-faint">{t("health2.loading")}</span>
               ) : (
                 <span className="inline-block rounded bg-green-50 px-2 py-1 text-xs font-medium text-green-700">
                   ✓ Healthy
@@ -223,7 +223,7 @@ export function HealthMonitoringPage() {
         {/* Storage Usage */}
         <Card className="p-4">
           <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase text-ink-faint">Storage</p>
+            <p className="text-xs font-semibold uppercase text-ink-faint">{t("health2.storage")}</p>
             {metricsLoading ? (
               <p className="text-2xl font-bold text-ink">—</p>
             ) : (
@@ -257,7 +257,7 @@ export function HealthMonitoringPage() {
         {/* Failed Jobs */}
         <Card className="p-4">
           <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase text-ink-faint">Failed Jobs</p>
+            <p className="text-xs font-semibold uppercase text-ink-faint">{t("health2.failedJobs")}</p>
             <p className="text-2xl font-bold text-ink">{failedJobs}</p>
             {failedJobs > 0 && (
               <p className="text-xs text-red-600">{failedJobs} job(s) need attention</p>
@@ -268,7 +268,7 @@ export function HealthMonitoringPage() {
         {/* Last Backup */}
         <Card className="p-4">
           <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase text-ink-faint">Last Backup</p>
+            <p className="text-xs font-semibold uppercase text-ink-faint">{t("health2.lastBackup")}</p>
             {backupStatus ? (
               <>
                 <p className="text-sm font-medium text-ink">
@@ -286,7 +286,7 @@ export function HealthMonitoringPage() {
                 </span>
               </>
             ) : (
-              <p className="text-sm text-ink-faint">No backups yet</p>
+              <p className="text-sm text-ink-faint">{t("health2.noBackups")}</p>
             )}
           </div>
         </Card>
@@ -294,7 +294,7 @@ export function HealthMonitoringPage() {
 
       {/* Health Metrics Table */}
       <Card className="p-6">
-        <h2 className="mb-4 text-lg font-semibold text-ink">System Metrics</h2>
+        <h2 className="mb-4 text-lg font-semibold text-ink">{t("health2.systemMetrics")}</h2>
         {metricsLoading ? (
           <p className="text-center text-ink-faint">{t("backups.loading")}</p>
         ) : metrics.length === 0 ? (

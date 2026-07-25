@@ -90,22 +90,22 @@ export function HRPayrollReportPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="font-display text-2xl font-bold text-ink">HR &amp; Payroll Report</h1>
+      <h1 className="font-display text-2xl font-bold text-ink">{t("reportPages.hrTitle")}</h1>
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-        <ReportStat label="Total employees" value={isLoading ? "—" : (data?.employees.length ?? 0)} />
-        <ReportStat label={`Latest run gross${latestRun ? ` (${latestRun.ec_month}/${latestRun.ec_year})` : ""}`} value={isLoading ? "—" : latestTotals ? fmtEtb(latestTotals.gross) : "—"} />
-        <ReportStat label="Latest run net pay" value={isLoading ? "—" : latestTotals ? fmtEtb(latestTotals.net) : "—"} tone="ok" />
-        <ReportStat label="Pending leave requests" value={isLoading ? "—" : (data?.leaves.length ?? 0)} tone="late" />
+        <ReportStat label={t("reportPages.totalEmployees")} value={isLoading ? "—" : (data?.employees.length ?? 0)} />
+        <ReportStat label={`${t("reportPages.latestRunGross")}${latestRun ? ` (${latestRun.ec_month}/${latestRun.ec_year})` : ""}`} value={isLoading ? "—" : latestTotals ? fmtEtb(latestTotals.gross) : "—"} />
+        <ReportStat label={t("reportPages.latestRunNet")} value={isLoading ? "—" : latestTotals ? fmtEtb(latestTotals.net) : "—"} tone="ok" />
+        <ReportStat label={t("reportPages.pendingLeave")} value={isLoading ? "—" : (data?.leaves.length ?? 0)} tone="late" />
       </div>
 
-      <ReportSection title="Net payroll — last 6 runs">
+      <ReportSection title={t("reportPages.netPayrollLast6")}>
         {payrollTrend.length ? <ReportBarChart bars={payrollTrend} /> : <p className="text-sm text-ink-faint">{t("noRecordsYet")}</p>}
       </ReportSection>
 
       <div className="grid gap-4 md:grid-cols-2">
         <Panel>
-          <div className="border-b border-line px-5 py-4"><h2 className="font-semibold text-ink">Headcount by type</h2></div>
+          <div className="border-b border-line px-5 py-4"><h2 className="font-semibold text-ink">{t("reportPages.headcountByType")}</h2></div>
           {!byType.length ? (
             <p className="px-5 py-8 text-center text-sm text-ink-faint">{t("noRecordsYet")}</p>
           ) : (
@@ -123,7 +123,7 @@ export function HRPayrollReportPage() {
         </Panel>
 
         <Panel>
-          <div className="border-b border-line px-5 py-4"><h2 className="font-semibold text-ink">Headcount by status</h2></div>
+          <div className="border-b border-line px-5 py-4"><h2 className="font-semibold text-ink">{t("reportPages.headcountByStatus")}</h2></div>
           {!byStatus.length ? (
             <p className="px-5 py-8 text-center text-sm text-ink-faint">{t("noRecordsYet")}</p>
           ) : (
@@ -139,7 +139,7 @@ export function HRPayrollReportPage() {
       </div>
 
       <Panel>
-        <div className="border-b border-line px-5 py-4"><h2 className="font-semibold text-ink">Pending leave by type</h2></div>
+        <div className="border-b border-line px-5 py-4"><h2 className="font-semibold text-ink">{t("reportPages.pendingLeaveByType")}</h2></div>
         {!pendingLeaveByType.length ? (
           <p className="px-5 py-8 text-center text-sm text-ink-faint">{t("noRecordsYet")}</p>
         ) : (

@@ -48,12 +48,12 @@ export function PayrollRunsPage() {
 
       <Card className="flex flex-wrap items-end gap-3">
         <div>
-          <label className="mb-1 block text-xs font-medium uppercase text-ink-faint">EC Year</label>
+          <label className="mb-1 block text-xs font-medium uppercase text-ink-faint">{t("common.ecYear")}</label>
           <input type="number" value={ecYear} onChange={(e) => setEcYear(Number(e.target.value))}
             className="w-24 rounded-control border border-line bg-card px-3 py-2 text-sm text-ink" />
         </div>
         <div>
-          <label className="mb-1 block text-xs font-medium uppercase text-ink-faint">EC Month</label>
+          <label className="mb-1 block text-xs font-medium uppercase text-ink-faint">{t("common.ecMonth")}</label>
           <input type="number" min={1} max={13} value={ecMonth} onChange={(e) => setEcMonth(Number(e.target.value))}
             className="w-20 rounded-control border border-line bg-card px-3 py-2 text-sm text-ink" />
         </div>

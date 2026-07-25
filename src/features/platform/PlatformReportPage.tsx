@@ -1,6 +1,7 @@
 // Cross-tenant platform report. Every query below relies on super_admin's
 // unscoped RLS branch (`get_role_for_user(auth.uid()) = 'super_admin'`), so
 // counts span all tenants rather than a single school.
+import { useTranslation } from "react-i18next";
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
@@ -31,6 +32,7 @@ function fmtEtb(n: number) {
 }
 
 export function PlatformReportPage() {
+  const { t } = useTranslation();
   const { data, isLoading } = useQuery({
     queryKey: ["platform-report"],
     queryFn: async () => {
@@ -149,45 +151,45 @@ export function PlatformReportPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="font-display text-2xl font-bold text-ink">Platform Report</h1>
-      <p className="text-sm text-ink-faint">Cross-tenant totals across every school on the platform.</p>
+      <h1 className="font-display text-2xl font-bold text-ink">{t("platformNav.platformReport")}</h1>
+      <p className="text-sm text-ink-faint">{t("reportPages.crossTenantNote")}</p>
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
-        <ReportStat label="Tenants" value={isLoading ? "—" : (totals?.tenants ?? 0)} />
-        <ReportStat label="Active tenants" value={isLoading ? "—" : (totals?.activeTenants ?? 0)} tone="ok" />
-        <ReportStat label="Users" value={isLoading ? "—" : (totals?.users ?? 0)} tone="navy" />
-        <ReportStat label="Active students" value={isLoading ? "—" : (totals?.students ?? 0)} />
-        <ReportStat label="Total billed" value={isLoading ? "—" : fmtEtb(totals?.billed ?? 0)} />
-        <ReportStat label="Total collected" value={isLoading ? "—" : fmtEtb(totals?.collected ?? 0)} tone="ok" />
+        <ReportStat label={t("reportPages.tenants")} value={isLoading ? "—" : (totals?.tenants ?? 0)} />
+        <ReportStat label={t("reportPages.activeTenants")} value={isLoading ? "—" : (totals?.activeTenants ?? 0)} tone="ok" />
+        <ReportStat label={t("settingsPages.users")} value={isLoading ? "—" : (totals?.users ?? 0)} tone="navy" />
+        <ReportStat label={t("reportPages.activeStudents")} value={isLoading ? "—" : (totals?.students ?? 0)} />
+        <ReportStat label={t("reportPages.totalBilled")} value={isLoading ? "—" : fmtEtb(totals?.billed ?? 0)} />
+        <ReportStat label={t("reportPages.totalCollected")} value={isLoading ? "—" : fmtEtb(totals?.collected ?? 0)} tone="ok" />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <ReportSection title="Tenants by subscription tier">
-          {byTier.length ? <ReportBarChart bars={byTier} /> : <p className="text-sm text-ink-faint">No records yet.</p>}
+        <ReportSection title={t("reportPages.tenantsByTier")}>
+          {byTier.length ? <ReportBarChart bars={byTier} /> : <p className="text-sm text-ink-faint">{t("noRecordsYet")}</p>}
         </ReportSection>
-        <ReportSection title="New tenants — last 6 months">
-          {signupTrend.length ? <ReportBarChart bars={signupTrend} /> : <p className="text-sm text-ink-faint">No records yet.</p>}
+        <ReportSection title={t("reportPages.newTenantsLast6")}>
+          {signupTrend.length ? <ReportBarChart bars={signupTrend} /> : <p className="text-sm text-ink-faint">{t("noRecordsYet")}</p>}
         </ReportSection>
       </div>
 
       <Panel className="overflow-x-auto">
         <div className="border-b border-line px-5 py-4">
-          <h2 className="font-semibold text-ink">Per-tenant breakdown</h2>
+          <h2 className="font-semibold text-ink">{t("reportPages.perTenant")}</h2>
         </div>
         {!perTenant.length ? (
-          <p className="px-5 py-8 text-center text-sm text-ink-faint">No tenants yet.</p>
+          <p className="px-5 py-8 text-center text-sm text-ink-faint">{t("noRecordsYet")}</p>
         ) : (
           <table className="w-full min-w-[820px] text-sm">
             <thead className="bg-sidebar text-left text-xs uppercase text-ink-faint">
               <tr>
-                <th className="px-5 py-2">Tenant</th>
-                <th className="px-5 py-2">Status</th>
-                <th className="px-5 py-2">Tier</th>
-                <th className="px-5 py-2">Users</th>
-                <th className="px-5 py-2">Students</th>
-                <th className="px-5 py-2">Billed</th>
-                <th className="px-5 py-2">Collected</th>
-                <th className="px-5 py-2">Changes 30d</th>
+                <th className="px-5 py-2">{t("reportPages.tenant")}</th>
+                <th className="px-5 py-2">{t("students.status")}</th>
+                <th className="px-5 py-2">{t("reportPages.tier")}</th>
+                <th className="px-5 py-2">{t("settingsPages.users")}</th>
+                <th className="px-5 py-2">{t("reportPages.students")}</th>
+                <th className="px-5 py-2">{t("reportPages.billed")}</th>
+                <th className="px-5 py-2">{t("reportPages.collected")}</th>
+                <th className="px-5 py-2">{t("reportPages.changes30dShort")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
@@ -215,9 +217,9 @@ export function PlatformReportPage() {
 
       <div className="grid gap-4 lg:grid-cols-3">
         <Panel>
-          <div className="border-b border-line px-5 py-4"><h2 className="font-semibold text-ink">Users by role</h2></div>
+          <div className="border-b border-line px-5 py-4"><h2 className="font-semibold text-ink">{t("reportPages.usersByRole")}</h2></div>
           {!byRole.length ? (
-            <p className="px-5 py-8 text-center text-sm text-ink-faint">No records yet.</p>
+            <p className="px-5 py-8 text-center text-sm text-ink-faint">{t("noRecordsYet")}</p>
           ) : (
             <table className="w-full text-sm">
               <tbody className="divide-y divide-line">
@@ -233,9 +235,9 @@ export function PlatformReportPage() {
         </Panel>
 
         <Panel>
-          <div className="border-b border-line px-5 py-4"><h2 className="font-semibold text-ink">Payment &amp; SMS integrations</h2></div>
+          <div className="border-b border-line px-5 py-4"><h2 className="font-semibold text-ink">{t("reportPages.integrationsTitle")}</h2></div>
           {!data?.integrations.length ? (
-            <p className="px-5 py-8 text-center text-sm text-ink-faint">No integrations registered.</p>
+            <p className="px-5 py-8 text-center text-sm text-ink-faint">{t("noRecordsYet")}</p>
           ) : (
             <table className="w-full text-sm">
               <tbody className="divide-y divide-line">
@@ -243,7 +245,7 @@ export function PlatformReportPage() {
                   <tr key={i.provider}>
                     <td className="px-5 py-3 text-ink-soft">{i.display_name}</td>
                     <td className="px-5 py-3 text-right">
-                      <Badge tone={i.configured ? "ok" : "neutral"}>{i.configured ? "Configured" : "Not set"}</Badge>
+                      <Badge tone={i.configured ? "ok" : "neutral"}>{i.configured ? t("reportPages.configured") : t("reportPages.notSet")}</Badge>
                     </td>
                   </tr>
                 ))}
@@ -253,9 +255,9 @@ export function PlatformReportPage() {
         </Panel>
 
         <Panel>
-          <div className="border-b border-line px-5 py-4"><h2 className="font-semibold text-ink">Most-changed tables (30d)</h2></div>
+          <div className="border-b border-line px-5 py-4"><h2 className="font-semibold text-ink">{t("reportPages.mostChangedTables")}</h2></div>
           {!auditByTable.length ? (
-            <p className="px-5 py-8 text-center text-sm text-ink-faint">No records yet.</p>
+            <p className="px-5 py-8 text-center text-sm text-ink-faint">{t("noRecordsYet")}</p>
           ) : (
             <table className="w-full text-sm">
               <tbody className="divide-y divide-line">
@@ -271,13 +273,13 @@ export function PlatformReportPage() {
         </Panel>
       </div>
 
-      <ReportSection title="Recent platform activity">
+      <ReportSection title={t("reportPages.recentPlatformActivity")}>
         {!recentAudit.length ? (
-          <p className="text-sm text-ink-faint">No records yet.</p>
+          <p className="text-sm text-ink-faint">{t("noRecordsYet")}</p>
         ) : (
           <table className="w-full text-sm">
             <thead className="text-left text-xs uppercase text-ink-faint">
-              <tr><th className="py-2">Time</th><th className="py-2">Tenant</th><th className="py-2">Action</th><th className="py-2">Table</th></tr>
+              <tr><th className="py-2">{t("reportPages.time")}</th><th className="py-2">{t("reportPages.tenant")}</th><th className="py-2">{t("audit.action")}</th><th className="py-2">{t("reportPages.table")}</th></tr>
             </thead>
             <tbody className="divide-y divide-line">
               {recentAudit.map((log) => {

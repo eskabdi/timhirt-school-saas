@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -11,6 +12,7 @@ import { EthDate } from "@/components/EthDate";
 const YEAR_STATUS_TONE = { active: "ok", closed: "neutral", draft: "navy" } as const;
 
 export function AcademicYearsPage() {
+  const { t } = useTranslation();
   const { profile } = useSession();
   const qc = useQueryClient();
   const [ecYear, setEcYear] = useState(toEthiopian(new Date()).year);
@@ -37,14 +39,14 @@ export function AcademicYearsPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="font-display text-2xl font-bold text-ink">Academic years</h1>
+      <h1 className="font-display text-2xl font-bold text-ink">{t("settingsPages.academicYears")}</h1>
       <Card className="flex items-end gap-3">
         <div>
-          <label className="mb-1 block text-xs font-medium uppercase text-ink-faint">EC Year</label>
+          <label className="mb-1 block text-xs font-medium uppercase text-ink-faint">{t("common.ecYear")}</label>
           <input type="number" value={ecYear} onChange={(e) => setEcYear(Number(e.target.value))}
             className="w-28 rounded-control border border-line bg-card px-3 py-2 text-sm text-ink" />
         </div>
-        <Button onClick={() => create.mutate()} disabled={create.isPending}>Create year (GC span auto-filled)</Button>
+        <Button onClick={() => create.mutate()} disabled={create.isPending}>{t("settingsPages.createYear")}</Button>
       </Card>
       <div className="space-y-2">
         {years?.map((y) => (

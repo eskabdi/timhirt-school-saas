@@ -1,12 +1,14 @@
 // Tier x module matrix: which of the 18 modules each subscription tier
 // includes. Tenants inherit their tier's modules (see useEnabledModules);
 // one-off exceptions are set per-tenant on TenantDetailPage instead of here.
+import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { Panel } from "@/components/ui/Panel";
 import { cn } from "@/lib/utils";
 
 export function ModulesMatrixPage() {
+  const { t } = useTranslation();
   const qc = useQueryClient();
 
   const { data: modules } = useQuery({
@@ -56,7 +58,7 @@ export function ModulesMatrixPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="font-display text-2xl font-bold text-ink">Module matrix</h1>
+        <h1 className="font-display text-2xl font-bold text-ink">{t("platformPages.moduleMatrix")}</h1>
         <p className="text-sm text-ink-faint">
           Which modules each subscription tier includes. A tenant's tier is set on its detail page,
           where you can also override an individual module for that one tenant.
@@ -66,7 +68,7 @@ export function ModulesMatrixPage() {
         <table className="w-full text-sm">
           <thead className="bg-sidebar text-left text-xs uppercase text-ink-faint">
             <tr>
-              <th className="px-4 py-2">Module</th>
+              <th className="px-4 py-2">{t("common.module")}</th>
               {tiers?.map((t) => <th key={t.key} className="px-4 py-2 text-center">{t.display_name}</th>)}
             </tr>
           </thead>

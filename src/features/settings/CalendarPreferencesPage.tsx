@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -6,6 +7,7 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 
 export function CalendarPreferencesPage() {
+  const { t } = useTranslation();
   const { profile } = useSession();
   const qc = useQueryClient();
   const [secondaryVisible, setSecondaryVisible] = useState(true);
@@ -34,7 +36,7 @@ export function CalendarPreferencesPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="font-display text-2xl font-bold">Calendar preferences</h1>
+      <h1 className="font-display text-2xl font-bold">{t("settingsPages.calendarPreferences")}</h1>
       <Card className="max-w-sm space-y-3">
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" checked={secondaryVisible} onChange={(e) => setSecondaryVisible(e.target.checked)} />
@@ -44,7 +46,7 @@ export function CalendarPreferencesPage() {
           <input type="checkbox" checked={geezNumerals} onChange={(e) => setGeezNumerals(e.target.checked)} />
           Use Ge'ez numerals (፩ ፪ ፫…)
         </label>
-        <Button onClick={() => save.mutate()} disabled={save.isPending}>Save</Button>
+        <Button onClick={() => save.mutate()} disabled={save.isPending}>{t("common.save")}</Button>
       </Card>
     </div>
   );

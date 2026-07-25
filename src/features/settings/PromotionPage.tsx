@@ -10,6 +10,7 @@
 // highest grade) are marked "Graduate" instead of promoted, flipping
 // students.status to 'graduated'.
 // ============================================================================
+import { useTranslation } from "react-i18next";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -35,6 +36,7 @@ async function classesWithCounts(yearId: string) {
 const GRADUATE = "__graduate__";
 
 export function PromotionPage() {
+  const { t } = useTranslation();
   const { profile } = useSession();
   const qc = useQueryClient();
   const [sourceYearId, setSourceYearId] = useState("");
@@ -108,21 +110,21 @@ export function PromotionPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="font-display text-2xl font-bold">Grade Promotion</h1>
+      <h1 className="font-display text-2xl font-bold">{t("promotion.title")}</h1>
       <p className="max-w-2xl text-sm text-ink-faint">
         Moves active students from a source academic year's classes into the next year's classes, one grade up.
         Students left unmapped stay where they are; mark a row "Graduate" for a school's final grade.
       </p>
 
       <Card className="flex flex-wrap gap-4">
-        <Field label="From (current year)">
+        <Field label={t("promotion.fromYear")}>
           <select value={sourceYearId} onChange={(e) => { setSourceYearId(e.target.value); setMapping({}); }}
             className="w-full rounded-control border border-line bg-card px-3 py-2 text-sm text-ink">
             <option value="">—</option>
             {years?.map((y) => <option key={y.id} value={y.id}>{y.ec_year} EC ({y.status})</option>)}
           </select>
         </Field>
-        <Field label="To (next year)">
+        <Field label={t("promotion.toYear")}>
           <select value={targetYearId} onChange={(e) => { setTargetYearId(e.target.value); setMapping({}); }}
             className="w-full rounded-control border border-line bg-card px-3 py-2 text-sm text-ink">
             <option value="">—</option>
@@ -136,9 +138,9 @@ export function PromotionPage() {
           <table className="w-full text-sm">
             <thead className="border-b border-line text-left text-xs uppercase tracking-wide text-ink-faint">
               <tr>
-                <th className="p-3">Source class</th>
-                <th className="p-3">Enrolled</th>
-                <th className="p-3">Promote to</th>
+                <th className="p-3">{t("promotion.sourceClass")}</th>
+                <th className="p-3">{t("promotion.enrolled")}</th>
+                <th className="p-3">{t("promotion.promoteTo")}</th>
               </tr>
             </thead>
             <tbody>
@@ -152,15 +154,15 @@ export function PromotionPage() {
                     <td className="p-3">
                       <select value={mapping[s.id] ?? ""} onChange={(e) => setMapping((m) => ({ ...m, [s.id]: e.target.value }))}
                         className="w-full rounded-control border border-line bg-card px-2 py-1 text-sm text-ink">
-                        <option value="">— unmapped —</option>
-                        <option value={GRADUATE}>Graduate</option>
+                        <option value="">{t("promotion.unmapped")}</option>
+                        <option value={GRADUATE}>{t("promotion.graduate")}</option>
                         {targetClasses?.map((t) => (
                           <option key={t.id} value={t.id}>
                             {t.name} {t.section}{t.capacity != null ? ` (${t.enrolled}/${t.capacity})` : ""}
                           </option>
                         ))}
                       </select>
-                      {overCapacity && <p className="mt-1 text-xs text-danger">Exceeds target capacity.</p>}
+                      {overCapacity && <p className="mt-1 text-xs text-danger">{t("promotion.exceedsCapacity")}</p>}
                     </td>
                   </tr>
                 );

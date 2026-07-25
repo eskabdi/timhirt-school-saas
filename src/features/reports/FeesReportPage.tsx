@@ -96,16 +96,16 @@ export function FeesReportPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="font-display text-2xl font-bold text-ink">Fees Report</h1>
+      <h1 className="font-display text-2xl font-bold text-ink">{t("reportPages.feesTitle")}</h1>
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-        <ReportStat label="Total due" value={isLoading ? "—" : fmtEtb(totals.due)} />
-        <ReportStat label="Total collected" value={isLoading ? "—" : fmtEtb(totals.paid)} tone="ok" />
-        <ReportStat label="Collection rate" value={isLoading ? "—" : `${totals.rate.toFixed(1)}%`} tone="navy" />
-        <ReportStat label="Classes billed" value={isLoading ? "—" : perClass.length} />
+        <ReportStat label={t("reportPages.totalDue")} value={isLoading ? "—" : fmtEtb(totals.due)} />
+        <ReportStat label={t("reportPages.totalCollected")} value={isLoading ? "—" : fmtEtb(totals.paid)} tone="ok" />
+        <ReportStat label={t("reportPages.collectionRate")} value={isLoading ? "—" : `${totals.rate.toFixed(1)}%`} tone="navy" />
+        <ReportStat label={t("reportPages.classesBilled")} value={isLoading ? "—" : perClass.length} />
       </div>
 
-      <ReportSection title="Payment status">
+      <ReportSection title={t("reportPages.paymentStatus")}>
         <div className="flex flex-wrap gap-2">
           {statusCounts.length === 0 ? (
             <p className="text-sm text-ink-faint">{t("noRecordsYet")}</p>
@@ -118,13 +118,13 @@ export function FeesReportPage() {
       </ReportSection>
 
       <Panel>
-        <div className="border-b border-line px-5 py-4"><h2 className="font-semibold text-ink">Collection by class</h2></div>
+        <div className="border-b border-line px-5 py-4"><h2 className="font-semibold text-ink">{t("reportPages.collectionByClass")}</h2></div>
         {!perClass.length ? (
           <p className="px-5 py-8 text-center text-sm text-ink-faint">{t("noRecordsYet")}</p>
         ) : (
           <table className="w-full text-sm">
             <thead className="bg-sidebar text-left text-xs uppercase text-ink-faint">
-              <tr><th className="px-5 py-2">Class</th><th className="px-5 py-2">Students</th><th className="px-5 py-2">Due</th><th className="px-5 py-2">Collected</th><th className="px-5 py-2">Rate</th></tr>
+              <tr><th className="px-5 py-2">{t("common.class")}</th><th className="px-5 py-2">{t("reportPages.students")}</th><th className="px-5 py-2">{t("common.due")}</th><th className="px-5 py-2">{t("reportPages.collected")}</th><th className="px-5 py-2">{t("reportPages.rate")}</th></tr>
             </thead>
             <tbody className="divide-y divide-line">
               {perClass.map((row) => (
@@ -142,13 +142,13 @@ export function FeesReportPage() {
       </Panel>
 
       <Panel>
-        <div className="border-b border-line px-5 py-4"><h2 className="font-semibold text-ink">By fee structure</h2></div>
+        <div className="border-b border-line px-5 py-4"><h2 className="font-semibold text-ink">{t("reportPages.byFeeStructure")}</h2></div>
         {!perStructure.length ? (
           <p className="px-5 py-8 text-center text-sm text-ink-faint">{t("noRecordsYet")}</p>
         ) : (
           <table className="w-full text-sm">
             <thead className="bg-sidebar text-left text-xs uppercase text-ink-faint">
-              <tr><th className="px-5 py-2">Name</th><th className="px-5 py-2">Cycle</th><th className="px-5 py-2">Amount</th><th className="px-5 py-2">Invoices</th><th className="px-5 py-2">Collected</th></tr>
+              <tr><th className="px-5 py-2">{t("common.name")}</th><th className="px-5 py-2">{t("reportPages.cycle")}</th><th className="px-5 py-2">{t("fees.amount")}</th><th className="px-5 py-2">{t("reportPages.invoices")}</th><th className="px-5 py-2">{t("reportPages.collected")}</th></tr>
             </thead>
             <tbody className="divide-y divide-line">
               {perStructure.map((row) => (

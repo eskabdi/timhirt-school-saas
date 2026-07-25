@@ -1,9 +1,11 @@
+import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useSession } from "@/features/auth/useSession";
 import { Card } from "@/components/ui/Card";
 
 export function StudentGradesPage() {
+  const { t } = useTranslation();
   const { profile } = useSession();
   const { data: grades } = useQuery({
     queryKey: ["student-grades", profile?.id],
@@ -17,7 +19,7 @@ export function StudentGradesPage() {
   });
   return (
     <div className="space-y-2">
-      <h1 className="font-display text-2xl font-bold">My grades</h1>
+      <h1 className="font-display text-2xl font-bold">{t("portalPages.myGrades")}</h1>
       {grades?.map((g, i) => (
         <Card key={i} className="flex justify-between text-sm">
           <span>{(g.subjects as any)?.name_i18n?.en} — {(g.exams as any)?.name_i18n?.en}</span>

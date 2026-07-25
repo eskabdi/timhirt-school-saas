@@ -2,6 +2,7 @@
 // "Invite admin" form that calls invite-tenant-admin (adds a school_admin to
 // this EXISTING tenant — distinct from onboard-tenant's "create a brand-new
 // tenant plus its first admin", used on the list page).
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
@@ -39,6 +40,7 @@ async function callInviteTenantAdmin(tenantId: string, input: InviteInput) {
 }
 
 function InviteAdminForm({ tenantId, onDone }: { tenantId: string; onDone: () => void }) {
+  const { t } = useTranslation();
   const { register, handleSubmit, formState: { errors } } = useForm<InviteInput>({
     resolver: zodResolver(inviteSchema),
     defaultValues: { default_locale: "am" },
@@ -55,28 +57,28 @@ function InviteAdminForm({ tenantId, onDone }: { tenantId: string; onDone: () =>
 
   return (
     <Card className="max-w-md">
-      <h2 className="mb-4 font-display text-lg font-bold text-ink">Invite admin</h2>
+      <h2 className="mb-4 font-display text-lg font-bold text-ink">{t("platformPagesX.inviteAdmin")}</h2>
       <form onSubmit={handleSubmit((v) => invite.mutate(v))} className="space-y-4" noValidate>
-        <Field label="Full name" error={errors.admin_full_name?.message}>
+        <Field label={t("platformPagesX.fullName")} error={errors.admin_full_name?.message}>
           <Input maxLength={120} {...register("admin_full_name")} />
         </Field>
-        <Field label="Email" error={errors.admin_email?.message}>
+        <Field label={t("common.email")} error={errors.admin_email?.message}>
           <Input type="email" maxLength={254} {...register("admin_email")} />
         </Field>
-        <Field label="Locale" error={errors.default_locale?.message}>
+        <Field label={t("common.locale")} error={errors.default_locale?.message}>
           <select {...register("default_locale")} className="w-full rounded-control border border-line bg-card px-3 py-2 text-sm text-ink">
-            <option value="am">Amharic</option>
-            <option value="en">English</option>
-            <option value="om">Afaan Oromoo</option>
+            <option value="am">{t("platformPagesX.amharic")}</option>
+            <option value="en">{t("platformPagesX.english")}</option>
+            <option value="om">{t("platformPagesX.oromo")}</option>
           </select>
         </Field>
         {invite.isError && <p role="alert" className="text-sm text-danger">{(invite.error as Error).message}</p>}
-        {invite.isSuccess && <p className="text-sm text-ink-faint">Invite sent — they'll get an email to set their password.</p>}
+        {invite.isSuccess && <p className="text-sm text-ink-faint">{t("platformPagesX.inviteSent")}</p>}
         <div className="flex gap-2 pt-2">
           <Button type="submit" disabled={invite.isPending}>
             {invite.isPending ? "Sending…" : "Send invite"}
           </Button>
-          <Button type="button" variant="ghost" onClick={onDone}>Cancel</Button>
+          <Button type="button" variant="ghost" onClick={onDone}>{t("common.cancel")}</Button>
         </div>
       </form>
     </Card>
@@ -84,6 +86,7 @@ function InviteAdminForm({ tenantId, onDone }: { tenantId: string; onDone: () =>
 }
 
 export function TenantDetailPage() {
+  const { t } = useTranslation();
   const { id } = useParams();
   const [inviting, setInviting] = useState(false);
   const qc = useQueryClient();
@@ -178,7 +181,7 @@ export function TenantDetailPage() {
 
   return (
     <div className="max-w-2xl space-y-6">
-      <Link to="/platform/tenants" className="text-sm text-ink-faint hover:text-ink">&larr; Tenants</Link>
+      <Link to="/platform/tenants" className="text-sm text-ink-faint hover:text-ink">{t("platformPagesX.backToTenants")}</Link>
 
       <Card>
         <div className="flex items-center justify-between">
@@ -186,10 +189,10 @@ export function TenantDetailPage() {
           <Badge tone={STATUS_TONE[tenant.status as keyof typeof STATUS_TONE] ?? "neutral"}>{tenant.status}</Badge>
         </div>
         <dl className="mt-4 grid grid-cols-2 gap-4 text-sm">
-          <div><dt className="text-ink-faint">Slug</dt><dd className="font-medium text-ink">{tenant.slug}</dd></div>
-          <div><dt className="text-ink-faint">Created</dt><dd className="font-medium text-ink"><EthDate value={tenant.created_at.slice(0, 10)} /></dd></div>
+          <div><dt className="text-ink-faint">{t("platformPagesX.slug")}</dt><dd className="font-medium text-ink">{tenant.slug}</dd></div>
+          <div><dt className="text-ink-faint">{t("platformPagesX.created")}</dt><dd className="font-medium text-ink"><EthDate value={tenant.created_at.slice(0, 10)} /></dd></div>
           <div>
-            <dt className="text-ink-faint">Subscription tier</dt>
+            <dt className="text-ink-faint">{t("platformPagesX.subscriptionTier")}</dt>
             <dd className="font-medium">
               <select
                 value={tenant.tier_key}
@@ -205,7 +208,7 @@ export function TenantDetailPage() {
       </Card>
 
       <div>
-        <h2 className="mb-3 font-display text-lg font-bold text-ink">Modules</h2>
+        <h2 className="mb-3 font-display text-lg font-bold text-ink">{t("platformPagesX.modules")}</h2>
         <p className="mb-3 text-sm text-ink-faint">
           Inherited from the {tiers?.find((t) => t.key === tenant.tier_key)?.display_name ?? tenant.tier_key} tier.
           Toggle a module to override it for this tenant only, or reset to go back to the tier default.
@@ -213,7 +216,7 @@ export function TenantDetailPage() {
         <Panel>
           <table className="w-full text-sm">
             <thead className="bg-sidebar text-left text-xs uppercase text-ink-faint">
-              <tr><th className="px-4 py-2">Module</th><th className="px-4 py-2">Enabled</th><th className="px-4 py-2" /></tr>
+              <tr><th className="px-4 py-2">{t("common.module")}</th><th className="px-4 py-2">{t("platformPagesX.enabled")}</th><th className="px-4 py-2" /></tr>
             </thead>
             <tbody className="divide-y divide-line">
               {modules?.map((m) => {
@@ -257,8 +260,8 @@ export function TenantDetailPage() {
 
       <div>
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="font-display text-lg font-bold text-ink">Admins</h2>
-          {!inviting && <Button onClick={() => setInviting(true)}>Invite admin</Button>}
+          <h2 className="font-display text-lg font-bold text-ink">{t("platformPagesX.admins")}</h2>
+          {!inviting && <Button onClick={() => setInviting(true)}>{t("platformPagesX.inviteAdmin")}</Button>}
         </div>
 
         {inviting && id && (
@@ -270,7 +273,7 @@ export function TenantDetailPage() {
         <Panel>
           <table className="w-full text-sm">
             <thead className="bg-sidebar text-left text-xs uppercase text-ink-faint">
-              <tr><th className="px-4 py-2">Name</th><th className="px-4 py-2">Email</th><th className="px-4 py-2">Locale</th></tr>
+              <tr><th className="px-4 py-2">{t("common.name")}</th><th className="px-4 py-2">{t("common.email")}</th><th className="px-4 py-2">{t("common.locale")}</th></tr>
             </thead>
             <tbody className="divide-y divide-line">
               {admins?.map((a) => (
@@ -281,7 +284,7 @@ export function TenantDetailPage() {
                 </tr>
               ))}
               {admins?.length === 0 && (
-                <tr><td colSpan={3} className="px-4 py-6 text-center text-ink-faint">No admins yet</td></tr>
+                <tr><td colSpan={3} className="px-4 py-6 text-center text-ink-faint">{t("platformPagesX.noAdmins")}</td></tr>
               )}
             </tbody>
           </table>

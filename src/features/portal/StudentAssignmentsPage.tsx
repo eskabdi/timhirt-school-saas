@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useSession } from "@/features/auth/useSession";
@@ -5,6 +6,7 @@ import { Card } from "@/components/ui/Card";
 import { EthDate } from "@/components/EthDate";
 
 export function StudentAssignmentsPage() {
+  const { t } = useTranslation();
   const { profile } = useSession();
   const { data: assignments } = useQuery({
     queryKey: ["student-assignments", profile?.id],
@@ -18,10 +20,10 @@ export function StudentAssignmentsPage() {
   });
   return (
     <div className="space-y-2">
-      <h1 className="font-display text-2xl font-bold">My assignments</h1>
+      <h1 className="font-display text-2xl font-bold">{t("portalPages.myAssignments")}</h1>
       {assignments?.map((a) => (
         <Card key={a.id} className="flex justify-between text-sm">
-          <span>{a.title} — {(a.subjects as any)?.name_i18n?.en}</span><span>Due <EthDate value={a.due_date} /></span>
+          <span>{a.title} — {(a.subjects as any)?.name_i18n?.en}</span><span>{t("common.due")} <EthDate value={a.due_date} /></span>
         </Card>
       ))}
     </div>

@@ -5,6 +5,7 @@
 // this page never re-displays the value, only a "configured" badge — the
 // actual secret lives in Supabase Vault, readable only by service_role via
 // the manage-integration-credentials Edge Function (migration 011).
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -14,26 +15,30 @@ import { Input } from "@/components/ui/Input";
 import { Field } from "@/components/ui/Field";
 import { EthDate } from "@/components/EthDate";
 
-const PROVIDER_FIELDS: Record<string, { key: string; label: string; type?: string }[]> = {
+// labelKey rather than label: this map is built at module load, where the
+// i18n `t` from a component hook does not exist and would also freeze the
+// string against later language switches.
+const PROVIDER_FIELDS: Record<string, { key: string; labelKey: string; type?: string }[]> = {
   chapa: [
-    { key: "secret_key", label: "Secret key", type: "password" },
-    { key: "webhook_secret", label: "Webhook secret", type: "password" },
+    { key: "secret_key", labelKey: "platformPagesX.secretKey", type: "password" },
+    { key: "webhook_secret", labelKey: "platformPagesX.webhookSecret", type: "password" },
   ],
-  telebirr: [{ key: "secret_key", label: "Secret key", type: "password" }],
+  telebirr: [{ key: "secret_key", labelKey: "platformPagesX.secretKey", type: "password" }],
   stripe: [
-    { key: "secret_key", label: "Secret key", type: "password" },
-    { key: "webhook_secret", label: "Webhook secret", type: "password" },
+    { key: "secret_key", labelKey: "platformPagesX.secretKey", type: "password" },
+    { key: "webhook_secret", labelKey: "platformPagesX.webhookSecret", type: "password" },
   ],
-  sms_geezsms: [{ key: "api_key", label: "API key", type: "password" }],
+  sms_geezsms: [{ key: "api_key", labelKey: "platformPagesX.apiKey", type: "password" }],
   sms_afromessage: [
-    { key: "api_key", label: "API key", type: "password" },
-    { key: "sender_id", label: "Sender ID" },
+    { key: "api_key", labelKey: "platformPagesX.apiKey", type: "password" },
+    { key: "sender_id", labelKey: "platformPagesX.senderId" },
   ],
 };
 
 function ProviderCard({ provider, displayName, configured, updatedAt }: {
   provider: string; displayName: string; configured: boolean; updatedAt: string | null;
 }) {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [values, setValues] = useState<Record<string, string>>({});
@@ -66,7 +71,7 @@ function ProviderCard({ provider, displayName, configured, updatedAt }: {
           <p className="font-medium">{displayName}</p>
           <p className="text-xs text-ink-faint">
             {configured
-              ? <>Configured{updatedAt && <> · updated <EthDate value={updatedAt.slice(0, 10)} /></>}</>
+              ? <>Configured{updatedAt && <> · {t("platformPagesX.updated")} <EthDate value={updatedAt.slice(0, 10)} /></>}</>
               : "Not configured"}
           </p>
         </div>
@@ -77,7 +82,7 @@ function ProviderCard({ provider, displayName, configured, updatedAt }: {
       {open && (
         <div className="mt-4 space-y-3 border-t border-line pt-4">
           {fields.map((f) => (
-            <Field key={f.key} label={f.label}>
+            <Field key={f.key} label={t(f.labelKey)}>
               <Input
                 type={f.type ?? "text"}
                 value={values[f.key] ?? ""}
@@ -101,6 +106,7 @@ function ProviderCard({ provider, displayName, configured, updatedAt }: {
 }
 
 export function IntegrationsPage() {
+  const { t } = useTranslation();
   const { data: integrations } = useQuery({
     queryKey: ["platform-integrations"],
     queryFn: async () => {
@@ -113,7 +119,7 @@ export function IntegrationsPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="font-display text-2xl font-bold">Integrations</h1>
+      <h1 className="font-display text-2xl font-bold">{t("platformPagesX.integrations")}</h1>
       <p className="text-sm text-ink-faint">
         Payment and SMS gateway credentials. Configure Chapa here to enable online fee payment
         (§8.2 / §19.2) — until it's configured, <code>process-fee-payment</code> returns a clear

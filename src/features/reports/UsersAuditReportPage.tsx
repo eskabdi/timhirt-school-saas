@@ -65,19 +65,19 @@ export function UsersAuditReportPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="font-display text-2xl font-bold text-ink">Users &amp; Audit Log Report</h1>
+      <h1 className="font-display text-2xl font-bold text-ink">{t("reportPages.usersAuditTitle")}</h1>
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-        <ReportStat label="Total users" value={isLoading ? "—" : (data?.users.length ?? 0)} />
-        <ReportStat label="Changes — last 30 days" value={isLoading ? "—" : (data?.logs.length ?? 0)} tone="navy" />
+        <ReportStat label={t("reportPages.totalUsers")} value={isLoading ? "—" : (data?.users.length ?? 0)} />
+        <ReportStat label={t("reportPages.changes30d")} value={isLoading ? "—" : (data?.logs.length ?? 0)} tone="navy" />
         {byAction.map(([action, count]) => (
-          <ReportStat key={action} label={`${action.toUpperCase()} events`} value={count} tone={ACTION_TONE[action as keyof typeof ACTION_TONE]} />
+          <ReportStat key={action} label={`${action.toUpperCase()} ${t("reportPages.eventsSuffix")}`} value={count} tone={ACTION_TONE[action as keyof typeof ACTION_TONE]} />
         ))}
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
         <Panel>
-          <div className="border-b border-line px-5 py-4"><h2 className="font-semibold text-ink">Users by role</h2></div>
+          <div className="border-b border-line px-5 py-4"><h2 className="font-semibold text-ink">{t("reportPages.usersByRole")}</h2></div>
           {!byRole.length ? (
             <p className="px-5 py-8 text-center text-sm text-ink-faint">{t("noRecordsYet")}</p>
           ) : (
@@ -95,7 +95,7 @@ export function UsersAuditReportPage() {
         </Panel>
 
         <Panel>
-          <div className="border-b border-line px-5 py-4"><h2 className="font-semibold text-ink">Most-changed tables (30d)</h2></div>
+          <div className="border-b border-line px-5 py-4"><h2 className="font-semibold text-ink">{t("reportPages.mostChangedTables")}</h2></div>
           {!byTable.length ? (
             <p className="px-5 py-8 text-center text-sm text-ink-faint">{t("noRecordsYet")}</p>
           ) : (
@@ -113,13 +113,13 @@ export function UsersAuditReportPage() {
         </Panel>
       </div>
 
-      <ReportSection title="Recent activity" action={<Link to="/settings/audit-logs" className="text-sm font-medium text-navy hover:underline">View full audit log →</Link>}>
+      <ReportSection title={t("reportPages.recentActivity")} action={<Link to="/settings/audit-logs" className="text-sm font-medium text-navy hover:underline">{t("reportPages.viewFullAuditLog")}</Link>}>
         {!recent.length ? (
           <p className="text-sm text-ink-faint">{t("noRecordsYet")}</p>
         ) : (
           <table className="w-full text-sm">
             <thead className="text-left text-xs uppercase text-ink-faint">
-              <tr><th className="py-2">Time</th><th className="py-2">User</th><th className="py-2">Action</th><th className="py-2">Table</th></tr>
+              <tr><th className="py-2">{t("reportPages.time")}</th><th className="py-2">{t("reportPages.user")}</th><th className="py-2">{t("audit.action")}</th><th className="py-2">{t("reportPages.table")}</th></tr>
             </thead>
             <tbody className="divide-y divide-line">
               {recent.map((log) => (
