@@ -98,6 +98,7 @@ import { ModulesMatrixPage } from "@/features/platform/ModulesMatrixPage";
 import { IntegrationsPage } from "@/features/platform/IntegrationsPage";
 import { BillingPage } from "@/features/platform/BillingPage";
 import { StatutoryConfigPage } from "@/features/platform/StatutoryConfigPage";
+import { PlatformReportPage } from "@/features/platform/PlatformReportPage";
 
 import { PublicAdmissionFormPage } from "@/features/public/PublicAdmissionFormPage";
 import { AdmissionStatusPage } from "@/features/public/AdmissionStatusPage";
@@ -353,6 +354,7 @@ export const router = createBrowserRouter([
               { path: "modules", element: <ModulesMatrixPage /> },
               { path: "integrations", element: <IntegrationsPage /> },
               { path: "billing", element: <BillingPage /> },
+              { path: "reports", element: <PlatformReportPage /> },
               { path: "statutory", element: <StatutoryConfigPage /> },
             ],
           },

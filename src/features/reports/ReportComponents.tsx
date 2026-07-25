@@ -22,17 +22,20 @@ export function ReportBarChart({ bars }: { bars: { label: string; value: number 
   const max = Math.max(1, ...bars.map((b) => Math.abs(b.value)));
   const peak = Math.max(...bars.map((b) => b.value));
   return (
-    <div className="flex h-32 items-end gap-3">
+    <div className="flex h-32 gap-3">
       {bars.map((b) => {
         const h = bars.every((x) => x.value === 0) ? 2 : Math.max(4, (Math.abs(b.value) / max) * 100);
         return (
-          <div key={b.label} className="flex flex-1 flex-col items-center gap-1">
-            <span className="text-[10px] font-medium text-ink-faint tabular-nums">{new Intl.NumberFormat().format(b.value)}</span>
-            <div
-              className="w-full rounded-t"
-              style={{ height: `${h}%`, background: b.value === peak && b.value !== 0 ? "var(--navy, #1E2A70)" : "#E9EAF7" }}
-            />
-            <span className="text-[10px] uppercase text-ink-faint">{b.label}</span>
+          <div key={b.label} className="flex flex-1 flex-col gap-1">
+            <span className="text-center text-[10px] font-medium text-ink-faint tabular-nums">{new Intl.NumberFormat().format(b.value)}</span>
+            {/* flex-1 gives this track a definite height, so the bar's % resolves. */}
+            <div className="flex flex-1 items-end">
+              <div
+                className="w-full rounded-t"
+                style={{ height: `${h}%`, background: b.value === peak && b.value !== 0 ? "var(--navy, #1E2A70)" : "#E9EAF7" }}
+              />
+            </div>
+            <span className="text-center text-[10px] uppercase text-ink-faint">{b.label}</span>
           </div>
         );
       })}

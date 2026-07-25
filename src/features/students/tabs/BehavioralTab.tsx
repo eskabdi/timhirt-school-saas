@@ -128,14 +128,17 @@ export function BehavioralTab({ studentId }: { studentId: string }) {
       {/* Behavioral Trends */}
       <Card>
         <h2 className="mb-3 font-semibold text-ink">Behavioral Trends</h2>
-        <div className="flex h-28 items-end gap-3">
+        <div className="flex h-28 gap-3">
           {trend.buckets.map((b) => {
             const h = Math.max(6, (Math.abs(b.value) / trend.max) * 100);
             const top = b.value === Math.max(...trend.buckets.map((x) => x.value)) && b.value !== 0;
             return (
-              <div key={b.key} className="flex flex-1 flex-col items-center gap-1">
-                <div className="w-full rounded-t" style={{ height: `${h}%`, background: top ? "var(--navy, #1E2A70)" : "#E9EAF7" }} title={`${b.value}`} />
-                <span className="text-[10px] uppercase text-ink-faint">{b.label}</span>
+              <div key={b.key} className="flex flex-1 flex-col gap-1">
+                {/* flex-1 gives this track a definite height, so the bar's % resolves. */}
+                <div className="flex flex-1 items-end">
+                  <div className="w-full rounded-t" style={{ height: `${h}%`, background: top ? "var(--navy, #1E2A70)" : "#E9EAF7" }} title={`${b.value}`} />
+                </div>
+                <span className="text-center text-[10px] uppercase text-ink-faint">{b.label}</span>
               </div>
             );
           })}

@@ -3,9 +3,11 @@ import { PlatformNav } from "./PlatformNav";
 
 export function PlatformShell() {
   return (
-    <div className="mx-auto max-w-5xl p-6">
+    <div className="flex min-h-screen bg-page">
       <PlatformNav />
-      <Outlet />
+      <main className="flex-1 overflow-x-auto p-6">
+        <Outlet />
+      </main>
     </div>
   );
 }

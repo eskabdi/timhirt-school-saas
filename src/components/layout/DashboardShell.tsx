@@ -143,13 +143,18 @@ const USER_MENU_LINKS: NavItem[] = [
   { to: "/my/payslips", key: "nav.myPayslips", roles: STAFF, module: "hr_payroll" },
 ];
 
+// Every collapsible section + subgroup starts closed; the one containing the
+// active route still auto-opens, so the current page is never hidden.
+const ALL_COLLAPSIBLE_KEYS = NAV.flatMap((s) =>
+  s.section ? [s.section, ...(s.groups ?? []).map((g) => g.key)] : []);
+
 export function DashboardShell() {
   const { t, i18n } = useTranslation();
   const { profile } = useSession();
   const modules = useEnabledModules();
   const queryClient = useQueryClient();
   const location = useLocation();
-  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set(ALL_COLLAPSIBLE_KEYS));
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
