@@ -17,7 +17,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { convertImageToPng } from "@/lib/image";
+import { convertImageToPng, STUDENT_PHOTO_MAX_PX } from "@/lib/image";
 import { Button } from "@/components/ui/Button";
 import { Field } from "@/components/ui/Field";
 
@@ -68,7 +68,11 @@ async function copyApplicationPhoto(tenantId: string, photoPath: string, student
     if (dlErr || !blob) return;
     // Normalized to PNG regardless of the original upload's format — see
     // src/lib/image.ts for why (pdf-lib can't embed WebP).
-    const png = blob.type === "application/pdf" ? null : await convertImageToPng(blob).catch(() => null);
+    // Bounded like the admin form's upload: an applicant's phone photo can be
+    // several MB, and lossless PNG re-encoding only grows it, which would push
+    // the result past the student-photos bucket's 2 MB limit and (this being
+    // best-effort) drop the photo silently.
+    const png = blob.type === "application/pdf" ? null : await convertImageToPng(blob, STUDENT_PHOTO_MAX_PX).catch(() => null);
     if (!png) return;
     const destPath = `${tenantId}/${studentId}/${crypto.randomUUID()}.png`;
     const { error: upErr } = await supabase.storage.from("student-photos")
