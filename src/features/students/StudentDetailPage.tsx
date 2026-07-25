@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { Card } from "@/components/ui/Card";
@@ -12,7 +13,7 @@ import { BehavioralTab } from "./tabs/BehavioralTab";
 import { PrintIDCardModal } from "./PrintIDCardModal";
 import { EditProfileModal } from "./EditProfileModal";
 
-const TABS = ["Personal Info", "Academic Record", "Attendance", "Behavioral"] as const;
+const TABS = ["personalInfo", "academicRecord", "attendance", "behavioral"] as const;
 type Tab = (typeof TABS)[number];
 
 // Gregorian formatter (toLocaleDateString is lint-banned in this repo).
@@ -24,8 +25,9 @@ function gc(value: string | null): string {
 }
 
 export function StudentDetailPage() {
+  const { t } = useTranslation();
   const { id } = useParams();
-  const [tab, setTab] = useState<Tab>("Personal Info");
+  const [tab, setTab] = useState<Tab>("personalInfo");
   const [showIdCard, setShowIdCard] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
 
@@ -33,7 +35,7 @@ export function StudentDetailPage() {
     queryKey: ["student-profile", id],
     queryFn: async () => {
       const { data, error } = await supabase.from("students")
-        .select("id, admission_no, roll_number, first_name, middle_name, last_name, date_of_birth, gender, status, avatar_path, blood_type, primary_language, admission_date, user_id, class:classes(name, section, grade_level, homeroom_teacher_id)")
+        .select("id, tenant_id, class_id, admission_no, roll_number, first_name, middle_name, last_name, first_name_am, middle_name_am, last_name_am, date_of_birth, gender, status, avatar_path, blood_type, primary_language, admission_date, user_id, class:classes(name, section, grade_level, homeroom_teacher_id)")
         .eq("id", id).single();
       if (error) throw error;
       return data;
@@ -50,10 +52,20 @@ export function StudentDetailPage() {
       (await supabase.storage.from("student-photos").createSignedUrl(student!.avatar_path!, 300)).data?.signedUrl ?? null,
   });
 
+  // Homeroom teacher lives on the class; resolve the name so the Enrollment
+  // card can show who it is rather than just that someone is assigned.
+  const homeroomId = (student?.class as { homeroom_teacher_id?: string | null } | null)?.homeroom_teacher_id ?? null;
+  const { data: homeroomTeacher } = useQuery({
+    queryKey: ["student-homeroom-teacher", homeroomId],
+    enabled: !!homeroomId,
+    queryFn: async () =>
+      (await supabase.from("teachers").select("staff_no, user:users(full_name)").eq("id", homeroomId!).maybeSingle()).data,
+  });
+
   const { data: guardian } = useQuery({
     queryKey: ["student-guardian", id],
     enabled: !!id,
-    queryFn: async () => (await supabase.from("guardians").select("relationship, phone, email").eq("student_id", id).limit(1).maybeSingle()).data,
+    queryFn: async () => (await supabase.from("guardians").select("id, full_name, relationship, phone, email").eq("student_id", id).limit(1).maybeSingle()).data,
   });
 
   const { data: attendancePct } = useQuery({
@@ -72,7 +84,7 @@ export function StudentDetailPage() {
 
   const cls = student.class as { name?: string; section?: string; grade_level?: number } | null;
   const fullName = [student.first_name, student.middle_name, student.last_name].filter(Boolean).join(" ");
-  const gradeLabel = cls?.grade_level != null ? `Grade ${cls.grade_level}${cls.section ? `-${cls.section}` : ""}` : cls?.name ?? "—";
+  const gradeLabel = cls?.grade_level != null ? `${t("students.profile.grade")} ${cls.grade_level}${cls.section ? `-${cls.section}` : ""}` : cls?.name ?? "—";
 
   const statCard = (label: string, value: React.ReactNode) => (
     <Card className="flex-1 bg-navy-wash">
@@ -84,24 +96,31 @@ export function StudentDetailPage() {
   const sidebar = (
     <div className="space-y-4">
       <Card>
-        <div className="mb-3 flex items-center gap-2"><span className="text-navy">🔗</span><h2 className="font-semibold text-ink">Primary Guardian</h2></div>
+        <div className="mb-3 flex items-center gap-2"><span className="text-navy">🔗</span><h2 className="font-semibold text-ink">{t("students.profile.primaryGuardian")}</h2></div>
         <div className="flex items-center gap-2">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-navy-wash text-sm font-bold text-navy">{guardian ? "G" : "—"}</div>
-          <span className="text-sm capitalize text-ink-faint">{guardian?.relationship ?? "—"}</span>
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-navy-wash text-sm font-bold text-navy">
+            {guardian?.full_name ? guardian.full_name.trim().charAt(0).toUpperCase() : "—"}
+          </div>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-medium text-ink">{guardian?.full_name ?? "—"}</p>
+            <span className="text-xs text-ink-faint">
+              {guardian?.relationship ? t(`admissions.relationshipType.${guardian.relationship}`) : "—"}
+            </span>
+          </div>
         </div>
         <div className="mt-3 space-y-1 text-sm text-ink-soft">
           <p>📞 {guardian?.phone ?? "—"}</p>
           <p>✉ {guardian?.email ?? "—"}</p>
         </div>
-        <Button variant="ghost" className="mt-3 w-full border border-line">Contact Guardian</Button>
+        <Button variant="ghost" className="mt-3 w-full border border-line" onClick={() => guardian?.phone && window.open(`tel:${guardian.phone}`)} disabled={!guardian?.phone}>{t("students.profile.contactGuardian")}</Button>
       </Card>
       <Card>
-        <h2 className="mb-3 border-b border-line pb-2 font-semibold text-ink">Recent Absences</h2>
-        <button onClick={() => setTab("Attendance")} className="w-full rounded-control bg-navy-wash py-2 text-sm text-navy">View Attendance Log</button>
+        <h2 className="mb-3 border-b border-line pb-2 font-semibold text-ink">{t("students.profile.recentAbsences")}</h2>
+        <button onClick={() => setTab("attendance")} className="w-full rounded-control bg-navy-wash py-2 text-sm text-navy">{t("students.profile.viewAttendanceLog")}</button>
       </Card>
       <Card className="bg-navy-wash">
-        <h2 className="text-xs font-bold uppercase tracking-wide text-navy">Admin Notes</h2>
-        <p className="mt-2 text-sm text-ink-faint">No notes.</p>
+        <h2 className="text-xs font-bold uppercase tracking-wide text-navy">{t("students.profile.adminNotes")}</h2>
+        <p className="mt-2 text-sm text-ink-faint">{t("students.profile.noNotes")}</p>
       </Card>
     </div>
   );
@@ -110,11 +129,11 @@ export function StudentDetailPage() {
     <div className="space-y-4">
       {/* Top bar */}
       <div className="no-print flex items-center justify-between">
-        <p className="text-sm text-ink-faint"><Link to="/students" className="hover:underline">Students</Link> › {gradeLabel} › <span className="text-navy">Profile</span></p>
+        <p className="text-sm text-ink-faint"><Link to="/students" className="hover:underline">{t("students.title")}</Link> › {gradeLabel} › <span className="text-navy">{t("students.profile.breadcrumb")}</span></p>
         <div className="flex gap-2">
-          <Button variant="ghost" className="border border-line" onClick={() => setShowIdCard(true)}>🪪 Print ID Card</Button>
-          <Button variant="ghost" className="border border-line" onClick={() => window.print()}>🖨 Print Report</Button>
-          <Button onClick={() => setShowEdit(true)}>✎ Edit Profile</Button>
+          <Button variant="ghost" className="border border-line" onClick={() => setShowIdCard(true)}>🪪 {t("students.profile.printIdCard")}</Button>
+          <Button variant="ghost" className="border border-line" onClick={() => window.print()}>🖨 {t("students.profile.printReport")}</Button>
+          <Button onClick={() => setShowEdit(true)}>✎ {t("students.profile.editProfile")}</Button>
         </div>
       </div>
 
@@ -127,17 +146,17 @@ export function StudentDetailPage() {
         </div>
         <div className="min-w-[240px]">
           <div className="flex items-center gap-2">
-            <h1 className="font-display text-3xl font-bold text-ink">{fullName || "FULL NAME"}</h1>
-            <Badge tone={student.status === "active" ? "ok" : "neutral"}>{student.status}</Badge>
+            <h1 className="font-display text-3xl font-bold text-ink">{fullName || t("students.profile.fullNamePlaceholder")}</h1>
+            <Badge tone={student.status === "active" ? "ok" : "neutral"}>{t(`students.${student.status}`)}</Badge>
           </div>
-          <p className="mt-2 text-sm text-ink-soft">St. No: <span className="font-medium text-ink">{student.admission_no}</span></p>
-          <p className="text-sm text-ink-soft">Grade: <span className="font-medium text-ink">{gradeLabel}</span></p>
-          <p className="text-sm text-ink-soft">Roll: <span className="font-medium text-ink">{student.roll_number ?? "—"}</span></p>
+          <p className="mt-2 text-sm text-ink-soft">{t("students.admissionNo")}: <span className="font-medium text-ink">{student.admission_no}</span></p>
+          <p className="text-sm text-ink-soft">{t("students.profile.grade")}: <span className="font-medium text-ink">{gradeLabel}</span></p>
+          <p className="text-sm text-ink-soft">{t("students.edit.rollNumber")}: <span className="font-medium text-ink">{student.roll_number ?? "—"}</span></p>
         </div>
         <div className="flex flex-1 gap-3">
-          {statCard("Current GPA", "—")}
-          {statCard("Attendance", attendancePct != null ? `${attendancePct}%` : "—")}
-          {statCard("Class Rank", "—")}
+          {statCard(t("students.profile.currentGpa"), "—")}
+          {statCard(t("attendance.title"), attendancePct != null ? `${attendancePct}%` : "—")}
+          {statCard(t("students.profile.classRank"), "—")}
         </div>
       </Card>
 
@@ -146,7 +165,7 @@ export function StudentDetailPage() {
         {TABS.map((tb) => (
           <button key={tb} onClick={() => setTab(tb)}
             className={`-mb-px border-b-2 px-1 pb-2 text-sm font-medium ${tab === tb ? "border-navy text-navy" : "border-transparent text-ink-faint hover:text-ink"}`}>
-            {tb}
+            {t(`students.tabs.${tb}`)}
           </button>
         ))}
       </div>
@@ -154,45 +173,45 @@ export function StudentDetailPage() {
       {/* Print Report scopes to this container only (see index.css @media print) */}
       <div id="print-scope">
       <div className="print-only mb-4">
-        <h2 className="font-display text-xl font-bold text-ink">{fullName} — {tab}</h2>
-        <p className="text-sm text-ink-faint">St. No: {student.admission_no} · {gradeLabel}</p>
+        <h2 className="font-display text-xl font-bold text-ink">{fullName} — {t(`students.tabs.${tab}`)}</h2>
+        <p className="text-sm text-ink-faint">{t("students.admissionNo")}: {student.admission_no} · {gradeLabel}</p>
       </div>
 
-      {tab === "Personal Info" && (
+      {tab === "personalInfo" && (
         <div className="grid gap-4 lg:grid-cols-3">
           <div className="space-y-4 lg:col-span-2">
             <div className="grid gap-4 md:grid-cols-2">
               <Card>
-                <h2 className="mb-3 border-b border-line pb-2 font-semibold text-ink">Demographics &amp; Identity</h2>
+                <h2 className="mb-3 border-b border-line pb-2 font-semibold text-ink">{t("students.edit.demographics")}</h2>
                 <dl className="space-y-3 text-sm">
-                  <Row label="Date of Birth (GC)" value={gc(student.date_of_birth)} />
-                  <Row label="Date of Birth (EC)" value={<EthDate value={student.date_of_birth} />} />
-                  <Row label="Gender" value={student.gender} />
-                  <Row label="Primary Language" value={student.primary_language ?? "—"} />
-                  <Row label="Blood Type" value={student.blood_type ?? "—"} />
+                  <Row label={t("students.profile.dobGc")} value={gc(student.date_of_birth)} />
+                  <Row label={t("students.profile.dobEc")} value={<EthDate value={student.date_of_birth} />} />
+                  <Row label={t("students.gender")} value={t(`students.${student.gender}`)} />
+                  <Row label={t("students.edit.primaryLanguage")} value={student.primary_language ?? "—"} />
+                  <Row label={t("students.edit.bloodType")} value={student.blood_type ?? "—"} />
                 </dl>
               </Card>
               <Card>
-                <h2 className="mb-3 border-b border-line pb-2 font-semibold text-ink">Enrollment Details</h2>
+                <h2 className="mb-3 border-b border-line pb-2 font-semibold text-ink">{t("students.edit.enrollment")}</h2>
                 <dl className="space-y-3 text-sm">
-                  <Row label="Admission Date" value={student.admission_date ? <EthDate value={student.admission_date} /> : "—"} />
-                  <Row label="Homeroom Teacher" value={cls?.name ? "Assigned" : "—"} />
-                  <Row label="Roll Number" value={student.roll_number ?? "—"} />
-                  <Row label="Section" value={cls?.section ?? "—"} />
+                  <Row label={t("students.edit.admissionDate")} value={student.admission_date ? <EthDate value={student.admission_date} /> : "—"} />
+                  <Row label={t("students.edit.homeroomTeacher")} value={(homeroomTeacher?.user as { full_name?: string } | null)?.full_name ?? homeroomTeacher?.staff_no ?? "—"} />
+                  <Row label={t("students.edit.rollNumber")} value={student.roll_number ?? "—"} />
+                  <Row label={t("students.edit.section")} value={cls?.section ?? "—"} />
                 </dl>
               </Card>
             </div>
             <Card>
               <div className="mb-3 flex items-center justify-between border-b border-line pb-2">
-                <h2 className="font-semibold text-ink">Recent Academic Record (Semester 1)</h2>
-                <button onClick={() => setTab("Academic Record")} className="text-sm text-navy hover:underline">View Full Transcript</button>
+                <h2 className="font-semibold text-ink">{t("students.profile.recentAcademic")}</h2>
+                <button onClick={() => setTab("academicRecord")} className="text-sm text-navy hover:underline">{t("students.profile.viewFullTranscript")}</button>
               </div>
               <table className="w-full text-sm">
                 <thead className="text-left text-xs uppercase text-ink-faint">
-                  <tr><th className="py-2">Subject</th><th>Internal (40%)</th><th>Final (60%)</th><th>Total</th><th>Grade</th><th>Status</th></tr>
+                  <tr><th className="py-2">{t("gradebook.subject")}</th><th>{t("students.profile.internal")}</th><th>{t("students.profile.final")}</th><th>{t("students.profile.total")}</th><th>{t("students.profile.gradeCol")}</th><th>{t("students.status")}</th></tr>
                 </thead>
                 <tbody className="divide-y divide-line text-ink">
-                  <tr><td colSpan={6} className="py-8 text-center text-ink-faint">See Academic Record tab</td></tr>
+                  <tr><td colSpan={6} className="py-8 text-center text-ink-faint">{t("students.profile.seeAcademicTab")}</td></tr>
                 </tbody>
               </table>
             </Card>
@@ -202,9 +221,12 @@ export function StudentDetailPage() {
         </div>
       )}
 
-      {tab === "Academic Record" && <AcademicRecordTab studentId={student.id} />}
-      {tab === "Attendance" && <AttendanceTab studentId={student.id} />}
-      {tab === "Behavioral" && (
+      {tab === "academicRecord" && (
+        <AcademicRecordTab studentId={student.id} studentName={fullName}
+          admissionNo={student.admission_no} gradeLabel={gradeLabel} />
+      )}
+      {tab === "attendance" && <AttendanceTab studentId={student.id} />}
+      {tab === "behavioral" && (
         <div className="grid gap-4 lg:grid-cols-3">
           <div className="lg:col-span-2"><BehavioralTab studentId={student.id} /></div>
           {sidebar}
@@ -217,10 +239,14 @@ export function StudentDetailPage() {
         open={showEdit}
         onClose={() => setShowEdit(false)}
         student={{
-          id: student.id, first_name: student.first_name, middle_name: student.middle_name, last_name: student.last_name,
+          id: student.id, tenant_id: student.tenant_id,
+          first_name: student.first_name, middle_name: student.middle_name, last_name: student.last_name,
+          first_name_am: student.first_name_am, middle_name_am: student.middle_name_am, last_name_am: student.last_name_am,
           date_of_birth: student.date_of_birth, gender: student.gender, primary_language: student.primary_language,
           blood_type: student.blood_type, roll_number: student.roll_number, admission_date: student.admission_date,
+          avatar_path: student.avatar_path, class_id: student.class_id,
         }}
+        guardian={guardian ?? null}
       />
     </div>
   );

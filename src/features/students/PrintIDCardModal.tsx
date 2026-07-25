@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { supabase } from "@/lib/supabase";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
@@ -10,6 +11,7 @@ import { Button } from "@/components/ui/Button";
 export function PrintIDCardModal({ studentId, studentName, open, onClose }: {
   studentId: string; studentName: string; open: boolean; onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -48,16 +50,16 @@ export function PrintIDCardModal({ studentId, studentName, open, onClose }: {
 
   return (
     <Modal open={open} onClose={onClose} title={`ID Card — ${studentName}`} size="lg">
-      {loading && <p className="py-12 text-center text-ink-faint">Generating front &amp; back…</p>}
+      {loading && <p className="py-12 text-center text-ink-faint">{t("idCardModal.generating")}</p>}
       {error && <p className="py-6 text-center text-sm text-danger">{error}</p>}
       {blobUrl && (
         <>
-          <p className="mb-2 text-xs text-ink-faint">Preview — page 1 is the front, page 2 is the back.</p>
-          <iframe ref={frame} src={blobUrl} title="ID card preview" className="h-[460px] w-full rounded-lg border border-line" />
+          <p className="mb-2 text-xs text-ink-faint">{t("idCardModal.previewNote")}</p>
+          <iframe ref={frame} src={blobUrl} title={t("idCardModal.previewTitle")} className="h-[460px] w-full rounded-lg border border-line" />
           <div className="mt-4 flex justify-end gap-2 border-t border-line pt-3">
-            <Button variant="ghost" onClick={onClose}>Close</Button>
-            <Button variant="ghost" className="border border-line" onClick={save}>⬇ Save PDF</Button>
-            <Button onClick={print}>🖨 Print</Button>
+            <Button variant="ghost" onClick={onClose}>{t("idCardModal.close")}</Button>
+            <Button variant="ghost" className="border border-line" onClick={save}>⬇ {t("idCardModal.savePdf")}</Button>
+            <Button onClick={print}>🖨 {t("idCardModal.print")}</Button>
           </div>
         </>
       )}
