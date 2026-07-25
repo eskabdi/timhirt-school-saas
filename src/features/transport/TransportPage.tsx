@@ -75,9 +75,9 @@ export function TransportPage() {
 
   const fields = (f: RouteForm, set: (f: RouteForm) => void) => (
     <div className="space-y-3">
-      <Field label="Route name"><Input value={f.name} onChange={(e) => set({ ...f, name: e.target.value })} placeholder="Route A — Bole" /></Field>
-      <Field label="Vehicle no."><Input value={f.vehicle} onChange={(e) => set({ ...f, vehicle: e.target.value })} placeholder="AA-12345" /></Field>
-      <Field label="Driver name"><Input value={f.driver} onChange={(e) => set({ ...f, driver: e.target.value })} /></Field>
+      <Field label={t("modules.routeName")}><Input value={f.name} onChange={(e) => set({ ...f, name: e.target.value })} placeholder={t("modules.routeExample")} /></Field>
+      <Field label={t("modules.vehicleNo")}><Input value={f.vehicle} onChange={(e) => set({ ...f, vehicle: e.target.value })} placeholder="AA-12345" /></Field>
+      <Field label={t("modules.driverName")}><Input value={f.driver} onChange={(e) => set({ ...f, driver: e.target.value })} /></Field>
     </div>
   );
 
@@ -85,7 +85,7 @@ export function TransportPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="font-display text-2xl font-bold text-ink">{t("nav.transport")}</h1>
-        <Button onClick={() => { setForm(emptyRoute); setShowCreate(true); }}>+ Add route</Button>
+        <Button onClick={() => { setForm(emptyRoute); setShowCreate(true); }}>+ {t("modules.addRoute")}</Button>
       </div>
 
       {error && <Card className="border-danger bg-danger-tint py-3 text-sm text-danger">{error}</Card>}
@@ -100,50 +100,50 @@ export function TransportPage() {
               </p>
             </div>
             <div className="flex gap-2">
-              <Button variant="ghost" className="px-2 py-1 text-xs" onClick={() => { setStudentId(""); setAssigning(r); }}>Assign student</Button>
-              <Button variant="ghost" className="px-2 py-1 text-xs" onClick={() => openEdit(r)}>Edit</Button>
-              <Button variant="ghost" className="px-2 py-1 text-xs text-danger" onClick={() => setDeleting(r)}>Delete</Button>
+              <Button variant="ghost" className="px-2 py-1 text-xs" onClick={() => { setStudentId(""); setAssigning(r); }}>{t("modules.assignStudent")}</Button>
+              <Button variant="ghost" className="px-2 py-1 text-xs" onClick={() => openEdit(r)}>{t("crud.edit")}</Button>
+              <Button variant="ghost" className="px-2 py-1 text-xs text-danger" onClick={() => setDeleting(r)}>{t("crud.delete")}</Button>
             </div>
           </Card>
         ))}
         {!routes?.length && <Card className="py-12 text-center text-ink-faint md:col-span-2">{t("noRecordsYet")}</Card>}
       </div>
 
-      <Modal open={showCreate} onClose={() => setShowCreate(false)} title="Add route">
+      <Modal open={showCreate} onClose={() => setShowCreate(false)} title={t("modules.addRoute")}>
         {fields(form, setForm)}
         <div className="mt-4 flex justify-end gap-2 border-t border-line pt-3">
-          <Button variant="ghost" onClick={() => setShowCreate(false)}>Cancel</Button>
-          <Button onClick={() => create.mutate()} disabled={!form.name || create.isPending}>Create</Button>
+          <Button variant="ghost" onClick={() => setShowCreate(false)}>{t("common.cancel")}</Button>
+          <Button onClick={() => create.mutate()} disabled={!form.name || create.isPending}>{t("crud.create")}</Button>
         </div>
       </Modal>
 
-      <Modal open={!!editing} onClose={() => setEditing(null)} title="Edit route">
+      <Modal open={!!editing} onClose={() => setEditing(null)} title={t("modules.editRoute")}>
         {fields(editForm, setEditForm)}
         <div className="mt-4 flex justify-end gap-2 border-t border-line pt-3">
-          <Button variant="ghost" onClick={() => setEditing(null)}>Cancel</Button>
-          <Button onClick={() => update.mutate()} disabled={!editForm.name || update.isPending}>Save</Button>
+          <Button variant="ghost" onClick={() => setEditing(null)}>{t("common.cancel")}</Button>
+          <Button onClick={() => update.mutate()} disabled={!editForm.name || update.isPending}>{t("common.save")}</Button>
         </div>
       </Modal>
 
       <Modal open={!!assigning} onClose={() => setAssigning(null)} title={`Assign student — ${assigning?.name ?? ""}`}>
-        <Field label="Student">
+        <Field label={t("clinic.student")}>
           <select value={studentId} onChange={(e) => setStudentId(e.target.value)} className="w-full rounded-control border border-line bg-card px-3 py-2 text-sm text-ink">
-            <option value="">Select student</option>
+            <option value="">{t("modules.selectStudent")}</option>
             {students?.map((s) => <option key={s.id} value={s.id}>{s.first_name} {s.last_name}</option>)}
           </select>
         </Field>
-        <p className="mt-2 text-xs text-ink-faint">Re-assigning moves the student to this route.</p>
+        <p className="mt-2 text-xs text-ink-faint">{t("modules.reassignNote")}</p>
         <div className="mt-4 flex justify-end gap-2 border-t border-line pt-3">
-          <Button variant="ghost" onClick={() => setAssigning(null)}>Cancel</Button>
-          <Button onClick={() => assign.mutate()} disabled={!studentId || assign.isPending}>Assign</Button>
+          <Button variant="ghost" onClick={() => setAssigning(null)}>{t("common.cancel")}</Button>
+          <Button onClick={() => assign.mutate()} disabled={!studentId || assign.isPending}>{t("modules.assign")}</Button>
         </div>
       </Modal>
 
-      <Modal open={!!deleting} onClose={() => setDeleting(null)} title="Delete route">
-        <p className="text-sm text-ink-soft">Delete <span className="font-medium text-ink">{deleting?.name}</span>?</p>
+      <Modal open={!!deleting} onClose={() => setDeleting(null)} title={t("modules.deleteRoute")}>
+        <p className="text-sm text-ink-soft">{t("crud.delete")} <span className="font-medium text-ink">{deleting?.name}</span>?</p>
         <div className="mt-4 flex justify-end gap-2 border-t border-line pt-3">
-          <Button variant="ghost" onClick={() => setDeleting(null)}>Cancel</Button>
-          <Button variant="danger" onClick={() => remove.mutate()} disabled={remove.isPending}>Delete</Button>
+          <Button variant="ghost" onClick={() => setDeleting(null)}>{t("common.cancel")}</Button>
+          <Button variant="danger" onClick={() => remove.mutate()} disabled={remove.isPending}>{t("crud.delete")}</Button>
         </div>
       </Modal>
     </div>

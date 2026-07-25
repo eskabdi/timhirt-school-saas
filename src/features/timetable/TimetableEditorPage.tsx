@@ -6,9 +6,11 @@ import { Button } from "@/components/ui/Button";
 import { tField } from "@/lib/i18n";
 import { useTranslation } from "react-i18next";
 
+// dow indexes the shared `weekdays` array in common.json (1 = Sunday), so the
+// day names come from i18n rather than being duplicated here.
 const DAYS = [
-  { dow: 2, label: "MONDAY" }, { dow: 3, label: "TUESDAY" }, { dow: 4, label: "WEDNESDAY" },
-  { dow: 5, label: "THURSDAY" }, { dow: 6, label: "FRIDAY" },
+  { dow: 2 }, { dow: 3 }, { dow: 4 },
+  { dow: 5 }, { dow: 6 },
 ];
 // Subject → colour family (left border + tint), matching the reference cards.
 const PALETTE = [
@@ -30,6 +32,8 @@ interface Slot {
 }
 
 export function TimetableEditorPage() {
+  const { t } = useTranslation();
+  const weekdays = t("weekdays", { returnObjects: true }) as string[];
   const { i18n } = useTranslation();
   const [view, setView] = useState<"Weekly" | "Teacher View" | "Room View">("Weekly");
   const [classId, setClassId] = useState("");
@@ -58,9 +62,9 @@ export function TimetableEditorPage() {
       if (seen.has(key)) {
         const other = seen.get(key)!;
         out.push({
-          title: "Teacher Double Booking",
+          title: t("crud.teacherDoubleBooking"),
           detail: `${s.teachers?.users?.full_name ?? s.teachers?.staff_no ?? "Teacher"} assigned to ${other.classes?.name ?? ""} and ${s.classes?.name ?? ""} simultaneously.`,
-          day: DAYS.find((d) => d.dow === s.day_of_week)?.label ?? "", time: s.starts_at.slice(0, 5),
+          day: weekdays[s.day_of_week] ?? "", time: s.starts_at.slice(0, 5),
         });
       } else seen.set(key, s);
     }
@@ -82,8 +86,8 @@ export function TimetableEditorPage() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="font-display text-3xl font-bold text-ink">Timetable Master / የጊዜ ሰሌዳ</h1>
-          <p className="text-sm text-ink-faint">Academic Year 2016 EC • Semester 1</p>
+          <h1 className="font-display text-3xl font-bold text-ink">{t("crud.timetableMaster")}</h1>
+          <p className="text-sm text-ink-faint">{t("attendanceTab.academicYear")}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex overflow-hidden rounded-control border border-line">
@@ -91,15 +95,15 @@ export function TimetableEditorPage() {
               <button key={v} onClick={() => setView(v)} className={`px-3 py-1.5 text-sm font-medium ${view === v ? "bg-navy-wash text-navy" : "bg-card text-ink-soft"}`}>{v}</button>
             ))}
           </div>
-          <Button variant="ghost" className="border border-line">⬇ Export PDF</Button>
-          <Button variant="ghost" className="border border-line">🖨 Print</Button>
+          <Button variant="ghost" className="border border-line">⬇ {t("crud.exportPdf")}</Button>
+          <Button variant="ghost" className="border border-line">🖨 {t("crud.print")}</Button>
         </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
-        <span className="text-sm text-ink-soft">Grade</span>
+        <span className="text-sm text-ink-soft">{t("crud.grade")}</span>
         <select value={classId} onChange={(e) => setClassId(e.target.value)} className="rounded-control border border-line bg-card px-3 py-1.5 text-sm text-ink">
-          <option value="">All grades</option>
+          <option value="">{t("crud.allGrades")}</option>
           {classes?.map((c) => <option key={c.id} value={c.id}>{c.name} {c.section}</option>)}
         </select>
       </div>
@@ -110,8 +114,8 @@ export function TimetableEditorPage() {
           <table className="w-full border-collapse text-sm">
             <thead>
               <tr className="bg-navy-wash">
-                <th className="w-24 border-b border-line px-3 py-3 text-left text-ink-soft">Time</th>
-                {DAYS.map((d) => <th key={d.dow} className="border-b border-l border-line px-3 py-3 text-center font-bold text-navy">{d.label}</th>)}
+                <th className="w-24 border-b border-line px-3 py-3 text-left text-ink-soft">{t("crud.time")}</th>
+                {DAYS.map((d) => <th key={d.dow} className="border-b border-l border-line px-3 py-3 text-center font-bold text-navy">{weekdays[d.dow]}</th>)}
               </tr>
             </thead>
             <tbody>
@@ -131,12 +135,12 @@ export function TimetableEditorPage() {
                               <span>{s.room ?? ""}</span>
                             </p>
                           </div>
-                        ) : <div className="py-3 text-center text-xs text-ink-faint">No Session</div>}
+                        ) : <div className="py-3 text-center text-xs text-ink-faint">{t("crud.noSession")}</div>}
                       </td>
                     );
                   })}
                 </tr>
-              )) : <tr><td colSpan={6} className="py-16 text-center text-ink-faint">No timetable slots. Add them in the timetable editor.</td></tr>}
+              )) : <tr><td colSpan={6} className="py-16 text-center text-ink-faint">{t("crud.noSlots")}</td></tr>}
             </tbody>
           </table>
         </Card>
@@ -152,22 +156,22 @@ export function TimetableEditorPage() {
                   <p className="mt-1 text-sm text-ink-soft">{c.detail}</p>
                   <div className="mt-2 flex gap-2 text-xs"><span className="rounded bg-danger-tint px-2 py-0.5 text-danger">{c.day}</span><span className="text-ink-faint">{c.time}</span></div>
                 </div>
-              )) : <p className="text-sm text-ink-faint">No conflicts detected.</p>}
+              )) : <p className="text-sm text-ink-faint">{t("crud.noConflicts")}</p>}
             </div>
           </Card>
           <Card>
-            <h2 className="text-sm font-bold uppercase tracking-wide text-ink">Timetable Health</h2>
+            <h2 className="text-sm font-bold uppercase tracking-wide text-ink">{t("crud.timetableHealth")}</h2>
             <div className="mt-3 space-y-3">
               <div>
-                <div className="flex justify-between text-sm"><span className="text-ink-soft">Class Coverage</span><span className="font-bold text-navy">{health.coverage}%</span></div>
+                <div className="flex justify-between text-sm"><span className="text-ink-soft">{t("crud.classCoverage")}</span><span className="font-bold text-navy">{health.coverage}%</span></div>
                 <div className="mt-1 h-2 rounded-full bg-navy-wash"><div className="h-2 rounded-full bg-navy" style={{ width: `${health.coverage}%` }} /></div>
               </div>
               <div>
-                <div className="flex justify-between text-sm"><span className="text-ink-soft">Teacher Utilization</span><span className="font-bold text-ok">{health.util}%</span></div>
+                <div className="flex justify-between text-sm"><span className="text-ink-soft">{t("crud.teacherUtilization")}</span><span className="font-bold text-ok">{health.util}%</span></div>
                 <div className="mt-1 h-2 rounded-full bg-ok-tint"><div className="h-2 rounded-full bg-ok" style={{ width: `${health.util}%` }} /></div>
               </div>
             </div>
-            <Button variant="ghost" className="mt-4 w-full border border-line text-navy">Auto-Resolve Conflicts</Button>
+            <Button variant="ghost" className="mt-4 w-full border border-line text-navy">{t("crud.autoResolve")}</Button>
           </Card>
         </div>
       </div>

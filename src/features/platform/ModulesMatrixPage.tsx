@@ -60,8 +60,7 @@ export function ModulesMatrixPage() {
       <div>
         <h1 className="font-display text-2xl font-bold text-ink">{t("platformPages.moduleMatrix")}</h1>
         <p className="text-sm text-ink-faint">
-          Which modules each subscription tier includes. A tenant's tier is set on its detail page,
-          where you can also override an individual module for that one tenant.
+          {t("help.moduleMatrixNote")}
         </p>
       </div>
       <Panel>

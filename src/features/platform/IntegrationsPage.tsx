@@ -97,7 +97,7 @@ function ProviderCard({ provider, displayName, configured, updatedAt }: {
           </Button>
           {save.isError && <p className="text-sm text-danger">{(save.error as Error).message}</p>}
           <p className="text-xs text-ink-faint">
-            Stored encrypted in Supabase Vault. This value will not be shown again after saving.
+            {t("help.vaultNote")}
           </p>
         </div>
       )}
@@ -121,9 +121,7 @@ export function IntegrationsPage() {
     <div className="space-y-4">
       <h1 className="font-display text-2xl font-bold">{t("platformPagesX.integrations")}</h1>
       <p className="text-sm text-ink-faint">
-        Payment and SMS gateway credentials. Configure Chapa here to enable online fee payment
-        (§8.2 / §19.2) — until it's configured, <code>process-fee-payment</code> returns a clear
-        "not configured yet" error instead of failing with a raw provider error.
+        {t("help.integrationsNote")}
       </p>
       <div className="grid gap-3 md:grid-cols-2">
         {integrations?.map((i) => (

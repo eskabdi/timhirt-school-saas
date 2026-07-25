@@ -40,7 +40,7 @@ export function CalendarPreferencesPage() {
       <Card className="max-w-sm space-y-3">
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" checked={secondaryVisible} onChange={(e) => setSecondaryVisible(e.target.checked)} />
-          Show Gregorian date alongside Ethiopian dates
+          {t("help.showGregorian")}
         </label>
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" checked={geezNumerals} onChange={(e) => setGeezNumerals(e.target.checked)} />

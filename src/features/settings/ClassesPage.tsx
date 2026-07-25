@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -19,6 +20,7 @@ interface ClassRow {
 const emptyForm = { name: "", section: "", gradeLevel: "", capacity: "" };
 
 export function ClassesPage() {
+  const { t } = useTranslation();
   const { profile } = useSession();
   const qc = useQueryClient();
   const [form, setForm] = useState(emptyForm);
@@ -110,16 +112,16 @@ export function ClassesPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="font-display text-2xl font-bold text-ink">Classes</h1>
+      <h1 className="font-display text-2xl font-bold text-ink">{t("crud.classes")}</h1>
 
       {error && <Card className="border-danger bg-danger-tint py-3 text-sm text-danger">{error}</Card>}
 
       <Card className="flex flex-wrap items-end gap-2">
-        <Field label="Name"><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} maxLength={40} placeholder="Grade 5" /></Field>
-        <Field label="Section"><Input value={form.section} onChange={(e) => setForm({ ...form, section: e.target.value })} maxLength={10} placeholder="A" /></Field>
-        <Field label="Grade level (0-12)"><Input type="number" min={0} max={12} value={form.gradeLevel} onChange={(e) => setForm({ ...form, gradeLevel: e.target.value })} className="w-24" /></Field>
-        <Field label="Capacity"><Input type="number" min={1} value={form.capacity} onChange={(e) => setForm({ ...form, capacity: e.target.value })} className="w-24" placeholder="Unlimited" /></Field>
-        <Button onClick={() => create.mutate()} disabled={!form.name || create.isPending}>Add</Button>
+        <Field label={t("common.name")}><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} maxLength={40} placeholder={t("confirm.gradeExample")} /></Field>
+        <Field label={t("crud.section")}><Input value={form.section} onChange={(e) => setForm({ ...form, section: e.target.value })} maxLength={10} placeholder="A" /></Field>
+        <Field label={t("crud.gradeLevel")}><Input type="number" min={0} max={12} value={form.gradeLevel} onChange={(e) => setForm({ ...form, gradeLevel: e.target.value })} className="w-24" /></Field>
+        <Field label={t("crud.capacity")}><Input type="number" min={1} value={form.capacity} onChange={(e) => setForm({ ...form, capacity: e.target.value })} className="w-24" placeholder={t("crud.unlimited")} /></Field>
+        <Button onClick={() => create.mutate()} disabled={!form.name || create.isPending}>{t("common.add")}</Button>
       </Card>
 
       <div className="grid gap-2 md:grid-cols-3">
@@ -135,8 +137,8 @@ export function ClassesPage() {
                 </p>
               </div>
               <div className="flex gap-2">
-                <Button variant="ghost" className="px-2 py-1 text-xs" onClick={() => openEdit(c)}>Edit</Button>
-                <Button variant="ghost" className="px-2 py-1 text-xs text-danger" onClick={() => setDeleting(c)}>Delete</Button>
+                <Button variant="ghost" className="px-2 py-1 text-xs" onClick={() => openEdit(c)}>{t("crud.edit")}</Button>
+                <Button variant="ghost" className="px-2 py-1 text-xs text-danger" onClick={() => setDeleting(c)}>{t("crud.delete")}</Button>
               </div>
             </Card>
           );
@@ -145,22 +147,22 @@ export function ClassesPage() {
 
       <Modal open={!!editing} onClose={() => setEditing(null)} title={`Edit ${editing?.name ?? ""}`}>
         <div className="space-y-3">
-          <Field label="Name"><Input value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} maxLength={40} /></Field>
-          <Field label="Section"><Input value={editForm.section} onChange={(e) => setEditForm({ ...editForm, section: e.target.value })} maxLength={10} /></Field>
-          <Field label="Grade level (0-12)"><Input type="number" min={0} max={12} value={editForm.gradeLevel} onChange={(e) => setEditForm({ ...editForm, gradeLevel: e.target.value })} /></Field>
-          <Field label="Capacity"><Input type="number" min={1} value={editForm.capacity} onChange={(e) => setEditForm({ ...editForm, capacity: e.target.value })} placeholder="Unlimited" /></Field>
+          <Field label={t("common.name")}><Input value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} maxLength={40} /></Field>
+          <Field label={t("crud.section")}><Input value={editForm.section} onChange={(e) => setEditForm({ ...editForm, section: e.target.value })} maxLength={10} /></Field>
+          <Field label={t("crud.gradeLevel")}><Input type="number" min={0} max={12} value={editForm.gradeLevel} onChange={(e) => setEditForm({ ...editForm, gradeLevel: e.target.value })} /></Field>
+          <Field label={t("crud.capacity")}><Input type="number" min={1} value={editForm.capacity} onChange={(e) => setEditForm({ ...editForm, capacity: e.target.value })} placeholder={t("crud.unlimited")} /></Field>
           <div className="flex justify-end gap-2 border-t border-line pt-3">
-            <Button variant="ghost" onClick={() => setEditing(null)}>Cancel</Button>
-            <Button onClick={() => update.mutate()} disabled={!editForm.name || update.isPending}>Save</Button>
+            <Button variant="ghost" onClick={() => setEditing(null)}>{t("common.cancel")}</Button>
+            <Button onClick={() => update.mutate()} disabled={!editForm.name || update.isPending}>{t("common.save")}</Button>
           </div>
         </div>
       </Modal>
 
-      <Modal open={!!deleting} onClose={() => setDeleting(null)} title="Delete class">
-        <p className="text-sm text-ink-soft">Delete <span className="font-medium text-ink">{deleting?.name} {deleting?.section}</span>? This cannot be undone.</p>
+      <Modal open={!!deleting} onClose={() => setDeleting(null)} title={t("crud.deleteClass")}>
+        <p className="text-sm text-ink-soft">{t("crud.delete")} <span className="font-medium text-ink">{deleting?.name} {deleting?.section}</span>{t("crud.cannotUndo")}</p>
         <div className="mt-4 flex justify-end gap-2 border-t border-line pt-3">
-          <Button variant="ghost" onClick={() => setDeleting(null)}>Cancel</Button>
-          <Button variant="danger" onClick={() => remove.mutate()} disabled={remove.isPending}>Delete</Button>
+          <Button variant="ghost" onClick={() => setDeleting(null)}>{t("common.cancel")}</Button>
+          <Button variant="danger" onClick={() => remove.mutate()} disabled={remove.isPending}>{t("crud.delete")}</Button>
         </div>
       </Modal>
     </div>

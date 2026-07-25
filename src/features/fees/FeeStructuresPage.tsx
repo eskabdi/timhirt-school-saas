@@ -81,16 +81,16 @@ export function FeeStructuresPage() {
 
   const formFields = (f: FormState, set: (f: FormState) => void) => (
     <div className="space-y-3">
-      <Field label="Name"><Input value={f.name} onChange={(e) => set({ ...f, name: e.target.value })} placeholder="Tuition" /></Field>
-      <Field label="Amount (ETB)"><Input type="number" min={0} step="0.01" value={f.amount} onChange={(e) => set({ ...f, amount: e.target.value })} /></Field>
-      <Field label="Billing cycle">
+      <Field label={t("common.name")}><Input value={f.name} onChange={(e) => set({ ...f, name: e.target.value })} placeholder={t("confirm.tuition")} /></Field>
+      <Field label={t("crud.amountEtb")}><Input type="number" min={0} step="0.01" value={f.amount} onChange={(e) => set({ ...f, amount: e.target.value })} /></Field>
+      <Field label={t("crud.billingCycle")}>
         <select value={f.cycle} onChange={(e) => set({ ...f, cycle: e.target.value as Cycle })} className="w-full rounded-control border border-line bg-card px-3 py-2 text-sm text-ink">
           {CYCLES.map((c) => <option key={c} value={c}>{t(`fees.cycle.${c}`)}</option>)}
         </select>
       </Field>
-      <Field label="Class (optional)">
+      <Field label={t("crud.classOptional")}>
         <select value={f.classId} onChange={(e) => set({ ...f, classId: e.target.value })} className="w-full rounded-control border border-line bg-card px-3 py-2 text-sm text-ink">
-          <option value="">All classes</option>
+          <option value="">{t("crud.allClasses")}</option>
           {classes?.map((c) => <option key={c.id} value={c.id}>{c.name} {c.section}</option>)}
         </select>
       </Field>
@@ -101,7 +101,7 @@ export function FeeStructuresPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="font-display text-2xl font-bold text-ink">{t("fees.structuresTitle")}</h1>
-        <Button onClick={() => { setForm(emptyForm); setShowCreate(true); }}>+ Add fee structure</Button>
+        <Button onClick={() => { setForm(emptyForm); setShowCreate(true); }}>+ {t("crud.addFeeStructure")}</Button>
       </div>
 
       {error && <Card className="border-danger bg-danger-tint py-3 text-sm text-danger">{error}</Card>}
@@ -115,38 +115,38 @@ export function FeeStructuresPage() {
               <p className="mt-1 font-display text-xl font-bold text-ink">{formatETB(Number(f.amount), i18n.resolvedLanguage!)}</p>
             </div>
             <div className="flex gap-2">
-              <Button variant="ghost" className="px-2 py-1 text-xs" onClick={() => setEditing(f)}>Edit</Button>
-              <Button variant="ghost" className="px-2 py-1 text-xs text-danger" onClick={() => setDeleting(f)}>Delete</Button>
+              <Button variant="ghost" className="px-2 py-1 text-xs" onClick={() => setEditing(f)}>{t("crud.edit")}</Button>
+              <Button variant="ghost" className="px-2 py-1 text-xs text-danger" onClick={() => setDeleting(f)}>{t("crud.delete")}</Button>
             </div>
           </Card>
         ))}
-        {!data?.length && <Card className="py-12 text-center text-ink-faint md:col-span-2">No fee structures yet.</Card>}
+        {!data?.length && <Card className="py-12 text-center text-ink-faint md:col-span-2">{t("crud.noFeeStructures")}</Card>}
       </div>
 
-      <Modal open={showCreate} onClose={() => setShowCreate(false)} title="Add fee structure">
+      <Modal open={showCreate} onClose={() => setShowCreate(false)} title={t("crud.addFeeStructure")}>
         {formFields(form, setForm)}
         <div className="mt-4 flex justify-end gap-2 border-t border-line pt-3">
-          <Button variant="ghost" onClick={() => setShowCreate(false)}>Cancel</Button>
-          <Button onClick={() => create.mutate()} disabled={!form.name || form.amount === "" || create.isPending}>Create</Button>
+          <Button variant="ghost" onClick={() => setShowCreate(false)}>{t("common.cancel")}</Button>
+          <Button onClick={() => create.mutate()} disabled={!form.name || form.amount === "" || create.isPending}>{t("crud.create")}</Button>
         </div>
       </Modal>
 
-      <Modal open={!!editing} onClose={() => setEditing(null)} title="Edit fee structure">
+      <Modal open={!!editing} onClose={() => setEditing(null)} title={t("crud.editFeeStructure")}>
         {editing && formFields(
           { name: tField(editing.name_i18n, "en"), amount: String(editing.amount), cycle: editing.billing_cycle as Cycle, classId: editing.class_id ?? "" },
           (f) => setEditing({ ...editing, name_i18n: { en: f.name }, amount: Number(f.amount), billing_cycle: f.cycle, class_id: f.classId || null }),
         )}
         <div className="mt-4 flex justify-end gap-2 border-t border-line pt-3">
-          <Button variant="ghost" onClick={() => setEditing(null)}>Cancel</Button>
-          <Button onClick={() => update.mutate()} disabled={update.isPending}>Save</Button>
+          <Button variant="ghost" onClick={() => setEditing(null)}>{t("common.cancel")}</Button>
+          <Button onClick={() => update.mutate()} disabled={update.isPending}>{t("common.save")}</Button>
         </div>
       </Modal>
 
-      <Modal open={!!deleting} onClose={() => setDeleting(null)} title="Delete fee structure">
-        <p className="text-sm text-ink-soft">Delete <span className="font-medium text-ink">{deleting && tField(deleting.name_i18n, i18n.resolvedLanguage!)}</span>?</p>
+      <Modal open={!!deleting} onClose={() => setDeleting(null)} title={t("crud.deleteFeeStructure")}>
+        <p className="text-sm text-ink-soft">{t("crud.delete")} <span className="font-medium text-ink">{deleting && tField(deleting.name_i18n, i18n.resolvedLanguage!)}</span>?</p>
         <div className="mt-4 flex justify-end gap-2 border-t border-line pt-3">
-          <Button variant="ghost" onClick={() => setDeleting(null)}>Cancel</Button>
-          <Button variant="danger" onClick={() => remove.mutate()} disabled={remove.isPending}>Delete</Button>
+          <Button variant="ghost" onClick={() => setDeleting(null)}>{t("common.cancel")}</Button>
+          <Button variant="danger" onClick={() => remove.mutate()} disabled={remove.isPending}>{t("crud.delete")}</Button>
         </div>
       </Modal>
     </div>

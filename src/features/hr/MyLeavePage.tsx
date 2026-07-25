@@ -70,7 +70,7 @@ export function MyLeavePage() {
 
       {!empLoading && !employee ? (
         <Card className="py-8 text-center text-sm text-ink-faint">
-          You are not registered as an employee, so leave filing is unavailable. Ask an administrator to add you in the Employees module.
+          {t("help.noEmployee")}
         </Card>
       ) : (
         <Card className="max-w-lg space-y-3">

@@ -112,8 +112,7 @@ export function PromotionPage() {
     <div className="space-y-4">
       <h1 className="font-display text-2xl font-bold">{t("promotion.title")}</h1>
       <p className="max-w-2xl text-sm text-ink-faint">
-        Moves active students from a source academic year's classes into the next year's classes, one grade up.
-        Students left unmapped stay where they are; mark a row "Graduate" for a school's final grade.
+        {t("help.promotionNote")}
       </p>
 
       <Card className="flex flex-wrap gap-4">

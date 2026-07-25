@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -26,6 +27,7 @@ function publicUrl(path: string | null): string | null {
 }
 
 export function BrandingPage() {
+  const { t } = useTranslation();
   const { profile } = useSession();
   const qc = useQueryClient();
   const [b, setB] = useState<Branding>(DEFAULTS);
@@ -73,8 +75,8 @@ export function BrandingPage() {
     },
     // Shares the ["tenant-config", …] key with the sidebar, so the nav name +
     // logo refresh the moment the save lands.
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["tenant-config"] }); setToast("Branding saved successfully."); },
-    onError: (e: unknown) => setToast(e instanceof Error ? e.message : "Save failed."),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["tenant-config"] }); setToast(t("branding.savedToast")); },
+    onError: (e: unknown) => setToast(e instanceof Error ? e.message : t("branding.saveFailed")),
   });
 
   // "Reset All Branding Data" restores ONLY the colour palette to defaults.
@@ -101,13 +103,13 @@ export function BrandingPage() {
       )}
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="font-display text-3xl font-bold text-ink">School Branding</h1>
-          <p className="text-ink-faint">Configure your institutional identity, visual assets, and local preferences.</p>
-          <p className="mt-1 text-xs text-ink-faint">← Settings / Brand</p>
+          <h1 className="font-display text-3xl font-bold text-ink">{t("branding.title")}</h1>
+          <p className="text-ink-faint">{t("branding.subtitle")}</p>
+          <p className="mt-1 text-xs text-ink-faint">{t("branding.breadcrumb")}</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="ghost" className="border border-line" onClick={() => setB(DEFAULTS)}>Reset to Default</Button>
-          <Button onClick={() => save.mutate()} disabled={save.isPending}>▣ Save Changes</Button>
+          <Button variant="ghost" className="border border-line" onClick={() => setB(DEFAULTS)}>{t("branding.resetDefault")}</Button>
+          <Button onClick={() => save.mutate()} disabled={save.isPending}>▣ {t("branding.saveChanges")}</Button>
         </div>
       </div>
 
@@ -115,41 +117,41 @@ export function BrandingPage() {
         {/* LEFT */}
         <div className="space-y-4">
           <Card className="space-y-4">
-            {sectionHead("🪪", "Visual Identity")}
+            {sectionHead("🪪", t("branding.visualIdentity"))}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <p className="mb-2 text-sm font-semibold text-ink">Primary Logo</p>
+                <p className="mb-2 text-sm font-semibold text-ink">{t("branding.primaryLogo")}</p>
                 <button onClick={() => logoInput.current?.click()} className="flex h-36 w-full items-center justify-center rounded-lg border-2 border-dashed border-line bg-navy-wash text-sm text-ink-faint">
-                  {b.logoPath ? <img src={publicUrl(b.logoPath)!} alt="Logo" className="max-h-32 max-w-full object-contain" /> : "🖼 Logo Preview"}
+                  {b.logoPath ? <img src={publicUrl(b.logoPath)!} alt={t("branding.logoAlt")} className="max-h-32 max-w-full object-contain" /> : `🖼 ${t("branding.logoPlaceholder")}`}
                 </button>
                 <input ref={logoInput} type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && upload(e.target.files[0], "logo")} />
-                <p className="mt-2 text-xs text-ink-faint">Recommended size: 512x512px. SVG, PNG or WEBP.</p>
+                <p className="mt-2 text-xs text-ink-faint">{t("branding.logoHint")}</p>
               </div>
               <div>
-                <p className="mb-2 text-center text-sm font-semibold text-ink">Official Certificate Seal</p>
+                <p className="mb-2 text-center text-sm font-semibold text-ink">{t("branding.seal")}</p>
                 <button onClick={() => sealInput.current?.click()} className="mx-auto flex h-36 w-36 items-center justify-center rounded-full border-2 border-dashed border-line bg-navy-wash text-xs text-ink-faint">
-                  {b.sealPath ? <img src={publicUrl(b.sealPath)!} alt="Seal" className="h-32 w-32 rounded-full object-cover" /> : "Seal"}
+                  {b.sealPath ? <img src={publicUrl(b.sealPath)!} alt={t("branding.sealAlt")} className="h-32 w-32 rounded-full object-cover" /> : t("branding.sealShort")}
                 </button>
                 <input ref={sealInput} type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && upload(e.target.files[0], "seal")} />
-                <p className="mt-2 text-center text-xs text-ink-faint">Required for official transcripts.</p>
+                <p className="mt-2 text-center text-xs text-ink-faint">{t("branding.sealHint")}</p>
               </div>
             </div>
           </Card>
 
           <Card className="space-y-4">
-            {sectionHead("🎨", "Color Palette Management")}
+            {sectionHead("🎨", t("branding.colorPalette"))}
             <div className="flex gap-3">
-              {hexInput(b.primaryColor, (v) => setB({ ...b, primaryColor: v }), b.primaryColor, "Primary Color")}
-              {hexInput(b.secondaryColor, (v) => setB({ ...b, secondaryColor: v }), b.secondaryColor, "Secondary Color")}
-              {hexInput(b.accentColor, (v) => setB({ ...b, accentColor: v }), b.accentColor, "Accent Color")}
+              {hexInput(b.primaryColor, (v) => setB({ ...b, primaryColor: v }), b.primaryColor, t("branding.primaryColor"))}
+              {hexInput(b.secondaryColor, (v) => setB({ ...b, secondaryColor: v }), b.secondaryColor, t("branding.secondaryColor"))}
+              {hexInput(b.accentColor, (v) => setB({ ...b, accentColor: v }), b.accentColor, t("branding.accentColor"))}
             </div>
             <div className="rounded-lg bg-navy-wash p-4">
-              <p className="mb-3 text-xs font-semibold uppercase text-ink-faint">Component Preview</p>
+              <p className="mb-3 text-xs font-semibold uppercase text-ink-faint">{t("branding.componentPreview")}</p>
               <div className="grid grid-cols-2 gap-3">
-                <button className="rounded-control px-4 py-2 text-sm font-medium text-white" style={{ background: b.primaryColor }}>Primary Action</button>
-                <button className="rounded-control border px-4 py-2 text-sm font-medium" style={{ borderColor: b.primaryColor, color: b.primaryColor }}>Secondary Ghost</button>
-                <button className="rounded-control px-4 py-2 text-sm font-medium text-ok" style={{ background: "var(--ok-tint, #d1fadf)" }}>Success State</button>
-                <button className="rounded-control bg-danger-tint px-4 py-2 text-sm font-medium text-danger">⚠ Alert Message</button>
+                <button className="rounded-control px-4 py-2 text-sm font-medium text-white" style={{ background: b.primaryColor }}>{t("branding.primaryAction")}</button>
+                <button className="rounded-control border px-4 py-2 text-sm font-medium" style={{ borderColor: b.primaryColor, color: b.primaryColor }}>{t("branding.secondaryGhost")}</button>
+                <button className="rounded-control px-4 py-2 text-sm font-medium text-ok" style={{ background: "var(--ok-tint, #d1fadf)" }}>{t("branding.successState")}</button>
+                <button className="rounded-control bg-danger-tint px-4 py-2 text-sm font-medium text-danger">⚠ {t("branding.alertMessage")}</button>
               </div>
             </div>
           </Card>
@@ -158,9 +160,9 @@ export function BrandingPage() {
         {/* RIGHT */}
         <div className="space-y-4">
           <Card className="space-y-3">
-            <h2 className="text-lg font-semibold text-ink-faint">Official Institutional Name</h2>
+            <h2 className="text-lg font-semibold text-ink-faint">{t("branding.officialName")}</h2>
             <div>
-              <label className="text-xs font-semibold text-ink">English</label>
+              <label className="text-xs font-semibold text-ink">{t("branding.english")}</label>
               <input value={b.nameEn} onChange={(e) => setB({ ...b, nameEn: e.target.value })} className="mt-1 w-full rounded-control border border-line bg-navy-wash px-3 py-2 text-sm text-ink" />
             </div>
             <div>
@@ -168,28 +170,28 @@ export function BrandingPage() {
               <input value={b.nameAm} onChange={(e) => setB({ ...b, nameAm: e.target.value })} className="mt-1 w-full rounded-control border border-line bg-navy-wash px-3 py-2 text-sm text-ink" />
             </div>
             <div>
-              <label className="text-xs font-semibold text-ink">Affan Oromo</label>
+              <label className="text-xs font-semibold text-ink">{t("branding.oromo")}</label>
               <input value={b.nameOm} onChange={(e) => setB({ ...b, nameOm: e.target.value })} className="mt-1 w-full rounded-control border border-line bg-navy-wash px-3 py-2 text-sm text-ink" />
             </div>
             <div>
-              <label className="text-sm font-semibold text-ink">Official School Motto</label>
-              <textarea value={b.motto} onChange={(e) => setB({ ...b, motto: e.target.value })} rows={3} placeholder="e.g., Excellence through knowledge and integrity..." className="mt-1 w-full rounded-control border border-line bg-navy-wash px-3 py-2 text-sm text-ink" />
+              <label className="text-sm font-semibold text-ink">{t("branding.motto")}</label>
+              <textarea value={b.motto} onChange={(e) => setB({ ...b, motto: e.target.value })} rows={3} placeholder={t("branding.mottoPlaceholder")} className="mt-1 w-full rounded-control border border-line bg-navy-wash px-3 py-2 text-sm text-ink" />
             </div>
-            <p className="text-xs text-ink-faint">This Official Institutional Name, Logo, and Motto appears on login screens and official letterheads.</p>
+            <p className="text-xs text-ink-faint">{t("branding.nameHint")}</p>
           </Card>
 
           <Card className="space-y-4">
-            {sectionHead("🌐", "Localization & Regions")}
+            {sectionHead("🌐", t("branding.localization"))}
             <div className="rounded-lg bg-navy-wash p-3">
-              <p className="mb-2 text-center text-sm font-bold text-ink">🌐 Default Language Display</p>
+              <p className="mb-2 text-center text-sm font-bold text-ink">🌐 {t("branding.defaultLanguage")}</p>
               <div className="flex justify-around text-sm text-ink">
-                <label className="flex items-center gap-2"><input type="checkbox" checked={b.langEn} onChange={(e) => setB({ ...b, langEn: e.target.checked })} />ENGLISH</label>
+                <label className="flex items-center gap-2"><input type="checkbox" checked={b.langEn} onChange={(e) => setB({ ...b, langEn: e.target.checked })} />{t("branding.englishCaps")}</label>
                 <label className="flex items-center gap-2"><input type="checkbox" checked={b.langAm} onChange={(e) => setB({ ...b, langAm: e.target.checked })} />አማርኛ</label>
-                <label className="flex items-center gap-2"><input type="checkbox" checked={b.langOm} onChange={(e) => setB({ ...b, langOm: e.target.checked })} />Affan Oromo</label>
+                <label className="flex items-center gap-2"><input type="checkbox" checked={b.langOm} onChange={(e) => setB({ ...b, langOm: e.target.checked })} />{t("branding.oromo")}</label>
               </div>
             </div>
             <div className="flex items-center justify-between rounded-lg bg-navy-wash p-3">
-              <div><p className="text-sm font-bold text-ink">📅 Primary Calendar System</p><p className="text-xs text-ink-faint">{b.calendar === "EC" ? "Ethiopian Calendar (EC)" : "Gregorian Calendar (GC)"}</p></div>
+              <div><p className="text-sm font-bold text-ink">📅 {t("branding.calendarSystem")}</p><p className="text-xs text-ink-faint">{b.calendar === "EC" ? "Ethiopian Calendar (EC)" : "Gregorian Calendar (GC)"}</p></div>
               <div className="flex overflow-hidden rounded-control border border-line">
                 {(["EC", "GC"] as const).map((c) => (
                   <button key={c} onClick={() => setB({ ...b, calendar: c })} className={`px-3 py-1 text-sm font-medium ${b.calendar === c ? "bg-navy text-white" : "bg-card text-ink-soft"}`}>{c}</button>
@@ -197,15 +199,15 @@ export function BrandingPage() {
               </div>
             </div>
             <div>
-              <p className="mb-1 text-sm font-semibold text-ink">Official Academic Year Start</p>
-              <div className="rounded-control border border-line bg-card px-3 py-2 text-sm text-ink">📅 Meskerem 1 (September 11/12)</div>
+              <p className="mb-1 text-sm font-semibold text-ink">{t("branding.yearStart")}</p>
+              <div className="rounded-control border border-line bg-card px-3 py-2 text-sm text-ink">📅 {t("branding.yearStartValue")}</div>
             </div>
           </Card>
 
           <Card className="space-y-3 border-danger bg-danger-tint">
-            <h2 className="text-sm font-bold uppercase text-danger">Advanced Actions</h2>
-            <button onClick={() => { if (confirm("Reset the colour palette to defaults?")) resetPalette(); }} className="w-full rounded-control border border-danger bg-card py-3 text-sm font-medium text-danger">Reset All Branding Data</button>
-            <p className="text-xs text-ink-faint">Restores the colour palette to the system defaults. Name, logo, motto, and localization are unchanged.</p>
+            <h2 className="text-sm font-bold uppercase text-danger">{t("branding.advancedActions")}</h2>
+            <button onClick={() => { if (confirm(t("branding.resetConfirm"))) resetPalette(); }} className="w-full rounded-control border border-danger bg-card py-3 text-sm font-medium text-danger">{t("branding.resetAll")}</button>
+            <p className="text-xs text-ink-faint">{t("branding.resetHint")}</p>
           </Card>
         </div>
       </div>

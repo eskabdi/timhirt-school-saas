@@ -77,9 +77,9 @@ export function EventsCalendarPage() {
 
   const fields = (f: FormState, set: (f: FormState) => void) => (
     <div className="space-y-3">
-      <Field label="Name"><Input value={f.name} onChange={(e) => set({ ...f, name: e.target.value })} placeholder="Ethiopian New Year" /></Field>
-      <Field label="Date"><EthDatePicker value={f.date} onChange={(d) => set({ ...f, date: d })} /></Field>
-      <Field label="Type">
+      <Field label={t("common.name")}><Input value={f.name} onChange={(e) => set({ ...f, name: e.target.value })} placeholder={t("confirm.ethiopianNewYear")} /></Field>
+      <Field label={t("crud.date")}><EthDatePicker value={f.date} onChange={(d) => set({ ...f, date: d })} /></Field>
+      <Field label={t("crud.type")}>
         <select value={f.type} onChange={(e) => set({ ...f, type: e.target.value as EventType })} className="w-full rounded-control border border-line bg-card px-3 py-2 text-sm text-ink">
           {TYPES.map((ty) => <option key={ty} value={ty}>{t(`events.eventType.${ty}`)}</option>)}
         </select>
@@ -91,7 +91,7 @@ export function EventsCalendarPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="font-display text-2xl font-bold text-ink">{t("events.title")}</h1>
-        <Button onClick={() => { setForm(emptyForm); setShowCreate(true); }}>+ Add event</Button>
+        <Button onClick={() => { setForm(emptyForm); setShowCreate(true); }}>+ {t("crud.addEvent")}</Button>
       </div>
 
       {error && <Card className="border-danger bg-danger-tint py-3 text-sm text-danger">{error}</Card>}
@@ -105,35 +105,35 @@ export function EventsCalendarPage() {
             </div>
             <div className="flex items-center gap-2">
               <Badge tone={TYPE_TONE[e.event_type as keyof typeof TYPE_TONE] ?? "neutral"}>{t(`events.eventType.${e.event_type}`)}</Badge>
-              <Button variant="ghost" className="px-2 py-1 text-xs" onClick={() => openEdit(e)}>Edit</Button>
-              <Button variant="ghost" className="px-2 py-1 text-xs text-danger" onClick={() => setDeleting(e)}>Delete</Button>
+              <Button variant="ghost" className="px-2 py-1 text-xs" onClick={() => openEdit(e)}>{t("crud.edit")}</Button>
+              <Button variant="ghost" className="px-2 py-1 text-xs text-danger" onClick={() => setDeleting(e)}>{t("crud.delete")}</Button>
             </div>
           </Card>
         ))}
-        {!events?.length && <Card className="py-12 text-center text-ink-faint">No events yet.</Card>}
+        {!events?.length && <Card className="py-12 text-center text-ink-faint">{t("crud.noEvents")}</Card>}
       </div>
 
-      <Modal open={showCreate} onClose={() => setShowCreate(false)} title="Add event">
+      <Modal open={showCreate} onClose={() => setShowCreate(false)} title={t("crud.addEvent")}>
         {fields(form, setForm)}
         <div className="mt-4 flex justify-end gap-2 border-t border-line pt-3">
-          <Button variant="ghost" onClick={() => setShowCreate(false)}>Cancel</Button>
-          <Button onClick={() => create.mutate()} disabled={!form.name || !form.date || create.isPending}>Create</Button>
+          <Button variant="ghost" onClick={() => setShowCreate(false)}>{t("common.cancel")}</Button>
+          <Button onClick={() => create.mutate()} disabled={!form.name || !form.date || create.isPending}>{t("crud.create")}</Button>
         </div>
       </Modal>
 
-      <Modal open={!!editing} onClose={() => setEditing(null)} title="Edit event">
+      <Modal open={!!editing} onClose={() => setEditing(null)} title={t("crud.editEvent")}>
         {fields(editForm, setEditForm)}
         <div className="mt-4 flex justify-end gap-2 border-t border-line pt-3">
-          <Button variant="ghost" onClick={() => setEditing(null)}>Cancel</Button>
-          <Button onClick={() => update.mutate()} disabled={!editForm.name || !editForm.date || update.isPending}>Save</Button>
+          <Button variant="ghost" onClick={() => setEditing(null)}>{t("common.cancel")}</Button>
+          <Button onClick={() => update.mutate()} disabled={!editForm.name || !editForm.date || update.isPending}>{t("common.save")}</Button>
         </div>
       </Modal>
 
-      <Modal open={!!deleting} onClose={() => setDeleting(null)} title="Delete event">
-        <p className="text-sm text-ink-soft">Delete <span className="font-medium text-ink">{deleting && tField(deleting.name_i18n, i18n.resolvedLanguage!)}</span>?</p>
+      <Modal open={!!deleting} onClose={() => setDeleting(null)} title={t("crud.deleteEvent")}>
+        <p className="text-sm text-ink-soft">{t("crud.delete")} <span className="font-medium text-ink">{deleting && tField(deleting.name_i18n, i18n.resolvedLanguage!)}</span>?</p>
         <div className="mt-4 flex justify-end gap-2 border-t border-line pt-3">
-          <Button variant="ghost" onClick={() => setDeleting(null)}>Cancel</Button>
-          <Button variant="danger" onClick={() => remove.mutate()} disabled={remove.isPending}>Delete</Button>
+          <Button variant="ghost" onClick={() => setDeleting(null)}>{t("common.cancel")}</Button>
+          <Button variant="danger" onClick={() => remove.mutate()} disabled={remove.isPending}>{t("crud.delete")}</Button>
         </div>
       </Modal>
     </div>

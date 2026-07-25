@@ -9,16 +9,19 @@ import { Badge } from "@/components/ui/Badge";
 import { tField } from "@/lib/i18n";
 import { useTranslation } from "react-i18next";
 
-const SOURCES = [{ k: "students", label: "Students", icon: "👥" }, { k: "attendance", label: "Attendance", icon: "🗓" }, { k: "grades", label: "Grades", icon: "☆" }, { k: "finance", label: "Finance", icon: "▤" }] as const;
+const SOURCES = [{ k: "students", icon: "👥" }, { k: "attendance", icon: "🗓" }, { k: "grades", icon: "☆" }, { k: "finance", icon: "▤" }] as const;
 const GRADES = ["G1", "G2", "G3", "G4", "G5", "G6", "G7", "G8", "G9", "G10", "G11", "G12"];
-const COLUMN_GROUPS: { group: string; cols: string[] }[] = [
-  { group: "Identification", cols: ["Student Full Name", "Student ID Number", "Date of Birth (EC)"] },
-  { group: "Performance", cols: ["Overall GPA", "Semester Rank", "Behavioral Grade"] },
-  { group: "Contact", cols: ["Guardian Phone", "Emergency Address"] },
+// Column ids are stable keys, not display text: they persist in the report
+// definition and must not change when the user switches language.
+const COLUMN_GROUPS: { groupKey: string; cols: string[] }[] = [
+  { groupKey: "identification", cols: ["studentFullName", "studentIdNumber", "dobEc"] },
+  { groupKey: "performance", cols: ["overallGpa", "semesterRank", "behavioralGrade"] },
+  { groupKey: "contact", cols: ["guardianPhone", "emergencyAddress"] },
 ];
-const DEFAULT_COLS = new Set(["Student Full Name", "Student ID Number", "Overall GPA", "Semester Rank", "Guardian Phone"]);
+const DEFAULT_COLS = new Set(["studentFullName", "studentIdNumber", "overallGpa", "semesterRank", "guardianPhone"]);
 
 export function CustomReportBuilderPage() {
+  const { t } = useTranslation();
   const { profile } = useSession();
   const { i18n } = useTranslation();
   const [name, setName] = useState("");
@@ -72,110 +75,110 @@ export function CustomReportBuilderPage() {
       <Card className="space-y-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h1 className="font-display text-2xl font-bold text-ink">Custom Report Builder</h1>
-            <p className="text-sm text-ink-faint">የሪፖርት ግንባታ መሳሪያ | Create tailored academic and operational reports.</p>
+            <h1 className="font-display text-2xl font-bold text-ink">{t("customReport.title")}</h1>
+            <p className="text-sm text-ink-faint">{t("customReport.subtitle")}</p>
           </div>
           <div className="rounded-lg border border-dashed border-navy/40 bg-navy-wash p-3">
-            <p className="mb-2 text-xs font-bold text-navy">Primary Data Source / ዋና የመረጃ ምንጭ</p>
+            <p className="mb-2 text-xs font-bold text-navy">{t("customReport.primarySource")}</p>
             <div className="grid grid-cols-2 gap-2">
               {SOURCES.map((s) => (
-                <button key={s.k} onClick={() => setSource(s.k)} className={`${chip} ${source === s.k ? "bg-navy text-white" : "bg-card text-ink-soft border border-line"}`}>{s.icon} {s.label}</button>
+                <button key={s.k} onClick={() => setSource(s.k)} className={`${chip} ${source === s.k ? "bg-navy text-white" : "bg-card text-ink-soft border border-line"}`}>{s.icon} {t(`customReport.${s.k}`)}</button>
               ))}
             </div>
           </div>
         </div>
         <div className="grid gap-4 md:grid-cols-2">
-          <div><label className="mb-1 block text-sm text-ink-soft">Report Name / የሪፖርት ስም</label><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Grade 10 Semester 1 At-Risk Students" /></div>
-          <div><label className="mb-1 block text-sm text-ink-soft">Description / መግለጫ</label><Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Brief summary of report intent..." /></div>
+          <div><label className="mb-1 block text-sm text-ink-soft">{t("customReport.reportName")}</label><Input value={name} onChange={(e) => setName(e.target.value)} placeholder={t("customReport.reportNamePlaceholder")} /></div>
+          <div><label className="mb-1 block text-sm text-ink-soft">{t("customReport.description")}</label><Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t("customReport.descriptionPlaceholder")} /></div>
         </div>
       </Card>
 
       <div className="grid gap-4 lg:grid-cols-3">
         {/* Demographic */}
         <Card className="space-y-3">
-          <h2 className="flex items-center gap-2 font-semibold text-ink">👤 Demographic Filters / የስነ-ሕዝብ ማጣሪያዎች</h2>
+          <h2 className="flex items-center gap-2 font-semibold text-ink">👤 {t("customReport.demographicFilters")}</h2>
           <div>
-            <p className="mb-2 text-sm text-ink-soft">Grade Level (Multi-select)</p>
+            <p className="mb-2 text-sm text-ink-soft">{t("customReport.gradeLevelMulti")}</p>
             <div className="flex flex-wrap gap-2">
               {GRADES.map((g) => <button key={g} onClick={() => toggle(grades, g, setGrades)} className={`${chip} ${grades.has(g) ? "bg-navy text-white" : "bg-navy-wash text-ink-soft"}`}>{g}</button>)}
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <div><label className="mb-1 block text-sm text-ink-soft">Section</label><select value={section} onChange={(e) => setSection(e.target.value)} className={sel}><option value="">All Sections</option><option>A</option><option>B</option><option>C</option></select></div>
-            <div><label className="mb-1 block text-sm text-ink-soft">Gender</label><select value={gender} onChange={(e) => setGender(e.target.value)} className={sel}><option value="">All</option><option value="male">Male</option><option value="female">Female</option></select></div>
+            <div><label className="mb-1 block text-sm text-ink-soft">{t("customReport.section")}</label><select value={section} onChange={(e) => setSection(e.target.value)} className={sel}><option value="">{t("customReport.allSections")}</option><option>A</option><option>B</option><option>C</option></select></div>
+            <div><label className="mb-1 block text-sm text-ink-soft">{t("customReport.gender")}</label><select value={gender} onChange={(e) => setGender(e.target.value)} className={sel}><option value="">{t("customReport.all")}</option><option value="male">{t("customReport.male")}</option><option value="female">{t("customReport.female")}</option></select></div>
           </div>
         </Card>
 
         {/* Academic */}
         <Card className="space-y-3">
-          <h2 className="flex items-center gap-2 font-semibold text-ink">📖 Academic Filters / የትምህርት ማጣሪያዎች</h2>
-          <div><label className="mb-1 block text-sm text-ink-soft">Subject / ትምህርት</label><select value={subjectId} onChange={(e) => setSubjectId(e.target.value)} className={sel}><option value="">All subjects</option>{subjects?.map((s) => <option key={s.id} value={s.id}>{tField(s.name_i18n, i18n.resolvedLanguage!) || s.code}</option>)}</select></div>
+          <h2 className="flex items-center gap-2 font-semibold text-ink">📖 {t("customReport.academicFilters")}</h2>
+          <div><label className="mb-1 block text-sm text-ink-soft">{t("customReport.subject")}</label><select value={subjectId} onChange={(e) => setSubjectId(e.target.value)} className={sel}><option value="">{t("customReport.allSubjects")}</option>{subjects?.map((s) => <option key={s.id} value={s.id}>{tField(s.name_i18n, i18n.resolvedLanguage!) || s.code}</option>)}</select></div>
           <div className="grid grid-cols-2 gap-3">
-            <div><label className="mb-1 block text-sm text-ink-soft">Min Grade (%)</label><Input type="number" value={minGrade} onChange={(e) => setMinGrade(e.target.value)} /></div>
-            <div><label className="mb-1 block text-sm text-ink-soft">Max Grade (%)</label><Input type="number" value={maxGrade} onChange={(e) => setMaxGrade(e.target.value)} /></div>
+            <div><label className="mb-1 block text-sm text-ink-soft">{t("customReport.minGrade")}</label><Input type="number" value={minGrade} onChange={(e) => setMinGrade(e.target.value)} /></div>
+            <div><label className="mb-1 block text-sm text-ink-soft">{t("customReport.maxGrade")}</label><Input type="number" value={maxGrade} onChange={(e) => setMaxGrade(e.target.value)} /></div>
           </div>
           <div className="flex gap-4 text-sm text-ink-soft">
-            <label className="flex items-center gap-2"><input type="checkbox" checked={includeFailures} onChange={(e) => setIncludeFailures(e.target.checked)} />Include Failures</label>
-            <label className="flex items-center gap-2"><input type="checkbox" checked={topPerformers} onChange={(e) => setTopPerformers(e.target.checked)} />Top Performers Only</label>
+            <label className="flex items-center gap-2"><input type="checkbox" checked={includeFailures} onChange={(e) => setIncludeFailures(e.target.checked)} />{t("customReport.includeFailures")}</label>
+            <label className="flex items-center gap-2"><input type="checkbox" checked={topPerformers} onChange={(e) => setTopPerformers(e.target.checked)} />{t("customReport.topPerformers")}</label>
           </div>
         </Card>
 
         {/* Columns */}
         <Card className="space-y-3">
           <div className="flex items-center justify-between">
-            <h2 className="flex items-center gap-2 font-semibold text-ink">▥ Select Columns</h2>
-            <Badge tone="navy">{selectedCount} Selected</Badge>
+            <h2 className="flex items-center gap-2 font-semibold text-ink">▥ {t("customReport.selectColumns")}</h2>
+            <Badge tone="navy">{t("customReport.selectedCount", { count: selectedCount })}</Badge>
           </div>
-          <p className="text-xs text-ink-faint">Choose which data points appear in the exported document.</p>
+          <p className="text-xs text-ink-faint">{t("customReport.columnsHint")}</p>
           {COLUMN_GROUPS.map((grp) => (
-            <div key={grp.group}>
-              <p className="mb-1 text-xs font-semibold uppercase text-ink-faint">{grp.group}</p>
+            <div key={grp.groupKey}>
+              <p className="mb-1 text-xs font-semibold uppercase text-ink-faint">{t(`customReport.${grp.groupKey}`)}</p>
               {grp.cols.map((col) => (
                 <label key={col} className="flex items-center justify-between border-b border-line py-2 text-sm text-ink">
-                  {col}
+                  {t(`customReport.${col}`)}
                   <input type="checkbox" checked={cols.has(col)} onChange={() => toggle(cols, col, setCols)} />
                 </label>
               ))}
             </div>
           ))}
-          <button onClick={() => setCols(new Set(COLUMN_GROUPS.flatMap((g) => g.cols)))} className="w-full rounded-control bg-navy-wash py-2 text-sm font-medium text-navy">Select All Fields</button>
+          <button onClick={() => setCols(new Set(COLUMN_GROUPS.flatMap((g) => g.cols)))} className="w-full rounded-control bg-navy-wash py-2 text-sm font-medium text-navy">{t("customReport.selectAllFields")}</button>
         </Card>
 
         {/* Attendance */}
         <Card className="space-y-3">
-          <h2 className="flex items-center gap-2 font-semibold text-ink">🗓 Attendance / መገኘት</h2>
+          <h2 className="flex items-center gap-2 font-semibold text-ink">🗓 {t("customReport.attendanceFilters")}</h2>
           <div className="grid grid-cols-2 gap-3">
-            <div><label className="mb-1 block text-sm text-ink-soft">Start Date</label><Input type="date" /></div>
-            <div><label className="mb-1 block text-sm text-ink-soft">End Date</label><Input type="date" /></div>
+            <div><label className="mb-1 block text-sm text-ink-soft">{t("customReport.startDate")}</label><Input type="date" /></div>
+            <div><label className="mb-1 block text-sm text-ink-soft">{t("customReport.endDate")}</label><Input type="date" /></div>
           </div>
           <div>
-            <div className="flex justify-between text-sm"><span className="text-ink-soft">Attendance Threshold (%)</span><span className="font-semibold text-navy">Below {threshold}%</span></div>
+            <div className="flex justify-between text-sm"><span className="text-ink-soft">{t("customReport.attendanceThreshold")}</span><span className="font-semibold text-navy">Below {threshold}%</span></div>
             <input type="range" min={0} max={100} value={threshold} onChange={(e) => setThreshold(Number(e.target.value))} className="w-full" />
           </div>
         </Card>
 
         {/* Financials */}
         <Card className="space-y-3">
-          <h2 className="flex items-center gap-2 font-semibold text-ink">▤ Financials / ክፍያ</h2>
+          <h2 className="flex items-center gap-2 font-semibold text-ink">▤ {t("customReport.financials")}</h2>
           <div>
-            <p className="mb-1 text-sm text-ink-soft">Payment Status</p>
+            <p className="mb-1 text-sm text-ink-soft">{t("customReport.paymentStatus")}</p>
             <div className="flex overflow-hidden rounded-control border border-line">
               {["Paid", "Partial", "Overdue"].map((p) => <button key={p} onClick={() => setPayment(p)} className={`flex-1 px-3 py-2 text-sm ${payment === p ? "bg-warn text-white" : "bg-card text-ink-soft"}`}>{p}</button>)}
             </div>
           </div>
-          <div><label className="mb-1 block text-sm text-ink-soft">Fee Category</label><select className={sel}><option>Tuition Fee / የማስተማሪያ ክፍያ</option><option>Transport Fee</option><option>Library Fee</option></select></div>
+          <div><label className="mb-1 block text-sm text-ink-soft">{t("customReport.feeCategory")}</label><select className={sel}><option>{t("customReport.tuitionFee")}</option><option>{t("customReport.transportFee")}</option><option>{t("customReport.libraryFee")}</option></select></div>
         </Card>
       </div>
 
       {/* Live preview */}
       <Card className="p-0">
         <div className="flex items-center justify-between p-4">
-          <h2 className="font-display text-lg font-bold text-ink">Live Preview (Sample Data) / ቅድመ እይታ</h2>
-          <span className="text-xs italic text-ink-faint">Showing first 5 matching results</span>
+          <h2 className="font-display text-lg font-bold text-ink">{t("customReport.livePreview")}</h2>
+          <span className="text-xs italic text-ink-faint">{t("customReport.showingFirst")}</span>
         </div>
         <table className="w-full text-sm">
           <thead className="bg-sidebar text-left text-xs uppercase text-ink-faint">
-            <tr><th className="px-4 py-2">Student ID</th><th className="px-4 py-2">Full Name</th><th className="px-4 py-2">Grade</th><th className="px-4 py-2">GPA</th><th className="px-4 py-2">Attendance %</th><th className="px-4 py-2">Status</th></tr>
+            <tr><th className="px-4 py-2">{t("customReport.studentId")}</th><th className="px-4 py-2">{t("customReport.fullName")}</th><th className="px-4 py-2">{t("customReport.grade")}</th><th className="px-4 py-2">{t("customReport.gpa")}</th><th className="px-4 py-2">{t("customReport.attendancePct")}</th><th className="px-4 py-2">{t("customReport.status")}</th></tr>
           </thead>
           <tbody className="divide-y divide-line">
             {preview?.length ? preview.map((r) => (
@@ -187,7 +190,7 @@ export function CustomReportBuilderPage() {
                 <td className="px-4 py-3 text-ink-soft">—</td>
                 <td className="px-4 py-3"><Badge tone={r.status === "active" ? "ok" : "danger"}>{r.status === "active" ? "ACTIVE" : "AT RISK"}</Badge></td>
               </tr>
-            )) : <tr><td colSpan={6} className="py-10 text-center text-ink-faint">No matching students.</td></tr>}
+            )) : <tr><td colSpan={6} className="py-10 text-center text-ink-faint">{t("customReport.noMatching")}</td></tr>}
           </tbody>
         </table>
       </Card>
@@ -195,11 +198,11 @@ export function CustomReportBuilderPage() {
       <Card className="flex flex-wrap items-center justify-between gap-3 bg-navy-wash">
         <div className="flex gap-2">
           <Button variant="ghost" className="border border-line" onClick={() => saveTemplate.mutate()} disabled={saveTemplate.isPending}>🔖 {saved ? "Saved!" : "Save Template"}</Button>
-          <Button variant="ghost" className="border border-line">⏱ Schedule Recurring</Button>
+          <Button variant="ghost" className="border border-line">⏱ {t("customReport.scheduleRecurring")}</Button>
         </div>
         <div className="flex gap-2">
-          <Button className="bg-warn text-white hover:opacity-90">⬇ Export XLSX</Button>
-          <Button>▤ Generate PDF</Button>
+          <Button className="bg-warn text-white hover:opacity-90">⬇ {t("customReport.exportXlsx")}</Button>
+          <Button>▤ {t("customReport.generatePdf")}</Button>
         </div>
       </Card>
     </div>

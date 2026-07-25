@@ -17,6 +17,7 @@
 // background image), not a pdf-lib render -- close enough to place fields
 // accurately, but the definitive preview is downloading an actual card.
 // ============================================================================
+import { useTranslation } from "react-i18next";
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -45,22 +46,22 @@ interface FieldPlacement {
   rotation?: 0 | 90 | 180 | 270;
 }
 
-const ROTATIONS: { value: 0 | 90 | 180 | 270; label: string }[] = [
-  { value: 0, label: "0° — horizontal" },
-  { value: 90, label: "90° — vertical ↑" },
-  { value: 180, label: "180° — upside down" },
-  { value: 270, label: "270° — vertical ↓" },
+const ROTATIONS: { value: 0 | 90 | 180 | 270; labelKey: string }[] = [
+  { value: 0, labelKey: "idCardTemplate.rot0" },
+  { value: 90, labelKey: "idCardTemplate.rot90" },
+  { value: 180, labelKey: "idCardTemplate.rot180" },
+  { value: 270, labelKey: "idCardTemplate.rot270" },
 ];
 
 // Text-field fonts. `css` drives the on-screen designer preview (@font-face in
 // index.css); `value` is what's stored + read by the PDF renderer. Default =
 // Helvetica (Latin only); the three Ethiopic faces the school uploaded render
 // Amharic (ግዕዝ) as well as Latin.
-const FONT_OPTIONS: { value: string; label: string; css: string }[] = [
-  { value: "default", label: "Default (Latin)", css: "inherit" },
-  { value: "NotoSerifEthiopic", label: "Noto Serif Ethiopic — ኖቶ", css: "NotoSerifEthiopic" },
-  { value: "Tayitu", label: "Tayitu — ጣይቱ", css: "Tayitu" },
-  { value: "Jiret", label: "Jiret — ጅሬት", css: "Jiret" },
+const FONT_OPTIONS: { value: string; labelKey: string; css: string }[] = [
+  { value: "default", labelKey: "idCardTemplate.fontDefault", css: "inherit" },
+  { value: "NotoSerifEthiopic", labelKey: "idCardTemplate.fontNoto", css: "NotoSerifEthiopic" },
+  { value: "Tayitu", labelKey: "idCardTemplate.fontTayitu", css: "Tayitu" },
+  { value: "Jiret", labelKey: "idCardTemplate.fontJiret", css: "Jiret" },
 ];
 const fontCss = (v: string | undefined) => FONT_OPTIONS.find((f) => f.value === v)?.css ?? "inherit";
 
@@ -72,22 +73,22 @@ interface TemplateConfig { front: CardSideTemplate; back: CardSideTemplate }
 const CARD_W = 243, CARD_H = 153; // points, must match issue-id-card
 const SCALE = 3; // on-screen px per point
 
-const FIELD_TYPES: { key: FieldKey; label: string; w: number; h: number; fontSize: number; isImage?: boolean; defaultFont?: string }[] = [
-  { key: "photo", label: "Photo", w: 55, h: 65, fontSize: 0, isImage: true },
-  { key: "full_name", label: "Full Name (EN)", w: 140, h: 14, fontSize: 11 },
-  { key: "full_name_am", label: "Full Name (አማ)", w: 140, h: 14, fontSize: 11, defaultFont: "NotoSerifEthiopic" },
-  { key: "admission_no", label: "Student No.", w: 140, h: 10, fontSize: 7 },
-  { key: "class_label", label: "Class", w: 140, h: 10, fontSize: 7 },
-  { key: "dob", label: "Date of Birth", w: 140, h: 10, fontSize: 7 },
-  { key: "tenant_name", label: "School Name", w: 140, h: 12, fontSize: 9 },
-  { key: "issued_date", label: "Issued Date", w: 140, h: 10, fontSize: 6 },
-  { key: "guardian_contact", label: "Guardian Contact", w: 180, h: 12, fontSize: 8 },
-  { key: "verify_code", label: "Verification Code", w: 180, h: 10, fontSize: 7 },
-  { key: "qr_code", label: "QR Code", w: 60, h: 60, fontSize: 0, isImage: true },
-  { key: "barcode", label: "Barcode", w: 100, h: 26, fontSize: 0, isImage: true },
-  { key: "static_text", label: "Custom Text", w: 140, h: 10, fontSize: 7 },
+const FIELD_TYPES: { key: FieldKey; labelKey: string; w: number; h: number; fontSize: number; isImage?: boolean; defaultFont?: string }[] = [
+  { key: "photo", labelKey: "idCardTemplate.photo", w: 55, h: 65, fontSize: 0, isImage: true },
+  { key: "full_name", labelKey: "idCardTemplate.fullNameEn", w: 140, h: 14, fontSize: 11 },
+  { key: "full_name_am", labelKey: "idCardTemplate.fullNameAm", w: 140, h: 14, fontSize: 11, defaultFont: "NotoSerifEthiopic" },
+  { key: "admission_no", labelKey: "idCardTemplate.studentNo", w: 140, h: 10, fontSize: 7 },
+  { key: "class_label", labelKey: "idCardTemplate.classField", w: 140, h: 10, fontSize: 7 },
+  { key: "dob", labelKey: "idCardTemplate.dob", w: 140, h: 10, fontSize: 7 },
+  { key: "tenant_name", labelKey: "idCardTemplate.schoolName", w: 140, h: 12, fontSize: 9 },
+  { key: "issued_date", labelKey: "idCardTemplate.issuedDate", w: 140, h: 10, fontSize: 6 },
+  { key: "guardian_contact", labelKey: "idCardTemplate.guardianContact", w: 180, h: 12, fontSize: 8 },
+  { key: "verify_code", labelKey: "idCardTemplate.verificationCode", w: 180, h: 10, fontSize: 7 },
+  { key: "qr_code", labelKey: "idCardTemplate.qrCode", w: 60, h: 60, fontSize: 0, isImage: true },
+  { key: "barcode", labelKey: "idCardTemplate.barcode", w: 100, h: 26, fontSize: 0, isImage: true },
+  { key: "static_text", labelKey: "idCardTemplate.customText", w: 140, h: 10, fontSize: 7 },
 ];
-const FIELD_LABEL: Record<FieldKey, string> = Object.fromEntries(FIELD_TYPES.map((f) => [f.key, f.label])) as Record<FieldKey, string>;
+const FIELD_LABEL_KEY: Record<FieldKey, string> = Object.fromEntries(FIELD_TYPES.map((f) => [f.key, f.labelKey])) as Record<FieldKey, string>;
 
 const EMPTY_SIDE: CardSideTemplate = { backgroundPath: null, fields: [] };
 const EMPTY_TEMPLATE: TemplateConfig = { front: EMPTY_SIDE, back: EMPTY_SIDE };
@@ -95,6 +96,7 @@ const EMPTY_TEMPLATE: TemplateConfig = { front: EMPTY_SIDE, back: EMPTY_SIDE };
 function clamp(v: number, min: number, max: number) { return Math.min(Math.max(v, min), max); }
 
 export function IdCardTemplateDesignerPage() {
+  const { t } = useTranslation();
   const { profile } = useSession();
   const qc = useQueryClient();
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -263,17 +265,14 @@ export function IdCardTemplateDesignerPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="font-display text-2xl font-bold">ID Card Template</h1>
+      <h1 className="font-display text-2xl font-bold">{t("idCardTemplate.pageTitle")}</h1>
       <p className="max-w-2xl text-sm text-ink-faint">
-        Design the front and back of the printed student ID card. Add fields from the palette, <strong>drag them
-        to reposition</strong>, and <strong>drag the four corner handles to resize</strong>. Text fields can use
-        an Amharic/English font (Noto Serif Ethiopic, Tayitu, or Jiret). Upload a background image for your
-        school's artwork; leaving a side untouched keeps the built-in default layout.
+        {t("help.idCardHelp")}
       </p>
 
       <div className="flex items-center gap-2">
-        <Button variant={side === "front" ? "primary" : "ghost"} onClick={() => { setSide("front"); setSelectedId(null); }}>Front</Button>
-        <Button variant={side === "back" ? "primary" : "ghost"} onClick={() => { setSide("back"); setSelectedId(null); }}>Back</Button>
+        <Button variant={side === "front" ? "primary" : "ghost"} onClick={() => { setSide("front"); setSelectedId(null); }}>{t("idCardTemplate.front")}</Button>
+        <Button variant={side === "back" ? "primary" : "ghost"} onClick={() => { setSide("back"); setSelectedId(null); }}>{t("idCardTemplate.back")}</Button>
       </div>
 
       <div className="flex flex-wrap items-start gap-6">
@@ -313,7 +312,7 @@ export function IdCardTemplateDesignerPage() {
                     className="overflow-hidden whitespace-nowrap"
                     style={f.rotation ? { transform: `rotate(${-f.rotation}deg)`, transformOrigin: "center" } : undefined}
                   >
-                    {f.field_key === "static_text" ? (f.text || "Custom Text") : FIELD_LABEL[f.field_key]}
+                    {f.field_key === "static_text" ? (f.text || t("idCardTemplate.customText")) : t(FIELD_LABEL_KEY[f.field_key])}
                     {f.field_key === "barcode" && f.rotation ? ` ${f.rotation}°` : ""}
                   </span>
                   {selected && (["nw", "ne", "sw", "se"] as ResizeCorner[]).map((corner) => (
@@ -341,22 +340,22 @@ export function IdCardTemplateDesignerPage() {
               <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && uploadBackground(e.target.files[0])} />
             </label>
             {current.backgroundPath && (
-              <Button variant="ghost" onClick={() => updateSide((s) => ({ ...s, backgroundPath: null }))}>Remove background</Button>
+              <Button variant="ghost" onClick={() => updateSide((s) => ({ ...s, backgroundPath: null }))}>{t("idCardTemplate.removeBackground")}</Button>
             )}
           </div>
         </div>
 
         <Card className="w-64 space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-wide text-ink-faint">Add field</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("idCardTemplate.addField")}</p>
           <div className="flex flex-wrap gap-1.5">
-            {FIELD_TYPES.map((t) => (
+            {FIELD_TYPES.map((ft) => (
               <button
-                key={t.key}
+                key={ft.key}
                 type="button"
-                onClick={() => addField(t)}
+                onClick={() => addField(ft)}
                 className="rounded-control bg-sidebar px-2 py-1 text-xs text-ink-soft hover:bg-line"
               >
-                + {t.label}
+                + {t(ft.labelKey)}
               </button>
             ))}
           </div>
@@ -365,8 +364,8 @@ export function IdCardTemplateDesignerPage() {
         {selectedField && (
           <Card className="w-64 space-y-3">
             <div className="flex items-center justify-between">
-              <p className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{FIELD_LABEL[selectedField.field_key]}</p>
-              <button type="button" onClick={() => removeField(selectedField.id)} className="text-xs text-danger hover:underline">Delete</button>
+              <p className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{t(FIELD_LABEL_KEY[selectedField.field_key])}</p>
+              <button type="button" onClick={() => removeField(selectedField.id)} className="text-xs text-danger hover:underline">{t("crud.delete")}</button>
             </div>
 
             {selectedField.field_key === "static_text" && (
@@ -383,13 +382,13 @@ export function IdCardTemplateDesignerPage() {
 
             {selectedField.field_key === "barcode" && (
               <label className="block space-y-1 text-xs text-ink-faint">
-                Rotation
+                {t("idCardTemplate.rotation")}
                 <select
                   value={selectedField.rotation ?? 0}
                   onChange={(e) => setRotation(selectedField, Number(e.target.value) as FieldPlacement["rotation"])}
                   className="w-full rounded-control border border-line bg-card px-2 py-1 text-sm text-ink"
                 >
-                  {ROTATIONS.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+                  {ROTATIONS.map((r) => <option key={r.value} value={r.value}>{t(r.labelKey)}</option>)}
                 </select>
               </label>
             )}
@@ -397,7 +396,7 @@ export function IdCardTemplateDesignerPage() {
             {selectedField.field_key !== "photo" && selectedField.field_key !== "qr_code" && selectedField.field_key !== "barcode" && (
               <>
                 <label className="block space-y-1 text-xs text-ink-faint">
-                  Font (Amharic / English)
+                  {t("help.fontAmharicEnglish")}
                   <select
                     value={selectedField.fontFamily ?? "default"}
                     onChange={(e) => patchField(selectedField.id, { fontFamily: e.target.value })}
@@ -405,7 +404,7 @@ export function IdCardTemplateDesignerPage() {
                     style={{ fontFamily: fontCss(selectedField.fontFamily) }}
                   >
                     {FONT_OPTIONS.map((fo) => (
-                      <option key={fo.value} value={fo.value} style={{ fontFamily: fo.css }}>{fo.label}</option>
+                      <option key={fo.value} value={fo.value} style={{ fontFamily: fo.css }}>{t(fo.labelKey)}</option>
                     ))}
                   </select>
                 </label>
@@ -434,9 +433,9 @@ export function IdCardTemplateDesignerPage() {
                     onChange={(e) => patchField(selectedField.id, { align: e.target.value as FieldPlacement["align"] })}
                     className="w-full rounded-control border border-line bg-card px-2 py-1 text-sm text-ink"
                   >
-                    <option value="left">Left</option>
-                    <option value="center">Center</option>
-                    <option value="right">Right</option>
+                    <option value="left">{t("idCardTemplate.left")}</option>
+                    <option value="center">{t("idCardTemplate.center")}</option>
+                    <option value="right">{t("idCardTemplate.right")}</option>
                   </select>
                 </label>
                 <label className="flex items-center gap-2 text-xs text-ink-faint">

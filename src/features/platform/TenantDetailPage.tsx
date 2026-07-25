@@ -210,8 +210,7 @@ export function TenantDetailPage() {
       <div>
         <h2 className="mb-3 font-display text-lg font-bold text-ink">{t("platformPagesX.modules")}</h2>
         <p className="mb-3 text-sm text-ink-faint">
-          Inherited from the {tiers?.find((t) => t.key === tenant.tier_key)?.display_name ?? tenant.tier_key} tier.
-          Toggle a module to override it for this tenant only, or reset to go back to the tier default.
+          {t("help.inheritedFrom", { tier: tiers?.find((tr) => tr.key === tenant.tier_key)?.display_name ?? tenant.tier_key })}
         </p>
         <Panel>
           <table className="w-full text-sm">

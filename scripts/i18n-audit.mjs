@@ -28,6 +28,9 @@ const looksLikeCopy = (s) => {
   if (!/[A-Za-z]{2}/.test(t)) return false;              // needs letters
   if (/^[a-z0-9_.\-/[\]#{}()*:,%\s]+$/.test(t) && !/\s[A-Z]/.test(t)) return false; // css-ish / keys
   if (/^(px|rem|em|vh|vw|auto|none|flex|grid|block|hidden|true|false)$/i.test(t)) return false;
+  // Format samples shown as placeholders (EMP-001, ADM-2018-001, +251911223344)
+  // are identifier shapes, not prose — translating them would be wrong.
+  if (/^[A-Z]{2,}[-/][A-Z0-9-]+$/.test(t)) return false;
   return /[A-Z]/.test(t) || /\s/.test(t);
 };
 
@@ -65,6 +68,18 @@ for (const root of ROOTS) {
       // 3. Literal strings passed to obvious copy props
       for (const m of line.matchAll(/\b(?:label|title|heading|emptyText|confirmText)[:=]\s*["']([^"']{3,})["']/g)) {
         if (looksLikeCopy(m[1])) findings.push({ file, n, kind: "prop", txt: m[1] });
+      }
+      // 4. Prose wrapped across several lines inside JSX (the single-line `>x<`
+      //    pattern above cannot see it). A bare line of words with no JSX or JS
+      //    punctuation is copy that never reached i18n.
+      if (!isTypeLine
+        && /^[A-Za-z][A-Za-z0-9 ,.'’&()/%:-]{14,}$/.test(bare)
+        && bare.split(/\s+/).length >= 4
+        && !/[={};]/.test(bare)
+        // A wrapped destructuring / import list is identifiers and commas, not prose.
+        && !/^[A-Za-z_$][\w$]*(\s+as\s+[A-Za-z_$][\w$]*)?(\s*,\s*[A-Za-z_$][\w$]*(\s+as\s+[A-Za-z_$][\w$]*)?)+\s*,?$/.test(bare)
+        && !/^(import|export|const|let|var|return|function|type|interface)\b/.test(bare)) {
+        findings.push({ file, n, kind: "jsx-prose", txt: bare });
       }
     });
   }

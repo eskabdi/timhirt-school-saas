@@ -93,10 +93,10 @@ export function LibraryPage() {
 
   const bookFields = (f: BookForm, set: (f: BookForm) => void) => (
     <div className="space-y-3">
-      <Field label="Title"><Input value={f.title} onChange={(e) => set({ ...f, title: e.target.value })} /></Field>
-      <Field label="Author"><Input value={f.author} onChange={(e) => set({ ...f, author: e.target.value })} /></Field>
-      <Field label="ISBN"><Input value={f.isbn} onChange={(e) => set({ ...f, isbn: e.target.value })} /></Field>
-      <Field label="Copies"><Input type="number" min={0} value={f.copies} onChange={(e) => set({ ...f, copies: e.target.value })} /></Field>
+      <Field label={t("modules.title")}><Input value={f.title} onChange={(e) => set({ ...f, title: e.target.value })} /></Field>
+      <Field label={t("modules.author")}><Input value={f.author} onChange={(e) => set({ ...f, author: e.target.value })} /></Field>
+      <Field label={t("modules.isbn")}><Input value={f.isbn} onChange={(e) => set({ ...f, isbn: e.target.value })} /></Field>
+      <Field label={t("modules.copies")}><Input type="number" min={0} value={f.copies} onChange={(e) => set({ ...f, copies: e.target.value })} /></Field>
     </div>
   );
 
@@ -104,7 +104,7 @@ export function LibraryPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="font-display text-2xl font-bold text-ink">{t("nav.library")}</h1>
-        <Button onClick={() => { setForm(emptyBook); setShowCreate(true); }}>+ Add book</Button>
+        <Button onClick={() => { setForm(emptyBook); setShowCreate(true); }}>+ {t("modules.addBook")}</Button>
       </div>
 
       {error && <Card className="border-danger bg-danger-tint py-3 text-sm text-danger">{error}</Card>}
@@ -115,7 +115,7 @@ export function LibraryPage() {
         <Panel>
           <table className="w-full text-sm">
             <thead className="bg-sidebar text-left text-xs uppercase text-ink-faint">
-              <tr><th className="px-4 py-2">Title</th><th className="px-4 py-2">Author</th><th className="px-4 py-2">ISBN</th><th className="px-4 py-2">Copies</th><th className="px-4 py-2"></th></tr>
+              <tr><th className="px-4 py-2">{t("modules.title")}</th><th className="px-4 py-2">{t("modules.author")}</th><th className="px-4 py-2">{t("modules.isbn")}</th><th className="px-4 py-2">{t("modules.copies")}</th><th className="px-4 py-2"></th></tr>
             </thead>
             <tbody className="divide-y divide-line">
               {books.map((b) => (
@@ -126,9 +126,9 @@ export function LibraryPage() {
                   <td className="px-4 py-2 text-ink-soft">{b.copies}</td>
                   <td className="px-4 py-2">
                     <div className="flex justify-end gap-1">
-                      <Button variant="ghost" className="px-2 py-1 text-xs" onClick={() => { setCoForm({ studentId: "", due: null }); setCheckout(b); }}>Check out</Button>
-                      <Button variant="ghost" className="px-2 py-1 text-xs" onClick={() => openEdit(b)}>Edit</Button>
-                      <Button variant="ghost" className="px-2 py-1 text-xs text-danger" onClick={() => setDeleting(b)}>Delete</Button>
+                      <Button variant="ghost" className="px-2 py-1 text-xs" onClick={() => { setCoForm({ studentId: "", due: null }); setCheckout(b); }}>{t("modules.checkOut")}</Button>
+                      <Button variant="ghost" className="px-2 py-1 text-xs" onClick={() => openEdit(b)}>{t("crud.edit")}</Button>
+                      <Button variant="ghost" className="px-2 py-1 text-xs text-danger" onClick={() => setDeleting(b)}>{t("crud.delete")}</Button>
                     </div>
                   </td>
                 </tr>
@@ -140,7 +140,7 @@ export function LibraryPage() {
 
       {!!active?.length && (
         <div className="space-y-2">
-          <h2 className="text-sm font-semibold uppercase text-ink-faint">On loan</h2>
+          <h2 className="text-sm font-semibold uppercase text-ink-faint">{t("modules.onLoan")}</h2>
           {active.map((c) => (
             <Card key={c.id} className="flex items-center justify-between text-sm">
               <div>
@@ -151,50 +151,50 @@ export function LibraryPage() {
               </div>
               <div className="flex items-center gap-2">
                 <Badge tone={c.status === "overdue" ? "danger" : "neutral"}>{c.status}</Badge>
-                <Button variant="ghost" className="px-2 py-1 text-xs" onClick={() => doReturn.mutate(c.id)} disabled={doReturn.isPending}>Return</Button>
+                <Button variant="ghost" className="px-2 py-1 text-xs" onClick={() => doReturn.mutate(c.id)} disabled={doReturn.isPending}>{t("modules.return")}</Button>
               </div>
             </Card>
           ))}
         </div>
       )}
 
-      <Modal open={showCreate} onClose={() => setShowCreate(false)} title="Add book">
+      <Modal open={showCreate} onClose={() => setShowCreate(false)} title={t("modules.addBook")}>
         {bookFields(form, setForm)}
         <div className="mt-4 flex justify-end gap-2 border-t border-line pt-3">
-          <Button variant="ghost" onClick={() => setShowCreate(false)}>Cancel</Button>
-          <Button onClick={() => create.mutate()} disabled={!form.title || create.isPending}>Create</Button>
+          <Button variant="ghost" onClick={() => setShowCreate(false)}>{t("common.cancel")}</Button>
+          <Button onClick={() => create.mutate()} disabled={!form.title || create.isPending}>{t("crud.create")}</Button>
         </div>
       </Modal>
 
-      <Modal open={!!editing} onClose={() => setEditing(null)} title="Edit book">
+      <Modal open={!!editing} onClose={() => setEditing(null)} title={t("modules.editBook")}>
         {bookFields(editForm, setEditForm)}
         <div className="mt-4 flex justify-end gap-2 border-t border-line pt-3">
-          <Button variant="ghost" onClick={() => setEditing(null)}>Cancel</Button>
-          <Button onClick={() => update.mutate()} disabled={!editForm.title || update.isPending}>Save</Button>
+          <Button variant="ghost" onClick={() => setEditing(null)}>{t("common.cancel")}</Button>
+          <Button onClick={() => update.mutate()} disabled={!editForm.title || update.isPending}>{t("common.save")}</Button>
         </div>
       </Modal>
 
       <Modal open={!!checkout} onClose={() => setCheckout(null)} title={`Check out — ${checkout?.title ?? ""}`}>
         <div className="space-y-3">
-          <Field label="Student">
+          <Field label={t("clinic.student")}>
             <select value={coForm.studentId} onChange={(e) => setCoForm({ ...coForm, studentId: e.target.value })} className="w-full rounded-control border border-line bg-card px-3 py-2 text-sm text-ink">
-              <option value="">Select student</option>
+              <option value="">{t("modules.selectStudent")}</option>
               {students?.map((s) => <option key={s.id} value={s.id}>{s.first_name} {s.last_name}</option>)}
             </select>
           </Field>
-          <Field label="Due date"><EthDatePicker value={coForm.due} onChange={(d) => setCoForm({ ...coForm, due: d })} /></Field>
+          <Field label={t("modules.dueDate")}><EthDatePicker value={coForm.due} onChange={(d) => setCoForm({ ...coForm, due: d })} /></Field>
         </div>
         <div className="mt-4 flex justify-end gap-2 border-t border-line pt-3">
-          <Button variant="ghost" onClick={() => setCheckout(null)}>Cancel</Button>
-          <Button onClick={() => doCheckout.mutate()} disabled={!coForm.studentId || !coForm.due || doCheckout.isPending}>Check out</Button>
+          <Button variant="ghost" onClick={() => setCheckout(null)}>{t("common.cancel")}</Button>
+          <Button onClick={() => doCheckout.mutate()} disabled={!coForm.studentId || !coForm.due || doCheckout.isPending}>{t("modules.checkOut")}</Button>
         </div>
       </Modal>
 
-      <Modal open={!!deleting} onClose={() => setDeleting(null)} title="Delete book">
-        <p className="text-sm text-ink-soft">Delete <span className="font-medium text-ink">{deleting?.title}</span>?</p>
+      <Modal open={!!deleting} onClose={() => setDeleting(null)} title={t("modules.deleteBook")}>
+        <p className="text-sm text-ink-soft">{t("crud.delete")} <span className="font-medium text-ink">{deleting?.title}</span>?</p>
         <div className="mt-4 flex justify-end gap-2 border-t border-line pt-3">
-          <Button variant="ghost" onClick={() => setDeleting(null)}>Cancel</Button>
-          <Button variant="danger" onClick={() => remove.mutate()} disabled={remove.isPending}>Delete</Button>
+          <Button variant="ghost" onClick={() => setDeleting(null)}>{t("common.cancel")}</Button>
+          <Button variant="danger" onClick={() => remove.mutate()} disabled={remove.isPending}>{t("crud.delete")}</Button>
         </div>
       </Modal>
     </div>
