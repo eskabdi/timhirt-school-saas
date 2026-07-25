@@ -59,9 +59,13 @@
     "feeStructures": "Fee Structures", "invoices": "Invoices", "inventory": "Inventory", "reports": "Reports",
     "communication": "Communication", "hostel": "Hostel", "discipline": "Discipline", "clinic": "Clinic", "library": "Library", "transport": "Transport", "events": "Events",
     "employees": "Employees", "myTimetable": "My Timetable", "myClasses": "My Classes", "myLeave": "My Leave", "myPayslips": "My Payslips",
-    "classes": "Classes", "subjects": "Subjects", "teachers": "Teachers", "academicYears": "Academic Years", "promotion": "Grade Promotion", "gradingScales": "Grading Scales", "branding": "Branding", "idCardTemplate": "ID Card Template", "users": "Users", "roles": "Roles", "configuration": "Configuration", "importExport": "Import/Export", "healthMonitoring": "Health Monitoring", "auditLogs": "Audit Logs", "backups": "Backups", "customReport": "Custom Report", "calendarSettings": "Calendar",
+    "classes": "Classes", "subjects": "Subjects", "teachers": "Teachers", "academicYears": "Academic Years and Terms", "promotion": "Grade Promotion", "gradingScales": "Grading Scales", "branding": "Branding", "idCardTemplate": "ID Card Template", "users": "Users", "roles": "Roles", "configuration": "API Configuration", "importExport": "Import/Export", "healthMonitoring": "Health Monitoring", "auditLogs": "Audit Logs", "backups": "Backups", "customReport": "Custom Report", "calendarSettings": "Calendar",
+    "academicStudentsReport": "Academic and Students Report", "financialReport": "Financial Report", "feesReport": "Fees Report", "hrPayrollReport": "HR and Payroll Report", "usersAuditReport": "Users and Audit Log Report",
     "portal": "Portal", "grades": "Grades", "makePayment": "Make Payment",
-    "section": { "academics": "Academics", "finance": "Finance", "operations": "Operations", "hr": "HR & Payroll", "mySpace": "My Space", "settings": "Settings" }
+    "section": { "academics": "Academics", "finance": "Finance", "operations": "Operations", "hr": "HR & Payroll", "mySpace": "My Space", "settings": "Settings",
+      "studentLifecycle": "Student Lifecycle", "academicScheduling": "Academic & Scheduling", "studentWelfare": "Student Welfare",
+      "financeResource": "Finance & Resource Management", "reportsAnalytics": "Reports & Analytics", "hrPayroll": "Human Resources & Payroll",
+      "settingsConfiguration": "Configuration", "settingsSystemAdmin": "System Administration", "selfServicePortal": "Self-Service Portal" }
   },
   "auth": { "email": "Email", "password": "Password", "signIn": "Sign in", "signingIn": "Signing in…", "invalid": "Email or password is incorrect",
     "acceptInvite": { "title": "Set your password", "subtitle": "Welcome — choose a password to finish setting up your account.", "newPassword": "New password", "confirmPassword": "Confirm password", "submit": "Set password & continue", "submitting": "Setting password…", "mismatch": "Passwords do not match", "tooShort": "Password must be at least 8 characters", "invalidLink": "This invite link is invalid or has expired. Ask your school administrator to resend it." },

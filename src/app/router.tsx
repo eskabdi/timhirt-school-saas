@@ -87,6 +87,10 @@ import { ConfigurationPage } from "@/features/settings/ConfigurationPage";
 import { ImportExportPage } from "@/features/settings/ImportExportPage";
 import { HealthMonitoringPage } from "@/features/settings/HealthMonitoringPage";
 import { CustomReportBuilderPage } from "@/features/reports/CustomReportBuilderPage";
+import { FinancialReportPage } from "@/features/reports/FinancialReportPage";
+import { FeesReportPage } from "@/features/reports/FeesReportPage";
+import { HRPayrollReportPage } from "@/features/reports/HRPayrollReportPage";
+import { UsersAuditReportPage } from "@/features/reports/UsersAuditReportPage";
 
 import { TenantsManagementPage } from "@/features/platform/TenantsManagementPage";
 import { TenantDetailPage } from "@/features/platform/TenantDetailPage";
@@ -205,6 +209,7 @@ export const router = createBrowserRouter([
               { path: "settings/audit-logs", element: <AuditLogsPage /> },
               { path: "settings/backups", element: <BackupsPage /> },
               { path: "settings/calendar", element: <CalendarPreferencesPage /> },
+              { path: "reports/users-audit", element: <UsersAuditReportPage /> },
             ],
           },
 
@@ -225,7 +230,11 @@ export const router = createBrowserRouter([
               },
               {
                 element: <RequireModule module="reporting" />,
-                children: [{ path: "reports", element: <ReportsPage /> }],
+                children: [
+                  { path: "reports", element: <ReportsPage /> },
+                  { path: "reports/financial", element: <FinancialReportPage /> },
+                  { path: "reports/fees", element: <FeesReportPage /> },
+                ],
               },
             ],
           },
@@ -292,6 +301,7 @@ export const router = createBrowserRouter([
                 children: [
                   { path: "hr/payroll", element: <PayrollRunsPage /> },
                   { path: "hr/payroll/:runId", element: <PayrollRunDetailPage /> },
+                  { path: "reports/hr-payroll", element: <HRPayrollReportPage /> },
                 ],
               },
             ],

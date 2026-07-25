@@ -59,9 +59,13 @@
     "feeStructures": "የክፍያ አወቃቀር", "invoices": "ደረሰኞች", "inventory": "እቃ ንብረት", "reports": "ሪፖርቶች",
     "communication": "ግንኙነት", "hostel": "ማደሪያ", "discipline": "ስነ ስርዓት", "clinic": "ክሊኒክ", "library": "ቤተ መጻሕፍት", "transport": "ትራንስፖርት", "events": "ዝግጅቶች",
     "employees": "ሠራተኞች", "myTimetable": "የእኔ መርሃ ግብር", "myClasses": "የእኔ ክፍሎች", "myLeave": "የእኔ ፈቃድ", "myPayslips": "የእኔ ደመወዝ ወረቀት",
-    "classes": "ክፍሎች", "subjects": "የትምህርት ዓይነቶች", "teachers": "አስተማሪዎች", "academicYears": "የትምህርት ዓመታት", "promotion": "የክፍል ዕድገት", "gradingScales": "የውጤት መለኪያ", "branding": "ብራንዲንግ", "idCardTemplate": "የመታወቂያ ካርድ አብነት", "users": "ተጠቃሚዎች", "roles": "ሚናዎች", "configuration": "ምዝገባ", "importExport": "ወደ ውስጥ/ወደ ውጪ ማምጣት", "healthMonitoring": "የስርዓት ጤና ክትትል", "auditLogs": "የተለውጡ ነገሮች መዝገብ", "backups": "ወደ ኃላ ፍልሰት", "customReport": "ብጁ ሪፖርት", "calendarSettings": "የቀን መቁጠሪያ",
+    "academicStudentsReport": "የትምህርትና ተማሪዎች ሪፖርት", "financialReport": "የፋይናንስ ሪፖርት", "feesReport": "የክፍያ ሪፖርት", "hrPayrollReport": "የሰው ኃይልና ደመወዝ ሪፖርት", "usersAuditReport": "የተጠቃሚዎችና ኦዲት ምዝገባ ሪፖርት",
+    "classes": "ክፍሎች", "subjects": "የትምህርት ዓይነቶች", "teachers": "አስተማሪዎች", "academicYears": "የትምህርት ዓመታትና ክፍለ ጊዜያት", "promotion": "የክፍል ዕድገት", "gradingScales": "የውጤት መለኪያ", "branding": "ብራንዲንግ", "idCardTemplate": "የመታወቂያ ካርድ አብነት", "users": "ተጠቃሚዎች", "roles": "ሚናዎች", "configuration": "የAPI ማዋቀሪያ", "importExport": "ወደ ውስጥ/ወደ ውጪ ማምጣት", "healthMonitoring": "የስርዓት ጤና ክትትል", "auditLogs": "የተለውጡ ነገሮች መዝገብ", "backups": "ወደ ኃላ ፍልሰት", "customReport": "ብጁ ሪፖርት", "calendarSettings": "የቀን መቁጠሪያ",
     "portal": "መግቢያ", "grades": "ውጤቶች", "makePayment": "ክፍያ ፈጽም",
-    "section": { "academics": "ትምህርታዊ", "finance": "ፋይናንስ", "operations": "አገልግሎቶች", "hr": "ሰው ኃይል እና ደመወዝ", "mySpace": "የእኔ ገጽ", "settings": "ቅንብሮች" }
+    "section": { "academics": "ትምህርታዊ", "finance": "ፋይናንስ", "operations": "አገልግሎቶች", "hr": "ሰው ኃይል እና ደመወዝ", "mySpace": "የእኔ ገጽ", "settings": "ቅንብሮች",
+      "studentLifecycle": "የተማሪ የሕይወት ዑደት", "academicScheduling": "ትምህርትና መርሃ ግብር", "studentWelfare": "የተማሪ ደህንነት",
+      "financeResource": "ፋይናንስና ሀብት አስተዳደር", "reportsAnalytics": "ሪፖርቶችና ትንተና", "hrPayroll": "የሰው ኃይልና ደመወዝ",
+      "settingsConfiguration": "ማዋቀሪያ", "settingsSystemAdmin": "የስርዓት አስተዳደር", "selfServicePortal": "የራስ አገልግሎት መግቢያ" }
   },
   "auth": { "email": "ኢሜይል", "password": "የይለፍ ቃል", "signIn": "ግባ", "signingIn": "በመግባት ላይ…", "invalid": "ኢሜይል ወይም የይለፍ ቃል ትክክል አይደለም",
     "acceptInvite": { "title": "የይለፍ ቃልዎን ያዘጋጁ", "subtitle": "እንኳን ደህና መጡ — መለያዎን ለማጠናቀቅ የይለፍ ቃል ይምረጡ።", "newPassword": "አዲስ የይለፍ ቃል", "confirmPassword": "የይለፍ ቃል ያረጋግጡ", "submit": "የይለፍ ቃል አዘጋጅ እና ቀጥል", "submitting": "የይለፍ ቃል በማዘጋጀት ላይ…", "mismatch": "የይለፍ ቃላት አይመሳሰሉም", "tooShort": "የይለፍ ቃል ቢያንስ 8 ፊደላት መሆን አለበት", "invalidLink": "ይህ የግብዣ አገናኝ ልክ ያልሆነ ወይም ጊዜው አልፎበታል። የትምህርት ቤት አስተዳዳሪዎን እንደገና እንዲልክልዎ ይጠይቁ።" },

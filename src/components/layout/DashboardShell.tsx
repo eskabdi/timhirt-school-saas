@@ -19,7 +19,8 @@ const TEACH = ["school_admin", "teacher"];
 const STAFF = ["school_admin", "teacher", "hr_officer", "accountant", "registrar"];
 
 interface NavItem { to: string; key: string; roles: string[]; module?: string; end?: boolean }
-interface NavSection { section?: string; items: NavItem[] }
+interface NavGroup { key: string; items: NavItem[] }
+interface NavSection { section?: string; items?: NavItem[]; groups?: NavGroup[] }
 
 // Mirrors the exact role/module gates in src/app/router.tsx — every route
 // defined there gets a link here, so nothing built is unreachable from the UI.
@@ -30,29 +31,38 @@ const NAV: NavSection[] = [
     ],
   },
   {
-    section: "nav.section.academics",
+    section: "nav.section.mySpace",
+    items: [
+      { to: "/my/timetable", key: "nav.myTimetable", roles: ["teacher"], module: "timetable" },
+      { to: "/my/classes", key: "nav.myClasses", roles: ["teacher"], module: "timetable" },
+    ],
+  },
+  {
+    section: "nav.section.studentLifecycle",
     items: [
       { to: "/students", key: "nav.students", roles: ADMIN_REG, module: "sis" },
       { to: "/admissions", key: "nav.admissions", roles: ADMIN_REG, module: "admissions" },
       { to: "/id-cards", key: "nav.idCards", roles: ADMIN_REG, module: "id_cards" },
       { to: "/attendance", key: "nav.attendance", roles: TEACH, module: "attendance" },
       { to: "/attendance/overview", key: "nav.attendanceOverview", roles: TEACH, module: "attendance" },
-      { to: "/timetable", key: "nav.timetable", roles: TEACH, module: "timetable" },
-      { to: "/gradebook", key: "nav.gradebook", roles: TEACH, module: "gradebook" },
       { to: "/assignments", key: "nav.assignments", roles: TEACH, module: "assignments" },
+      { to: "/gradebook", key: "nav.gradebook", roles: TEACH, module: "gradebook" },
     ],
   },
   {
-    section: "nav.section.finance",
+    section: "nav.section.academicScheduling",
     items: [
-      { to: "/fees/structures", key: "nav.feeStructures", roles: ["school_admin"], module: "fees" },
-      { to: "/fees/invoices", key: "nav.invoices", roles: FINANCE, module: "fees" },
-      { to: "/inventory", key: "nav.inventory", roles: FINANCE, module: "inventory" },
-      { to: "/reports", key: "nav.reports", roles: FINANCE, module: "reporting" },
+      { to: "/classes", key: "nav.classes", roles: ["school_admin"] },
+      { to: "/subjects", key: "nav.subjects", roles: ["school_admin"] },
+      { to: "/settings/teachers", key: "nav.teachers", roles: ["school_admin"] },
+      { to: "/settings/academic-years", key: "nav.academicYears", roles: ["school_admin"] },
+      { to: "/timetable", key: "nav.timetable", roles: TEACH, module: "timetable" },
+      { to: "/settings/grading-scales", key: "nav.gradingScales", roles: ["school_admin"] },
+      { to: "/settings/promotion", key: "nav.promotion", roles: ["school_admin"] },
     ],
   },
   {
-    section: "nav.section.operations",
+    section: "nav.section.studentWelfare",
     items: [
       { to: "/communication", key: "nav.communication", roles: ["school_admin"], module: "communication" },
       { to: "/hostel", key: "nav.hostel", roles: ["school_admin"], module: "hostel" },
@@ -64,7 +74,26 @@ const NAV: NavSection[] = [
     ],
   },
   {
-    section: "nav.section.hr",
+    section: "nav.section.financeResource",
+    items: [
+      { to: "/fees/structures", key: "nav.feeStructures", roles: ["school_admin"], module: "fees" },
+      { to: "/fees/invoices", key: "nav.invoices", roles: FINANCE, module: "fees" },
+      { to: "/inventory", key: "nav.inventory", roles: FINANCE, module: "inventory" },
+    ],
+  },
+  {
+    section: "nav.section.reportsAnalytics",
+    items: [
+      { to: "/reports", key: "nav.academicStudentsReport", roles: FINANCE, module: "reporting" },
+      { to: "/reports/custom", key: "nav.customReport", roles: ["school_admin"] },
+      { to: "/reports/financial", key: "nav.financialReport", roles: FINANCE, module: "reporting" },
+      { to: "/reports/fees", key: "nav.feesReport", roles: FINANCE, module: "reporting" },
+      { to: "/reports/hr-payroll", key: "nav.hrPayrollReport", roles: HR_FINANCE, module: "hr_payroll" },
+      { to: "/reports/users-audit", key: "nav.usersAuditReport", roles: ["school_admin"] },
+    ],
+  },
+  {
+    section: "nav.section.hrPayroll",
     items: [
       { to: "/hr/employees", key: "nav.employees", roles: HR, module: "hr_payroll" },
       { to: "/hr/leave", key: "nav.leave", roles: HR, module: "hr_payroll" },
@@ -72,34 +101,28 @@ const NAV: NavSection[] = [
     ],
   },
   {
-    section: "nav.section.mySpace",
-    items: [
-      { to: "/my/timetable", key: "nav.myTimetable", roles: ["teacher"], module: "timetable" },
-      { to: "/my/classes", key: "nav.myClasses", roles: ["teacher"], module: "timetable" },
-      { to: "/my/leave", key: "nav.myLeave", roles: STAFF, module: "hr_payroll" },
-      { to: "/my/payslips", key: "nav.myPayslips", roles: STAFF, module: "hr_payroll" },
-    ],
-  },
-  {
     section: "nav.section.settings",
-    items: [
-      { to: "/classes", key: "nav.classes", roles: ["school_admin"] },
-      { to: "/subjects", key: "nav.subjects", roles: ["school_admin"] },
-      { to: "/settings/teachers", key: "nav.teachers", roles: ["school_admin"] },
-      { to: "/settings/academic-years", key: "nav.academicYears", roles: ["school_admin"] },
-      { to: "/settings/promotion", key: "nav.promotion", roles: ["school_admin"] },
-      { to: "/settings/grading-scales", key: "nav.gradingScales", roles: ["school_admin"] },
-      { to: "/settings/branding", key: "nav.branding", roles: ["school_admin"] },
-      { to: "/settings/id-card-template", key: "nav.idCardTemplate", roles: ["school_admin"] },
-      { to: "/settings/users", key: "nav.users", roles: ["school_admin"] },
-      { to: "/settings/roles", key: "nav.roles", roles: ["school_admin"] },
-      { to: "/settings/configuration", key: "nav.configuration", roles: ["school_admin"] },
-      { to: "/settings/import-export", key: "nav.importExport", roles: ["school_admin"] },
-      { to: "/settings/health-monitoring", key: "nav.healthMonitoring", roles: ["school_admin"] },
-      { to: "/settings/audit-logs", key: "nav.auditLogs", roles: ["school_admin"] },
-      { to: "/settings/backups", key: "nav.backups", roles: ["school_admin"] },
-      { to: "/settings/calendar", key: "nav.calendarSettings", roles: ["school_admin"] },
-      { to: "/reports/custom", key: "nav.customReport", roles: ["school_admin"] },
+    groups: [
+      {
+        key: "nav.section.settingsConfiguration",
+        items: [
+          { to: "/settings/calendar", key: "nav.calendarSettings", roles: ["school_admin"] },
+          { to: "/settings/branding", key: "nav.branding", roles: ["school_admin"] },
+          { to: "/settings/import-export", key: "nav.importExport", roles: ["school_admin"] },
+          { to: "/settings/id-card-template", key: "nav.idCardTemplate", roles: ["school_admin"] },
+        ],
+      },
+      {
+        key: "nav.section.settingsSystemAdmin",
+        items: [
+          { to: "/settings/users", key: "nav.users", roles: ["school_admin"] },
+          { to: "/settings/roles", key: "nav.roles", roles: ["school_admin"] },
+          { to: "/settings/configuration", key: "nav.configuration", roles: ["school_admin"] },
+          { to: "/settings/health-monitoring", key: "nav.healthMonitoring", roles: ["school_admin"] },
+          { to: "/settings/audit-logs", key: "nav.auditLogs", roles: ["school_admin"] },
+          { to: "/settings/backups", key: "nav.backups", roles: ["school_admin"] },
+        ],
+      },
     ],
   },
   {
@@ -112,6 +135,12 @@ const NAV: NavSection[] = [
       { to: "/portal/pay", key: "nav.makePayment", roles: ["parent"] },
     ],
   },
+];
+
+// SELF-SERVICE PORTAL: shown under the user-icon dropdown, not the sidebar.
+const USER_MENU_LINKS: NavItem[] = [
+  { to: "/my/leave", key: "nav.myLeave", roles: STAFF, module: "hr_payroll" },
+  { to: "/my/payslips", key: "nav.myPayslips", roles: STAFF, module: "hr_payroll" },
 ];
 
 export function DashboardShell() {
@@ -147,6 +176,9 @@ export function DashboardShell() {
   const logoUrl = branding?.logoPath
     ? supabase.storage.from("branding").getPublicUrl(branding.logoPath).data.publicUrl
     : null;
+  const visibleUserMenuLinks = USER_MENU_LINKS.filter((n) =>
+    (!profile || isSuperAdmin || n.roles.includes(profile.role))
+    && (!n.module || isSuperAdmin || modules?.has(n.module)));
 
   const signOut = async () => {
     await supabase.auth.signOut();
@@ -184,14 +216,83 @@ export function DashboardShell() {
         </div>
         <nav className="flex-1 space-y-4 overflow-y-auto p-3">
           {NAV.map((section, si) => {
-            const items = section.items.filter((n) =>
+            const visible = (n: NavItem) =>
               (!profile || isSuperAdmin || n.roles.includes(profile.role))
-              && (!n.module || isSuperAdmin || modules?.has(n.module)),
-            );
+              && (!n.module || isSuperAdmin || modules?.has(n.module));
+            const isActiveRoute = (n: NavItem) =>
+              n.end ? location.pathname === n.to : location.pathname.startsWith(n.to);
+
+            if (section.groups) {
+              const groups = section.groups
+                .map((g) => ({ ...g, items: g.items.filter(visible) }))
+                .filter((g) => g.items.length > 0);
+              if (groups.length === 0) return null;
+
+              const hasActiveRoute = groups.some((g) => g.items.some(isActiveRoute));
+              const isOpen = !section.section || !collapsed.has(section.section) || hasActiveRoute;
+
+              return (
+                <div key={si} className="space-y-1">
+                  {section.section && (
+                    <button
+                      type="button"
+                      onClick={() => toggleSection(section.section!)}
+                      aria-expanded={isOpen}
+                      className="flex w-full items-center justify-between gap-2 px-3 pb-1 text-left text-xs font-semibold uppercase tracking-wide text-ink-faint hover:text-ink"
+                    >
+                      {t(section.section)}
+                      <svg viewBox="0 0 12 12" className={cn("h-3 w-3 transition-transform", isOpen ? "rotate-180" : "")} aria-hidden>
+                        <path d="M2.5 4.5 6 8l3.5-3.5" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </button>
+                  )}
+                  <div className={cn("grid transition-[grid-template-rows] duration-200 ease-out", isOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]")}>
+                    <div className="space-y-3 overflow-hidden pl-1">
+                      {groups.map((g) => {
+                        const groupHasActive = g.items.some(isActiveRoute);
+                        const groupOpen = !collapsed.has(g.key) || groupHasActive;
+                        return (
+                          <div key={g.key} className="space-y-1">
+                            <button
+                              type="button"
+                              onClick={() => toggleSection(g.key)}
+                              aria-expanded={groupOpen}
+                              className="flex w-full items-center justify-between gap-2 px-3 pb-1 text-left text-[11px] font-semibold uppercase tracking-wide text-ink-faint/80 hover:text-ink"
+                            >
+                              {t(g.key)}
+                              <svg viewBox="0 0 12 12" className={cn("h-3 w-3 transition-transform", groupOpen ? "rotate-180" : "")} aria-hidden>
+                                <path d="M2.5 4.5 6 8l3.5-3.5" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                              </svg>
+                            </button>
+                            <div className={cn("grid transition-[grid-template-rows] duration-200 ease-out", groupOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]")}>
+                              <div className="space-y-1 overflow-hidden pl-1">
+                                {g.items.map((n) => (
+                                  <NavLink
+                                    key={n.to}
+                                    to={n.to}
+                                    end={n.end ?? false}
+                                    className={({ isActive }) =>
+                                      cn("block rounded-control px-3 py-2 text-sm transition-colors",
+                                         isActive ? "bg-navy font-semibold text-white" : "text-ink-soft hover:bg-navy-wash")}
+                                  >
+                                    {t(n.key)}
+                                  </NavLink>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              );
+            }
+
+            const items = (section.items ?? []).filter(visible);
             if (items.length === 0) return null;
 
-            const hasActiveRoute = items.some((n) =>
-              n.end ? location.pathname === n.to : location.pathname.startsWith(n.to));
+            const hasActiveRoute = items.some(isActiveRoute);
             const isOpen = !section.section || !collapsed.has(section.section) || hasActiveRoute;
 
             return (
@@ -201,7 +302,7 @@ export function DashboardShell() {
                     type="button"
                     onClick={() => toggleSection(section.section!)}
                     aria-expanded={isOpen}
-                    className="flex w-full items-center justify-between px-3 pb-1 text-xs font-semibold uppercase tracking-wide text-ink-faint hover:text-ink"
+                    className="flex w-full items-center justify-between gap-2 px-3 pb-1 text-left text-xs font-semibold uppercase tracking-wide text-ink-faint hover:text-ink"
                   >
                     {t(section.section)}
                     <svg viewBox="0 0 12 12" className={cn("h-3 w-3 transition-transform", isOpen ? "rotate-180" : "")} aria-hidden>
@@ -254,6 +355,27 @@ export function DashboardShell() {
               </button>
               {userMenuOpen && (
                 <div role="menu" className="absolute right-0 z-20 mt-1 w-56 rounded-panel border border-line bg-card py-1 shadow-lg">
+                  {visibleUserMenuLinks.length > 0 && (
+                    <>
+                      <div className="px-4 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-ink-faint/80">
+                        {t("nav.section.selfServicePortal")}
+                      </div>
+                      {visibleUserMenuLinks.map((n) => (
+                        <NavLink
+                          key={n.to}
+                          to={n.to}
+                          role="menuitem"
+                          onClick={() => setUserMenuOpen(false)}
+                          className={({ isActive }) =>
+                            cn("block px-4 py-2 text-left text-sm",
+                               isActive ? "bg-navy-wash font-medium text-navy" : "text-ink hover:bg-sidebar")}
+                        >
+                          {t(n.key)}
+                        </NavLink>
+                      ))}
+                      <div className="border-t border-line" />
+                    </>
+                  )}
                   <div className="px-4 py-2 text-xs text-ink-faint">
                     {t("userMenu.role")}: <span className="font-medium text-ink">{profile ? t(`roles.${profile.role}`) : "—"}</span>
                   </div>
