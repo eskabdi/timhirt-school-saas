@@ -40,6 +40,16 @@ export function StudentDetailPage() {
     },
   });
 
+  // student-photos is a private bucket, so the photo needs a signed URL —
+  // getPublicUrl only resolves for buckets created with public = true.
+  const { data: photoUrl } = useQuery({
+    queryKey: ["student-photo-url", student?.avatar_path],
+    enabled: !!student?.avatar_path,
+    staleTime: 4 * 60 * 1000, // re-sign before the 5-minute link expires
+    queryFn: async () =>
+      (await supabase.storage.from("student-photos").createSignedUrl(student!.avatar_path!, 300)).data?.signedUrl ?? null,
+  });
+
   const { data: guardian } = useQuery({
     queryKey: ["student-guardian", id],
     enabled: !!id,
@@ -111,8 +121,8 @@ export function StudentDetailPage() {
       {/* Identity header */}
       <Card className="flex flex-wrap items-center gap-4">
         <div className="h-32 w-32 overflow-hidden rounded-lg border border-line bg-navy-wash">
-          {student.avatar_path
-            ? <img src={supabase.storage.from("student-photos").getPublicUrl(student.avatar_path).data.publicUrl} alt="" className="h-full w-full object-cover" />
+          {photoUrl
+            ? <img src={photoUrl} alt="" className="h-full w-full object-cover" />
             : <div className="flex h-full w-full items-center justify-center text-5xl text-ink-faint">👤</div>}
         </div>
         <div className="min-w-[240px]">
