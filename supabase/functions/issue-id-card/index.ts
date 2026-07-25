@@ -23,7 +23,7 @@
 // drawn on the card is stripped to printable ASCII first.
 // ============================================================================
 import { z } from "npm:zod@3";
-import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage, type PDFImage } from "npm:pdf-lib@1";
+import { PDFDocument, StandardFonts, degrees, rgb, type PDFFont, type PDFPage, type PDFImage } from "npm:pdf-lib@1";
 import fontkit from "npm:@pdf-lib/fontkit@1";
 import { toDataURL as qrToDataURL } from "npm:qrcode@1";
 import bwipjs from "npm:bwip-js@4";
@@ -51,6 +51,7 @@ interface FieldPlacement {
   bold?: boolean;
   text?: string;    // static_text only
   fontFamily?: string; // "default" (Helvetica) | "NotoSerifEthiopic" | "Tayitu" | "Jiret"
+  rotation?: 0 | 90 | 180 | 270; // barcode only, degrees counter-clockwise
 }
 
 // Uploaded Ethiopic/Latin fonts, served from the deployed frontend's /public.
@@ -170,6 +171,34 @@ function drawTextInBox(page: PDFPage, font: PDFFont, raw: string, box: { x: numb
 function drawImageBox(page: PDFPage, img: PDFImage, box: { x: number; y: number; w: number; h: number }) {
   page.drawImage(img, { x: box.x, y: box.y, width: box.w, height: box.h });
 }
+
+/** Same fill-the-box contract as drawImageBox, but for artwork the template
+ *  rotates (barcodes, so a card can carry a vertical spine code).
+ *
+ *  pdf-lib rotates counter-clockwise about the draw origin (x, y) rather than
+ *  about the image's centre, so the origin and the draw width/height have to
+ *  be restated per quarter-turn for the result to still land inside `box`.
+ *  At 90/270 the drawn width runs along the box's height, hence the swap. */
+function drawImageBoxRotated(
+  page: PDFPage, img: PDFImage,
+  box: { x: number; y: number; w: number; h: number },
+  rotation: 0 | 90 | 180 | 270,
+) {
+  const { x, y, w, h } = box;
+  switch (rotation) {
+    case 90:
+      page.drawImage(img, { x: x + w, y, width: h, height: w, rotate: degrees(90) });
+      return;
+    case 180:
+      page.drawImage(img, { x: x + w, y: y + h, width: w, height: h, rotate: degrees(180) });
+      return;
+    case 270:
+      page.drawImage(img, { x, y: y + h, width: h, height: w, rotate: degrees(270) });
+      return;
+    default:
+      page.drawImage(img, { x, y, width: w, height: h });
+  }
+}
 function drawPhotoPlaceholder(page: PDFPage, font: PDFFont, initials: string, box: { x: number; y: number; w: number; h: number }) {
   page.drawRectangle({ x: box.x, y: box.y, width: box.w, height: box.h, borderColor: rgb(0.6, 0.6, 0.6), borderWidth: 1 });
   drawTextInBox(page, font, initials, box, { size: 16, color: GREY, align: "center" });
@@ -201,7 +230,7 @@ function renderSide(
       continue;
     }
     if (f.field_key === "barcode") {
-      if (barcodeImg) drawImageBox(page, barcodeImg, box);
+      if (barcodeImg) drawImageBoxRotated(page, barcodeImg, box, f.rotation ?? 0);
       continue;
     }
 

@@ -20,6 +20,20 @@
   font-weight: normal; font-style: normal; font-display: swap;
 }
 
+/* Design-system palette defaults, as space-separated RGB channels so Tailwind
+   opacity modifiers work (see tailwind.config.ts). A tenant's Branding page
+   palette overrides these on :root at runtime via lib/brand-theme.ts; with
+   nothing saved, these values are the shipped Navy/Rounded theme. */
+:root {
+  --brand-primary: 30 42 112;        /* #1E2A70 navy        */
+  --brand-primary-deep: 22 32 90;    /* #16205A navy-deep   */
+  --brand-primary-wash: 233 234 247; /* #E9EAF7 navy-wash   */
+  --brand-secondary: 30 138 95;      /* #1E8A5F ok          */
+  --brand-secondary-tint: 228 245 236; /* #E4F5EC ok-tint   */
+  --brand-accent: 168 92 36;         /* #A85C24 late        */
+  --brand-accent-tint: 251 234 221;  /* #FBEADD late-tint   */
+}
+
 @layer base {
   body { @apply bg-page text-ink font-sans antialiased; }
   :focus-visible { @apply outline-none ring-2 ring-navy ring-offset-2 ring-offset-page; }

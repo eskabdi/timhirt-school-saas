@@ -40,7 +40,17 @@ interface FieldPlacement {
   bold?: boolean;
   text?: string;
   fontFamily?: string;
+  /** Barcode only. Degrees counter-clockwise, matching pdf-lib's rotation
+   *  direction so the designer preview and the printed card agree. */
+  rotation?: 0 | 90 | 180 | 270;
 }
+
+const ROTATIONS: { value: 0 | 90 | 180 | 270; label: string }[] = [
+  { value: 0, label: "0° — horizontal" },
+  { value: 90, label: "90° — vertical ↑" },
+  { value: 180, label: "180° — upside down" },
+  { value: 270, label: "270° — vertical ↓" },
+];
 
 // Text-field fonts. `css` drives the on-screen designer preview (@font-face in
 // index.css); `value` is what's stored + read by the PDF renderer. Default =
@@ -135,6 +145,7 @@ export function IdCardTemplateDesignerPage() {
       color: "#000000", align: "left",
       text: type.key === "static_text" ? "Label" : undefined,
       fontFamily: type.defaultFont,
+      rotation: type.key === "barcode" ? 0 : undefined,
     };
     updateSide((s) => ({ ...s, fields: [...s.fields, field] }));
     setSelectedId(field.id);
@@ -142,6 +153,21 @@ export function IdCardTemplateDesignerPage() {
 
   const patchField = (id: string, patch: Partial<FieldPlacement>) => {
     updateSide((s) => ({ ...s, fields: s.fields.map((f) => (f.id === id ? { ...f, ...patch } : f)) }));
+  };
+
+  // Turning a barcode a quarter-turn swaps which box edge carries its length.
+  // Without swapping w/h the code would be squeezed into the short edge and
+  // stop scanning, so follow the rotation with the box (still user-resizable).
+  const setRotation = (f: FieldPlacement, rotation: FieldPlacement["rotation"]) => {
+    const wasQuarter = f.rotation === 90 || f.rotation === 270;
+    const isQuarter = rotation === 90 || rotation === 270;
+    if (wasQuarter === isQuarter) { patchField(f.id, { rotation }); return; }
+    const w = clamp(f.h, MIN_W, CARD_W), h = clamp(f.w, MIN_H, CARD_H);
+    patchField(f.id, {
+      rotation, w, h,
+      x: clamp(f.x, 0, CARD_W - w),
+      y: clamp(f.y, 0, CARD_H - h),
+    });
   };
   const removeField = (id: string) => {
     updateSide((s) => ({ ...s, fields: s.fields.filter((f) => f.id !== id) }));
@@ -280,8 +306,15 @@ export function IdCardTemplateDesignerPage() {
                     padding: "0 2px",
                   }}
                 >
-                  <span className="overflow-hidden whitespace-nowrap">
+                  {/* Rotation applies to the barcode's own artwork, not its
+                      placement box — the box stays axis-aligned so drag and
+                      corner-resize keep working exactly as before. */}
+                  <span
+                    className="overflow-hidden whitespace-nowrap"
+                    style={f.rotation ? { transform: `rotate(${-f.rotation}deg)`, transformOrigin: "center" } : undefined}
+                  >
                     {f.field_key === "static_text" ? (f.text || "Custom Text") : FIELD_LABEL[f.field_key]}
+                    {f.field_key === "barcode" && f.rotation ? ` ${f.rotation}°` : ""}
                   </span>
                   {selected && (["nw", "ne", "sw", "se"] as ResizeCorner[]).map((corner) => (
                     <div
@@ -345,6 +378,19 @@ export function IdCardTemplateDesignerPage() {
                   className="w-full rounded-control border border-line bg-card px-2 py-1 text-sm text-ink"
                   maxLength={60}
                 />
+              </label>
+            )}
+
+            {selectedField.field_key === "barcode" && (
+              <label className="block space-y-1 text-xs text-ink-faint">
+                Rotation
+                <select
+                  value={selectedField.rotation ?? 0}
+                  onChange={(e) => setRotation(selectedField, Number(e.target.value) as FieldPlacement["rotation"])}
+                  className="w-full rounded-control border border-line bg-card px-2 py-1 text-sm text-ink"
+                >
+                  {ROTATIONS.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+                </select>
               </label>
             )}
 

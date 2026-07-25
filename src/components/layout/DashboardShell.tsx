@@ -7,6 +7,7 @@ import { Avatar } from "@/components/ui/Avatar";
 import { useSession } from "@/features/auth/useSession";
 import { useEnabledModules } from "@/features/auth/useEnabledModules";
 import { ChangePasswordModal } from "@/features/auth/ChangePasswordModal";
+import { useBrandTheme } from "@/features/settings/useBrandTheme";
 import { supabase } from "@/lib/supabase";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
@@ -152,6 +153,7 @@ export function DashboardShell() {
   const { t, i18n } = useTranslation();
   const { profile } = useSession();
   const modules = useEnabledModules();
+  useBrandTheme(); // tenant palette -> :root CSS variables (whole-app theming)
   const queryClient = useQueryClient();
   const location = useLocation();
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set(ALL_COLLAPSIBLE_KEYS));

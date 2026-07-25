@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabase";
 import { useSession } from "@/features/auth/useSession";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { applyBrandPalette } from "@/lib/brand-theme";
 
 interface Branding {
   nameEn: string; nameAm: string; nameOm: string; motto: string;
@@ -45,6 +46,17 @@ export function BrandingPage() {
     const h = setTimeout(() => setToast(null), 2800);
     return () => clearTimeout(h);
   }, [toast]);
+
+  // Live preview: re-theme the app as the palette is edited, so the effect is
+  // visible on the surrounding chrome before committing. Leaving the page
+  // without saving restores whatever is actually persisted.
+  useEffect(() => {
+    applyBrandPalette({ primaryColor: b.primaryColor, secondaryColor: b.secondaryColor, accentColor: b.accentColor });
+  }, [b.primaryColor, b.secondaryColor, b.accentColor]);
+  useEffect(() => () => {
+    const saved = config?.settings?.branding;
+    applyBrandPalette(saved ? { primaryColor: saved.primaryColor, secondaryColor: saved.secondaryColor, accentColor: saved.accentColor } : null);
+  }, [config]);
 
   const upload = async (file: File, kind: "logo" | "seal") => {
     const path = `${profile!.tenant_id}/${kind}-${Date.now()}.${file.name.split(".").pop()}`;
