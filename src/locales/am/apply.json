@@ -74,7 +74,7 @@
     "back": "ወደ አሳዳጊ መረጃ ተመለስ",
     "next": "ወደ ክፍያ ቀጥል →"
   },
-  "step4": {
+  "step4": { "noFeesPublished": "ትምህርት ቤቱ የክፍያ ዝርዝር እስካሁን አላወጣም። ከመክፈልዎ በፊት ትምህርት ቤቱን ያነጋግሩ።",
     "feeBreakdown": "የክፍያ ዝርዝር",
     "registrationFee": "የምዝገባ ክፍያ",
     "firstTermTuition": "የመጀመሪያ ወሰነ ትምህርት ክፍያ",

@@ -8,3 +8,6 @@ supabase/.branches
 supabase/.temp
 .vercel
 .env*
+
+# i18n review export — a work product, not source
+i18n-review*.csv

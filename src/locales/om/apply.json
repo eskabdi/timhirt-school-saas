@@ -74,7 +74,7 @@
     "back": "Gara Odeeffannoo Guddisaatti Deebi'i",
     "next": "Gara Kaffaltiitti Itti Fufi →"
   },
-  "step4": {
+  "step4": { "noFeesPublished": "Manni barumsaa tarree kaffaltii hin maqneessine. Kaffaluu keessan dura mana barumsaa qunnamaa.",
     "feeBreakdown": "Faca'iinsa Kaffaltii",
     "registrationFee": "Kaffaltii Galmee",
     "firstTermTuition": "Kaffaltii Semistara Tokkoffaa",

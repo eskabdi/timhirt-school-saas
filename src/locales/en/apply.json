@@ -74,7 +74,7 @@
     "back": "Back to Guardian Details",
     "next": "Continue to Fees →"
   },
-  "step4": {
+  "step4": { "noFeesPublished": "The school has not published a fee schedule yet. Please contact the school before paying.",
     "feeBreakdown": "Fee Breakdown",
     "registrationFee": "Registration Fee",
     "firstTermTuition": "First Term Tuition",

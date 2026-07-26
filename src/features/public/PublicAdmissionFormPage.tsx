@@ -8,12 +8,18 @@
 // upload-admission-document for every file in Steps 3-4, gated server-side
 // on the application still being in its initial 'applied' stage.
 //
-// Fee amounts in Step 4 are static placeholders (registration fee, first
-// term tuition, optional bus fee) rather than a live fee_structures query —
-// matching a real tenant's fee schedule to an anonymous applicant's desired
-// grade before they're even an enrolled student is a data-layer integration
-// this pass didn't build; flagged here rather than silently faked, same
-// spirit as DESIGN_SYSTEM.md's own "where the data layer pushed back" notes.
+// Step 4's fees come from the tenant's own fee_structures, served by the same
+// public GET on submit-admission that already supplies the grade list —
+// fee_structures has no anon policy, so the Edge Function reads it with the
+// service role and returns only name/amount/cycle/grade. The applicant is
+// asked to pay this total and upload a receipt for it, so hardcoded figures
+// (which is what this page shipped with) meant collecting real money against
+// numbers that need not match the school's schedule.
+//
+// A fee with class_id null applies school-wide; one scoped to a class is keyed
+// to that class's grade name and shown only to applicants who chose that grade
+// in Step 1. Transport-like lines stay opt-in and are excluded from the total
+// until ticked.
 //
 // Every string on this page routes through the "apply" i18n namespace so the
 // LanguageSwitcher actually changes the page's content, not just currency
@@ -26,12 +32,12 @@
 // itself is built once at module load and can't react to a later language
 // switch.
 // ============================================================================
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { z } from "zod";
-import { formatETB } from "@/lib/i18n";
+import { formatETB, tField } from "@/lib/i18n";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Field } from "@/components/ui/Field";
@@ -107,15 +113,28 @@ function StepperHeader({ step, labels }: { step: number; labels: string[] }) {
   );
 }
 
+/** A fee line as the public meta endpoint reports it. `grade` null means the
+ *  fee applies school-wide; otherwise it names the grade it is scoped to. */
+interface PublicFee {
+  name_i18n: Record<string, string>;
+  amount: number;
+  billing_cycle: string;
+  grade: string | null;
+}
+
 function BilingualField({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
   return <Field label={label} error={error}>{children}</Field>;
 }
 
 async function fetchAdmissionMeta(tenantSlug: string) {
   const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/submit-admission?tenant_slug=${encodeURIComponent(tenantSlug)}`);
-  if (!res.ok) return { tenantName: null, grades: [] };
-  const data = (await res.json()) as { tenant_name: string; grades: { name: string; grade_level: number | null }[] };
-  return { tenantName: data.tenant_name, grades: data.grades };
+  if (!res.ok) return { tenantName: null, grades: [], fees: [] as PublicFee[] };
+  const data = (await res.json()) as {
+    tenant_name: string;
+    grades: { name: string; grade_level: number | null }[];
+    fees?: PublicFee[];
+  };
+  return { tenantName: data.tenant_name, grades: data.grades, fees: data.fees ?? [] };
 }
 
 function DocumentUploadSlot({
@@ -232,10 +251,24 @@ export function PublicAdmissionFormPage() {
   });
   const grades = meta?.grades;
 
-  const REGISTRATION_FEE = 500;
-  const FIRST_TERM_TUITION = 4500;
-  const BUS_FEE = 1200;
-  const total = REGISTRATION_FEE + FIRST_TERM_TUITION + (busOpted ? BUS_FEE : 0);
+  // The applicant pays this total and uploads a receipt for it, so it has to be
+  // the school's own schedule — school-wide fees plus anything scoped to the
+  // grade they picked in Step 1. Optional lines (transport) are opt-in and only
+  // count toward the total when ticked.
+  const applicableFees = useMemo(() => {
+    const all = meta?.fees ?? [];
+    return all.filter((f) => f.grade == null || f.grade === s1.desired_grade);
+  }, [meta?.fees, s1.desired_grade]);
+
+  const isOptional = (f: PublicFee) =>
+    /bus|transport|ትራንስፖርት|አውቶቡስ|geejjiba|konkolaataa/i.test(
+      Object.values(f.name_i18n ?? {}).join(" "),
+    );
+
+  const mandatoryFees = applicableFees.filter((f) => !isOptional(f));
+  const optionalFees = applicableFees.filter(isOptional);
+  const total = mandatoryFees.reduce((sum, f) => sum + f.amount, 0)
+    + (busOpted ? optionalFees.reduce((sum, f) => sum + f.amount, 0) : 0);
 
   const submitStep1 = () => {
     const parsed = step1Schema.safeParse(s1);
@@ -539,22 +572,29 @@ export function PublicAdmissionFormPage() {
                 <h2 className="font-display text-xl font-bold text-ink">{t("step4.feeBreakdown")}</h2>
               </div>
               <div className="divide-y divide-line px-6">
-                <div className="flex items-center justify-between py-3 text-sm text-ink">
-                  <span>{t("step4.registrationFee")}</span><span className="tabular-nums">{formatETB(REGISTRATION_FEE, i18n.resolvedLanguage!)}</span>
-                </div>
-                <div className="flex items-center justify-between py-3 text-sm text-ink">
-                  <span>{t("step4.firstTermTuition")}</span><span className="tabular-nums">{formatETB(FIRST_TERM_TUITION, i18n.resolvedLanguage!)}</span>
-                </div>
-                <div className="flex items-center justify-between rounded-control bg-navy-wash px-3 py-3 text-sm text-ink">
-                  <label className="flex items-center gap-2">
-                    <input type="checkbox" checked={busOpted} onChange={(e) => setBusOpted(e.target.checked)} />
-                    <span>
-                      {t("step4.schoolBus")}
-                      <span className="block text-xs text-ink-faint">{t("step4.schoolBusDesc")}</span>
+                {applicableFees.length === 0 && (
+                  <p className="py-3 text-sm text-ink-faint">{t("step4.noFeesPublished")}</p>
+                )}
+                {mandatoryFees.map((f, i) => (
+                  <div key={`m${i}`} className="flex items-center justify-between py-3 text-sm text-ink">
+                    <span>{tField(f.name_i18n, i18n.resolvedLanguage!)}</span>
+                    <span className="tabular-nums">{formatETB(f.amount, i18n.resolvedLanguage!)}</span>
+                  </div>
+                ))}
+                {optionalFees.length > 0 && (
+                  <div className="flex items-center justify-between rounded-control bg-navy-wash px-3 py-3 text-sm text-ink">
+                    <label className="flex items-center gap-2">
+                      <input type="checkbox" checked={busOpted} onChange={(e) => setBusOpted(e.target.checked)} />
+                      <span>
+                        {optionalFees.map((f) => tField(f.name_i18n, i18n.resolvedLanguage!)).join(", ")}
+                        <span className="block text-xs text-ink-faint">{t("step4.schoolBusDesc")}</span>
+                      </span>
+                    </label>
+                    <span className="tabular-nums">
+                      {formatETB(optionalFees.reduce((s, f) => s + f.amount, 0), i18n.resolvedLanguage!)}
                     </span>
-                  </label>
-                  <span className="tabular-nums">{formatETB(BUS_FEE, i18n.resolvedLanguage!)}</span>
-                </div>
+                  </div>
+                )}
               </div>
               <div className="flex items-center justify-between px-6 py-4 font-display text-lg font-bold text-navy">
                 <span>{t("step4.totalAmount")}</span><span className="tabular-nums">{formatETB(total, i18n.resolvedLanguage!)}</span>

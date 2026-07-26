@@ -87,12 +87,16 @@ Deno.serve(async (req) => {
       if (!tenant) return errors.badRequest();
 
       const { data: classes, error } = await db.from("classes")
-        .select("name, grade_level").eq("tenant_id", tenant.id);
+        .select("id, name, grade_level").eq("tenant_id", tenant.id);
       if (error) throw error;
 
       const byName = new Map<string, number | null>();
+      // A grade name can cover several class sections (7A, 7B); the fee schedule
+      // is per grade, so every class id under a name maps back to that name.
+      const classIdToGrade = new Map<string, string>();
       for (const c of classes ?? []) {
         if (!byName.has(c.name)) byName.set(c.name, c.grade_level);
+        classIdToGrade.set(c.id, c.name);
       }
       const grades = [...byName.entries()]
         .map(([name, grade_level]) => ({ name, grade_level }))
@@ -103,7 +107,29 @@ Deno.serve(async (req) => {
           return a.grade_level - b.grade_level;
         });
 
-      return json({ tenant_name: tenant.name, grades }, 200);
+      // Applicants pay against the total shown on Step 4 and upload a receipt
+      // for it, so the figures have to be the tenant's own. Like `classes`,
+      // fee_structures has no anon policy — it is read here with the service
+      // role and reduced to just the fields the fee table needs.
+      //
+      // class_id null means the fee applies to the whole school; a fee scoped
+      // to a class is keyed to that class's grade name, which is what the
+      // applicant picked in Step 1.
+      const { data: fees, error: feeErr } = await db.from("fee_structures")
+        .select("name_i18n, amount, billing_cycle, class_id").eq("tenant_id", tenant.id);
+      if (feeErr) throw feeErr;
+
+      const feeSchedule = (fees ?? [])
+        .filter((f) => f.class_id == null || classIdToGrade.has(f.class_id))
+        .map((f) => ({
+          name_i18n: f.name_i18n,
+          amount: Number(f.amount),
+          billing_cycle: f.billing_cycle,
+          grade: f.class_id == null ? null : classIdToGrade.get(f.class_id) ?? null,
+        }))
+        .sort((a, b) => b.amount - a.amount);
+
+      return json({ tenant_name: tenant.name, grades, fees: feeSchedule }, 200);
     } catch (err) {
       console.error("submit-admission (GET) failed", { message: (err as Error).message });
       return errors.internal();
