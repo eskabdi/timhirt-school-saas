@@ -61,16 +61,35 @@ const FONT_URLS: Record<string, string> = {
   Tayitu: "/fonts/Tayitu.ttf",
   Jiret: "/fonts/Jiret.ttf",
 };
+// A 200 is not proof of a font. The frontend rewrites every unmatched path to
+// index.html, so a missing/stale /fonts asset answers 200 with ~800 bytes of
+// HTML; embedFont then throws and the caller silently falls back to Helvetica,
+// which has no Ethiopic glyphs — the card renders blank where the Amharic name
+// should be, with nothing in the logs. Check the sfnt magic instead.
+const SFNT_MAGIC = new Set([0x00010000, 0x74727565 /* true */, 0x4f54544f /* OTTO */, 0x74746366 /* ttcf */]);
+function looksLikeFont(bytes: Uint8Array): boolean {
+  if (bytes.length < 4) return false;
+  return SFNT_MAGIC.has(new DataView(bytes.buffer, bytes.byteOffset, 4).getUint32(0));
+}
+
 const fontByteCache: Record<string, Uint8Array | null> = {};
 async function loadFontBytes(appUrl: string, key: string): Promise<Uint8Array | null> {
   if (key in fontByteCache) return fontByteCache[key];
   try {
-    const res = await fetch(`${appUrl}${FONT_URLS[key]}`);
-    if (!res.ok) throw new Error(`font ${key} ${res.status}`);
+    const url = `${appUrl}${FONT_URLS[key]}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`font ${key} HTTP ${res.status}`);
     const bytes = new Uint8Array(await res.arrayBuffer());
+    if (!looksLikeFont(bytes)) {
+      throw new Error(`font ${key} at ${url} returned ${bytes.length}B of non-font data `
+        + `(content-type ${res.headers.get("content-type")}) — is APP_URL correct and the asset deployed?`);
+    }
     fontByteCache[key] = bytes;
     return bytes;
-  } catch {
+  } catch (err) {
+    // Loud: a silent Helvetica fallback produces a card that looks fine to the
+    // renderer and wrong to the reader.
+    console.error("issue-id-card: font unavailable", { key, message: (err as Error).message });
     fontByteCache[key] = null;
     return null;
   }
@@ -264,7 +283,7 @@ Deno.serve(async (req) => {
   const ctx = ctxOrRes;
   try {
     if (req.method !== "POST") return errors.badRequest();
-    if (!rateLimit(`issue-id-card:${ctx.userId}`, 20, 60_000)) return errors.tooMany();
+    if (!(await rateLimit(`issue-id-card:${ctx.userId}`, 20, 60_000))) return errors.tooMany();
 
     const parsed = Payload.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return errors.badRequest();

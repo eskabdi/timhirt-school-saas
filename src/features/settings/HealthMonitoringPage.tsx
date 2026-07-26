@@ -31,6 +31,13 @@ interface HealthAlert {
   resolved_at: string | null;
 }
 
+interface UnlinkedStaff {
+  user_id: string;
+  full_name: string;
+  email: string;
+  role: string;
+}
+
 interface BackupRecord {
   id: string;
   tenant_id: string;
@@ -116,6 +123,20 @@ export function HealthMonitoringPage() {
         .single();
       if (error && error.code !== "PGRST116") throw error;
       return data as BackupRecord | null;
+    },
+    refetchInterval: refreshInterval,
+  });
+
+  // Staff users with no employees row. The RPC is role-gated server-side and
+  // returns an empty set to anyone who shouldn't see a staff roster, so the
+  // card reads clean rather than erroring for them.
+  const { data: unlinkedStaff = [], isLoading: linkageLoading } = useQuery({
+    queryKey: ["staff-linkage", profile?.tenant_id],
+    enabled: !!profile?.tenant_id,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("check_staff_employee_linkage");
+      if (error) throw error;
+      return (data ?? []) as UnlinkedStaff[];
     },
     refetchInterval: refreshInterval,
   });
@@ -291,6 +312,48 @@ export function HealthMonitoringPage() {
           </div>
         </Card>
       </div>
+
+      {/* Staff → employee linkage. Not a metric anyone samples: a config fault
+          that makes payroll and leave self-service silently return nothing. */}
+      <Card className="p-6">
+        <h2 className="mb-1 text-lg font-semibold text-ink">{t("health2.staffLinkageTitle")}</h2>
+        <p className="mb-4 text-sm text-ink-faint">{t("health2.staffLinkageHelp")}</p>
+        {linkageLoading ? (
+          <p className="text-center text-ink-faint">{t("backups.loading")}</p>
+        ) : unlinkedStaff.length === 0 ? (
+          <p className="rounded bg-green-50 px-3 py-2 text-sm font-medium text-green-700">
+            {t("health2.staffLinkageOk")}
+          </p>
+        ) : (
+          <div className="space-y-3">
+            <p className="rounded bg-yellow-50 px-3 py-2 text-sm font-medium text-yellow-700">
+              {t("health2.staffLinkageWarning", { count: unlinkedStaff.length })}
+            </p>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-line text-left text-xs uppercase text-ink-faint">
+                    <th className="px-3 py-2">{t("health2.staffLinkageName")}</th>
+                    <th className="px-3 py-2">{t("health2.staffLinkageEmail")}</th>
+                    <th className="px-3 py-2">{t("health2.staffLinkageRole")}</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-line">
+                  {unlinkedStaff.map((u) => (
+                    <tr key={u.user_id}>
+                      <td className="px-3 py-2 text-ink">{u.full_name}</td>
+                      <td className="px-3 py-2 text-ink-soft">{u.email}</td>
+                      <td className="px-3 py-2 text-ink-soft">
+                        {t(`roles.${u.role}`, { defaultValue: u.role })}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </Card>
 
       {/* Health Metrics Table */}
       <Card className="p-6">

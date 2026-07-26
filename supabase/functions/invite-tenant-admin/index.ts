@@ -26,7 +26,7 @@ Deno.serve(async (req) => {
   let invitedUserId: string | undefined;
   try {
     if (req.method !== "POST") return errors.badRequest();
-    if (!rateLimit(`invite-admin:${ctx.userId}`, 10, 60_000)) return errors.tooMany();
+    if (!(await rateLimit(`invite-admin:${ctx.userId}`, 10, 60_000))) return errors.tooMany();
 
     const parsed = Payload.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return errors.badRequest();

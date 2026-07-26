@@ -27,7 +27,7 @@ Deno.serve(async (req) => {
   const ctx = ctxOrRes;
   try {
     if (req.method !== "POST") return errors.badRequest();
-    if (!rateLimit(`onboard:${ctx.userId}`, 5, 60_000)) return errors.tooMany();
+    if (!(await rateLimit(`onboard:${ctx.userId}`, 5, 60_000))) return errors.tooMany();
 
     const parsed = Payload.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return errors.badRequest();

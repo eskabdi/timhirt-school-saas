@@ -77,7 +77,7 @@ Deno.serve(async (req) => {
 
   if (req.method === "GET") {
     try {
-      if (!rateLimit(`admission-grades:${ip}`, 30, 60_000)) return errors.tooMany(60);
+      if (!(await rateLimit(`admission-grades:${ip}`, 30, 60_000))) return errors.tooMany(60);
       const url = new URL(req.url);
       const tenantSlug = url.searchParams.get("tenant_slug") ?? "";
       if (!/^[a-z0-9][a-z0-9-]{1,40}$/.test(tenantSlug)) return errors.badRequest();
@@ -114,7 +114,7 @@ Deno.serve(async (req) => {
     if (req.method !== "POST") return errors.badRequest();
 
     // Rate limit by client IP (defense against form abuse — INSA API hardening)
-    if (!rateLimit(`admission:${ip}`, 5, 3_600_000)) return errors.tooMany(3600);
+    if (!(await rateLimit(`admission:${ip}`, 5, 3_600_000))) return errors.tooMany(3600);
 
     const parsed = Payload.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return errors.badRequest();

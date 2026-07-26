@@ -74,33 +74,43 @@ export async function requireRole(
 }
 
 /**
- * Minimal token bucket: `limit` requests per `windowMs` per key.
+ * Token bucket: `limit` requests per `windowMs` per key, held in Postgres.
  *
- * ⚠️ LOW-priority known limitation: this Map is per-isolate / per-instance
- * memory. Supabase Edge Functions can scale to multiple concurrent isolates,
- * so under load a caller can get up to N× the intended limit (N = number of
- * warm isolates handling their requests), and every cold start resets the
- * count to zero. This is acceptable for the current scale (deters casual
- * scripted abuse on /submit-admission and /verify-id) but is NOT a durable
- * guarantee. Before scaling beyond a single-region / low-traffic deployment,
- * back this with a shared store — Upstash Redis (INCR + PEXPIRE) or a
- * Postgres `rate_limits(key, window_start, count)` table with an atomic
- * upsert — so the limit holds across isolates and survives cold starts.
+ * The counter lives in public.rate_limits and is advanced by the atomic
+ * consume_rate_limit() RPC (migration 20260726000002), so the limit holds
+ * across concurrent isolates and survives cold starts — an in-process Map gave
+ * a caller up to N× the limit and reset to zero whenever an isolate recycled.
+ *
+ * Its own service_role client, memoised per isolate, because several callers
+ * (verify-id, submit-admission, check-admission-status) rate-limit before they
+ * have any client at all — the check has to run before that work happens.
  */
-const buckets = new Map<string, { count: number; reset: number }>();
-export function rateLimit(key: string, limit: number, windowMs: number): boolean {
-  const now = Date.now();
-  const b = buckets.get(key);
-  if (!b || now > b.reset) {
-    buckets.set(key, { count: 1, reset: now + windowMs });
-    return true;
-  }
-  if (b.count >= limit) return false;
-  b.count++;
-  return true;
+let limiterClient: SupabaseClient | null = null;
+function rateLimitDb(): SupabaseClient {
+  limiterClient ??= createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+  );
+  return limiterClient;
 }
 
-/** Timing-safe HMAC-SHA256 verification for webhooks. */
+export async function rateLimit(key: string, limit: number, windowMs: number): Promise<boolean> {
+  const { data, error } = await rateLimitDb()
+    .rpc("consume_rate_limit", { p_key: key, p_limit: limit, p_window_ms: windowMs });
+  if (error) {
+    // Fail closed. Every endpoint behind this limiter needs the database for
+    // its actual work, so denying on a limiter failure costs a request that
+    // was going to fail anyway — while failing open would drop the control
+    // precisely when the database is under stress.
+    console.error("rateLimit unavailable — denying", { message: error.message });
+    return false;
+  }
+  return data === true;
+}
+
+/** Timing-safe HMAC-SHA256 verification for webhooks.
+ *  Signatures are compared as lowercase hex — providers differ on casing and a
+ *  case difference is not a forgery. */
 export async function verifyHmac(payload: string, signature: string, secret: string) {
   const key = await crypto.subtle.importKey(
     "raw", new TextEncoder().encode(secret),
@@ -109,9 +119,10 @@ export async function verifyHmac(payload: string, signature: string, secret: str
   const mac = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(payload));
   const expected = Array.from(new Uint8Array(mac))
     .map((b) => b.toString(16).padStart(2, "0")).join("");
-  if (expected.length !== signature.length) return false;
+  const given = signature.trim().toLowerCase();
+  if (expected.length !== given.length) return false;
   let diff = 0;
-  for (let i = 0; i < expected.length; i++) diff |= expected.charCodeAt(i) ^ signature.charCodeAt(i);
+  for (let i = 0; i < expected.length; i++) diff |= expected.charCodeAt(i) ^ given.charCodeAt(i);
   return diff === 0;
 }
 

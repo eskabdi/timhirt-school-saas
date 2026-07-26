@@ -22,19 +22,37 @@ jobs:
       - run: npx vitest run
       - run: npm run build
 
-  # RLS + payroll SoD + webhook-settlement pgTAP suite against a live local
-  # Supabase Postgres instance. Was an empty placeholder — now wired to
-  # supabase/tests/rls/*.sql (cross-tenant matrix closing C-1, payroll SoD/
-  # immutability closing C-2/C-3, atomic webhook settlement closing H-3/H-4).
-  # A failure here means one of those regressions has come back.
+  # RLS + payroll SoD + webhook-settlement pgTAP suites — supabase/tests/rls/*.sql
+  # (cross-tenant matrix closing C-1, payroll SoD/immutability closing C-2/C-3,
+  # atomic webhook settlement closing H-3/H-4). A failure here means one of those
+  # regressions has come back.
+  #
+  # Runs against a plain Postgres service rather than `supabase start`. Booting
+  # the full stack (GoTrue, Storage, Realtime, Kong, Studio) to execute four SQL
+  # files was slow and kept hanging on image pulls; everything these suites touch
+  # is Postgres-side and is provided by supabase/tests/shim.sql.
   rls-tests:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: supabase/setup-cli@v1
-        with:
-          version: latest
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-      - run: supabase start
-      - run: supabase test db
+      # Postgres runs on the runner itself, not in a service container: pgTAP is
+      # a server-side extension, so its files have to live where the postmaster
+      # can load them — apt-installing it alongside a containerised Postgres
+      # would put them on the wrong filesystem and `create extension pgtap`
+      # would fail.
+      - name: Install and start Postgres 16 with pgTAP
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-16 postgresql-16-pgtap postgresql-client-16
+          sudo pg_ctlcluster 16 main start || sudo systemctl start postgresql@16-main
+          for i in $(seq 1 30); do pg_isready -h localhost -p 5432 && break; sleep 1; done
+          sudo -u postgres psql -c "ALTER USER postgres PASSWORD 'postgres';"
+      - name: Apply migrations and run pgTAP suites
+        env:
+          PGHOST: localhost
+          PGPORT: "5432"
+          PGUSER: postgres
+          PGPASSWORD: postgres
+          PGDATABASE: postgres
+        run: bash supabase/tests/run.sh
 

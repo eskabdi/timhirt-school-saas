@@ -23,7 +23,7 @@ Deno.serve(async (req) => {
     if (req.method !== "POST") return errors.badRequest();
 
     const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
-    if (!rateLimit(`verify:${ip}`, 20, 60_000)) return errors.tooMany(60);
+    if (!(await rateLimit(`verify:${ip}`, 20, 60_000))) return errors.tooMany(60);
 
     const parsed = Payload.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return errors.badRequest();

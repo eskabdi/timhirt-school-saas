@@ -41,7 +41,7 @@ Deno.serve(async (req) => {
   try {
     if (req.method !== "POST") return errors.badRequest();
     const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
-    if (!rateLimit(`admission-upload:${ip}`, 20, 3_600_000)) return errors.tooMany(3600);
+    if (!(await rateLimit(`admission-upload:${ip}`, 20, 3_600_000))) return errors.tooMany(3600);
 
     const form = await req.formData().catch(() => null);
     if (!form) return errors.badRequest();

@@ -63,9 +63,21 @@ export async function buildTranscriptPdf(input: TranscriptInput): Promise<Blob> 
       const fontkit = (await import("@pdf-lib/fontkit")).default;
       doc.registerFontkit(fontkit);
       const res = await fetch("/fonts/NotoSerifEthiopic-Regular.ttf");
-      if (res.ok) ethiopic = await doc.embedFont(await res.arrayBuffer(), { subset: true });
-    } catch {
-      ethiopic = null; // fall through to ASCII-stripping below
+      if (!res.ok) throw new Error(`font HTTP ${res.status}`);
+      // The SPA rewrite answers 200 with index.html for any missing asset, so a
+      // status check alone would hand embedFont a page of HTML. Require the sfnt
+      // magic before trusting the bytes.
+      const buf = await res.arrayBuffer();
+      const magic = buf.byteLength >= 4 ? new DataView(buf).getUint32(0) : 0;
+      if (magic !== 0x00010000 && magic !== 0x74727565 && magic !== 0x4f54544f) {
+        throw new Error(`/fonts/NotoSerifEthiopic-Regular.ttf returned ${buf.byteLength}B of non-font data`);
+      }
+      ethiopic = await doc.embedFont(buf, { subset: true });
+    } catch (err) {
+      // Transcripts still render (Ethiopic is stripped below), but the reader
+      // loses the Amharic name — worth a console trail rather than nothing.
+      console.error("transcript-pdf: Ethiopic font unavailable, falling back to ASCII", err);
+      ethiopic = null;
     }
   }
 

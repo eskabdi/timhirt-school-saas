@@ -58,7 +58,7 @@ Deno.serve(async (req) => {
 
   try {
     if (req.method !== "POST") return errors.badRequest();
-    if (!rateLimit(`provision-portal:${ctx.userId}`, 20, 60_000)) return errors.tooMany();
+    if (!(await rateLimit(`provision-portal:${ctx.userId}`, 20, 60_000))) return errors.tooMany();
 
     const parsed = Payload.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return errors.badRequest();

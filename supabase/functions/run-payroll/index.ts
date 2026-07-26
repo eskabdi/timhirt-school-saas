@@ -22,7 +22,7 @@ Deno.serve(async (req) => {
     if (req.method !== "POST") return errors.badRequest();
     const ctx = await requireRole(req, ["hr_officer", "school_admin"]);
     if (ctx instanceof Response) return ctx;
-    if (!rateLimit(`payroll:${ctx.userId}`, 10, 60_000)) return errors.tooMany();
+    if (!(await rateLimit(`payroll:${ctx.userId}`, 10, 60_000))) return errors.tooMany();
 
     const parsed = Payload.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return errors.badRequest();

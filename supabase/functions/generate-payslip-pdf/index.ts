@@ -22,7 +22,7 @@ Deno.serve(async (req) => {
     const ctx = await requireRole(req,
       ["hr_officer", "accountant", "school_admin", "teacher", "registrar"]);
     if (ctx instanceof Response) return ctx;
-    if (!rateLimit(`payslip:${ctx.userId}`, 20, 60_000)) return errors.tooMany();
+    if (!(await rateLimit(`payslip:${ctx.userId}`, 20, 60_000))) return errors.tooMany();
 
     const parsed = Payload.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return errors.badRequest();

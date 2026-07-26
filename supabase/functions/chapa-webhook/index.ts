@@ -22,11 +22,28 @@ Deno.serve(async (req) => {
   try {
     if (req.method !== "POST") return errors.badRequest();
     const raw = await req.text();
-    const signature = req.headers.get("Chapa-Signature")
-      ?? req.headers.get("x-chapa-signature") ?? "";
-    // ⚠️ UNVERIFIED — needs runtime test: confirm the header name and whether
-    // Chapa signs the raw body or a secret hash against their current docs
-    // before go-live.
+    // Chapa sends two headers that sign DIFFERENT things (developer.chapa.co
+    // /integrations/webhooks):
+    //
+    //   x-chapa-signature — HMAC-SHA256 of the event payload, keyed by the
+    //                       webhook secret. Binds the signature to this body.
+    //   chapa-signature   — HMAC-SHA256 of the secret *itself*, keyed by the
+    //                       secret. A constant: it proves the sender knows the
+    //                       secret but says nothing about the payload, so on
+    //                       its own it is replayable across bodies.
+    //
+    // Chapa's docs say either header is sufficient. We deliberately do NOT
+    // honour that: chapa-signature is a constant, so anyone who observes one
+    // legitimate delivery can replay it against a body of their choosing simply
+    // by omitting x-chapa-signature. Accepting the fallback would hand an
+    // attacker the ability to mark any pending payment succeeded — free
+    // tuition. Chapa sends both headers on every delivery, so requiring the
+    // payload-bound one costs nothing and closes the downgrade.
+    //
+    // The raw request text is signed, never a re-serialized JSON.stringify of
+    // a parsed body — key order and whitespace would not survive the round trip.
+    const payloadSig = req.headers.get("x-chapa-signature");
+    const secretSig = req.headers.get("chapa-signature") ?? req.headers.get("Chapa-Signature");
 
     const db = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -38,8 +55,13 @@ Deno.serve(async (req) => {
       console.error("chapa-webhook: no webhook secret configured — rejecting");
       return errors.unauthorized();
     }
-    const ok = await verifyHmac(raw, signature, webhookSecret);
-    if (!ok) return errors.unauthorized();
+    if (!payloadSig) {
+      // Diagnosable without leaking the signature itself: if this ever fires in
+      // production, Chapa changed the contract and the check needs revisiting.
+      console.error("chapa-webhook: no x-chapa-signature header", { hadSecretSig: !!secretSig });
+      return errors.unauthorized();
+    }
+    if (!(await verifyHmac(raw, payloadSig, webhookSecret))) return errors.unauthorized();
 
     const event = JSON.parse(raw);
     const txRef: string | undefined = event?.tx_ref ?? event?.data?.tx_ref;
