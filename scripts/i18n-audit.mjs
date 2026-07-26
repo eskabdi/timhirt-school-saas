@@ -58,6 +58,8 @@ for (const root of ROOTS) {
           const txt = m[1];
           // `=> Foo<` is an arrow returning a generic, not markup.
           if (line[m.index - 1] === "=") continue;
+          // `a >= b && c <= d` — a comparison pair, not a JSX text node.
+          if (txt.startsWith("=")) continue;
           if (looksLikeCopy(txt) && !/^\s*[{}]/.test(txt)) findings.push({ file, n, kind: "jsx-text", txt: txt.trim() });
         }
       }
@@ -77,7 +79,7 @@ for (const root of ROOTS) {
         && bare.split(/\s+/).length >= 4
         && !/[={};]/.test(bare)
         // A wrapped destructuring / import list is identifiers and commas, not prose.
-        && !/^[A-Za-z_$][\w$]*(\s+as\s+[A-Za-z_$][\w$]*)?(\s*,\s*[A-Za-z_$][\w$]*(\s+as\s+[A-Za-z_$][\w$]*)?)+\s*,?$/.test(bare)
+        && !/^(type\s+)?[A-Za-z_$][\w$]*(\s+as\s+[A-Za-z_$][\w$]*)?(\s*,\s*(type\s+)?[A-Za-z_$][\w$]*(\s+as\s+[A-Za-z_$][\w$]*)?)+\s*,?$/.test(bare)
         && !/^(import|export|const|let|var|return|function|type|interface)\b/.test(bare)) {
         findings.push({ file, n, kind: "jsx-prose", txt: bare });
       }

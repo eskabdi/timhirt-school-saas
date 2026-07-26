@@ -66,6 +66,7 @@ const NAV: NavSection[] = [
     section: "nav.section.studentWelfare",
     items: [
       { to: "/communication", key: "nav.communication", roles: ["school_admin"], module: "communication" },
+      { to: "/communication/notices", key: "nav.notices", roles: ["school_admin"], module: "communication" },
       { to: "/hostel", key: "nav.hostel", roles: ["school_admin"], module: "hostel" },
       { to: "/discipline", key: "nav.discipline", roles: ["school_admin"], module: "discipline" },
       { to: "/clinic", key: "nav.clinic", roles: ["school_admin"], module: "clinic" },

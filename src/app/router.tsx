@@ -33,6 +33,7 @@ import { InvoicesPage } from "@/features/fees/InvoicesPage";
 import { InvoiceDetailPage } from "@/features/fees/InvoiceDetailPage";
 
 import { AnnouncementsPage } from "@/features/communication/AnnouncementsPage";
+import { NoticesPage } from "@/features/communication/NoticesPage";
 
 import { AdmissionsListPage } from "@/features/admissions/AdmissionsListPage";
 import { AdmissionDetailPage } from "@/features/admissions/AdmissionDetailPage";
@@ -170,7 +171,10 @@ export const router = createBrowserRouter([
               },
               {
                 element: <RequireModule module="communication" />,
-                children: [{ path: "communication", element: <AnnouncementsPage /> }],
+                children: [
+                  { path: "communication", element: <AnnouncementsPage /> },
+                  { path: "communication/notices", element: <NoticesPage /> },
+                ],
               },
               {
                 element: <RequireModule module="hostel" />,

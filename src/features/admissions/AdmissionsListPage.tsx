@@ -1,9 +1,9 @@
 // ============================================================================
-// Flat list/table of admission applications, replacing the earlier
-// stage-column Kanban board -- one row per applicant, with a button per
-// stage (Applied/Shortlisted/Offered/Registered/Rejected) to move it there,
-// mirroring the Kanban's "→ stage" buttons but without needing five
-// separate columns to scan.
+// Flat list/table of admission applications -- one row per applicant, with a
+// Review action opening the review sheet (process-step checklist + enrollment
+// status). Status changes live there rather than as per-stage buttons on the
+// row: the vocabulary grew to seven statuses, and a reviewer setting one
+// almost always ticks a step in the same pass.
 //
 // Once an application is actually converted into a student
 // (converted_student_id set by enroll_admission_application), it drops out
@@ -19,18 +19,20 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { Panel } from "@/components/ui/Panel";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { EthDate } from "@/components/EthDate";
 import { EnrollStudentModal } from "./EnrollStudentModal";
+import { AdmissionReviewModal, type ReviewApplication } from "./AdmissionReviewModal";
 import { onRowDoubleClick } from "@/lib/utils";
 
-const STAGES = ["applied", "shortlisted", "offered", "registered", "rejected"] as const;
 const STAGE_TONE = {
   applied: "neutral", shortlisted: "navy", offered: "late", registered: "ok", rejected: "danger",
+  incomplete_application: "late", provisionally_accepted: "navy", accepted: "ok",
+  waitlisted: "late", enrolled: "ok",
 } as const;
 
 interface EnrollTarget {
@@ -41,14 +43,14 @@ interface EnrollTarget {
 export function AdmissionsListPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const qc = useQueryClient();
   const [enrolling, setEnrolling] = useState<EnrollTarget | null>(null);
+  const [reviewing, setReviewing] = useState<ReviewApplication | null>(null);
 
   const { data: apps } = useQuery({
     queryKey: ["admissions"],
     queryFn: async () => {
       const { data, error } = await supabase.from("admission_applications")
-        .select("id, applicant_name, date_of_birth, desired_grade, stage, tenant_id, applicant_first_name, applicant_last_name, photo_path")
+        .select("id, applicant_name, date_of_birth, desired_grade, stage, tenant_id, applicant_first_name, applicant_last_name, photo_path, application_complete, meets_academic_requirements, meets_financial_requirements, documents_verified, acceptance_letter_sent, student_accepted")
         .is("converted_student_id", null)
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -56,13 +58,6 @@ export function AdmissionsListPage() {
     },
   });
 
-  const move = useMutation({
-    mutationFn: async ({ id, stage }: { id: string; stage: string }) => {
-      const { error } = await supabase.from("admission_applications").update({ stage }).eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["admissions"] }),
-  });
 
   return (
     <div className="space-y-4">
@@ -91,19 +86,16 @@ export function AdmissionsListPage() {
                   <td className="px-4 py-3 text-ink-faint">{a.desired_grade ?? "—"}</td>
                   <td className="px-4 py-3 text-ink-faint"><EthDate value={a.date_of_birth} /></td>
                   <td className="px-4 py-3">
-                    <Badge tone={STAGE_TONE[a.stage as keyof typeof STAGE_TONE] ?? "neutral"}>{t(`admissions.stage.${a.stage}`)}</Badge>
+                    <Badge tone={STAGE_TONE[a.stage as keyof typeof STAGE_TONE] ?? "neutral"}>{String(t(`admissionReview.status.${a.stage}`, { defaultValue: a.stage }))}</Badge>
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap gap-1">
-                      {STAGES.filter((s) => s !== a.stage).map((s) => (
-                        <button
-                          key={s}
-                          onClick={() => move.mutate({ id: a.id, stage: s })}
-                          className="rounded-control bg-sidebar px-2 py-1 text-xs text-ink-faint hover:bg-line"
-                        >
-                          {t(`admissions.stage.${s}`)}
-                        </button>
-                      ))}
+                      <button
+                        onClick={() => setReviewing(a as ReviewApplication)}
+                        className="rounded-control bg-navy-wash px-2.5 py-1 text-xs font-medium text-navy hover:bg-line"
+                      >
+                        {t("admissionReview.review")}
+                      </button>
                       {a.stage === "registered" && (
                         <button
                           onClick={() => setEnrolling({
@@ -124,6 +116,12 @@ export function AdmissionsListPage() {
           </table>
         </Panel>
       )}
+
+      <AdmissionReviewModal
+        application={reviewing}
+        open={!!reviewing}
+        onClose={() => setReviewing(null)}
+      />
 
       {enrolling && <EnrollStudentModal application={enrolling} onClose={() => setEnrolling(null)} />}
     </div>
