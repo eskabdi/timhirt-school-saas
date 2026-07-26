@@ -140,12 +140,13 @@ each one.
 
 ## Architecture reference
 
-This build follows two source blueprints:
-`school-saas-architecture-blueprint.md` (v1.0, sections 1–15 + Appendices A–E)
-and its v2.0 extension (sections 16–20: Internationalization, Ethiopian
-Calendar Architecture, HR & Payroll, Extended Module & Page Inventory, Data
-Models & Migrations).
+[`docs/school-saas-architecture-blueprint.md`](docs/school-saas-architecture-blueprint.md)
+is the consolidated source blueprint — sections 1–15 plus Appendices A–E from
+v1.0, and sections 16–20 from the v2.0 extension (Internationalization,
+Ethiopian Calendar Architecture, HR & Payroll, Extended Module & Page
+Inventory, Data Models & Migrations). Code comments cite it by section
+(§6.2 route guards, §17.2 canonical date storage, §10.4 injection/XSS, …).
 
-**Neither file is in this repository.** Code comments throughout cite them by
-section (§6.2, §17.2, §21.9 …), and those references cannot currently be
-resolved by anyone reading the code. They should be committed under `docs/`.
+One caveat: a few comments and the note at the top of this README cite **§21.9**
+for the INSA-alignment reasoning. The blueprint ends at §20 — that section is
+not in this document, so those particular references still do not resolve.
