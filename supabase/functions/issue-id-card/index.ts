@@ -368,7 +368,11 @@ Deno.serve(async (req) => {
     const frontPage = pdfDoc.addPage([W, H]);
     renderSide(frontPage, font, boldFont, frontTemplate, data, brandColor, avatarImg, null, frontBg, barcodeImg, customFonts);
     const backPage = pdfDoc.addPage([W, H]);
-    renderSide(backPage, font, boldFont, backTemplate, data, brandColor, null, qrImg, backBg, barcodeImg, customFonts);
+    // avatarImg goes to both sides: the template designer offers the same field
+    // palette for front and back, so a Photo field placed on the back is a
+    // supported layout. Passing null here rendered the initials placeholder on
+    // it even when the student had a photo, with nothing to explain why.
+    renderSide(backPage, font, boldFont, backTemplate, data, brandColor, avatarImg, qrImg, backBg, barcodeImg, customFonts);
 
     const pdfBytes = await pdfDoc.save();
     const path = `${student.tenant_id}/${student.id}/${crypto.randomUUID()}.pdf`;

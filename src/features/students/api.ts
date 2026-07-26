@@ -10,6 +10,15 @@ import type { StudentInput } from "./schemas";
 export const PHOTO_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const PHOTO_MAX_BYTES = 2 * 1024 * 1024;
 
+/** One photo per student, at a path derived from the student id.
+ *
+ *  A random filename per upload meant every replacement stranded the previous
+ *  object: nothing referenced it and, until 20260726000004, no policy could
+ *  delete it. A deterministic path is overwritten in place instead, so a
+ *  student has exactly one photo object for their whole record. */
+export const studentPhotoPath = (tenantId: string, studentId: string) =>
+  `${tenantId}/${studentId}/photo.png`;
+
 /** Stores a student's photo and points students.avatar_path at it.
  *
  *  Always PNG: issue-id-card embeds the photo with pdf-lib's embedPng, so a
@@ -19,12 +28,24 @@ const PHOTO_MAX_BYTES = 2 * 1024 * 1024;
 export async function uploadStudentPhoto(tenantId: string, studentId: string, file: Blob) {
   const png = await convertImageToPng(file, STUDENT_PHOTO_MAX_PX);
   if (png.size > PHOTO_MAX_BYTES) throw new Error("photo_too_large");
-  const path = `${tenantId}/${studentId}/${crypto.randomUUID()}.png`;
+  const path = studentPhotoPath(tenantId, studentId);
+
+  // Read the current path first: rows written before the deterministic scheme
+  // point at <uuid>.png, and overwriting the new path would leave those behind
+  // exactly as before. Best-effort — a failure here must not cost the upload.
+  const { data: current } = await supabase.from("students")
+    .select("avatar_path").eq("id", studentId).maybeSingle();
+
   const { error: upErr } = await supabase.storage.from("student-photos")
-    .upload(path, png, { contentType: "image/png" });
+    .upload(path, png, { contentType: "image/png", upsert: true });
   if (upErr) throw upErr;
   const { error } = await supabase.from("students").update({ avatar_path: path }).eq("id", studentId);
   if (error) throw error;
+
+  const stale = current?.avatar_path;
+  if (stale && stale !== path) {
+    await supabase.storage.from("student-photos").remove([stale]);
+  }
   return path;
 }
 

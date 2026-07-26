@@ -18,6 +18,7 @@ import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { convertImageToPng, STUDENT_PHOTO_MAX_PX } from "@/lib/image";
+import { studentPhotoPath } from "@/features/students/api";
 import { Button } from "@/components/ui/Button";
 import { Field } from "@/components/ui/Field";
 
@@ -74,9 +75,11 @@ async function copyApplicationPhoto(tenantId: string, photoPath: string, student
     // best-effort) drop the photo silently.
     const png = blob.type === "application/pdf" ? null : await convertImageToPng(blob, STUDENT_PHOTO_MAX_PX).catch(() => null);
     if (!png) return;
-    const destPath = `${tenantId}/${studentId}/${crypto.randomUUID()}.png`;
+    // Same deterministic path as the admin upload, so a photo set here and one
+    // replaced later are the same object rather than two.
+    const destPath = studentPhotoPath(tenantId, studentId);
     const { error: upErr } = await supabase.storage.from("student-photos")
-      .upload(destPath, png, { contentType: "image/png" });
+      .upload(destPath, png, { contentType: "image/png", upsert: true });
     if (upErr) return;
     await supabase.from("students").update({ avatar_path: destPath }).eq("id", studentId);
   } catch {

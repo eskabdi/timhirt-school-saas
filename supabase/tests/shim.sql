@@ -99,3 +99,10 @@ create or replace view vault.decrypted_secrets as
 
 grant usage on schema auth, storage, vault to authenticated, anon, service_role;
 grant select on auth.users to authenticated, anon, service_role;
+
+-- Supabase grants the API roles table-level DML on the storage tables and lets
+-- RLS do the actual gating. Without these grants a policy test fails with
+-- "permission denied for table objects" before any policy is consulted, which
+-- would make a storage suite look like it caught something it never reached.
+grant select, insert, update, delete on storage.objects to authenticated, anon, service_role;
+grant select on storage.buckets to authenticated, anon, service_role;
