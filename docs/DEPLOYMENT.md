@@ -176,7 +176,7 @@ general best practice call for — keep them if you switch hosts.
 ### Deploy with `npm run deploy` — not `vercel` directly
 
 ```bash
-npm run deploy      # rm -rf .vercel/output && vercel deploy --prod
+npm run deploy      # rm -rf .vercel/output && npx vercel deploy --prod
 ```
 
 Two rules, both learned the hard way on 2026-07-26:
