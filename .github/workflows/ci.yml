@@ -12,6 +12,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # check:locales diffs against the base commit
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -20,6 +22,13 @@ jobs:
       - run: npx tsc --noEmit
       - run: npx eslint src --ext .ts,.tsx
       - run: npx vitest run
+      # i18n gates. Both were being run by hand, which is one distraction away
+      # from not being run at all. The locale check needs history to diff
+      # against, hence fetch-depth 0 on the checkout above.
+      - name: i18n — no untranslated user-facing copy
+        run: npm run check:i18n
+      - name: i18n — locale parity and no wholesale reformat
+        run: npm run check:locales -- "${{ github.event.pull_request.base.sha || 'HEAD~1' }}"
       - run: npm run build
 
   # RLS + payroll SoD + webhook-settlement pgTAP suites — supabase/tests/rls/*.sql
