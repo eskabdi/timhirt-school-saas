@@ -9,7 +9,9 @@
     "preview": "vite preview",
     "test": "vitest run",
     "lint": "eslint src --ext .ts,.tsx",
-    "gen:types": "supabase gen types typescript --local > src/lib/database.types.ts"
+    "gen:types": "supabase gen types typescript --local > src/lib/database.types.ts",
+    "predeploy": "rm -rf .vercel/output",
+    "deploy": "npm run predeploy && vercel deploy --prod"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",

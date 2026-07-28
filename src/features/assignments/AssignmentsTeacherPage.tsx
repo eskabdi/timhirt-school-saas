@@ -13,7 +13,7 @@ export function AssignmentsTeacherPage() {
     queryKey: ["assignments"],
     queryFn: async () => {
       const { data, error } = await supabase.from("assignments")
-        .select("id, title, due_date, classes(name, section), subjects(name_i18n)").order("due_date");
+        .select("id, title, due_date, status, classes(name, section), subjects(name_i18n)").order("due_date");
       if (error) throw error;
       return data;
     },
@@ -28,7 +28,14 @@ export function AssignmentsTeacherPage() {
         {assignments?.map((a) => (
           <Card key={a.id} className="flex items-center justify-between">
             <div>
-              <p className="font-medium text-ink">{a.title}</p>
+              <Link to={`/assignments/${a.id}`} className="font-medium text-ink hover:text-navy hover:underline">
+                {a.title}
+              </Link>
+              {a.status === "draft" && (
+                <span className="ml-2 rounded bg-sidebar px-1.5 py-0.5 text-xs text-ink-faint">
+                  {t("assignments.draft")}
+                </span>
+              )}
               <p className="text-sm text-ink-faint">{(a.classes as any)?.name} {(a.classes as any)?.section} · {tField((a.subjects as any)?.name_i18n, i18n.resolvedLanguage!)}</p>
             </div>
             <p className="text-sm text-ink-faint">{t("assignments.due")} <EthDate value={a.due_date} /></p>

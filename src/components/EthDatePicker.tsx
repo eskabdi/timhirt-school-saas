@@ -105,8 +105,11 @@ export function EthDatePicker({ value, onChange, geez = false, id }: Props) {
     setTimeout(() => setOpen(false), 0);
   };
 
+  // The trigger shrinks with its container — a fixed w-72 overflowed any narrow
+  // grid cell (it clipped the Due Time field beside it on the assignment form).
+  // The popup keeps its own fixed width, since the 13-month grid needs the room.
   return (
-    <div id={id} ref={containerRef} className="relative w-72">
+    <div id={id} ref={containerRef} className="relative w-full max-w-[18rem]">
       <input
         type="text"
         readOnly

@@ -14,8 +14,16 @@ export function StudentAssignmentsPage() {
     queryFn: async () => {
       const { data: student } = await supabase.from("students").select("class_id").eq("user_id", profile!.id).maybeSingle();
       if (!student) return [];
-      const { data } = await supabase.from("assignments").select("id, title, due_date, subjects(name_i18n)").eq("class_id", student.class_id).order("due_date");
-      return data ?? [];
+      // Through the join table, not class_id: one assignment targets several
+      // sections. Drafts are excluded — a student should not see work a teacher
+      // is still preparing.
+      const { data } = await supabase.from("assignment_sections")
+        .select("assignments!inner(id, title, due_date, status, subjects(name_i18n))")
+        .eq("class_id", student.class_id);
+      return (data ?? [])
+        .map((r) => r.assignments as unknown as { id: string; title: string; due_date: string; status: string; subjects: unknown })
+        .filter((a) => a && a.status === "published")
+        .sort((a, b) => a.due_date.localeCompare(b.due_date));
     },
   });
   return (

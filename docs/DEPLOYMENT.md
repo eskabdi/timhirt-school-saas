@@ -173,6 +173,44 @@ security headers (CSP, HSTS, X-Content-Type-Options, Referrer-Policy,
 Permissions-Policy) that both 1321/2024's security-measures requirement and
 general best practice call for — keep them if you switch hosts.
 
+### Deploy with `npm run deploy` — not `vercel` directly
+
+```bash
+npm run deploy      # rm -rf .vercel/output && vercel deploy --prod
+```
+
+Two rules, both learned the hard way on 2026-07-26:
+
+**Never pass `--prebuilt`.** `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`
+are baked in at build time and live in the Vercel *project settings*. A local
+`vercel build` cannot read them, so a locally built artifact ships with
+`undefined` for both and the app dies on load with `supabaseUrl is required` —
+a blank page, no console clue beyond that one line. Only a server-side build
+(plain `vercel deploy --prod`) gets the env injected. Confirm the deployment
+log says `Running "npm run build"`, not `Using prebuilt build artifacts`.
+
+Also beware that `--prebuilt=false` does **not** mean what it looks like: the
+flag is a boolean, the `=false` is discarded, and you get `--prebuilt` — the
+exact opposite of the intent.
+
+**Always clear `.vercel/output` first**, which is what `predeploy` does. It is
+gitignored but persists in a working copy, and `--prebuilt` will happily ship a
+months-old artifact with no warning louder than a file count. One went stale on
+Jul 18 and silently shipped on every deploy for eight days, reverting the
+super-admin console to a pre-redesign layout and blanking the app.
+
+### Verify a deploy before calling it done
+
+A `READY` state means Vercel accepted an upload, not that your code shipped.
+Grep the served bundle for something only the new code contains:
+
+```bash
+BUNDLE=$(curl -s https://your-app.vercel.app/ | grep -o 'assets/index-[A-Za-z0-9_-]*\.js' | head -1)
+curl -s "https://your-app.vercel.app/$BUNDLE" > /tmp/live.js
+grep -c 'livqynxlibmccaycseer' /tmp/live.js   # Supabase project ref — 0 means the env never got baked in
+grep -c '<a string from your change>' /tmp/live.js
+```
+
 ## 6. Staging test accounts (Appendix D)
 
 `supabase/seed.sql` refuses to run unless `app.environment = staging`. Create
