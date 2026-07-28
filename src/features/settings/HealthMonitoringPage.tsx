@@ -444,7 +444,7 @@ export function HealthMonitoringPage() {
                       {alert.acknowledged_at && (
                         <>
                           {" "}
-                          · Acknowledged{" "}
+                          · {t("health2.acknowledgedAt")}{" "}
                           <EthDate value={alert.acknowledged_at} /> {new Date(alert.acknowledged_at).toLocaleTimeString()}
                         </>
                       )}
