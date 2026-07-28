@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Evaluation set for memory-mcp-server.
+
+  Run against the fixture store:
+      node test/fixture.mjs /tmp/eval-memories.jsonl
+      MEMORY_STORE_PATH=/tmp/eval-memories.jsonl <run the model with only this server>
+
+  Every question is read-only, independent of the others, and has a single
+  answer verified against the fixture. The wording deliberately avoids the
+  vocabulary the memories themselves use, so answering requires searching on
+  paraphrases, filtering, following the supersede link, and cross-referencing
+  file and tag lists rather than one lucky keyword hit.
+-->
+<evaluation>
+
+  <qa_pair>
+    <question>An approach to limiting request volume was considered and turned down, and a later entry replaced that reasoning entirely. In the entry that replaced it, how many simultaneous callers were used to demonstrate the replacement behaved correctly?</question>
+    <answer>60</answer>
+  </qa_pair>
+
+  <qa_pair>
+    <question>Exactly one source file in the store is referenced by entries of three different categories. What is the path of that file?</question>
+    <answer>scripts/check-locales.mjs</answer>
+  </qa_pair>
+
+  <qa_pair>
+    <question>Two entries describe checks that reported a clean result while actually verifying nothing. One was caused by the way a command-line tool aligns its output. In the other, traffic left the machine from more than one address; when the volume was raised high enough to reach the ceiling, how many of those requests were turned away?</question>
+    <answer>20</answer>
+  </qa_pair>
+
+  <qa_pair>
+    <question>One entry explains why a table-level guard intended to require at least one array element never refused anything. Which migration file does that entry point to?</question>
+    <answer>supabase/migrations/20260728000001_assignments_and_grading_scales.sql</answer>
+  </qa_pair>
+
+  <qa_pair>
+    <question>Counting every scope recorded in the store, how many entries belong to something other than the school management system codebase?</question>
+    <answer>2</answer>
+  </qa_pair>
+
+  <qa_pair>
+    <question>How many entries in the store are categorised as a production failure rather than as a choice, a durable statement, a working preference, or an abandoned approach?</question>
+    <answer>8</answer>
+  </qa_pair>
+
+  <qa_pair>
+    <question>Among the entries marked as describing something that broke and was later corrected, one concerns a component that rendered dates. What file does that entry name?</question>
+    <answer>src/components/EthDate.tsx</answer>
+  </qa_pair>
+
+  <qa_pair>
+    <question>A shared wrapper component caused one control to activate another when a group of them was placed inside it. Which file containing that wrapper is named in the entry describing the problem?</question>
+    <answer>src/components/ui/Field.tsx</answer>
+  </qa_pair>
+
+  <qa_pair>
+    <question>The store records a case where published guidance from an outside provider was deliberately not followed, because obeying it would have allowed a weaker check to be substituted for a stronger one. Which handler file do both that entry and the related failure report name?</question>
+    <answer>supabase/functions/chapa-webhook/index.ts</answer>
+  </qa_pair>
+
+  <qa_pair>
+    <question>Ignoring entries that have been replaced by a newer one, how many entries does the store hold in total?</question>
+    <answer>19</answer>
+  </qa_pair>
+
+</evaluation>
