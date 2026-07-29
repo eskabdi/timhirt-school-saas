@@ -48,6 +48,7 @@ import { Panel } from "@/components/ui/Panel";
 import { EthDatePicker } from "@/components/EthDatePicker";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { toIsoDate } from "@/lib/ethiopian-date";
+import { Stepper } from "@/components/ui/Stepper";
 import { cn } from "@/lib/utils";
 
 const step1Schema = z.object({
@@ -83,38 +84,7 @@ type DocType = "birth_certificate" | "transcript" | "photo" | "payment_receipt";
 interface UploadState { status: "idle" | "uploading" | "done" | "error"; fileName?: string; fileSize?: number; }
 
 function StepperHeader({ step, labels }: { step: number; labels: string[] }) {
-  return (
-    <div className="mb-8">
-      <div className="flex items-center">
-        {labels.map((_, i) => {
-          const n = i + 1;
-          const isDone = n < step;
-          const isActive = n === step;
-          return (
-            <div key={n} className="flex flex-1 items-center last:flex-none">
-              <div className={cn(
-                "flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold transition-colors",
-                isDone || isActive ? "bg-navy text-white" : "bg-sidebar text-ink-faint",
-              )}>
-                {isDone ? "✓" : n}
-              </div>
-              {n < labels.length && <div className={cn("h-0.5 flex-1", isDone ? "bg-navy" : "bg-line")} />}
-            </div>
-          );
-        })}
-      </div>
-      <div className="mt-2 flex">
-        {labels.map((label, i) => {
-          const n = i + 1;
-          return (
-            <div key={n} className={cn("flex-1 text-center", n === labels.length && "flex-none w-9")}>
-              <p className={cn("text-sm font-semibold", n === step ? "text-navy" : "text-ink")}>{label}</p>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
+  return <Stepper step={step} labels={labels} />;
 }
 
 /** A fee line as the public meta endpoint reports it. `grade` null means the
