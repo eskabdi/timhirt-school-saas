@@ -11,7 +11,7 @@
 -- finance card, not an error, and a parent must get zeros from all of it.
 -- ============================================================================
 begin;
-select plan(17);
+select plan(22);
 
 -- ---------- Fixtures ---------------------------------------------------------
 insert into auth.users (instance_id, id, aud, role, email, encrypted_password,
@@ -58,10 +58,28 @@ insert into public.students (id, tenant_id, class_id, admission_no, first_name, 
   ('da300001-0000-0000-0000-00000000000a', 'da000000-0000-0000-0000-00000000000a', 'da200000-0000-0000-0000-00000000000a', 'DA-001', 'Abebe',  'Bekele',  '2015-01-01', 'male',   'oromo',  'active'),
   ('da300002-0000-0000-0000-00000000000a', 'da000000-0000-0000-0000-00000000000a', 'da200000-0000-0000-0000-00000000000a', 'DA-002', 'Chaltu', 'Girma',   '2015-01-02', 'female', 'amhara', 'active'),
   ('da300003-0000-0000-0000-00000000000a', 'da000000-0000-0000-0000-00000000000a', 'da200000-0000-0000-0000-00000000000a', 'DA-003', 'Sara',   'Tesfaye', '2015-01-03', 'female', null,     'active'),
-  ('da300004-0000-0000-0000-00000000000a', 'da000000-0000-0000-0000-00000000000a', 'da200001-0000-0000-0000-00000000000a', 'DA-004', 'Yonas',  'Haile',   '2014-01-01', 'male',   'oromo',  'active'),
+  -- Deliberately a group outside the largest handful. An earlier version of the
+  -- constraint enumerated only the fourteen biggest and would have rejected
+  -- this row — which is backwards for a column whose purpose is finding
+  -- under-served communities.
+  ('da300004-0000-0000-0000-00000000000a', 'da000000-0000-0000-0000-00000000000a', 'da200001-0000-0000-0000-00000000000a', 'DA-004', 'Yonas',  'Haile',   '2014-01-01', 'male',   'gumuz',  'active'),
   ('da300005-0000-0000-0000-00000000000a', 'da000000-0000-0000-0000-00000000000a', 'da200000-0000-0000-0000-00000000000a', 'DA-005', 'Meron',  'Assefa',  '2013-01-01', 'female', 'gurage', 'graduated'),
   ('db300001-0000-0000-0000-00000000000b', 'db000000-0000-0000-0000-00000000000b', 'db200000-0000-0000-0000-00000000000b', 'DB-001', 'Bereket', 'Solomon', '2015-01-01', 'male',   'somali', 'active'),
   ('db300002-0000-0000-0000-00000000000b', 'db000000-0000-0000-0000-00000000000b', 'db200000-0000-0000-0000-00000000000b', 'DB-002', 'Hanna',   'Mekonnen','2015-01-01', 'female', 'somali', 'active');
+
+-- The ethnicity constraint checks shape, not membership: the list of groups
+-- lives in src/lib/ethnic-groups.ts so a school can be offered a new one
+-- without a migration. Shape is still enforced, so the column cannot become a
+-- dumping ground for free text.
+select throws_ok(
+  $stmt$ insert into public.students
+           (tenant_id, class_id, admission_no, first_name, last_name,
+            date_of_birth, gender, ethnicity)
+         values ('da000000-0000-0000-0000-00000000000a',
+                 'da200000-0000-0000-0000-00000000000a', 'DA-BAD', 'Bad', 'Row',
+                 '2015-01-01', 'male', 'Not A Key!') $stmt$,
+  '23514', null,
+  'a malformed ethnicity value is still rejected');
 
 insert into public.guardians (tenant_id, student_id, relationship, phone) values
   ('da000000-0000-0000-0000-00000000000a', 'da300001-0000-0000-0000-00000000000a', 'mother', '+251911000001'),
@@ -141,6 +159,24 @@ insert into public.admission_applications (tenant_id, applicant_name, date_of_bi
   ('da000000-0000-0000-0000-00000000000a', 'Applicant Three', '2018-01-01', 'Guardian Three', 'shortlisted'),
   ('db000000-0000-0000-0000-00000000000b', 'Applicant B',     '2018-01-01', 'Guardian B',     'applied');
 
+-- An application carrying an ethnicity, ready to enrol. The whole point of
+-- collecting it on the application is that enrolment carries it onto the
+-- student row; before 20260729000003 the RPC copied names, date of birth and
+-- gender only, so the answer the family gave was silently dropped at the exact
+-- moment it became a student record.
+insert into public.admission_applications (
+  id, tenant_id, applicant_name, date_of_birth, guardian_name, stage, ethnicity,
+  applicant_first_name, applicant_first_name_am,
+  applicant_middle_name, applicant_middle_name_am,
+  applicant_last_name, applicant_last_name_am,
+  gender, guardian_relationship, guardian_phone
+) values (
+  'dac00001-0000-0000-0000-00000000000a', 'da000000-0000-0000-0000-00000000000a',
+  'Nyakuoth Deng', '2016-05-05', 'Deng Bol', 'registered', 'nuer',
+  'Nyakuoth', 'ንያኩኦት', 'Deng', 'ደንግ', 'Bol', 'ቦል',
+  'female', 'father', '+251911000009'
+);
+
 -- A national holiday inside the test week, to prove teaching days skip it.
 insert into public.calendar_events (tenant_id, event_date, name_i18n, event_type) values
   ('da000000-0000-0000-0000-00000000000a', '2026-07-22', '{"en":"Test Holiday"}', 'national');
@@ -177,6 +213,15 @@ select is(
    from jsonb_array_elements(public.dashboard_overview(null) -> 'by_ethnicity') e
    where e ->> 'key' = 'unrecorded'),
   1, 'a student with no ethnicity recorded lands in the unrecorded bucket');
+
+-- The reason the constraint does not enumerate groups: a smaller community has
+-- to show up as itself, not folded into "other", or the breakdown cannot do the
+-- job it exists for.
+select is(
+  (select (e ->> 'count')::int
+   from jsonb_array_elements(public.dashboard_overview(null) -> 'by_ethnicity') e
+   where e ->> 'key' = 'gumuz'),
+  1, 'a minority group appears as its own slice rather than as other');
 
 -- 2026-07-19 is a Sunday, so the week runs Sun..Sat.
 select is(
@@ -230,6 +275,28 @@ select is(
 select is(
   (public.dashboard_billing('2026-01-01', '2026-12-31') ->> 'overdue')::numeric,
   400::numeric, 'overdue is the outstanding balance, not the invoice face value');
+
+-- ---------- Enrolment carries ethnicity across -------------------------------
+select lives_ok(
+  $stmt$ select public.enroll_admission_application(
+           'dac00001-0000-0000-0000-00000000000a',
+           'da200000-0000-0000-0000-00000000000a') $stmt$,
+  'an application at the registered stage enrols');
+
+select is(
+  (select s.ethnicity from public.students s
+   join public.admission_applications a on a.converted_student_id = s.id
+   where a.id = 'dac00001-0000-0000-0000-00000000000a'),
+  'nuer',
+  'enrolment copies the ethnicity the family declared onto the student row');
+
+-- And it reaches the chart: the enrolled student is now a fifth active student
+-- in the tenant, showing as their own slice.
+select is(
+  (select (e ->> 'count')::int
+   from jsonb_array_elements(public.dashboard_overview(null) -> 'by_ethnicity') e
+   where e ->> 'key' = 'nuer'),
+  1, 'the enrolled student appears in the ethnicity breakdown');
 
 -- ---------- Role gates -------------------------------------------------------
 -- A teacher legitimately sees the attendance cards, so the finance card has to

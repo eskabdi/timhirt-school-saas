@@ -20,23 +20,54 @@
 -- ============================================================================
 
 -- ---------- students.ethnicity ----------------------------------------------
--- The "Students by Ethnicity" chart needs a column that did not exist. Kept
--- nullable and with an explicit "undisclosed" value: ethnicity is a sensitive
--- attribute, MoE census reporting asks for it, and a family declining to
--- answer has to be representable as something other than a missing row.
+-- The "Students by Ethnicity" chart needs a column that did not exist.
+--
+-- In the Ethiopian context this identifies a student's language and region of
+-- origin, and MoE census reporting is built on it. Its point is to let a
+-- school and the ministry see which groups are under-served and direct support
+-- accordingly.
+--
+-- Which is why the value list is NOT enumerated here. A CHECK naming the
+-- fourteen largest groups looked tidy and did the opposite of what the column
+-- is for: it would have funnelled Gumuz, Nuer, Anuak, Berta, Harari, Kunama
+-- and Agew students into 'other' — making precisely the minorities the data
+-- exists to surface the ones it cannot see. Ethiopia's census counts more than
+-- eighty groups and the official list is revised as regions are reorganised,
+-- so pinning it in a constraint means a migration every time a school enrols a
+-- student the list forgot.
+--
+-- The constraint is therefore on shape only. The set of groups offered lives
+-- in src/lib/ethnic-groups.ts with its labels in the three locale files, so
+-- adding one is a frontend change; the chart falls back to rendering an
+-- unrecognised key verbatim rather than dropping the slice.
 alter table public.students add column if not exists ethnicity text;
 
 do $$ begin
   alter table public.students add constraint students_ethnicity_check
-    check (ethnicity is null or ethnicity in (
-      'oromo', 'amhara', 'somali', 'tigrayan', 'sidama', 'gurage', 'welayta',
-      'afar', 'hadiya', 'gamo', 'gedeo', 'kafficho', 'silte', 'kembata',
-      'other', 'undisclosed'));
+    check (ethnicity is null or ethnicity ~ '^[a-z][a-z0-9_]{1,39}$');
 exception when duplicate_object then null; end $$;
 
 comment on column public.students.ethnicity is
-  'Self-declared ethnic group for MoE census reporting. Nullable; '
-  '''undisclosed'' records an explicit refusal, which is not the same as unasked.';
+  'Self-declared ethnic group, as a lower_snake key. Identifies language and '
+  'region of origin for MoE census reporting and for directing support to '
+  'under-served groups. Nullable; ''undisclosed'' records a family that was '
+  'asked and chose not to answer, which is not the same as never being asked.';
+
+-- A new column on students is NOT readable by `authenticated` without this.
+--
+-- 20260713000010 revoked SELECT on medical_notes, and a column-level REVOKE
+-- makes Postgres expand the table-wide GRANT SELECT into one grant per column
+-- that existed at that moment. Every column added afterwards therefore starts
+-- with no SELECT privilege at all, and the failure is not subtle: any query
+-- naming it dies with "permission denied for table students" — so the student
+-- profile page breaks entirely, not just the one field.
+--
+-- INSERT and UPDATE are unaffected (nothing was ever revoked column-wise for
+-- those, so they are still table-wide), which makes the shape of the bug
+-- confusing: the value can be written and then cannot be read back.
+-- 20260720000002 hit this same trap for blood_type/primary_language and fixed
+-- it the same way.
+grant select (ethnicity) on public.students to authenticated;
 
 create index if not exists students_tenant_ethnicity
   on public.students (tenant_id, ethnicity) where status = 'active';

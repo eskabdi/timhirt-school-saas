@@ -13,6 +13,7 @@
     "receiptMissing": "Please upload your payment receipt before completing registration."
   },
   "step1": {
+    "ethnicity": "Ethnicity", "ethnicityNone": "Prefer not to say", "ethnicityHint": "Optional. Used for ministry reporting only.",
     "heading": "1. Student Information",
     "firstName": "First Name",
     "middleName": "Middle Name",

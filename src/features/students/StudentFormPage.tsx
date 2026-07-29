@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/Input";
 import { Field } from "@/components/ui/Field";
 import { Card } from "@/components/ui/Card";
 import { EthDatePicker } from "@/components/EthDatePicker";
+import { EthnicitySelect } from "./EthnicitySelect";
 
 export function StudentFormPage() {
   const { t } = useTranslation();
@@ -151,6 +152,11 @@ export function StudentFormPage() {
             <option value="other">{t("students.other")}</option>
           </select>
         </Field>
+        <Controller name="ethnicity" control={control}
+          render={({ field }) => (
+            <EthnicitySelect value={field.value ?? ""} onChange={field.onChange}
+              error={errorText(errors.ethnicity?.message)} />
+          )} />
         <Field label={t("students.class")} error={errorText(errors.class_id?.message)}>
           <select {...register("class_id")} className="w-full rounded-control border border-line bg-card px-3 py-2 text-sm text-ink" required>
             <option value="">—</option>

@@ -7,6 +7,7 @@ import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Field } from "@/components/ui/Field";
+import { EthnicitySelect } from "./EthnicitySelect";
 import { EthDatePicker } from "@/components/EthDatePicker";
 import { toIsoDate } from "@/lib/ethiopian-date";
 import { uploadStudentPhoto, PHOTO_MIME_TYPES } from "./api";
@@ -20,6 +21,7 @@ export interface StudentLike {
   first_name: string; middle_name: string | null; last_name: string;
   first_name_am?: string | null; middle_name_am?: string | null; last_name_am?: string | null;
   date_of_birth: string; gender: string; primary_language: string | null;
+  ethnicity?: string | null;
   blood_type: string | null; roll_number: string | null; admission_date: string | null;
   avatar_path?: string | null; class_id?: string | null;
 }
@@ -52,6 +54,7 @@ export function EditProfileModal({ student, guardian, open, onClose }: {
     first_name_am: student.first_name_am ?? "", middle_name_am: student.middle_name_am ?? "", last_name_am: student.last_name_am ?? "",
     dob: student.date_of_birth ? new Date(student.date_of_birth + "T00:00:00Z") : null as Date | null,
     gender: student.gender, primary_language: student.primary_language ?? "",
+    ethnicity: student.ethnicity ?? "",
     blood_type: student.blood_type ?? "", roll_number: student.roll_number ?? "",
     admission_date: student.admission_date ? new Date(student.admission_date + "T00:00:00Z") : null as Date | null,
     class_id: student.class_id ?? "",
@@ -114,6 +117,9 @@ export function EditProfileModal({ student, guardian, open, onClose }: {
         first_name_am: f.first_name_am || null, middle_name_am: f.middle_name_am || null, last_name_am: f.last_name_am || null,
         date_of_birth: f.dob ? toIsoDate(f.dob) : student.date_of_birth,
         gender: f.gender, primary_language: f.primary_language || null,
+        // This modal is the backfill path for students enrolled before the
+        // field existed, so it has to be able to set it as well as clear it.
+        ethnicity: f.ethnicity || null,
         blood_type: f.blood_type || null, roll_number: f.roll_number || null,
         admission_date: f.admission_date ? toIsoDate(f.admission_date) : null,
         ...(f.class_id ? { class_id: f.class_id } : {}),
@@ -220,6 +226,7 @@ export function EditProfileModal({ student, guardian, open, onClose }: {
             <Field label={t("students.edit.primaryLanguage")}>
               <Input value={f.primary_language} onChange={(e) => setF({ ...f, primary_language: e.target.value })} maxLength={40} />
             </Field>
+            <EthnicitySelect value={f.ethnicity} onChange={(v) => setF({ ...f, ethnicity: v })} />
             <Field label={t("students.edit.bloodType")}>
               <select value={f.blood_type} onChange={(e) => setF({ ...f, blood_type: e.target.value })}
                 className="w-full rounded-control border border-line bg-card px-3 py-2 text-sm text-ink">

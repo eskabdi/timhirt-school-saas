@@ -13,6 +13,7 @@
     "receiptMissing": "ምዝገባውን ከማጠናቀቅዎ በፊት የክፍያ ደረሰኝ ይስቀሉ።"
   },
   "step1": {
+    "ethnicity": "ብሔር", "ethnicityNone": "መናገር አልፈልግም", "ethnicityHint": "አማራጭ ነው። ለሚኒስቴር ሪፖርት ብቻ ይውላል።",
     "heading": "1. የተማሪ መረጃ",
     "firstName": "ስም",
     "middleName": "የአባት ስም",

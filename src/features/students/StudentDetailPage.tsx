@@ -35,7 +35,7 @@ export function StudentDetailPage() {
     queryKey: ["student-profile", id],
     queryFn: async () => {
       const { data, error } = await supabase.from("students")
-        .select("id, tenant_id, class_id, admission_no, roll_number, first_name, middle_name, last_name, first_name_am, middle_name_am, last_name_am, date_of_birth, gender, status, avatar_path, blood_type, primary_language, admission_date, user_id, class:classes(name, section, grade_level, homeroom_teacher_id)")
+        .select("id, tenant_id, class_id, admission_no, roll_number, first_name, middle_name, last_name, first_name_am, middle_name_am, last_name_am, date_of_birth, gender, status, avatar_path, blood_type, primary_language, ethnicity, admission_date, user_id, class:classes(name, section, grade_level, homeroom_teacher_id)")
         .eq("id", id).single();
       if (error) throw error;
       return data;
@@ -188,6 +188,10 @@ export function StudentDetailPage() {
                   <Row label={t("students.profile.dobEc")} value={<EthDate value={student.date_of_birth} />} />
                   <Row label={t("students.gender")} value={t(`students.${student.gender}`)} />
                   <Row label={t("students.edit.primaryLanguage")} value={student.primary_language ?? "—"} />
+                  <Row label={t("students.ethnicity")}
+                       value={student.ethnicity
+                         ? t(`ethnicity.${student.ethnicity}`, { defaultValue: student.ethnicity })
+                         : "—"} />
                   <Row label={t("students.edit.bloodType")} value={student.blood_type ?? "—"} />
                 </dl>
               </Card>
@@ -243,6 +247,7 @@ export function StudentDetailPage() {
           first_name: student.first_name, middle_name: student.middle_name, last_name: student.last_name,
           first_name_am: student.first_name_am, middle_name_am: student.middle_name_am, last_name_am: student.last_name_am,
           date_of_birth: student.date_of_birth, gender: student.gender, primary_language: student.primary_language,
+          ethnicity: student.ethnicity,
           blood_type: student.blood_type, roll_number: student.roll_number, admission_date: student.admission_date,
           avatar_path: student.avatar_path, class_id: student.class_id,
         }}

@@ -20,6 +20,10 @@ export const studentSchema = z.object({
   // insert (students_set_admission_no trigger, migration 20260719000005).
   date_of_birth: z.date({ errorMap: () => ({ message: "required" }) }).max(new Date(), "must_be_past"),
   gender: z.enum(["male", "female", "other"], { errorMap: () => ({ message: "required" }) }),
+  // Optional, and shape-only: the set of groups lives in lib/ethnic-groups.ts
+  // rather than in a constraint, so a school can be offered a new one without
+  // a migration. "" means not recorded and is mapped to null before writing.
+  ethnicity: z.string().regex(/^[a-z][a-z0-9_]{1,39}$/, "invalid").optional().or(z.literal("")),
   class_id: z.string().uuid("select_class"),
 });
 export type StudentInput = z.infer<typeof studentSchema>;

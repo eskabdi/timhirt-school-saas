@@ -13,6 +13,7 @@
     "receiptMissing": "Galmee xumuruu dura waraqaa kaffaltii fe'i."
   },
   "step1": {
+    "ethnicity": "Saba", "ethnicityNone": "Himuu hin barbaadu", "ethnicityHint": "Filannoo dha. Gabaasa ministeeraatiif qofa oola.",
     "heading": "1. Odeeffannoo Barataa",
     "firstName": "Maqaa",
     "middleName": "Maqaa Abbaa",

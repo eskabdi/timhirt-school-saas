@@ -64,6 +64,9 @@ export async function createStudent(tenantId: string, input: StudentInput) {
     tenant_id: tenantId,
     ...input,
     date_of_birth: input.date_of_birth.toISOString().slice(0, 10),
+    // The empty string is what the select emits for "not recorded"; the
+    // column's CHECK rejects it, so it has to become NULL here.
+    ethnicity: input.ethnicity || null,
   }).select("id").single();
   if (error) throw error;
   return data;

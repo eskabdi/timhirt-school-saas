@@ -41,6 +41,7 @@ import { formatETB, tField } from "@/lib/i18n";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Field } from "@/components/ui/Field";
+import { useEthnicityOptions } from "@/features/students/EthnicitySelect";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Panel } from "@/components/ui/Panel";
@@ -57,6 +58,9 @@ const step1Schema = z.object({
   applicant_last_name: z.string().trim().min(1, "required"),
   applicant_last_name_am: z.string().trim().min(1, "required"),
   gender: z.enum(["male", "female"], { errorMap: () => ({ message: "required" }) }),
+  // Optional by design: a family that would rather not answer must still be
+  // able to submit. Empty string is normalised to null by the Edge Function.
+  ethnicity: z.string().optional(),
   desired_grade: z.string().trim().min(1, "select_grade"),
 });
 type Step1Fields = z.infer<typeof step1Schema>;
@@ -212,6 +216,7 @@ function DocumentUploadSlot({
 export function PublicAdmissionFormPage() {
   const { tenantSlug } = useParams();
   const { t, i18n } = useTranslation("apply");
+  const ethnicityOptions = useEthnicityOptions();
   const [step, setStep] = useState(1);
   const [applicationId, setApplicationId] = useState<string | null>(null);
   const [trackingCode, setTrackingCode] = useState<string | null>(null);
@@ -224,7 +229,7 @@ export function PublicAdmissionFormPage() {
     applicant_first_name: "", applicant_first_name_am: "",
     applicant_middle_name: "", applicant_middle_name_am: "",
     applicant_last_name: "", applicant_last_name_am: "",
-    gender: "", desired_grade: "",
+    gender: "", ethnicity: "", desired_grade: "",
   });
   const [s1Errors, setS1Errors] = useState<Record<string, string>>({});
 
@@ -455,6 +460,16 @@ export function PublicAdmissionFormPage() {
                   </select>
                 </BilingualField>
               </div>
+              {/* Optional, and said so on the form. Options come from the shared
+                  hook so this list and the staff form's cannot drift apart. */}
+              <BilingualField label={t("step1.ethnicity")} error={s1Errors.ethnicity}>
+                <select value={s1.ethnicity} className="w-full rounded-control border border-line bg-card px-3 py-2 text-sm text-ink"
+                  onChange={(e) => setS1((v) => ({ ...v, ethnicity: e.target.value }))}>
+                  <option value="">{t("step1.ethnicityNone")}</option>
+                  {ethnicityOptions.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
+                </select>
+                <p className="mt-1 text-xs text-ink-faint">{t("step1.ethnicityHint")}</p>
+              </BilingualField>
             </div>
             <div className="flex justify-between border-t border-line px-6 py-4">
               <Button variant="ghost">{t("step1.cancel")}</Button>

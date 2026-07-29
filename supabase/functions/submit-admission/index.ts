@@ -36,6 +36,10 @@ const Payload = z.object({
   applicant_last_name_am: z.string().trim().min(1).max(80),
   date_of_birth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   gender: z.enum(["male", "female", "other"]),
+  // Shape only, mirroring the column's CHECK — the set of groups is not
+  // enumerated anywhere server-side (see 20260729000003). Optional: declining
+  // to answer must not block an application.
+  ethnicity: z.string().regex(/^[a-z][a-z0-9_]{1,39}$/).optional().or(z.literal("")),
   desired_grade: z.string().trim().min(1).max(40),
 
   guardian_name: z.string().trim().min(1).max(120),
@@ -172,6 +176,7 @@ Deno.serve(async (req) => {
       applicant_last_name_am: p.applicant_last_name_am,
       date_of_birth: p.date_of_birth,
       gender: p.gender,
+      ethnicity: p.ethnicity || null,
       desired_grade: p.desired_grade,
       guardian_name: p.guardian_name,
       guardian_name_am: p.guardian_name_am,
