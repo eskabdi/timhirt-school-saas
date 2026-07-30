@@ -14,6 +14,7 @@ import { useParams, Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { useSession } from "@/features/auth/useSession";
 import { Card } from "@/components/ui/Card";
 import { Panel, PanelHeader } from "@/components/ui/Panel";
 import { Button } from "@/components/ui/Button";
@@ -23,6 +24,9 @@ import { inviteAndLink } from "./staffApi";
 
 const PORTAL_ROLES = ["teacher", "registrar", "hr_officer", "accountant"] as const;
 type PortalRole = (typeof PORTAL_ROLES)[number];
+// Mirrors invite-staff's own HR_OFFICER_ASSIGNABLE_ROLES: an hr_officer
+// caller is rejected server-side for any role outside this set.
+const HR_OFFICER_ASSIGNABLE_ROLES: readonly PortalRole[] = ["teacher", "registrar"];
 
 // A language's own name is always shown in its own script, not translated
 // per the viewer's active locale — same convention as LanguageSwitcher.
@@ -40,6 +44,8 @@ const ROLE_ACCESS: Record<PortalRole, string[]> = {
 export function PortalInvitationPage() {
   const { t } = useTranslation();
   const { id } = useParams();
+  const { profile } = useSession();
+  const assignableRoles = profile?.role === "hr_officer" ? HR_OFFICER_ASSIGNABLE_ROLES : PORTAL_ROLES;
   const [role, setRole] = useState<PortalRole>("teacher");
   const [locale, setLocale] = useState<"en" | "am" | "om">("en");
   const [sent, setSent] = useState(false);
@@ -97,7 +103,7 @@ export function PortalInvitationPage() {
               <Field label={t("staffReg.portalRole")}>
                 <select value={role} onChange={(e) => setRole(e.target.value as PortalRole)}
                   className="w-full rounded-control border border-line bg-card px-3 py-2 text-sm text-ink">
-                  {PORTAL_ROLES.map((r) => <option key={r} value={r}>{t(`roles.${r}`)}</option>)}
+                  {assignableRoles.map((r) => <option key={r} value={r}>{t(`roles.${r}`)}</option>)}
                 </select>
               </Field>
               <Field label={t("invitePortal.locale")}>

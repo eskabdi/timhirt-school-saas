@@ -14,6 +14,17 @@
 // complete the invite it defaults to sending, with no recovery path in the
 // product short of a school_admin re-running it by hand.
 //
+// That widening only covers WHO may call this function, not WHICH role the
+// caller may hand out — those are different questions. An hr_officer caller
+// is capped to teacher/registrar (HR_OFFICER_ASSIGNABLE_ROLES below); only
+// school_admin may mint hr_officer or accountant accounts. Before hr_officer
+// was allowed to call this function at all, that was implicit (school_admin
+// was the only caller, full stop); adding a second caller role without also
+// scoping what it can grant would have let any hr_officer mint themselves
+// unlimited hr_officer/accountant peers via a service-role write that RLS
+// never sees (public.users has no authenticated INSERT policy — this insert
+// bypasses RLS entirely by design, so this check is the only backstop).
+//
 // Same shape as invite-tenant-admin: pre-check the email against
 // public.users BEFORE inviteUserByEmail (invite silently re-sends for an
 // existing auth user — reaching the catch-block rollback would then delete
@@ -35,6 +46,10 @@ const Payload = z.object({
   default_locale: z.enum(["en", "am", "om"]).default("am"),
 }).refine((p) => p.role !== "teacher" || !!p.staff_no, { message: "staff_no required for teachers" });
 
+// An hr_officer may onboard the staff they directly manage; only school_admin
+// grants roles with HR/financial administration rights over the school itself.
+const HR_OFFICER_ASSIGNABLE_ROLES = new Set(["teacher", "registrar"]);
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   const ctxOrRes = await requireRole(req, ["school_admin", "hr_officer"]);
@@ -49,6 +64,7 @@ Deno.serve(async (req) => {
     const parsed = Payload.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return errors.badRequest();
     const p = parsed.data;
+    if (ctx.role === "hr_officer" && !HR_OFFICER_ASSIGNABLE_ROLES.has(p.role)) return errors.forbidden();
     const db = ctx.adminClient;
 
     const { data: existing } = await db.from("users").select("id").eq("email", p.email).maybeSingle();

@@ -45,6 +45,10 @@ const EMPLOYEE_TYPES = ["teacher", "admin_staff", "support"] as const;
 const CONTRACT_TYPES = ["permanent", "contract", "part_time"] as const;
 const PORTAL_ROLES = ["teacher", "registrar", "hr_officer", "accountant"] as const;
 type PortalRole = (typeof PORTAL_ROLES)[number];
+// Mirrors invite-staff's own HR_OFFICER_ASSIGNABLE_ROLES: an hr_officer caller
+// is rejected server-side for any role outside this set, so offering the rest
+// here would just be a dead end after "Complete Registration."
+const HR_OFFICER_ASSIGNABLE_ROLES: readonly PortalRole[] = ["teacher", "registrar"];
 
 const step1Schema = z.object({
   first_name: z.string().trim().min(1, "required"),
@@ -664,7 +668,8 @@ export function StaffRegistrationPage() {
               <Field label={t("staffReg.portalRole")}>
                 <select value={portalRole} onChange={(e) => setPortalRole(e.target.value as PortalRole)}
                   className="w-full max-w-xs rounded-control border border-line bg-card px-3 py-2 text-sm text-ink">
-                  {PORTAL_ROLES.map((r) => <option key={r} value={r}>{t(`roles.${r}`)}</option>)}
+                  {(profile?.role === "hr_officer" ? HR_OFFICER_ASSIGNABLE_ROLES : PORTAL_ROLES)
+                    .map((r) => <option key={r} value={r}>{t(`roles.${r}`)}</option>)}
                 </select>
               </Field>
             )}
