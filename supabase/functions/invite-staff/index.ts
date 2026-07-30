@@ -1,11 +1,18 @@
 // ============================================================================
-// [INSA category: INTERNAL] invite-staff — school_admin only.
+// [INSA category: INTERNAL] invite-staff — school_admin or hr_officer.
 // Fills the gap that made the Teachers module unreachable: onboard-tenant /
 // invite-tenant-admin only ever create school_admin accounts, and
 // provision-portal-accounts only students/parents — there was NO path that
 // created a login for a teacher (or registrar/hr_officer/accountant), so
 // role-gated teacher pages and every is_teacher_of_class() RLS policy were
 // dead code in practice.
+//
+// hr_officer is allowed alongside school_admin: StaffRegistrationPage is
+// route-gated to exactly those two roles (router.tsx's HR guard), and its
+// "also invite to portal" step calls this function directly. Restricting
+// this to school_admin left the wizard's own stated persona unable to
+// complete the invite it defaults to sending, with no recovery path in the
+// product short of a school_admin re-running it by hand.
 //
 // Same shape as invite-tenant-admin: pre-check the email against
 // public.users BEFORE inviteUserByEmail (invite silently re-sends for an
@@ -30,7 +37,7 @@ const Payload = z.object({
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
-  const ctxOrRes = await requireRole(req, ["school_admin"]);
+  const ctxOrRes = await requireRole(req, ["school_admin", "hr_officer"]);
   if (ctxOrRes instanceof Response) return ctxOrRes;
   const ctx = ctxOrRes;
   let invitedUserId: string | undefined;

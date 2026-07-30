@@ -504,7 +504,7 @@ export function StaffRegistrationPage() {
                 {photoPreview && <img src={photoPreview} alt="" className="h-full w-full object-cover" />}
               </div>
               <input ref={photoInput} type="file" accept={STAFF_PHOTO_MIME_TYPES.join(",")} className="hidden"
-                onChange={(e) => { setPhotoError(null); const f = e.target.files?.[0]; if (f) setPhoto(f); }} />
+                onChange={(e) => { setPhotoError(null); const f = e.target.files?.[0]; if (f) { setPhoto(f); setPhotoPath(null); } }} />
               <Button variant="ghost" onClick={() => photoInput.current?.click()}>{t("staffReg.uploadPhoto")}</Button>
               {photoError && <p className="text-xs text-danger">{photoError}</p>}
             </Card>
@@ -581,14 +581,13 @@ export function StaffRegistrationPage() {
           <SectionCard title={t("staffReg.languageProficiency")} icon="🗣" className="lg:col-span-3">
             <div className="flex flex-wrap gap-2">
               {LANGUAGES.map((l) => {
-                const label = t(`staffReg.language.${l}`);
-                const active = languages.includes(label);
+                const active = languages.includes(l);
                 return (
                   <button key={l} type="button"
-                    onClick={() => setLanguages(active ? languages.filter((x) => x !== label) : [...languages, label])}
+                    onClick={() => setLanguages(active ? languages.filter((x) => x !== l) : [...languages, l])}
                     className={cn("rounded-pill border px-3 py-1 text-sm",
                       active ? "border-navy bg-navy-wash text-navy" : "border-line text-ink-soft hover:bg-sidebar")}>
-                    {label}
+                    {t(`staffReg.language.${l}`)}
                   </button>
                 );
               })}

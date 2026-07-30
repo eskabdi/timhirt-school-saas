@@ -70,6 +70,30 @@ export async function uploadStaffDocument(
   return path;
 }
 
+/** The Documents tab's own uploader, distinct from uploadStaffDocument: that
+ *  one fills one of the four fixed registration slots (one file per
+ *  doc_type, replace-on-reupload). This one is for anything filed later —
+ *  a police clearance renewal, a signed contract addendum — where more than
+ *  one document can exist per category, so each upload is its own row at
+ *  its own random path rather than overwriting a deterministic slot. */
+export async function uploadCategoryDocument(
+  tenantId: string, employeeId: string, category: "identification" | "qualifications" | "contractual" | "health_legal",
+  label: string, file: File,
+) {
+  if (!DOC_MIME_TYPES.includes(file.type)) throw new Error("bad_file_type");
+  if (file.size > DOC_MAX_BYTES) throw new Error("file_too_large");
+  const ext = file.type === "application/pdf" ? "pdf" : file.type.split("/")[1];
+  const path = `${tenantId}/staff/${employeeId}/${crypto.randomUUID()}.${ext}`;
+  const { error: upErr } = await supabase.storage.from("documents")
+    .upload(path, file, { contentType: file.type, upsert: false });
+  if (upErr) throw upErr;
+  const { error } = await supabase.from("employee_documents").insert({
+    tenant_id: tenantId, employee_id: employeeId, category, doc_type: label.slice(0, 60), storage_path: path,
+  });
+  if (error) throw error;
+  return path;
+}
+
 export interface EmergencyContactInput {
   full_name: string;
   full_name_am?: string;

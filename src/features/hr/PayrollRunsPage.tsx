@@ -62,9 +62,14 @@ export function PayrollRunsPage() {
         </Button>
         {runPayroll.isError && <p className="text-sm text-danger">{(runPayroll.error as Error).message}</p>}
         {runPayroll.isSuccess && (
-          <p className="text-sm text-ok">
-            {t("hr.employeesCount", { count: runPayroll.data.employees })} · {t("hr.grossTotal")}: {runPayroll.data.gross_total} ETB
-          </p>
+          <div className="text-sm">
+            <p className="text-ok">
+              {t("hr.employeesCount", { count: runPayroll.data.employees })} · {t("hr.grossTotal")}: {runPayroll.data.gross_total} ETB
+            </p>
+            {runPayroll.data.skipped_no_salary?.length > 0 && (
+              <p className="text-late">{t("hr.skippedNoSalaryCount", { count: runPayroll.data.skipped_no_salary.length })}</p>
+            )}
+          </div>
         )}
       </Card>
 

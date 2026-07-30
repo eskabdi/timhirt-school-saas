@@ -52,7 +52,7 @@ import { ReportsPage } from "@/features/reports/ReportsPage";
 import { IDCardBatchPage } from "@/features/id-cards/IDCardBatchPage";
 
 import { EmployeeListPage } from "@/features/hr/EmployeeListPage";
-import { EmployeeDetailPage } from "@/features/hr/EmployeeDetailPage";
+import { StaffProfilePage } from "@/features/hr/StaffProfilePage";
 import { StaffRegistrationPage } from "@/features/hr/StaffRegistrationPage";
 import { LeaveApprovalsPage } from "@/features/hr/LeaveApprovalsPage";
 import { PayrollRunsPage } from "@/features/hr/PayrollRunsPage";
@@ -295,7 +295,7 @@ export const router = createBrowserRouter([
                 children: [
                   { path: "hr/employees", element: <EmployeeListPage /> },
                   { path: "hr/employees/new", element: <StaffRegistrationPage /> },
-                  { path: "hr/employees/:id", element: <EmployeeDetailPage /> },
+                  { path: "hr/employees/:id", element: <StaffProfilePage /> },
                   { path: "hr/leave", element: <LeaveApprovalsPage /> },
                 ],
               },

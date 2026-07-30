@@ -69,8 +69,18 @@ Deno.serve(async (req) => {
     if (empErr) throw empErr;
 
     let grossTotal = 0;
+    const skippedNoSalary: Array<{ id: string; full_name: string }> = [];
     for (const emp of employees ?? []) {
       const basic = Number(emp.employment_contracts[0]?.basic_salary ?? 0);
+      // A freshly registered employee's contract is created with basic_salary
+      // 0 as an explicit placeholder until HR sets the real figure on the
+      // Payroll tab. Running payroll before that happens must not silently
+      // mint a real, "paid" ETB 0 payslip for them — exclude and report them
+      // so HR notices instead of the run quietly looking complete.
+      if (basic <= 0) {
+        skippedNoSalary.push({ id: emp.id, full_name: emp.full_name });
+        continue;
+      }
       let gross = basic, taxable = basic, pensionableBase = basic, otherDeductions = 0;
       const lines: Array<{ label_i18n: unknown; kind: string; amount: number }> = [
         { label_i18n: { en: "Basic salary", am: "መሠረታዊ ደመወዝ", om: "Mindaa bu'uuraa" }, kind: "earning", amount: round2(basic) },
@@ -133,7 +143,8 @@ Deno.serve(async (req) => {
 
     return json({
       run_id: runId,
-      employees: employees?.length ?? 0,
+      employees: (employees?.length ?? 0) - skippedNoSalary.length,
+      skipped_no_salary: skippedNoSalary,
       gross_total: round2(grossTotal).toFixed(2),
       status: "draft",
     }, 200);
