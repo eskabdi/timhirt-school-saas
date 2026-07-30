@@ -108,23 +108,11 @@ export async function rateLimit(key: string, limit: number, windowMs: number): P
   return data === true;
 }
 
-/** Timing-safe HMAC-SHA256 verification for webhooks.
- *  Signatures are compared as lowercase hex — providers differ on casing and a
- *  case difference is not a forgery. */
-export async function verifyHmac(payload: string, signature: string, secret: string) {
-  const key = await crypto.subtle.importKey(
-    "raw", new TextEncoder().encode(secret),
-    { name: "HMAC", hash: "SHA-256" }, false, ["sign"],
-  );
-  const mac = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(payload));
-  const expected = Array.from(new Uint8Array(mac))
-    .map((b) => b.toString(16).padStart(2, "0")).join("");
-  const given = signature.trim().toLowerCase();
-  if (expected.length !== given.length) return false;
-  let diff = 0;
-  for (let i = 0; i < expected.length; i++) diff |= expected.charCodeAt(i) ^ given.charCodeAt(i);
-  return diff === 0;
-}
+// verifyHmac lives in _shared/hmac.ts — a Deno- and npm-import-free module so
+// the timing-safe comparison guarding the payment webhook can be unit-tested
+// under Vitest against the real code (src/__tests__/hmac-verify.test.ts).
+// Re-exported here so existing callers keep importing it from security.ts.
+export { verifyHmac } from "./hmac.ts";
 
 /**
  * Reads a third-party credential (Chapa/Telebirr/Stripe secret keys, SMS
