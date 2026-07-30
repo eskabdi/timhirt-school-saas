@@ -200,7 +200,12 @@ export function ProfessionalTab({ employeeId, employee, canSeeSensitive }: {
                   </p>
                 </>
               ) : (
-                <p className="text-ink-faint">{t("staffReg.portalNotInvited")}</p>
+                <>
+                  <p className="text-ink-faint">{t("staffReg.portalNotInvited")}</p>
+                  <p className="text-xs">
+                    <Link to={`/hr/employees/${employeeId}/invite`} className="text-navy hover:underline">{t("staffReg.sendInvitationNow")} →</Link>
+                  </p>
+                </>
               )}
             </div>
           </Panel>

@@ -7,7 +7,7 @@
 // governs row visibility) exactly as EmployeeDetailPage already did — that
 // gate is reused here, not reinvented.
 import { useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -28,6 +28,7 @@ type Tab = (typeof TABS)[number];
 export function StaffProfilePage() {
   const { t } = useTranslation();
   const { id } = useParams();
+  const navigate = useNavigate();
   const { profile } = useSession();
   const [tab, setTab] = useState<Tab>("overview");
   const canSeeSensitive = !!profile && ["school_admin", "hr_officer", "accountant"].includes(profile.role);
@@ -92,6 +93,14 @@ export function StaffProfilePage() {
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            {!employee.user_id && (
+              <Button variant="ghost" onClick={() => navigate(`/hr/employees/${employee.id}/invite`)}>
+                {t("staffReg.sendInvitationNow")}
+              </Button>
+            )}
+            <Button variant="ghost" onClick={() => navigate(`/hr/employees/${employee.id}/id-card`)}>
+              {t("staffIdCard.title")}
+            </Button>
             <Button variant="ghost">{t("staffProfile.message")}</Button>
             <Button variant="ghost">{t("staffProfile.printTranscript")}</Button>
             <Button>{t("staffProfile.editProfile")}</Button>

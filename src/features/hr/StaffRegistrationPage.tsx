@@ -389,9 +389,8 @@ export function StaffRegistrationPage() {
             )}
             <NextStepCard title={t("staffReg.nextViewProfile")} desc={t("staffReg.nextViewProfileDesc")}
               onClick={() => nav(`/hr/employees/${employeeId}`)} />
-            {/* Points at the profile until the dedicated ID-printing page ships. */}
             <NextStepCard title={t("staffReg.nextPrintId")} desc={t("staffReg.nextPrintIdDesc")}
-              onClick={() => nav(`/hr/employees/${employeeId}`)} />
+              onClick={() => nav(`/hr/employees/${employeeId}/id-card`)} />
             <NextStepCard title={t("staffReg.nextRegisterAnother")} desc={t("staffReg.nextRegisterAnotherDesc")}
               onClick={() => window.location.assign("/hr/employees/new")} />
           </div>

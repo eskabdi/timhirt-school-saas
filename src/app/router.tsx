@@ -54,6 +54,8 @@ import { IDCardBatchPage } from "@/features/id-cards/IDCardBatchPage";
 import { EmployeeListPage } from "@/features/hr/EmployeeListPage";
 import { StaffProfilePage } from "@/features/hr/StaffProfilePage";
 import { StaffRegistrationPage } from "@/features/hr/StaffRegistrationPage";
+import { PortalInvitationPage } from "@/features/hr/PortalInvitationPage";
+import { StaffIdCardPage } from "@/features/hr/StaffIdCardPage";
 import { LeaveApprovalsPage } from "@/features/hr/LeaveApprovalsPage";
 import { PayrollRunsPage } from "@/features/hr/PayrollRunsPage";
 import { PayrollRunDetailPage } from "@/features/hr/PayrollRunDetailPage";
@@ -296,6 +298,8 @@ export const router = createBrowserRouter([
                   { path: "hr/employees", element: <EmployeeListPage /> },
                   { path: "hr/employees/new", element: <StaffRegistrationPage /> },
                   { path: "hr/employees/:id", element: <StaffProfilePage /> },
+                  { path: "hr/employees/:id/invite", element: <PortalInvitationPage /> },
+                  { path: "hr/employees/:id/id-card", element: <StaffIdCardPage /> },
                   { path: "hr/leave", element: <LeaveApprovalsPage /> },
                 ],
               },
