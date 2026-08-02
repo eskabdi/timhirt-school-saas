@@ -1,7 +1,8 @@
 // ============================================================================
 // [INSA category: INTERNAL] onboard-tenant — super_admin only (§5.3)
 // Provisions: tenant row → invited school_admin auth user → profile row →
-// default config + current EC academic year. Rolls back on failure.
+// default config + current EC academic year + default period grid. Rolls
+// back on failure.
 // Uses inviteUserByEmail (not createUser) so the invited admin actually
 // receives an email with a link to set their own password — createUser
 // with email_confirm:false creates an account nobody can ever sign into,
@@ -90,6 +91,22 @@ Deno.serve(async (req) => {
         branding: { primaryColor: "#E8A317" },
       },
     });
+
+    // Same default 8-period day 20260802000006 backfilled onto every tenant
+    // that already existed when it ran -- a tenant onboarded after that
+    // migration needs the same seed here, or Timetable Editor opens to a
+    // grid with no period rows to place anything into.
+    await db.from("periods").insert([
+      { tenant_id: tenantId, period_no: 1, label: "Period 1", starts_at: "08:30", ends_at: "09:10" },
+      { tenant_id: tenantId, period_no: 2, label: "Period 2", starts_at: "09:10", ends_at: "09:50" },
+      { tenant_id: tenantId, period_no: 3, label: "Period 3", starts_at: "09:50", ends_at: "10:30" },
+      { tenant_id: tenantId, period_no: 4, label: "Period 4", starts_at: "10:30", ends_at: "11:10" },
+      { tenant_id: tenantId, period_no: 5, label: "Break", starts_at: "11:10", ends_at: "11:30", is_break: true },
+      { tenant_id: tenantId, period_no: 6, label: "Period 5", starts_at: "11:30", ends_at: "12:10" },
+      { tenant_id: tenantId, period_no: 7, label: "Period 6", starts_at: "12:10", ends_at: "12:50" },
+      { tenant_id: tenantId, period_no: 8, label: "Period 7", starts_at: "12:50", ends_at: "13:30" },
+      { tenant_id: tenantId, period_no: 9, label: "Period 8", starts_at: "13:30", ends_at: "14:10" },
+    ]);
 
     return json({ tenant_id: tenantId, ec_year: ecYear }, 201);
   } catch (err) {

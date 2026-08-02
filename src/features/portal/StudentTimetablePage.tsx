@@ -16,9 +16,13 @@ export function StudentTimetablePage() {
       const { data: student } = await supabase.from("students").select("class_id").eq("user_id", profile!.id).maybeSingle();
       if (!student) return [];
       const { data } = await supabase.from("timetable_slots")
-        .select("day_of_week, starts_at, ends_at, subjects(name_i18n)").eq("class_id", student.class_id)
-        .order("day_of_week").order("starts_at");
-      return data ?? [];
+        .select("day_of_week, subjects(name_i18n), periods(starts_at,ends_at,period_no)")
+        .eq("class_id", student.class_id);
+      // Ordering by a referenced table's column (periods.period_no) only
+      // reorders the parent rows with `!inner` in the select, so sort here.
+      return (data ?? []).sort((a, b) =>
+        a.day_of_week - b.day_of_week
+        || ((a.periods as any)?.period_no ?? 0) - ((b.periods as any)?.period_no ?? 0));
     },
   });
   return (
@@ -26,7 +30,7 @@ export function StudentTimetablePage() {
       <h1 className="font-display text-2xl font-bold">{t("portalPages.myTimetable")}</h1>
       {slots?.map((s, i) => (
         <Card key={i} className="flex justify-between text-sm">
-          <span>{DAYS[s.day_of_week]} {s.starts_at?.slice(0,5)}</span><span>{(s.subjects as any)?.name_i18n?.en}</span>
+          <span>{DAYS[s.day_of_week]} {(s.periods as any)?.starts_at?.slice(0,5)}</span><span>{(s.subjects as any)?.name_i18n?.en}</span>
         </Card>
       ))}
     </div>
