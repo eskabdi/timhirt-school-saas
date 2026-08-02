@@ -18,7 +18,7 @@
     "severityLevel": { "minor": "Minor", "moderate": "Moderate", "major": "Major" } },
   "assignments": { "draft": "Draft", "title": "Assignments", "new": "New assignment", "titleLabel": "Title", "class": "Class", "subject": "Subject", "dueDate": "Due date", "due": "Due", "create": "Create" },
   "admissions": { "title": "Admissions",
-    "stage": { "applied": "Applied", "shortlisted": "Shortlisted", "offered": "Offered", "registered": "Registered", "rejected": "Rejected" },
+    "stage": { "applied": "Applied", "shortlisted": "Shortlisted", "offered": "Offered", "registered": "Registered", "rejected": "Rejected", "incomplete_application": "Incomplete Application", "provisionally_accepted": "Provisionally Accepted", "accepted": "Accepted", "waitlisted": "Waitlisted", "enrolled": "Enrolled" },
     "firstName": "First name", "middleName": "Middle name", "lastName": "Last name", "gender": "Gender", "dob": "Date of birth", "grade": "Grade",
     "guardian": "Guardian", "name": "Name", "relationship": "Relationship", "occupation": "Occupation", "phone": "Phone", "email": "Email", "address": "Address",
     "relationshipType": { "father": "Father", "mother": "Mother", "guardian": "Guardian", "other": "Other" },

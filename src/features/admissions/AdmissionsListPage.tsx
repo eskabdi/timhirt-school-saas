@@ -50,7 +50,7 @@ export function AdmissionsListPage() {
     queryKey: ["admissions"],
     queryFn: async () => {
       const { data, error } = await supabase.from("admission_applications")
-        .select("id, applicant_name, date_of_birth, desired_grade, stage, tenant_id, applicant_first_name, applicant_last_name, photo_path, application_complete, meets_academic_requirements, meets_financial_requirements, documents_verified, acceptance_letter_sent, student_accepted")
+        .select("id, applicant_name, date_of_birth, desired_grade, stage, tenant_id, applicant_first_name, applicant_last_name, photo_path, converted_student_id, application_complete, meets_academic_requirements, meets_financial_requirements, documents_verified, acceptance_letter_sent, student_accepted")
         .is("converted_student_id", null)
         .order("created_at", { ascending: false });
       if (error) throw error;

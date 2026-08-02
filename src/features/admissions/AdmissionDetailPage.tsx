@@ -12,6 +12,8 @@ import { EnrollStudentModal } from "./EnrollStudentModal";
 
 const STAGE_TONE = {
   applied: "neutral", shortlisted: "navy", offered: "late", registered: "ok", rejected: "danger",
+  incomplete_application: "late", provisionally_accepted: "navy", accepted: "ok",
+  waitlisted: "late", enrolled: "ok",
 } as const;
 
 const DOC_KEYS: Record<string, string> = {

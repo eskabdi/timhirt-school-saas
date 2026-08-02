@@ -116,6 +116,10 @@
     "notFound": "No application found for that code.",
     "backToApply": "← Back to application",
     "grade": "Grade",
-    "submitted": "Submitted"
+    "submitted": "Submitted",
+    "congratulations": "Congratulations!",
+    "congratulationsBody": "{name} has been enrolled. Welcome to the school!",
+    "downloadIdCard": "Download ID Card",
+    "idCardPending": "Your ID card is being prepared — check back shortly."
   }
 }

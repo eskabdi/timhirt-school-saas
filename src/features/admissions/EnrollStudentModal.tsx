@@ -17,10 +17,9 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { convertImageToPng, STUDENT_PHOTO_MAX_PX } from "@/lib/image";
-import { studentPhotoPath } from "@/features/students/api";
 import { Button } from "@/components/ui/Button";
 import { Field } from "@/components/ui/Field";
+import { enrollApplication, type EnrollResult } from "./enrollApi";
 
 interface Application {
   id: string;
@@ -29,62 +28,6 @@ interface Application {
   applicant_first_name: string | null;
   applicant_last_name: string | null;
   photo_path: string | null;
-}
-
-interface ProvisionedAccount {
-  kind: "student" | "guardian";
-  method: "password" | "email_invite" | "existing_account";
-  email: string;
-  temp_password?: string;
-}
-
-interface EnrollResult {
-  studentId: string;
-  idCardUrl: string | null;
-  idCardError: string | null;
-  accounts: ProvisionedAccount[];
-  accountsError: string | null;
-}
-
-async function callFunction(name: string, body: unknown) {
-  const { data: { session } } = await supabase.auth.getSession();
-  const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${name}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token}` },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? `${name} failed`);
-  return res.json();
-}
-
-// Best-effort: the application's photo (Step 3 of the public stepper) is the
-// only source of a real student photo anywhere in this app — there's no
-// separate avatar upload feature. Copying it into student-photos here is
-// what lets issue-id-card embed an actual photo instead of an initials
-// placeholder. Never blocks or fails enrollment: a missing/broken photo
-// just means the card falls back to initials, same as before this existed.
-async function copyApplicationPhoto(tenantId: string, photoPath: string, studentId: string) {
-  try {
-    const { data: blob, error: dlErr } = await supabase.storage.from("admission-documents").download(photoPath);
-    if (dlErr || !blob) return;
-    // Normalized to PNG regardless of the original upload's format — see
-    // src/lib/image.ts for why (pdf-lib can't embed WebP).
-    // Bounded like the admin form's upload: an applicant's phone photo can be
-    // several MB, and lossless PNG re-encoding only grows it, which would push
-    // the result past the student-photos bucket's 2 MB limit and (this being
-    // best-effort) drop the photo silently.
-    const png = blob.type === "application/pdf" ? null : await convertImageToPng(blob, STUDENT_PHOTO_MAX_PX).catch(() => null);
-    if (!png) return;
-    // Same deterministic path as the admin upload, so a photo set here and one
-    // replaced later are the same object rather than two.
-    const destPath = studentPhotoPath(tenantId, studentId);
-    const { error: upErr } = await supabase.storage.from("student-photos")
-      .upload(destPath, png, { contentType: "image/png", upsert: true });
-    if (upErr) return;
-    await supabase.from("students").update({ avatar_path: destPath }).eq("id", studentId);
-  } catch {
-    // best-effort — see comment above
-  }
 }
 
 export function EnrollStudentModal({ application, onClose }: { application: Application; onClose: () => void }) {
@@ -130,21 +73,17 @@ export function EnrollStudentModal({ application, onClose }: { application: Appl
 
   const enroll = useMutation({
     mutationFn: async (): Promise<EnrollResult> => {
-      // Student Number is generated DB-side (students_set_admission_no
-      // trigger, migration 20260719000005) — nothing to type here.
-      const { data, error: rpcErr } = await supabase.rpc("enroll_admission_application", {
-        p_application_id: application.id,
-        p_class_id: classId,
+      const result = await enrollApplication({
+        applicationId: application.id, tenantId: application.tenant_id,
+        classId, photoPath: application.photo_path,
       });
-      if (rpcErr) throw rpcErr;
-      const studentId = data as string;
 
       if (feeStructureId) {
         const structure = feeStructures?.find((f) => f.id === feeStructureId);
         if (structure) {
           const { error: invErr } = await supabase.from("fee_invoices").insert({
             tenant_id: application.tenant_id,
-            student_id: studentId,
+            student_id: result.studentId,
             fee_structure_id: structure.id,
             amount_due: structure.amount,
             due_date: new Date().toISOString().slice(0, 10),
@@ -153,26 +92,7 @@ export function EnrollStudentModal({ application, onClose }: { application: Appl
         }
       }
 
-      // Runs before issue-id-card so the card can embed the real photo
-      // instead of an initials placeholder when one exists.
-      if (application.photo_path) {
-        await copyApplicationPhoto(application.tenant_id, application.photo_path, studentId);
-      }
-
-      // Independent follow-ups — a failure in either must not look like the
-      // enrollment itself failed, since by this point it already succeeded.
-      const [cardRes, accountsRes] = await Promise.allSettled([
-        callFunction("issue-id-card", { student_id: studentId }),
-        callFunction("provision-portal-accounts", { student_id: studentId }),
-      ]);
-
-      return {
-        studentId,
-        idCardUrl: cardRes.status === "fulfilled" ? (cardRes.value.url as string) : null,
-        idCardError: cardRes.status === "rejected" ? String(cardRes.reason) : null,
-        accounts: accountsRes.status === "fulfilled" ? (accountsRes.value.accounts as ProvisionedAccount[]) : [],
-        accountsError: accountsRes.status === "rejected" ? String(accountsRes.reason) : null,
-      };
+      return result;
     },
     onSuccess: (r) => {
       setResult(r);

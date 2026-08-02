@@ -18,6 +18,8 @@ import { EthDate } from "@/components/EthDate";
 
 const STAGE_TONE = {
   applied: "neutral", shortlisted: "navy", offered: "late", registered: "ok", rejected: "danger",
+  incomplete_application: "late", provisionally_accepted: "navy", accepted: "ok",
+  waitlisted: "late", enrolled: "ok",
 } as const;
 
 interface StatusResult {
@@ -26,6 +28,7 @@ interface StatusResult {
   grade?: string | null;
   stage?: keyof typeof STAGE_TONE;
   submitted_on?: string;
+  id_card_url?: string | null;
 }
 
 export function AdmissionStatusPage() {
@@ -86,6 +89,20 @@ export function AdmissionStatusPage() {
           {result && (
             result.found ? (
               <div className="mt-6 space-y-3 border-t border-line pt-4">
+                {result.stage === "enrolled" && (
+                  <div className="rounded-control border-2 border-ok bg-ok-tint/40 p-4 text-center">
+                    <p className="font-display text-lg font-bold text-ok">{t("status.congratulations")}</p>
+                    <p className="mt-1 text-sm text-ink">{t("status.congratulationsBody", { name: result.applicant_name })}</p>
+                    {result.id_card_url ? (
+                      <a href={result.id_card_url} target="_blank" rel="noreferrer"
+                        className="mt-3 inline-block rounded-control bg-ok px-4 py-2 text-sm font-semibold text-white hover:opacity-90">
+                        {t("status.downloadIdCard")}
+                      </a>
+                    ) : (
+                      <p className="mt-3 text-xs text-ink-faint">{t("status.idCardPending")}</p>
+                    )}
+                  </div>
+                )}
                 <div className="flex items-center justify-between">
                   <p className="font-medium text-ink">{result.applicant_name}</p>
                   {result.stage && <Badge tone={STAGE_TONE[result.stage] ?? "neutral"}>{t(`common:admissions.stage.${result.stage}`)}</Badge>}

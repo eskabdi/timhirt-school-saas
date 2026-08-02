@@ -11,6 +11,14 @@
 // see their own progress (name, grade, stage, submitted date) — never
 // guardian contact info, documents, or payment details, even though the
 // caller already proved they hold the code.
+//
+// When the application has been converted to a student (stage 'enrolled',
+// converted_student_id set), also mints a short-lived signed URL for that
+// student's most recent id_cards row so the status page can show the ID
+// card PDF alongside the congratulations message. The row itself is never
+// exposed — id_cards has no anon policy and none is added here; this
+// function does the lookup server-side with the service-role client, same
+// as everything else in it.
 // ============================================================================
 import { z } from "npm:zod@3";
 import { createClient } from "npm:@supabase/supabase-js@2";
@@ -46,12 +54,27 @@ Deno.serve(async (req) => {
     if (!tenant) return json({ found: false }, 200);
 
     const { data: application } = await db.from("admission_applications")
-      .select("applicant_name, desired_grade, stage, created_at")
+      .select("applicant_name, desired_grade, stage, created_at, converted_student_id")
       .eq("tenant_id", tenant.id)
       .eq("tracking_code", code)
       .maybeSingle();
 
     if (!application) return json({ found: false }, 200);
+
+    let idCardUrl: string | null = null;
+    if (application.stage === "enrolled" && application.converted_student_id) {
+      const { data: card } = await db.from("id_cards")
+        .select("pdf_path, id_card_batches!inner(created_at)")
+        .eq("subject_type", "student")
+        .eq("subject_id", application.converted_student_id)
+        .order("created_at", { referencedTable: "id_card_batches", ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (card?.pdf_path) {
+        const { data: signed } = await db.storage.from("id-cards").createSignedUrl(card.pdf_path, 300);
+        idCardUrl = signed?.signedUrl ?? null;
+      }
+    }
 
     return json({
       found: true,
@@ -59,6 +82,7 @@ Deno.serve(async (req) => {
       grade: application.desired_grade,
       stage: application.stage,
       submitted_on: application.created_at,
+      id_card_url: idCardUrl,
     }, 200);
   } catch (err) {
     console.error("check-admission-status failed", { message: (err as Error).message });

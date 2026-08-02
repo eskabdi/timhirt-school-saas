@@ -18,7 +18,7 @@
     "severityLevel": { "minor": "ቀላል", "moderate": "መካከለኛ", "major": "ከባድ" } },
   "assignments": { "draft": "ረቂቅ", "title": "ስራዎች", "new": "አዲስ ስራ", "titleLabel": "ርዕስ", "class": "ክፍል", "subject": "የትምህርት ዓይነት", "dueDate": "የመጨረሻ ቀን", "due": "የመጨረሻ ቀን", "create": "ፍጠር" },
   "admissions": { "title": "ምዝገባ",
-    "stage": { "applied": "ማመልከቻ ገብቷል", "shortlisted": "አጭር ዝርዝር ውስጥ", "offered": "ዕድል ተሰጥቷል", "registered": "ተመዝግቧል", "rejected": "ውድቅ ተደርጓል" },
+    "stage": { "applied": "ማመልከቻ ገብቷል", "shortlisted": "አጭር ዝርዝር ውስጥ", "offered": "ዕድል ተሰጥቷል", "registered": "ተመዝግቧል", "rejected": "ውድቅ ተደርጓል", "incomplete_application": "ያልተሟላ ማመልከቻ", "provisionally_accepted": "በጊዜያዊነት ተቀብሏል", "accepted": "ተቀብሏል", "waitlisted": "በተጠባባቂ ዝርዝር", "enrolled": "ተመዝግቧል" },
     "firstName": "ስም", "middleName": "የአባት ስም", "lastName": "የአያት ስም", "gender": "ፆታ", "dob": "የትውልድ ቀን", "grade": "ክፍል ደረጃ",
     "guardian": "አሳዳጊ", "name": "ስም", "relationship": "ግንኙነት", "occupation": "ሥራ", "phone": "ስልክ", "email": "ኢሜይል", "address": "አድራሻ",
     "relationshipType": { "father": "አባት", "mother": "እናት", "guardian": "አሳዳጊ", "other": "ሌላ" },

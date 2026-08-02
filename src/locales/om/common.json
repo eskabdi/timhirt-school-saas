@@ -18,7 +18,7 @@
     "severityLevel": { "minor": "Xiqqaa", "moderate": "Giddu Galeessa", "major": "Guddaa" } },
   "assignments": { "draft": "Wixinee", "title": "Hojii Manaa", "new": "Hojii Manaa Haaraa", "titleLabel": "Mata Duree", "class": "Kutaa", "subject": "Gosa Barnootaa", "dueDate": "Guyyaa Xumuraa", "due": "Xumura", "create": "Uumi" },
   "admissions": { "title": "Galmee",
-    "stage": { "applied": "Iyyateera", "shortlisted": "Tarreeffama Gabaabaa Keessa", "offered": "Carraan Kennameera", "registered": "Galmaa'eera", "rejected": "Didameera" },
+    "stage": { "applied": "Iyyateera", "shortlisted": "Tarreeffama Gabaabaa Keessa", "offered": "Carraan Kennameera", "registered": "Galmaa'eera", "rejected": "Didameera", "incomplete_application": "Iyyannoo Hin Guutamne", "provisionally_accepted": "Yeroof Fudhatame", "accepted": "Fudhatame", "waitlisted": "Tarree Eegaa Keessa", "enrolled": "Galmaa'eera" },
     "firstName": "Maqaa", "middleName": "Maqaa Abbaa", "lastName": "Maqaa Akaakayyuu", "gender": "Saala", "dob": "Guyyaa Dhalootaa", "grade": "Sadarkaa",
     "guardian": "Guddisaa", "name": "Maqaa", "relationship": "Hariiroo", "occupation": "Hojii", "phone": "Bilbila", "email": "Imeelii", "address": "Teessoo",
     "relationshipType": { "father": "Abbaa", "mother": "Haadha", "guardian": "Guddisaa", "other": "Kan biraa" },

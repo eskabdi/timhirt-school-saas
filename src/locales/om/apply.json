@@ -116,6 +116,10 @@
     "notFound": "Koodii kanaaf iyyanni hin argamne.",
     "backToApply": "← Gara Iyyataatti Deebi'i",
     "grade": "Sadarkaa",
-    "submitted": "Guyyaa Ergame"
+    "submitted": "Guyyaa Ergame",
+    "congratulations": "Baga Gammaddan!",
+    "congratulationsBody": "{name} galmaa'eera. Mana barumsaa keenyatti baga nagaan dhuftan!",
+    "downloadIdCard": "Waraqaa Eenyummaa Buufadhu",
+    "idCardPending": "Waraqaan eenyummaa keessan qophaa'aa jira — yeroo dhiyootti deebi'aa ilaalaa."
   }
 }

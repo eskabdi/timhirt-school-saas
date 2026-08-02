@@ -7,12 +7,14 @@
 // change the status in a single action.
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useSession } from "@/features/auth/useSession";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
+import { Field } from "@/components/ui/Field";
 import { cn } from "@/lib/utils";
+import { enrollApplication, type EnrollResult } from "./enrollApi";
 
 /** Stored on public.admission_stage. The first five predate this screen and are
  *  kept so existing applications keep resolving. */
@@ -36,6 +38,10 @@ export interface ReviewApplication {
   id: string;
   applicant_name: string;
   stage: string;
+  tenant_id: string;
+  desired_grade: string | null;
+  photo_path: string | null;
+  converted_student_id?: string | null;
   application_complete?: boolean;
   meets_academic_requirements?: boolean;
   meets_financial_requirements?: boolean;
@@ -77,11 +83,15 @@ export function AdmissionReviewModal({ application, open, onClose }: {
     acceptance_letter_sent: false, student_accepted: false,
   });
   const [stage, setStage] = useState<string>("applied");
+  const [classId, setClassId] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [enrollResult, setEnrollResult] = useState<EnrollResult | null>(null);
 
   useEffect(() => {
     if (!open || !application) return;
     setError(null);
+    setEnrollResult(null);
+    setClassId("");
     setStage(application.stage);
     setSteps({
       application_complete: !!application.application_complete,
@@ -93,8 +103,46 @@ export function AdmissionReviewModal({ application, open, onClose }: {
     });
   }, [open, application]);
 
+  // Picking "Enrolled" here is the same deliberate act as the dedicated
+  // Enroll button elsewhere -- it needs a section, not just a label change.
+  const needsEnrollment = stage === "enrolled" && !application?.converted_student_id;
+
+  const { data: sections } = useQuery({
+    queryKey: ["admission-review-sections", application?.tenant_id, application?.desired_grade],
+    enabled: needsEnrollment && !!application?.desired_grade,
+    queryFn: async () => {
+      const { data: classes, error: classesErr } = await supabase.from("classes")
+        .select("id, name, section, capacity")
+        .eq("tenant_id", application!.tenant_id)
+        .eq("name", application!.desired_grade!);
+      if (classesErr) throw classesErr;
+      const ids = (classes ?? []).map((c) => c.id);
+      const { data: active, error: studentsErr } = ids.length
+        ? await supabase.from("students").select("class_id").eq("status", "active").in("class_id", ids)
+        : { data: [], error: null };
+      if (studentsErr) throw studentsErr;
+      const counts = new Map<string, number>();
+      for (const s of active ?? []) counts.set(s.class_id, (counts.get(s.class_id) ?? 0) + 1);
+      return (classes ?? []).map((c) => ({ ...c, enrolled: counts.get(c.id) ?? 0 }));
+    },
+  });
+
   const save = useMutation({
     mutationFn: async () => {
+      if (needsEnrollment) {
+        const result = await enrollApplication({
+          applicationId: application!.id, tenantId: application!.tenant_id,
+          classId, photoPath: application!.photo_path,
+        });
+        // stage/converted_student_id/assigned_class_id are set by the RPC
+        // itself -- only the checklist + review metadata need writing here.
+        const { error: err } = await supabase.from("admission_applications")
+          .update({ ...steps, reviewed_by: profile?.id ?? null, reviewed_at: new Date().toISOString() })
+          .eq("id", application!.id);
+        if (err) throw err;
+        setEnrollResult(result);
+        return;
+      }
       const { error: err } = await supabase.from("admission_applications")
         .update({ ...steps, stage, reviewed_by: profile?.id ?? null, reviewed_at: new Date().toISOString() })
         .eq("id", application!.id);
@@ -103,12 +151,64 @@ export function AdmissionReviewModal({ application, open, onClose }: {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admissions"] });
       qc.invalidateQueries({ queryKey: ["admission"] });
-      onClose();
+      qc.invalidateQueries({ queryKey: ["students"] });
+      if (!needsEnrollment) onClose();
     },
     onError: (e: unknown) => setError(e instanceof Error ? e.message : t("admissionReview.saveFailed")),
   });
 
   if (!application) return null;
+
+  if (enrollResult) {
+    return (
+      <Modal open={open} onClose={onClose} title={application.applicant_name} size="lg">
+        <div className="space-y-4">
+          <p className="text-sm text-ok">{t("admissions.enroll.success")}</p>
+
+          <div className="rounded-control border border-line p-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("admissions.enroll.idCardReady")}</p>
+            {enrollResult.idCardUrl ? (
+              <a href={enrollResult.idCardUrl} target="_blank" rel="noreferrer" className="mt-1 block text-sm text-navy hover:underline">
+                {t("admissions.enroll.downloadIdCard")}
+              </a>
+            ) : (
+              <p className="mt-1 text-sm text-danger">{t("admissions.enroll.idCardFailed")}</p>
+            )}
+          </div>
+
+          <div className="rounded-control border border-line p-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("admissions.enroll.portalAccounts")}</p>
+            {enrollResult.accountsError ? (
+              <p className="mt-1 text-sm text-danger">{t("admissions.enroll.accountsFailed")}</p>
+            ) : enrollResult.accounts.length === 0 ? (
+              <p className="mt-1 text-sm text-ink-faint">{t("admissions.enroll.alreadyLinked")}</p>
+            ) : (
+              <div className="mt-2 space-y-2">
+                {enrollResult.accounts.map((a, i) => (
+                  <div key={i} className="rounded-control bg-page p-2 text-sm">
+                    <p className="font-medium text-ink">{t(`admissions.enroll.${a.kind}`)}</p>
+                    {a.method === "email_invite" ? (
+                      <p className="text-ink-faint">{t("admissions.enroll.inviteSent")}: {a.email}</p>
+                    ) : a.method === "existing_account" ? (
+                      <p className="text-ink-faint">{t("admissions.enroll.alreadyLinked")}: {a.email}</p>
+                    ) : (
+                      <>
+                        <p className="text-ink-faint">{t("admissions.enroll.loginEmail")}: <span className="font-mono">{a.email}</span></p>
+                        <p className="text-ink-faint">{t("admissions.enroll.tempPassword")}: <span className="font-mono">{a.temp_password}</span></p>
+                      </>
+                    )}
+                  </div>
+                ))}
+                <p className="text-xs text-danger">{t("admissions.enroll.copyWarning")}</p>
+              </div>
+            )}
+          </div>
+
+          <Button onClick={onClose} className="w-full">{t("admissions.enroll.done")}</Button>
+        </div>
+      </Modal>
+    );
+  }
 
   return (
     <Modal open={open} onClose={onClose} title={application.applicant_name} size="lg">
@@ -143,9 +243,29 @@ export function AdmissionReviewModal({ application, open, onClose }: {
         </select>
       </label>
 
+      {needsEnrollment && (
+        <div className="mt-3">
+          <Field label={t("admissions.enroll.assignSection")}>
+            <select value={classId} onChange={(e) => setClassId(e.target.value)}
+              className="w-full rounded-control border border-line bg-card px-3 py-2 text-sm text-ink">
+              <option value="">—</option>
+              {sections?.map((s) => {
+                const full = s.capacity != null && s.enrolled >= s.capacity;
+                return (
+                  <option key={s.id} value={s.id} disabled={full}>
+                    {s.name} {s.section ?? ""} {s.capacity != null ? `(${s.enrolled}/${s.capacity})` : ""} {full ? `— ${t("admissions.enroll.full")}` : ""}
+                  </option>
+                );
+              })}
+            </select>
+            {sections?.length === 0 && <p className="text-xs text-ink-faint">{t("admissions.enroll.noSections")}</p>}
+          </Field>
+        </div>
+      )}
+
       <div className="mt-5 flex justify-end gap-2 border-t border-line pt-3">
         <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-        <Button onClick={() => save.mutate()} disabled={save.isPending}>
+        <Button onClick={() => save.mutate()} disabled={save.isPending || (needsEnrollment && !classId)}>
           {save.isPending ? t("admissionReview.updating") : t("admissionReview.update")}
         </Button>
       </div>

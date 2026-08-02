@@ -116,6 +116,10 @@
     "notFound": "ለዚህ ኮድ ምንም ማመልከቻ አልተገኘም።",
     "backToApply": "← ወደ ማመልከቻው ተመለስ",
     "grade": "ክፍል ደረጃ",
-    "submitted": "የገባበት ቀን"
+    "submitted": "የገባበት ቀን",
+    "congratulations": "እንኳን ደስ አለዎት!",
+    "congratulationsBody": "{name} ገብቷል። ወደ ትምህርት ቤታችን እንኳን በደህና መጡ!",
+    "downloadIdCard": "የመታወቂያ ካርድ ያውርዱ",
+    "idCardPending": "የመታወቂያ ካርድዎ በዝግጅት ላይ ነው — እባክዎ በቅርቡ ይመልከቱ።"
   }
 }
