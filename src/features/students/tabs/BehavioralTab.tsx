@@ -22,7 +22,7 @@ const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct
 interface Incident { id: string; incident_date: string; category: string | null; severity: string; action_taken: string | null; status: string; }
 interface Merit { id: string; title: string; points: number; category: string | null; awarded_on: string; }
 
-export function BehavioralTab({ studentId }: { studentId: string }) {
+export function BehavioralTab({ studentId, readOnly = false }: { studentId: string; readOnly?: boolean }) {
   const { t } = useTranslation();
   const { profile } = useSession();
   const qc = useQueryClient();
@@ -88,7 +88,7 @@ export function BehavioralTab({ studentId }: { studentId: string }) {
       <Card className="p-0">
         <div className="flex items-center justify-between p-4">
           <h2 className="font-semibold text-ink">{t("behavioralTab.incidentLog")}</h2>
-          <Button className="no-print" onClick={() => setShowIncident(true)}>+ {t("behavioralTab.logIncident")}</Button>
+          {!readOnly && <Button className="no-print" onClick={() => setShowIncident(true)}>+ {t("behavioralTab.logIncident")}</Button>}
         </div>
         <table className="w-full text-sm">
           <thead className="border-y border-line text-left text-xs uppercase text-ink-faint">
@@ -112,7 +112,7 @@ export function BehavioralTab({ studentId }: { studentId: string }) {
       <Card className="space-y-2">
         <div className="flex items-center justify-between">
           <h2 className="font-semibold text-ink">{t("behavioralTab.merits")}</h2>
-          <Button variant="ghost" className="no-print border border-line px-2 py-1 text-xs" onClick={() => setShowMerit(true)}>+ {t("behavioralTab.add")}</Button>
+          {!readOnly && <Button variant="ghost" className="no-print border border-line px-2 py-1 text-xs" onClick={() => setShowMerit(true)}>+ {t("behavioralTab.add")}</Button>}
         </div>
         {merits?.length ? merits.map((m) => (
           <div key={m.id} className="flex items-center justify-between rounded-lg border border-ok/30 bg-ok-tint/40 px-3 py-2">
@@ -148,7 +148,7 @@ export function BehavioralTab({ studentId }: { studentId: string }) {
       </Card>
 
       {/* Log incident modal */}
-      <Modal open={showIncident} onClose={() => setShowIncident(false)} title={t("behavioralTab.logIncident")}>
+      {!readOnly && <Modal open={showIncident} onClose={() => setShowIncident(false)} title={t("behavioralTab.logIncident")}>
         <div className="space-y-3">
           <Field label={t("discipline.date")}><EthDatePicker value={inc.date} onChange={(d) => setInc({ ...inc, date: d })} /></Field>
           <Field label={t("behavioralTab.category")}>
@@ -168,10 +168,10 @@ export function BehavioralTab({ studentId }: { studentId: string }) {
           <Button variant="ghost" onClick={() => setShowIncident(false)}>{t("discipline.cancel")}</Button>
           <Button onClick={() => logIncident.mutate()} disabled={!inc.date || logIncident.isPending}>{t("behavioralTab.logIncident")}</Button>
         </div>
-      </Modal>
+      </Modal>}
 
       {/* Add merit modal */}
-      <Modal open={showMerit} onClose={() => setShowMerit(false)} title={t("behavioralTab.addMerit")}>
+      {!readOnly && <Modal open={showMerit} onClose={() => setShowMerit(false)} title={t("behavioralTab.addMerit")}>
         <div className="space-y-3">
           <Field label={t("assignments.titleLabel")}><Input value={merit.title} onChange={(e) => setMerit({ ...merit, title: e.target.value })} placeholder={t("behavioralTab.meritPlaceholder")} /></Field>
           <Field label={t("behavioralTab.category")}>
@@ -185,7 +185,7 @@ export function BehavioralTab({ studentId }: { studentId: string }) {
           <Button variant="ghost" onClick={() => setShowMerit(false)}>{t("discipline.cancel")}</Button>
           <Button onClick={() => addMerit.mutate()} disabled={!merit.title || addMerit.isPending}>{t("behavioralTab.add")}</Button>
         </div>
-      </Modal>
+      </Modal>}
     </div>
   );
 }

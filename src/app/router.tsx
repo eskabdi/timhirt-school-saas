@@ -64,12 +64,11 @@ import { MyClassesPage } from "@/features/hr/MyClassesPage";
 import { MyLeavePage } from "@/features/hr/MyLeavePage";
 import { MyPayslipsPage } from "@/features/hr/MyPayslipsPage";
 
-import { StudentPortalPage } from "@/features/portal/StudentPortalPage";
+import { PortalHomePage } from "@/features/portal/PortalHomePage";
 import { StudentTimetablePage } from "@/features/portal/StudentTimetablePage";
 import { StudentGradesPage } from "@/features/portal/StudentGradesPage";
 import { StudentAttendancePage } from "@/features/portal/StudentAttendancePage";
 import { StudentAssignmentsPage } from "@/features/portal/StudentAssignmentsPage";
-import { ParentPortalPage } from "@/features/portal/ParentPortalPage";
 import { ParentChildPage } from "@/features/portal/ParentChildPage";
 import { ParentPaymentPage } from "@/features/portal/ParentPaymentPage";
 import { ParentInvoiceDetailPage } from "@/features/portal/ParentInvoiceDetailPage";
@@ -326,11 +325,21 @@ export const router = createBrowserRouter([
             ],
           },
 
+          // Portal home -- shared "portal" path, student vs. parent branches
+          // inside PortalHomePage. Two sibling routes at the same path
+          // previously collided (see PortalHomePage's comment); this is the
+          // fix, not a stylistic preference.
+          {
+            element: <RequireRole roles={["student", "parent"]} />,
+            children: [
+              { path: "portal", element: <PortalHomePage /> },
+            ],
+          },
+
           // Student self-service
           {
             element: <RequireRole roles={["student"]} />,
             children: [
-              { path: "portal", element: <StudentPortalPage /> },
               { path: "portal/timetable", element: <StudentTimetablePage /> },
               { path: "portal/grades", element: <StudentGradesPage /> },
               { path: "portal/attendance", element: <StudentAttendancePage /> },
@@ -342,7 +351,6 @@ export const router = createBrowserRouter([
           {
             element: <RequireRole roles={["parent"]} />,
             children: [
-              { path: "portal", element: <ParentPortalPage /> },
               { path: "portal/child/:id", element: <ParentChildPage /> },
               { path: "portal/pay", element: <ParentPaymentPage /> },
               { path: "portal/pay/:id", element: <ParentInvoiceDetailPage /> },
