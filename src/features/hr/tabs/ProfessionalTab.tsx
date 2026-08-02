@@ -5,9 +5,10 @@
 // have time to build correctly) and are left out rather than faked; Years of
 // Service and Attendance Rate are both real aggregates so they stay.
 import { useTranslation } from "react-i18next";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
+import { useSession } from "@/features/auth/useSession";
 import { Panel, PanelHeader } from "@/components/ui/Panel";
 import { Badge } from "@/components/ui/Badge";
 import { todayEthiopian, toEthiopian } from "@/lib/ethiopian-date";
@@ -20,6 +21,8 @@ const DOC_TYPE_LABEL_KEY: Record<string, string> = {
   degree_certificate: "staffReg.docDegreeCertificate",
   professional_license: "staffReg.docProfessionalLicense",
 };
+// Mirrors DocumentsTab's HR_WRITE_ROLES: who may attest MoE verification.
+const HR_WRITE_ROLES = ["school_admin", "hr_officer"];
 
 interface StaffEmployee {
   id: string; user_id: string | null; phone: string | null; work_phone: string | null;
@@ -30,19 +33,41 @@ export function ProfessionalTab({ employeeId, employee, canSeeSensitive }: {
   employeeId: string; employee: StaffEmployee; canSeeSensitive: boolean;
 }) {
   const { t } = useTranslation();
+  const { profile } = useSession();
+  const qc = useQueryClient();
+  const canWrite = !!profile && HR_WRITE_ROLES.includes(profile.role);
   const ecYear = todayEthiopian().year;
 
   const { data: academic } = useQuery({
     queryKey: ["staff-academic", employeeId],
     queryFn: async () => {
       const { data, error } = await supabase.from("employees")
-        .select("highest_qualification, major, institution_name, graduation_year_ec, languages")
+        .select("highest_qualification, major, institution_name, graduation_year_ec, languages, moe_verified")
         .eq("id", employeeId).single();
       if (error) throw error;
       return data as {
         highest_qualification: string | null; major: string | null; institution_name: string | null;
-        graduation_year_ec: number | null; languages: string[] | null;
+        graduation_year_ec: number | null; languages: string[] | null; moe_verified: boolean;
       };
+    },
+  });
+
+  // MoE verification is an admin attestation, not a derived fact, so it stays
+  // off until school_admin/hr_officer deliberately flips it here -- same
+  // verified/verified_by/verified_at shape as employee_documents.verified.
+  const toggleMoeVerified = useMutation({
+    mutationFn: async () => {
+      const nowVerified = !academic?.moe_verified;
+      const { error } = await supabase.from("employees").update({
+        moe_verified: nowVerified,
+        moe_verified_by: nowVerified ? (await supabase.auth.getUser()).data.user?.id : null,
+        moe_verified_at: nowVerified ? new Date().toISOString() : null,
+      }).eq("id", employeeId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["staff-academic", employeeId] });
+      qc.invalidateQueries({ queryKey: ["staff-profile", employeeId] });
     },
   });
 
@@ -114,7 +139,7 @@ export function ProfessionalTab({ employeeId, employee, canSeeSensitive }: {
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="space-y-4 lg:col-span-2">
           <Panel>
-            <PanelHeader title={t("staffReg.academicBackground")} action={<Badge tone="ok">{t("staffProfile.moeVerified")}</Badge>} />
+            <PanelHeader title={t("staffReg.academicBackground")} />
             <dl className="grid grid-cols-2 gap-4 p-4 text-sm sm:grid-cols-3">
               <div><dt className="text-xs text-ink-faint">{t("staffReg.highestQualification")}</dt><dd className="font-medium text-ink">{academic?.highest_qualification ? t(`staffReg.qualification.${academic.highest_qualification}`) : "—"}</dd></div>
               <div><dt className="text-xs text-ink-faint">{t("staffReg.majorSpecialization")}</dt><dd className="font-medium text-ink">{academic?.major || "—"}</dd></div>
@@ -142,7 +167,16 @@ export function ProfessionalTab({ employeeId, employee, canSeeSensitive }: {
           </Panel>
 
           <Panel>
-            <PanelHeader title={t("staffProfile.teachingLicenses")} />
+            <PanelHeader title={t("staffProfile.teachingLicenses")} action={
+              canWrite ? (
+                <button type="button" onClick={() => toggleMoeVerified.mutate()} disabled={toggleMoeVerified.isPending}
+                  className={`rounded-pill px-2.5 py-1 text-xs font-semibold ${academic?.moe_verified ? "bg-ok-tint text-ok" : "bg-late-tint text-late"}`}>
+                  {academic?.moe_verified ? t("staffProfile.moeVerified") : t("staffProfile.markMoeVerified")}
+                </button>
+              ) : (
+                academic?.moe_verified ? <Badge tone="ok">{t("staffProfile.moeVerified")}</Badge> : null
+              )
+            } />
             <ul className="divide-y divide-line">
               {!qualifications?.length ? (
                 <li className="px-4 py-6 text-center text-sm text-ink-faint">{t("staffProfile.noCertifications")}</li>

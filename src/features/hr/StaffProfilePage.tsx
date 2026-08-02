@@ -52,7 +52,8 @@ export function StaffProfilePage() {
           first_name, first_name_am, father_name, father_name_am, last_name, last_name_am,
           gender, date_of_birth, nationality, national_id,
           region, zone, woreda, city, kebele, house_number,
-          highest_qualification, major, institution_name, graduation_year_ec, languages
+          highest_qualification, major, institution_name, graduation_year_ec, languages,
+          moe_verified
         `)
         .eq("id", id).single();
       if (error) throw error;
@@ -179,7 +180,7 @@ export function StaffProfilePage() {
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="font-display text-xl font-bold text-ink">{employee.full_name}</h1>
-              <Badge tone="ok">{t("staffProfile.moeVerified")}</Badge>
+              {employee.moe_verified && <Badge tone="ok">{t("staffProfile.moeVerified")}</Badge>}
             </div>
             <p className="text-sm text-ink-soft">{employee.job_title || t(`hr.employeeType.${employee.employee_type}`)}</p>
             <div className="mt-1 flex flex-wrap gap-2 text-xs text-ink-faint">

@@ -145,7 +145,8 @@ select lives_ok(
                 graduation_year_ec, languages,
                 job_title, department, office_location, campus,
                 institutional_email, work_phone, reporting_manager_id,
-                probation_status, notice_period_days
+                probation_status, notice_period_days,
+                moe_verified, moe_verified_by, moe_verified_at
          from public.employees $stmt$,
   'every new employees column is readable by authenticated (column-grant regression)');
 
