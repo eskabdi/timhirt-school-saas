@@ -49,11 +49,21 @@ export async function uploadStudentPhoto(tenantId: string, studentId: string, fi
   return path;
 }
 
-export async function listStudents(search?: string) {
+export interface StudentFilters {
+  search?: string;
+  classId?: string;
+  status?: string;
+  gender?: string;
+}
+
+export async function listStudents(filters: StudentFilters = {}) {
   let q = supabase.from("students")
     .select("id, admission_no, first_name, last_name, status, gender, date_of_birth, class:classes(id, name, section)")
     .order("last_name");
-  if (search) q = q.textSearch("search_vector", search, { type: "websearch" });
+  if (filters.search) q = q.textSearch("search_vector", filters.search, { type: "websearch" });
+  if (filters.classId) q = q.eq("class_id", filters.classId);
+  if (filters.status) q = q.eq("status", filters.status);
+  if (filters.gender) q = q.eq("gender", filters.gender);
   const { data, error } = await q;
   if (error) throw error;
   return data;
