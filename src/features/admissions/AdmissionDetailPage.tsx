@@ -64,6 +64,9 @@ export function AdmissionDetailPage() {
 
   return (
     <div className="max-w-2xl space-y-4">
+      <p className="text-sm text-ink-faint">
+        <Link to="/admissions" className="hover:underline">{t("admissions.title")}</Link> › {data.desired_grade ?? t(`admissions.stage.${data.stage}`)} › <span className="text-navy">{t("students.profile.breadcrumb")}</span>
+      </p>
       <Card>
         <div className="flex items-center justify-between">
           <h1 className="font-display text-xl font-bold text-ink">{data.applicant_name}</h1>

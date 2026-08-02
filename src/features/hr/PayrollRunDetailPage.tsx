@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -58,6 +58,9 @@ export function PayrollRunDetailPage() {
 
   return (
     <div className="space-y-6">
+      <p className="text-sm text-ink-faint">
+        <Link to="/hr/payroll" className="hover:underline">{t("hr.payrollRuns")}</Link> › <span className="text-navy">{t("students.profile.breadcrumb")}</span>
+      </p>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <h1 className="font-display text-2xl font-bold text-ink">{run.ec_year} / {String(run.ec_month).padStart(2, "0")}</h1>

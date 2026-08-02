@@ -84,6 +84,9 @@ export function PortalInvitationPage() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-4">
+      <p className="text-sm text-ink-faint">
+        <Link to={`/hr/employees/${employee.id}`} className="hover:underline">{employee.full_name}</Link> › <span className="text-navy">{t("invitePortal.title")}</span>
+      </p>
       <div>
         <h1 className="font-display text-xl font-bold text-ink">{t("invitePortal.title")}</h1>
         <p className="text-sm text-ink-faint">{t("invitePortal.subtitle", { name: employee.full_name })}</p>
@@ -167,10 +170,6 @@ export function PortalInvitationPage() {
           {!email && <p className="text-xs text-danger">{t("invitePortal.noEmailOnFile")}</p>}
         </div>
       </div>
-
-      <p className="text-xs text-ink-faint">
-        <Link to={`/hr/employees/${employee.id}`} className="hover:underline">← {employee.full_name}</Link>
-      </p>
     </div>
   );
 }

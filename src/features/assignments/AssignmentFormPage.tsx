@@ -15,7 +15,7 @@
 // a teacher prepare a week of work in advance.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useSession } from "@/features/auth/useSession";
@@ -214,6 +214,9 @@ export function AssignmentFormPage() {
 
   return (
     <div className="space-y-5 pb-4">
+      <p className="text-sm text-ink-faint">
+        <Link to="/assignments" className="hover:underline">{t("nav.assignments")}</Link> › <span className="text-navy">{t("assignmentForm.title")}</span>
+      </p>
       <div>
         <h1 className="font-display text-2xl font-bold text-ink">{t("assignmentForm.title")}</h1>
         <p className="mt-1 text-sm text-ink-faint">{t("assignmentForm.subtitle")}</p>

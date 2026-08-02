@@ -15,7 +15,7 @@
 // case, it's the common case — the module was incomplete without it.
 // ============================================================================
 import { useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useLocation, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -34,6 +34,8 @@ const PAYMENT_STATUS_TONE = { succeeded: "ok", pending: "neutral", failed: "dang
 
 export function InvoiceDetailPage() {
   const { id } = useParams();
+  const location = useLocation();
+  const isPortal = location.pathname.startsWith("/portal");
   const { t, i18n } = useTranslation();
   const { profile } = useSession();
   const qc = useQueryClient();
@@ -115,6 +117,11 @@ export function InvoiceDetailPage() {
 
   return (
     <div className="max-w-2xl space-y-4">
+      <p className="text-sm text-ink-faint">
+        <Link to={isPortal ? "/portal/pay" : "/fees/invoices"} className="hover:underline">
+          {isPortal ? t("common.makePayment") : t("nav.invoices")}
+        </Link> › <span className="text-navy">{t("students.profile.breadcrumb")}</span>
+      </p>
       <Card>
         <div className="flex items-center justify-between">
           <div>

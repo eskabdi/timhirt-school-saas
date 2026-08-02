@@ -64,6 +64,9 @@ export function StaffIdCardPage() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-4">
+      <p className="text-sm text-ink-faint">
+        <Link to={`/hr/employees/${employee.id}`} className="hover:underline">{employee.full_name}</Link> › <span className="text-navy">{t("staffIdCard.title")}</span>
+      </p>
       <div>
         <h1 className="font-display text-xl font-bold text-ink">{t("staffIdCard.title")}</h1>
         <p className="text-sm text-ink-faint">{employee.full_name} · {employee.employee_no}</p>
@@ -109,10 +112,6 @@ export function StaffIdCardPage() {
           <Card className="text-sm text-ink-faint">{t("staffIdCard.reissueNote")}</Card>
         </div>
       </div>
-
-      <p className="text-xs text-ink-faint">
-        <Link to={`/hr/employees/${employee.id}`} className="hover:underline">← {employee.full_name}</Link>
-      </p>
     </div>
   );
 }
