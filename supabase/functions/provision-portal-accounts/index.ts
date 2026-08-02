@@ -72,15 +72,16 @@ Deno.serve(async (req) => {
     if (!tenant) return errors.badRequest();
 
     const { data: guardians } = await ctx.userClient.from("guardians")
-      .select("id, user_id, relationship, phone, email").eq("student_id", student.id);
+      .select("id, user_id, full_name, relationship, phone, email").eq("student_id", student.id);
 
-    // guardians has no name column (relationship/phone/email only) — the name
-    // given at application time lives on admission_applications, so fall back
-    // to it for the invite email's display name; a plain "Guardian" if this
-    // student wasn't created through the enrollment bridge at all.
+    // guardians.full_name (20260725000001) covers a guardian added or edited
+    // directly on the student profile. A guardian created by the enrollment
+    // RPC has the same name copied onto it (20260802000002), so this only
+    // still matters as a fallback for rows enrolled before that fix; a plain
+    // "Guardian" if neither source has one.
     const { data: application } = await ctx.userClient.from("admission_applications")
       .select("guardian_name").eq("converted_student_id", student.id).maybeSingle();
-    const guardianName = application?.guardian_name ?? "Guardian";
+    const applicationGuardianName = application?.guardian_name ?? null;
 
     const alreadyDone = !!student.user_id && (guardians ?? []).every((g) => !!g.user_id);
     if (alreadyDone) return json({ already_provisioned: true, accounts: [] }, 200);
@@ -115,6 +116,7 @@ Deno.serve(async (req) => {
 
     for (const g of guardians ?? []) {
       if (g.user_id) continue;
+      const guardianName = g.full_name ?? applicationGuardianName ?? "Guardian";
 
       if (g.email) {
         const { data: existing } = await db.from("users").select("id").eq("email", g.email).maybeSingle();
