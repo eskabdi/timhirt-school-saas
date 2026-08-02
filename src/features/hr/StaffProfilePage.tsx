@@ -134,7 +134,7 @@ export function StaffProfilePage() {
           status: t("students.status"), hireDate: t("staffProfile.joinedDateEc"),
           personalSection: t("staffProfile.groupIdentity"), addressSection: t("staffProfile.groupAddress"),
           professionalSection: t("staffProfile.groupProfessional"), employmentSection: t("staffProfile.employmentDetails"),
-          issued: t("idCards.issued"),
+          issued: t("idCards.issued"), photo: t("staffProfile.photo"),
         },
       });
       const url = URL.createObjectURL(blob);

@@ -1,28 +1,28 @@
-// Formatted staff profile PDF, generated in the browser.
+// Formatted student profile PDF, generated in the browser.
 //
-// Same approach as students/transcript-pdf.ts: pdf-lib is dynamically
-// imported by the caller so it never enters the main bundle, and Ethiopic
-// text (an Amharic name, address field) falls back to the same Noto Serif
+// Same layout and approach as hr/staff-profile-pdf.ts — navy letterhead,
+// identity block, photo placeholder, sectioned two-column grids — so the
+// two profile reports read as one system. pdf-lib is dynamically imported
+// by the caller so it never enters the main bundle, and Ethiopic text (an
+// Amharic name, a guardian's name) falls back to the same Noto Serif
 // Ethiopic face the ID card and transcript renderers embed, fetched only
 // when the document actually contains non-Latin characters.
 import { drawPhotoPlaceholder } from "@/lib/pdf-photo-placeholder";
 
-export interface StaffProfilePdfInput {
+export interface StudentProfilePdfInput {
   schoolName: string;
-  fullName: string;
-  employeeNo: string;
-  jobTitle: string;
-  department: string;
+  studentName: string;
+  admissionNo: string;
+  gradeLabel: string;
   status: string;
-  hireDateEc: string;
+  admissionDateEc: string;
   issuedOn: string;
-  personal: [string, string][];
-  address: [string, string][];
-  professional: [string, string][];
-  employment: [string, string][];
+  demographics: [string, string][];
+  enrollment: [string, string][];
+  guardian: [string, string][];
   labels: {
-    title: string; employeeNo: string; jobTitle: string; department: string; status: string; hireDate: string;
-    personalSection: string; addressSection: string; professionalSection: string; employmentSection: string;
+    title: string; admissionNo: string; grade: string; status: string; admissionDate: string;
+    demographicsSection: string; enrollmentSection: string; guardianSection: string;
     issued: string; photo: string;
   };
 }
@@ -31,7 +31,7 @@ export interface StaffProfilePdfInput {
 const NON_LATIN = /[\u0100-\uffff]/;
 const hasNonLatin = (s: string) => NON_LATIN.test(s);
 
-export async function buildStaffProfilePdf(input: StaffProfilePdfInput): Promise<Blob> {
+export async function buildStudentProfilePdf(input: StudentProfilePdfInput): Promise<Blob> {
   const { PDFDocument, StandardFonts, rgb } = await import("pdf-lib");
   const doc = await PDFDocument.create();
 
@@ -42,9 +42,9 @@ export async function buildStaffProfilePdf(input: StaffProfilePdfInput): Promise
   const regular = await doc.embedFont(StandardFonts.Helvetica);
   const bold = await doc.embedFont(StandardFonts.HelveticaBold);
 
-  const allSectionRows = [...input.personal, ...input.address, ...input.professional, ...input.employment];
+  const allSectionRows = [...input.demographics, ...input.enrollment, ...input.guardian];
   const allText = [
-    input.schoolName, input.fullName, input.jobTitle, input.department, input.status, input.hireDateEc,
+    input.schoolName, input.studentName, input.gradeLabel, input.status, input.admissionDateEc,
     ...Object.values(input.labels), ...allSectionRows.flatMap(([k, v]) => [k, v]),
   ].join("");
   let ethiopic: Awaited<ReturnType<typeof doc.embedFont>> | null = null;
@@ -61,7 +61,7 @@ export async function buildStaffProfilePdf(input: StaffProfilePdfInput): Promise
       }
       ethiopic = await doc.embedFont(buf, { subset: true });
     } catch (err) {
-      console.error("staff-profile-pdf: Ethiopic font unavailable, falling back to ASCII", err);
+      console.error("student-profile-pdf: Ethiopic font unavailable, falling back to ASCII", err);
       ethiopic = null;
     }
   }
@@ -91,15 +91,14 @@ export async function buildStaffProfilePdf(input: StaffProfilePdfInput): Promise
 
   // Identity block
   y = PAGE_H - 108;
-  const identFont = pick(input.fullName);
-  page.drawText(safe(input.fullName, identFont), { x: M, y, size: 15, font: identFont ?? bold, color: INK });
+  const identFont = pick(input.studentName);
+  page.drawText(safe(input.studentName, identFont), { x: M, y, size: 15, font: identFont ?? bold, color: INK });
   y -= 20;
   const identity: [string, string][] = [
-    [input.labels.employeeNo, input.employeeNo],
-    [input.labels.jobTitle, input.jobTitle || "-"],
-    [input.labels.department, input.department || "-"],
+    [input.labels.admissionNo, input.admissionNo],
+    [input.labels.grade, input.gradeLabel],
     [input.labels.status, input.status],
-    [input.labels.hireDate, input.hireDateEc],
+    [input.labels.admissionDate, input.admissionDateEc],
   ];
   for (const [label, value] of identity) {
     draw(label, M, 8, { color: FAINT });
@@ -142,10 +141,9 @@ export async function buildStaffProfilePdf(input: StaffProfilePdfInput): Promise
     }
   };
 
-  section(input.labels.personalSection, input.personal);
-  section(input.labels.addressSection, input.address);
-  section(input.labels.professionalSection, input.professional);
-  section(input.labels.employmentSection, input.employment);
+  section(input.labels.demographicsSection, input.demographics);
+  section(input.labels.enrollmentSection, input.enrollment);
+  section(input.labels.guardianSection, input.guardian);
 
   // Footer
   const issued = `${input.labels.issued}: ${input.issuedOn}`;

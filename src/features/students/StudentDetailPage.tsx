@@ -12,6 +12,8 @@ import { AttendanceTab } from "./tabs/AttendanceTab";
 import { BehavioralTab } from "./tabs/BehavioralTab";
 import { PrintIDCardModal } from "./PrintIDCardModal";
 import { EditProfileModal } from "./EditProfileModal";
+import { buildStudentProfilePdf } from "./student-profile-pdf";
+import { formatEth } from "@/lib/ethiopian-date";
 
 const TABS = ["personalInfo", "academicRecord", "attendance", "behavioral"] as const;
 type Tab = (typeof TABS)[number];
@@ -25,11 +27,14 @@ function gc(value: string | null): string {
 }
 
 export function StudentDetailPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const { t: tc } = useTranslation("calendar");
   const { id } = useParams();
   const [tab, setTab] = useState<Tab>("personalInfo");
   const [showIdCard, setShowIdCard] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
+  const [printBusy, setPrintBusy] = useState(false);
+  const [printError, setPrintError] = useState<string | null>(null);
 
   const { data: student, isLoading } = useQuery({
     queryKey: ["student-profile", id],
@@ -79,12 +84,80 @@ export function StudentDetailPage() {
     },
   });
 
+  // School name for the PDF letterhead -- same branding record the ID card,
+  // transcript and staff profile renderers read, so all reports stay consistent.
+  const { data: brand } = useQuery({
+    queryKey: ["tenant-config", student?.tenant_id],
+    enabled: !!student?.tenant_id,
+    queryFn: async () => (await supabase.from("tenant_configs").select("settings").eq("tenant_id", student!.tenant_id).maybeSingle()).data,
+  });
+
   if (isLoading) return <p className="text-ink-faint">…</p>;
   if (!student) return null;
 
   const cls = student.class as { name?: string; section?: string; grade_level?: number } | null;
   const fullName = [student.first_name, student.middle_name, student.last_name].filter(Boolean).join(" ");
   const gradeLabel = cls?.grade_level != null ? `${t("students.profile.grade")} ${cls.grade_level}${cls.section ? `-${cls.section}` : ""}` : cls?.name ?? "—";
+
+  const printProfile = async () => {
+    setPrintError(null);
+    setPrintBusy(true);
+    try {
+      const branding = brand?.settings?.branding as { nameEn?: string; nameAm?: string; nameOm?: string } | undefined;
+      const lang = i18n.resolvedLanguage;
+      const schoolName =
+        (lang === "am" ? branding?.nameAm : lang === "om" ? branding?.nameOm : branding?.nameEn) ||
+        branding?.nameEn || t("app.name");
+      const fmt = (iso: string | null) => iso
+        ? formatEth(new Date(iso + "T00:00:00Z"), { monthNames: tc("months", { returnObjects: true }) as string[], eraSuffix: tc("eraSuffix") })
+        : "-";
+      const blob = await buildStudentProfilePdf({
+        schoolName,
+        studentName: fullName || t("students.profile.fullNamePlaceholder"),
+        admissionNo: student.admission_no,
+        gradeLabel,
+        status: t(`students.${student.status}`),
+        admissionDateEc: fmt(student.admission_date),
+        issuedOn: fmt(new Date().toISOString().slice(0, 10)),
+        demographics: [
+          [t("students.profile.dobGc"), gc(student.date_of_birth)],
+          [t("students.profile.dobEc"), fmt(student.date_of_birth)],
+          [t("students.gender"), t(`students.${student.gender}`)],
+          [t("students.edit.primaryLanguage"), student.primary_language ?? "-"],
+          [t("students.ethnicity"), student.ethnicity ? t(`ethnicity.${student.ethnicity}`, { defaultValue: student.ethnicity }) : "-"],
+          [t("students.edit.bloodType"), student.blood_type ?? "-"],
+        ],
+        enrollment: [
+          [t("students.edit.admissionDate"), fmt(student.admission_date)],
+          [t("students.edit.homeroomTeacher"), (homeroomTeacher?.user as { full_name?: string } | null)?.full_name ?? homeroomTeacher?.staff_no ?? "-"],
+          [t("students.edit.rollNumber"), student.roll_number ?? "-"],
+          [t("students.edit.section"), cls?.section ?? "-"],
+        ],
+        guardian: [
+          [t("students.edit.guardianName"), guardian?.full_name ?? "-"],
+          [t("admissions.relationship"), guardian?.relationship ? t(`admissions.relationshipType.${guardian.relationship}`) : "-"],
+          [t("admissions.phone"), guardian?.phone ?? "-"],
+          [t("admissions.email"), guardian?.email ?? "-"],
+        ],
+        labels: {
+          title: t("students.profile.profileDocTitle"), admissionNo: t("students.admissionNo"),
+          grade: t("students.profile.grade"), status: t("students.status"), admissionDate: t("students.edit.admissionDate"),
+          demographicsSection: t("students.edit.demographics"), enrollmentSection: t("students.edit.enrollment"),
+          guardianSection: t("students.edit.guardian"), issued: t("idCards.issued"), photo: t("students.edit.photo"),
+        },
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `student-profile-${student.admission_no.replace(/[^A-Za-z0-9-]/g, "")}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setPrintError(e instanceof Error ? e.message : t("staffProfile.printFailed"));
+    } finally {
+      setPrintBusy(false);
+    }
+  };
 
   const statCard = (label: string, value: React.ReactNode) => (
     <Card className="flex-1 bg-navy-wash">
@@ -132,10 +205,13 @@ export function StudentDetailPage() {
         <p className="text-sm text-ink-faint"><Link to="/students" className="hover:underline">{t("students.title")}</Link> › {gradeLabel} › <span className="text-navy">{t("students.profile.breadcrumb")}</span></p>
         <div className="flex gap-2">
           <Button variant="ghost" className="border border-line" onClick={() => setShowIdCard(true)}>🪪 {t("students.profile.printIdCard")}</Button>
-          <Button variant="ghost" className="border border-line" onClick={() => window.print()}>🖨 {t("students.profile.printReport")}</Button>
+          <Button variant="ghost" className="border border-line" onClick={printProfile} disabled={printBusy}>
+            🖨 {printBusy ? t("academicRecord.preparing") : t("students.profile.printReport")}
+          </Button>
           <Button onClick={() => setShowEdit(true)}>✎ {t("students.profile.editProfile")}</Button>
         </div>
       </div>
+      {printError && <Card className="no-print border-danger bg-danger-tint py-3 text-sm text-danger">{printError}</Card>}
 
       {/* Identity header */}
       <Card className="flex flex-wrap items-center gap-4">
