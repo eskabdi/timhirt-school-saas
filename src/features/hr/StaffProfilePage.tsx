@@ -83,7 +83,7 @@ export function StaffProfilePage() {
     setPrintError(null);
     setPrintBusy(true);
     try {
-      const branding = brand?.settings?.branding as { nameEn?: string; nameAm?: string; nameOm?: string } | undefined;
+      const branding = brand?.settings?.branding as { nameEn?: string; nameAm?: string; nameOm?: string; logoPath?: string | null } | undefined;
       const lang = i18n.resolvedLanguage;
       const schoolName =
         (lang === "am" ? branding?.nameAm : lang === "om" ? branding?.nameOm : branding?.nameEn) ||
@@ -91,8 +91,13 @@ export function StaffProfilePage() {
       const fmt = (iso: string | null) => iso
         ? formatEth(new Date(iso + "T00:00:00Z"), { monthNames: tc("months", { returnObjects: true }) as string[], eraSuffix: tc("eraSuffix") })
         : "-";
+      const photoPngBytes = photoUrl ? new Uint8Array(await (await fetch(photoUrl)).arrayBuffer()) : null;
+      const logoUrl = branding?.logoPath ? supabase.storage.from("branding").getPublicUrl(branding.logoPath).data.publicUrl : null;
+      const logoImageBytes = logoUrl ? new Uint8Array(await (await fetch(logoUrl)).arrayBuffer()) : null;
       const blob = await buildStaffProfilePdf({
         schoolName,
+        photoPngBytes,
+        logoImageBytes,
         fullName: employee.full_name,
         employeeNo: employee.employee_no,
         jobTitle: employee.job_title ?? "",

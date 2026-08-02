@@ -5,7 +5,7 @@
 // text (an Amharic name, address field) falls back to the same Noto Serif
 // Ethiopic face the ID card and transcript renderers embed, fetched only
 // when the document actually contains non-Latin characters.
-import { drawPhotoPlaceholder } from "@/lib/pdf-photo-placeholder";
+import { drawProfilePhoto, embedImageAuto } from "@/lib/pdf-photo-placeholder";
 
 export interface StaffProfilePdfInput {
   schoolName: string;
@@ -16,6 +16,13 @@ export interface StaffProfilePdfInput {
   status: string;
   hireDateEc: string;
   issuedOn: string;
+  // Uploaded photo bytes (always PNG -- see uploadStaffPhoto/convertImageToPng),
+  // fetched from the signed URL by the caller. Null draws the placeholder box.
+  photoPngBytes?: Uint8Array | null;
+  // Tenant's branding logo, fetched by the caller from its public URL. Format
+  // isn't guaranteed (branding upload accepts any image/* type), so this
+  // goes through embedImageAuto rather than embedPng directly.
+  logoImageBytes?: Uint8Array | null;
   personal: [string, string][];
   address: [string, string][];
   professional: [string, string][];
@@ -82,12 +89,20 @@ export async function buildStaffProfilePdf(input: StaffProfilePdfInput): Promise
 
   // Header
   page.drawRectangle({ x: 0, y: PAGE_H - 76, width: 595, height: 76, color: NAVY });
+  const logoImg = input.logoImageBytes ? await embedImageAuto(doc, input.logoImageBytes) : null;
+  const LOGO_SLOT = 48;
+  let textX = M;
+  if (logoImg) {
+    const { width: lw, height: lh } = logoImg.scaleToFit(LOGO_SLOT, LOGO_SLOT);
+    page.drawImage(logoImg, { x: M + (LOGO_SLOT - lw) / 2, y: PAGE_H - 76 + (76 - lh) / 2, width: lw, height: lh });
+    textX = M + LOGO_SLOT + 12;
+  }
   y = PAGE_H - 34;
   const nameFont = pick(input.schoolName);
-  page.drawText(safe(input.schoolName, nameFont), { x: M, y, size: 16, font: nameFont ?? bold, color: rgb(1, 1, 1) });
+  page.drawText(safe(input.schoolName, nameFont), { x: textX, y, size: 16, font: nameFont ?? bold, color: rgb(1, 1, 1) });
   y -= 20;
   const titleFont = pick(input.labels.title);
-  page.drawText(safe(input.labels.title, titleFont), { x: M, y, size: 10, font: titleFont ?? regular, color: rgb(0.85, 0.87, 0.96) });
+  page.drawText(safe(input.labels.title, titleFont), { x: textX, y, size: 10, font: titleFont ?? regular, color: rgb(0.85, 0.87, 0.96) });
 
   // Identity block
   y = PAGE_H - 108;
@@ -108,12 +123,13 @@ export async function buildStaffProfilePdf(input: StaffProfilePdfInput): Promise
     y -= 14;
   }
 
-  // Photo placeholder: no photo is embedded (a signed storage URL would not
-  // survive into a downloaded, re-opened file), just a labelled box in the
-  // spot a printed photo would occupy, top-right of the identity block.
+  // Photo: the real uploaded photo when there is one, top-right of the
+  // identity block, else a labelled placeholder box in the spot it would
+  // occupy.
+  const photoImg = input.photoPngBytes ? await embedImageAuto(doc, input.photoPngBytes) : null;
   const photoFont = pick(input.labels.photo) ?? regular;
-  drawPhotoPlaceholder(page, {
-    x: 595 - M - 90, y: PAGE_H - 186, size: 90,
+  drawProfilePhoto(page, {
+    x: 595 - M - 90, y: PAGE_H - 186, size: 90, image: photoImg,
     label: safe(input.labels.photo, pick(input.labels.photo)), font: photoFont,
     borderColor: rgb(0.7, 0.72, 0.8), fillColor: rgb(0.97, 0.97, 0.98), textColor: FAINT,
   });
