@@ -21,16 +21,23 @@ import { ProfessionalTab } from "./tabs/ProfessionalTab";
 import { EmploymentTab } from "./tabs/EmploymentTab";
 import { PayrollTab } from "./tabs/PayrollTab";
 import { DocumentsTab } from "./tabs/DocumentsTab";
+import { EditProfileModal } from "./EditProfileModal";
+import { buildStaffProfilePdf } from "./staff-profile-pdf";
+import { formatEth } from "@/lib/ethiopian-date";
 
 const TABS = ["overview", "professional", "employment", "payroll", "documents"] as const;
 type Tab = (typeof TABS)[number];
 
 export function StaffProfilePage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const { t: tc } = useTranslation("calendar");
   const { id } = useParams();
   const navigate = useNavigate();
   const { profile } = useSession();
   const [tab, setTab] = useState<Tab>("overview");
+  const [showEdit, setShowEdit] = useState(false);
+  const [printBusy, setPrintBusy] = useState(false);
+  const [printError, setPrintError] = useState<string | null>(null);
   const canSeeSensitive = !!profile && ["school_admin", "hr_officer", "accountant"].includes(profile.role);
 
   const { data: employee } = useQuery({
@@ -41,7 +48,11 @@ export function StaffProfilePage() {
         .select(`
           id, tenant_id, employee_no, full_name, job_title, department, campus, photo_path, office_location,
           employee_type, hire_date, status, personal_email, institutional_email, phone, work_phone,
-          user_id, reporting_manager_id, manager:employees!reporting_manager_id(full_name)
+          user_id, reporting_manager_id, manager:employees!reporting_manager_id(full_name),
+          first_name, first_name_am, father_name, father_name_am, last_name, last_name_am,
+          gender, date_of_birth, nationality, national_id,
+          region, zone, woreda, city, kebele, house_number,
+          highest_qualification, major, institution_name, graduation_year_ec, languages
         `)
         .eq("id", id).single();
       if (error) throw error;
@@ -59,6 +70,86 @@ export function StaffProfilePage() {
     },
   });
 
+  // School name for the PDF letterhead -- same branding record the ID card
+  // and academic transcript renderers read, so all three stay consistent.
+  const { data: brand } = useQuery({
+    queryKey: ["tenant-config", profile?.tenant_id],
+    enabled: !!profile?.tenant_id,
+    queryFn: async () => (await supabase.from("tenant_configs").select("settings").eq("tenant_id", profile!.tenant_id!).maybeSingle()).data,
+  });
+
+  const printProfile = async () => {
+    if (!employee) return;
+    setPrintError(null);
+    setPrintBusy(true);
+    try {
+      const branding = brand?.settings?.branding as { nameEn?: string; nameAm?: string; nameOm?: string } | undefined;
+      const lang = i18n.resolvedLanguage;
+      const schoolName =
+        (lang === "am" ? branding?.nameAm : lang === "om" ? branding?.nameOm : branding?.nameEn) ||
+        branding?.nameEn || t("app.name");
+      const fmt = (iso: string | null) => iso
+        ? formatEth(new Date(iso + "T00:00:00Z"), { monthNames: tc("months", { returnObjects: true }) as string[], eraSuffix: tc("eraSuffix") })
+        : "-";
+      const blob = await buildStaffProfilePdf({
+        schoolName,
+        fullName: employee.full_name,
+        employeeNo: employee.employee_no,
+        jobTitle: employee.job_title ?? "",
+        department: employee.department ?? "",
+        status: t(`hr.employeeStatus.${employee.status}`),
+        hireDateEc: fmt(employee.hire_date),
+        issuedOn: fmt(new Date().toISOString().slice(0, 10)),
+        personal: [
+          [t("staffReg.gender"), employee.gender ? t(`students.${employee.gender}`) : "-"],
+          [t("staffReg.dob"), fmt(employee.date_of_birth)],
+          [t("staffReg.nationality"), employee.nationality ?? "-"],
+          [t("staffReg.nationalId"), employee.national_id ?? "-"],
+          [t("staffReg.phone"), employee.phone ?? "-"],
+          [t("staffReg.personalEmail"), employee.personal_email ?? "-"],
+        ],
+        address: [
+          [t("staffReg.region"), employee.region ?? "-"], [t("staffReg.zone"), employee.zone ?? "-"],
+          [t("staffReg.woreda"), employee.woreda ?? "-"], [t("staffReg.city"), employee.city ?? "-"],
+          [t("staffReg.kebele"), employee.kebele ?? "-"], [t("staffReg.houseNumber"), employee.house_number ?? "-"],
+        ],
+        professional: [
+          [t("staffReg.highestQualification"), employee.highest_qualification ? t(`staffReg.qualification.${employee.highest_qualification}`) : "-"],
+          [t("staffReg.yearOfGraduation"), employee.graduation_year_ec ? String(employee.graduation_year_ec) : "-"],
+          [t("staffReg.majorSpecialization"), employee.major ?? "-"],
+          [t("staffReg.institutionName"), employee.institution_name ?? "-"],
+          [t("staffReg.languageProficiency"), ((employee.languages ?? []) as string[]).map((l) => t(`staffReg.language.${l}`)).join(", ") || "-"],
+        ],
+        employment: [
+          [t("staffProfile.officeLocation"), employee.office_location ?? "-"],
+          [t("staffProfile.campus"), employee.campus ?? "-"],
+          [t("staffReg.institutionalEmail"), employee.institutional_email ?? "-"],
+          [t("staffReg.workPhone"), employee.work_phone ?? "-"],
+          [t("staffProfile.lineManager"), employee.manager?.[0]?.full_name ?? "-"],
+          [t("hr.type"), t(`hr.employeeType.${employee.employee_type}`)],
+        ],
+        labels: {
+          title: t("staffProfile.profileDocTitle"), employeeNo: t("hr.employeeNo"),
+          jobTitle: t("staffProfile.jobTitle"), department: t("staffReg.department"),
+          status: t("students.status"), hireDate: t("staffProfile.joinedDateEc"),
+          personalSection: t("staffProfile.groupIdentity"), addressSection: t("staffProfile.groupAddress"),
+          professionalSection: t("staffProfile.groupProfessional"), employmentSection: t("staffProfile.employmentDetails"),
+          issued: t("idCards.issued"),
+        },
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `staff-profile-${employee.employee_no.replace(/[^A-Za-z0-9-]/g, "")}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setPrintError(e instanceof Error ? e.message : t("staffProfile.printFailed"));
+    } finally {
+      setPrintBusy(false);
+    }
+  };
+
   if (!employee) return null;
 
   const tabLabels: Record<Tab, string> = {
@@ -67,8 +158,14 @@ export function StaffProfilePage() {
     documents: t("staffProfile.tabDocuments"),
   };
 
+  const breadcrumbMiddle = employee.department || employee.job_title || t(`hr.employeeType.${employee.employee_type}`);
+
   return (
     <div className="space-y-4">
+      <p className="text-sm text-ink-faint">
+        <Link to="/hr/employees" className="hover:underline">{t("hr.employees")}</Link> › {breadcrumbMiddle} › <span className="text-navy">{t("students.profile.breadcrumb")}</span>
+      </p>
+      {printError && <Card className="border-danger bg-danger-tint py-3 text-sm text-danger">{printError}</Card>}
       <Card className="bg-navy-wash/40">
         <div className="flex flex-wrap items-center gap-4">
           <div className="h-16 w-16 shrink-0 overflow-hidden rounded-full border-2 border-line bg-card">
@@ -102,8 +199,10 @@ export function StaffProfilePage() {
               {t("staffIdCard.title")}
             </Button>
             <Button variant="ghost">{t("staffProfile.message")}</Button>
-            <Button variant="ghost">{t("staffProfile.printTranscript")}</Button>
-            <Button>{t("staffProfile.editProfile")}</Button>
+            <Button variant="ghost" onClick={printProfile} disabled={printBusy}>
+              {printBusy ? t("academicRecord.preparing") : t("staffProfile.printProfile")}
+            </Button>
+            <Button onClick={() => setShowEdit(true)}>{t("staffProfile.editProfile")}</Button>
           </div>
         </div>
       </Card>
@@ -129,9 +228,7 @@ export function StaffProfilePage() {
       )}
       {tab === "documents" && <DocumentsTab employeeId={employee.id} tenantId={employee.tenant_id} />}
 
-      <p className="text-xs text-ink-faint">
-        <Link to="/hr/employees" className="hover:underline">← {t("hr.employees")}</Link>
-      </p>
+      <EditProfileModal employee={employee} open={showEdit} onClose={() => setShowEdit(false)} />
     </div>
   );
 }
