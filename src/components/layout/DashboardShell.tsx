@@ -29,6 +29,7 @@ const NAV: NavSection[] = [
   {
     items: [
       { to: "/", key: "nav.dashboard", roles: STAFF, end: true },
+      { to: "/messages", key: "nav.messages", roles: STAFF },
     ],
   },
   {
@@ -175,6 +176,18 @@ export function DashboardShell() {
     queryKey: ["tenant-config", profile?.tenant_id],
     enabled: !!profile?.tenant_id,
     queryFn: async () => (await supabase.from("tenant_configs").select("settings").eq("tenant_id", profile!.tenant_id!).maybeSingle()).data,
+  });
+  // No realtime in this codebase (TanStack Query refetch is the established
+  // pattern) -- a light interval is the "new message" signal for the nav badge.
+  const { data: unreadMessages } = useQuery({
+    queryKey: ["messages-unread", profile?.id],
+    enabled: !!profile?.id,
+    refetchInterval: 60_000,
+    queryFn: async () => {
+      const { count } = await supabase.from("messages").select("id", { count: "exact", head: true })
+        .eq("recipient_id", profile!.id).is("read_at", null);
+      return count ?? 0;
+    },
   });
   const branding = brandConfig?.settings?.branding as { nameEn?: string; nameAm?: string; nameOm?: string; logoPath?: string | null } | undefined;
   const lang = i18n.resolvedLanguage;
@@ -326,10 +339,15 @@ export function DashboardShell() {
                         to={n.to}
                         end={n.end ?? false}
                         className={({ isActive }) =>
-                          cn("block rounded-control px-3 py-2 text-sm transition-colors",
+                          cn("flex items-center justify-between rounded-control px-3 py-2 text-sm transition-colors",
                              isActive ? "bg-navy font-semibold text-white" : "text-ink-soft hover:bg-navy-wash")}
                       >
                         {t(n.key)}
+                        {n.to === "/messages" && !!unreadMessages && (
+                          <span className="rounded-pill bg-danger px-1.5 py-0.5 text-[11px] font-semibold text-white">
+                            {unreadMessages}
+                          </span>
+                        )}
                       </NavLink>
                     ))}
                   </div>

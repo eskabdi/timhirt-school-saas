@@ -22,6 +22,7 @@ import { EmploymentTab } from "./tabs/EmploymentTab";
 import { PayrollTab } from "./tabs/PayrollTab";
 import { DocumentsTab } from "./tabs/DocumentsTab";
 import { EditProfileModal } from "./EditProfileModal";
+import { MessageStaffModal } from "./MessageStaffModal";
 import { buildStaffProfilePdf } from "./staff-profile-pdf";
 import { formatEth } from "@/lib/ethiopian-date";
 
@@ -36,6 +37,7 @@ export function StaffProfilePage() {
   const { profile } = useSession();
   const [tab, setTab] = useState<Tab>("overview");
   const [showEdit, setShowEdit] = useState(false);
+  const [showMessage, setShowMessage] = useState(false);
   const [printBusy, setPrintBusy] = useState(false);
   const [printError, setPrintError] = useState<string | null>(null);
   const canSeeSensitive = !!profile && ["school_admin", "hr_officer", "accountant"].includes(profile.role);
@@ -204,7 +206,10 @@ export function StaffProfilePage() {
             <Button variant="ghost" onClick={() => navigate(`/hr/employees/${employee.id}/id-card`)}>
               {t("staffIdCard.title")}
             </Button>
-            <Button variant="ghost">{t("staffProfile.message")}</Button>
+            <Button variant="ghost" onClick={() => setShowMessage(true)} disabled={!employee.user_id}
+              title={!employee.user_id ? t("staffProfile.messageNoAccount") : undefined}>
+              {t("staffProfile.message")}
+            </Button>
             <Button variant="ghost" onClick={printProfile} disabled={printBusy}>
               {printBusy ? t("academicRecord.preparing") : t("staffProfile.printProfile")}
             </Button>
@@ -235,6 +240,12 @@ export function StaffProfilePage() {
       {tab === "documents" && <DocumentsTab employeeId={employee.id} tenantId={employee.tenant_id} />}
 
       <EditProfileModal employee={employee} open={showEdit} onClose={() => setShowEdit(false)} />
+      {employee.user_id && (
+        <MessageStaffModal
+          open={showMessage} onClose={() => setShowMessage(false)}
+          recipientUserId={employee.user_id} recipientName={employee.full_name}
+        />
+      )}
     </div>
   );
 }

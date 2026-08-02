@@ -34,6 +34,7 @@ import { InvoiceDetailPage } from "@/features/fees/InvoiceDetailPage";
 
 import { AnnouncementsPage } from "@/features/communication/AnnouncementsPage";
 import { NoticesPage } from "@/features/communication/NoticesPage";
+import { MessagesPage } from "@/features/communication/MessagesPage";
 
 import { AdmissionsListPage } from "@/features/admissions/AdmissionsListPage";
 import { AdmissionDetailPage } from "@/features/admissions/AdmissionDetailPage";
@@ -129,6 +130,9 @@ export const router = createBrowserRouter([
         element: <DashboardShell />,
         children: [
           { index: true, element: <DashboardPage /> },
+          // Any staff role, no module gate -- messaging isn't a toggleable
+          // module, and RLS (sender/recipient only) is the real access gate.
+          { path: "messages", element: <MessagesPage /> },
 
           // Admin: Students (SIS) + Admissions + ID cards — each its own
           // module, so each gets its own RequireModule nested under the

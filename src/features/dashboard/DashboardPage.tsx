@@ -25,6 +25,8 @@ import {
   useAlerts, useAtRisk, useAttendanceWeek, useAcademicYears, useBilling,
   useCalendarEvents, useNotices, useOverview, useTenantName, weekStart,
 } from "./useDashboardData";
+import { MessagesCard } from "./MessagesCard";
+import { LinkedHeader } from "./LinkedHeader";
 import {
   IconAddAbsence, IconAddEvent, IconAddFees, IconAddGuardian, IconApplication,
   IconCalendar, IconChevronLeft, IconChevronRight, IconCourseRequest,
@@ -62,23 +64,6 @@ function StatTile({ icon, value, label, tint, tone }: {
       <div className="min-w-0">
         <p className="font-display text-2xl font-bold tabular-nums text-ok">{value}</p>
         <p className="truncate text-sm text-ink-soft">{label}</p>
-      </div>
-    </div>
-  );
-}
-
-/** Blue link-style card title with the "open the full screen" affordance. */
-function LinkedHeader({ title, to, right }: { title: string; to?: string; right?: React.ReactNode }) {
-  return (
-    <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-3">
-      <h2 className="text-sm font-semibold text-navy">{title}</h2>
-      <div className="flex items-center gap-3">
-        {right}
-        {to && (
-          <Link to={to} className="text-navy hover:text-navy-deep" aria-label={title}>
-            <IconExternal className="h-4 w-4" />
-          </Link>
-        )}
       </div>
     </div>
   );
@@ -299,6 +284,10 @@ export function DashboardPage() {
           </div>
         </Panel>
       </div>
+
+      {/* ---------- Messages: separate from the Notice Board above -- a
+          notice is a scheduled broadcast, a message is a private thread. ---------- */}
+      {!isSuperAdmin && <MessagesCard />}
 
       {/* ---------- Filter ---------- */}
       <div className="flex justify-end">

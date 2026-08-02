@@ -11,6 +11,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { toIsoDate } from "@/lib/ethiopian-date";
+import { groupIntoThreads, type MessageRow } from "@/features/communication/messageThreads";
 
 export interface Breakdown { key: string; count: number }
 
@@ -81,6 +82,23 @@ export function useAcademicYears(tenantId: string) {
         .order("ec_year", { ascending: false });
       if (error) throw error;
       return data ?? [];
+    },
+  });
+}
+
+/** Direct-message threads the current user is a party to, newest first.
+ *  Shares its query key with MessagesPage.tsx's own fetch of the same rows,
+ *  so sending/replying/marking-read in either place invalidates both. */
+export function useMessages(userId: string | undefined) {
+  return useQuery({
+    queryKey: ["messages", userId],
+    enabled: !!userId,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("messages")
+        .select("id, thread_id, sender_id, recipient_id, title, body, read_at, created_at, sender:users!sender_id(full_name), recipient:users!recipient_id(full_name)")
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+      return groupIntoThreads(data as unknown as MessageRow[], userId);
     },
   });
 }
