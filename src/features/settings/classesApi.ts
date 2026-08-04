@@ -44,7 +44,7 @@ export async function listEnrolledCounts(): Promise<Map<string, number>> {
 }
 
 export async function listActiveAcademicYears() {
-  const { data, error } = await supabase.from("academic_years").select("id,ec_year").eq("status", "active").order("ec_year", { ascending: false });
+  const { data, error } = await supabase.from("academic_years").select("id,ec_year,starts_on,ends_on").eq("status", "active").order("ec_year", { ascending: false });
   if (error) throw error;
   return data ?? [];
 }

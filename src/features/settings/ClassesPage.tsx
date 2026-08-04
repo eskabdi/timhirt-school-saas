@@ -54,6 +54,14 @@ export function ClassesPage() {
   const [exporting, setExporting] = useState<"pdf" | null>(null);
 
   const { data: years } = useQuery({ queryKey: ["academic-years"], queryFn: listActiveAcademicYears });
+  // Multiple years can be "active" at once (e.g. next year set up ahead of
+  // time) -- the one Add New should write into is whichever's date range
+  // actually contains today, not just the highest ec_year.
+  const currentYear = useMemo(() => {
+    if (!years?.length) return undefined;
+    const today = new Date().toISOString().slice(0, 10);
+    return years.find((y) => y.starts_on <= today && today <= y.ends_on) ?? years[0];
+  }, [years]);
   const { data: teachers } = useQuery({ queryKey: ["teachers-for-classes"], queryFn: listTeachers });
   // Unfiltered, columns-only fetch to populate the grade/section filter
   // options with every real value in use — a school has tens of classes,
@@ -116,8 +124,8 @@ export function ClassesPage() {
 
   const create = useMutation({
     mutationFn: async () => {
-      if (!years?.[0]) throw new Error(t("crud.noAcademicYear"));
-      await createClass(profile!.tenant_id!, years[0].id, form);
+      if (!currentYear) throw new Error(t("crud.noAcademicYear"));
+      await createClass(profile!.tenant_id!, currentYear.id, form);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["classes-admin"] });
