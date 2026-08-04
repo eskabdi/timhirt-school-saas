@@ -87,3 +87,37 @@ export async function listClasses() {
   if (error) throw error;
   return data;
 }
+
+export interface GuardianInput {
+  full_name: string;
+  relationship: "father" | "mother" | "guardian" | "other";
+  phone: string;
+  email: string;
+}
+
+/** One guardian per student from this form — mirrors EditProfileModal's
+ *  insert path (the only other writer of this table). */
+export async function createGuardian(tenantId: string, studentId: string, input: GuardianInput) {
+  const { error } = await supabase.from("guardians").insert({
+    tenant_id: tenantId, student_id: studentId,
+    full_name: input.full_name || null, relationship: input.relationship,
+    phone: input.phone || null, email: input.email || null,
+  });
+  if (error) throw error;
+}
+
+export interface ApplicableFee {
+  id: string; name_i18n: Record<string, string>; amount: number; billing_cycle: string;
+}
+
+/** Fees that apply to a class: school-wide (class_id null) plus anything
+ *  scoped to this specific class — same shape as the public applicant sees
+ *  for their chosen grade (submit-admission's fee list), so a registrar
+ *  reviews the identical total a parent would have. */
+export async function listApplicableFees(classId: string): Promise<ApplicableFee[]> {
+  const { data, error } = await supabase.from("fee_structures")
+    .select("id, name_i18n, amount, billing_cycle, class_id")
+    .or(`class_id.is.null,class_id.eq.${classId}`);
+  if (error) throw error;
+  return (data ?? []) as ApplicableFee[];
+}
