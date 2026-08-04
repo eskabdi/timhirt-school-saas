@@ -58,9 +58,13 @@ export function ClassesPage() {
   // Unfiltered, columns-only fetch to populate the grade/section filter
   // options with every real value in use — a school has tens of classes,
   // not thousands, so this is cheap next to the paginated table query below.
+  // Also doubles as the source for which teachers are already homeroom of a
+  // class, tenant-wide -- classes_homeroom_teacher_unique (20260804000001)
+  // means only one class can hold a given teacher, so the picker excludes
+  // anyone already taken instead of letting the save fail.
   const { data: filterSource } = useQuery({
     queryKey: ["classes-filter-options"],
-    queryFn: async () => (await supabase.from("classes").select("grade_level,section")).data ?? [],
+    queryFn: async () => (await supabase.from("classes").select("id,grade_level,section,homeroom_teacher_id")).data ?? [],
   });
   const gradeLevels = useMemo(
     () => [...new Set((filterSource ?? []).map((c) => c.grade_level).filter((g): g is number => g != null))].sort((a, b) => a - b),
@@ -69,6 +73,19 @@ export function ClassesPage() {
   const sections = useMemo(
     () => [...new Set((filterSource ?? []).map((c) => c.section).filter((s): s is string => !!s))].sort(),
     [filterSource],
+  );
+  // The class being edited keeps its own current teacher selectable --
+  // everyone else's homeroom teacher is off the table until freed up.
+  const takenTeacherIds = useMemo(() => {
+    const set = new Set<string>();
+    for (const c of filterSource ?? []) {
+      if (c.homeroom_teacher_id && c.id !== editing?.id) set.add(c.homeroom_teacher_id);
+    }
+    return set;
+  }, [filterSource, editing?.id]);
+  const availableTeachers = useMemo(
+    () => (teachers ?? []).filter((tc) => !takenTeacherIds.has(tc.id)),
+    [teachers, takenTeacherIds],
   );
 
   const filters: ClassFilters = {
@@ -86,6 +103,17 @@ export function ClassesPage() {
   const setFilter = <T,>(setter: (v: T) => void) => (v: T) => { setter(v); setPage(1); };
   const clearFilters = () => { setSearch(""); setGradeLevel(""); setSection(""); setAcademicYearId(""); setPage(1); };
 
+  // classes_homeroom_teacher_unique (20260804000001) rejects a second class
+  // pointing at a teacher who's already homeroom elsewhere -- surface that as
+  // the specific, actionable message rather than a raw Postgres error.
+  const friendlyError = (e: unknown, fallback: string) => {
+    if (e instanceof Error) return e.message;
+    if (e && typeof e === "object" && "code" in e && (e as { code?: string }).code === "23505") {
+      return t("crud.homeroomTeacherTaken");
+    }
+    return fallback;
+  };
+
   const create = useMutation({
     mutationFn: async () => {
       if (!years?.[0]) throw new Error(t("crud.noAcademicYear"));
@@ -98,7 +126,7 @@ export function ClassesPage() {
       setAdding(false);
       setError(null);
     },
-    onError: (e: unknown) => setError(e instanceof Error ? e.message : "Failed to add class"),
+    onError: (e: unknown) => setError(friendlyError(e, "Failed to add class")),
   });
 
   const update = useMutation({
@@ -109,7 +137,7 @@ export function ClassesPage() {
       setEditing(null);
       setError(null);
     },
-    onError: (e: unknown) => setError(e instanceof Error ? e.message : "Failed to update class"),
+    onError: (e: unknown) => setError(friendlyError(e, "Failed to update class")),
   });
 
   const remove = useMutation({
@@ -270,7 +298,7 @@ export function ClassesPage() {
           <Field label={t("crud.homeroomTeacher")}>
             <select className={SELECT_CLS} value={form.homeroomTeacherId} onChange={(e) => setForm({ ...form, homeroomTeacherId: e.target.value })}>
               <option value="">{t("crud.notSet")}</option>
-              {teachers?.map((tc) => <option key={tc.id} value={tc.id}>{tc.user?.full_name ?? tc.staff_no}</option>)}
+              {availableTeachers.map((tc) => <option key={tc.id} value={tc.id}>{tc.user?.full_name ?? tc.staff_no}</option>)}
             </select>
           </Field>
           <div className="flex justify-end gap-2 border-t border-line pt-3">
@@ -289,7 +317,7 @@ export function ClassesPage() {
           <Field label={t("crud.homeroomTeacher")}>
             <select className={SELECT_CLS} value={editForm.homeroomTeacherId} onChange={(e) => setEditForm({ ...editForm, homeroomTeacherId: e.target.value })}>
               <option value="">{t("crud.notSet")}</option>
-              {teachers?.map((tc) => <option key={tc.id} value={tc.id}>{tc.user?.full_name ?? tc.staff_no}</option>)}
+              {availableTeachers.map((tc) => <option key={tc.id} value={tc.id}>{tc.user?.full_name ?? tc.staff_no}</option>)}
             </select>
           </Field>
           <div className="flex justify-end gap-2 border-t border-line pt-3">
