@@ -9,6 +9,7 @@ export interface ClassRow {
   grade_level: number | null;
   capacity: number | null;
   academic_year_id: string;
+  homeroom_teacher_id: string | null;
 }
 
 export interface ClassFilters {
@@ -20,7 +21,7 @@ export interface ClassFilters {
 
 export async function listClasses(filters: ClassFilters = {}, range?: [number, number]) {
   let q = supabase.from("classes")
-    .select("id,name,section,grade_level,capacity,academic_year_id", { count: "exact" })
+    .select("id,name,section,grade_level,capacity,academic_year_id,homeroom_teacher_id", { count: "exact" })
     .order("grade_level").order("section");
   if (filters.search) q = q.or(`name.ilike.%${filters.search}%,section.ilike.%${filters.search}%`);
   if (filters.gradeLevel) q = q.eq("grade_level", Number(filters.gradeLevel));
@@ -48,11 +49,24 @@ export async function listActiveAcademicYears() {
   return data ?? [];
 }
 
+export interface TeacherOption {
+  id: string;
+  staff_no: string;
+  user: { full_name: string } | null;
+}
+
+export async function listTeachers(): Promise<TeacherOption[]> {
+  const { data, error } = await supabase.from("teachers").select("id, staff_no, user:users(full_name)").order("staff_no");
+  if (error) throw error;
+  return (data ?? []) as unknown as TeacherOption[];
+}
+
 export interface ClassInput {
   name: string;
   section: string;
   gradeLevel: string;
   capacity: string;
+  homeroomTeacherId: string;
 }
 
 export async function createClass(tenantId: string, academicYearId: string, input: ClassInput) {
@@ -63,6 +77,7 @@ export async function createClass(tenantId: string, academicYearId: string, inpu
     section: input.section || null,
     grade_level: input.gradeLevel === "" ? null : Number(input.gradeLevel),
     capacity: input.capacity === "" ? null : Number(input.capacity),
+    homeroom_teacher_id: input.homeroomTeacherId || null,
   });
   if (error) throw error;
 }
@@ -73,6 +88,7 @@ export async function updateClass(id: string, input: ClassInput) {
     section: input.section || null,
     grade_level: input.gradeLevel === "" ? null : Number(input.gradeLevel),
     capacity: input.capacity === "" ? null : Number(input.capacity),
+    homeroom_teacher_id: input.homeroomTeacherId || null,
   }).eq("id", id);
   if (error) throw error;
 }

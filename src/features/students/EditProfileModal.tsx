@@ -58,7 +58,6 @@ export function EditProfileModal({ student, guardian, open, onClose }: {
     blood_type: student.blood_type ?? "", roll_number: student.roll_number ?? "",
     admission_date: student.admission_date ? new Date(student.admission_date + "T00:00:00Z") : null as Date | null,
     class_id: student.class_id ?? "",
-    homeroom_teacher_id: "",
     g_full_name: guardian?.full_name ?? "", g_relationship: guardian?.relationship ?? "father",
     g_phone: guardian?.phone ?? "", g_email: guardian?.email ?? "",
   });
@@ -66,27 +65,13 @@ export function EditProfileModal({ student, guardian, open, onClose }: {
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Sections the student can move between, plus each one's current homeroom
-  // teacher so the picker below can seed itself from the chosen section.
+  // Sections the student can move between.
   const { data: classes } = useQuery({
     queryKey: ["edit-profile-classes"],
     enabled: open,
     queryFn: async () =>
-      (await supabase.from("classes").select("id, name, section, homeroom_teacher_id").order("name")).data ?? [],
+      (await supabase.from("classes").select("id, name, section").order("name")).data ?? [],
   });
-  const { data: teachers } = useQuery({
-    queryKey: ["edit-profile-teachers"],
-    enabled: open,
-    queryFn: async () =>
-      (await supabase.from("teachers").select("id, staff_no, user:users(full_name)").order("staff_no")).data ?? [],
-  });
-
-  const selectedClass = classes?.find((c) => c.id === f.class_id);
-  // Homeroom teacher belongs to the section, not the student — follow whichever
-  // section is currently selected rather than holding a stale value.
-  useEffect(() => {
-    setF((prev) => ({ ...prev, homeroom_teacher_id: selectedClass?.homeroom_teacher_id ?? "" }));
-  }, [selectedClass?.id, selectedClass?.homeroom_teacher_id]);
 
   useEffect(() => {
     if (!photo) { setPhotoPreview(null); return; }
@@ -125,14 +110,6 @@ export function EditProfileModal({ student, guardian, open, onClose }: {
         ...(f.class_id ? { class_id: f.class_id } : {}),
       }).eq("id", student.id);
       if (sErr) throw sErr;
-
-      // Homeroom teacher is a property of the section: this writes through to
-      // the class and therefore applies to every student in it.
-      if (f.class_id && selectedClass && (selectedClass.homeroom_teacher_id ?? "") !== f.homeroom_teacher_id) {
-        const { error: cErr } = await supabase.from("classes")
-          .update({ homeroom_teacher_id: f.homeroom_teacher_id || null }).eq("id", f.class_id);
-        if (cErr) throw cErr;
-      }
 
       const guardianTouched = f.g_full_name || f.g_phone || f.g_email;
       if (guardian) {
@@ -249,17 +226,6 @@ export function EditProfileModal({ student, guardian, open, onClose }: {
                 className="w-full rounded-control border border-line bg-card px-3 py-2 text-sm text-ink">
                 <option value="">—</option>
                 {classes?.map((c) => <option key={c.id} value={c.id}>{c.name}{c.section ? ` - ${c.section}` : ""}</option>)}
-              </select>
-            </Field>
-            <Field label={t("students.edit.homeroomTeacher")} hint={t("students.edit.homeroomNote")}>
-              <select value={f.homeroom_teacher_id} disabled={!f.class_id}
-                onChange={(e) => setF({ ...f, homeroom_teacher_id: e.target.value })}
-                className="w-full rounded-control border border-line bg-card px-3 py-2 text-sm text-ink disabled:opacity-50">
-                <option value="">—</option>
-                {teachers?.map((tc) => {
-                  const u = tc.user as { full_name?: string } | null;
-                  return <option key={tc.id} value={tc.id}>{u?.full_name ?? tc.staff_no}</option>;
-                })}
               </select>
             </Field>
           </div>

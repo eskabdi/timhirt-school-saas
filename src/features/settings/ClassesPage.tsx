@@ -14,14 +14,14 @@ import { Pagination, pageRange } from "@/components/ui/Pagination";
 import { onRowDoubleClick } from "@/lib/utils";
 import { formatEth } from "@/lib/ethiopian-date";
 import {
-  listClasses, listEnrolledCounts, listActiveAcademicYears,
+  listClasses, listEnrolledCounts, listActiveAcademicYears, listTeachers,
   createClass, updateClass, deleteClass,
   type ClassRow, type ClassFilters, type ClassInput,
 } from "./classesApi";
 import { buildClassesPdf } from "./classes-pdf";
 
 const SELECT_CLS = "w-full rounded-control border border-line bg-card px-3 py-2 text-sm text-ink";
-const emptyForm: ClassInput = { name: "", section: "", gradeLevel: "", capacity: "" };
+const emptyForm: ClassInput = { name: "", section: "", gradeLevel: "", capacity: "", homeroomTeacherId: "" };
 
 function downloadBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
@@ -54,6 +54,7 @@ export function ClassesPage() {
   const [exporting, setExporting] = useState<"pdf" | null>(null);
 
   const { data: years } = useQuery({ queryKey: ["academic-years"], queryFn: listActiveAcademicYears });
+  const { data: teachers } = useQuery({ queryKey: ["teachers-for-classes"], queryFn: listTeachers });
   // Unfiltered, columns-only fetch to populate the grade/section filter
   // options with every real value in use — a school has tens of classes,
   // not thousands, so this is cheap next to the paginated table query below.
@@ -127,6 +128,7 @@ export function ClassesPage() {
     setEditForm({
       name: c.name, section: c.section ?? "",
       gradeLevel: c.grade_level?.toString() ?? "", capacity: c.capacity?.toString() ?? "",
+      homeroomTeacherId: c.homeroom_teacher_id ?? "",
     });
   };
 
@@ -265,6 +267,12 @@ export function ClassesPage() {
           <Field label={t("crud.section")}><Input value={form.section} onChange={(e) => setForm({ ...form, section: e.target.value })} maxLength={10} placeholder="A" /></Field>
           <Field label={t("crud.gradeLevel")}><Input type="number" min={0} max={12} value={form.gradeLevel} onChange={(e) => setForm({ ...form, gradeLevel: e.target.value })} /></Field>
           <Field label={t("crud.capacity")}><Input type="number" min={1} value={form.capacity} onChange={(e) => setForm({ ...form, capacity: e.target.value })} placeholder={t("crud.unlimited")} /></Field>
+          <Field label={t("crud.homeroomTeacher")}>
+            <select className={SELECT_CLS} value={form.homeroomTeacherId} onChange={(e) => setForm({ ...form, homeroomTeacherId: e.target.value })}>
+              <option value="">{t("crud.notSet")}</option>
+              {teachers?.map((tc) => <option key={tc.id} value={tc.id}>{tc.user?.full_name ?? tc.staff_no}</option>)}
+            </select>
+          </Field>
           <div className="flex justify-end gap-2 border-t border-line pt-3">
             <Button variant="ghost" onClick={() => setAdding(false)}>{t("common.cancel")}</Button>
             <Button onClick={() => create.mutate()} disabled={!form.name || create.isPending}>{t("common.add")}</Button>
@@ -278,6 +286,12 @@ export function ClassesPage() {
           <Field label={t("crud.section")}><Input value={editForm.section} onChange={(e) => setEditForm({ ...editForm, section: e.target.value })} maxLength={10} /></Field>
           <Field label={t("crud.gradeLevel")}><Input type="number" min={0} max={12} value={editForm.gradeLevel} onChange={(e) => setEditForm({ ...editForm, gradeLevel: e.target.value })} /></Field>
           <Field label={t("crud.capacity")}><Input type="number" min={1} value={editForm.capacity} onChange={(e) => setEditForm({ ...editForm, capacity: e.target.value })} placeholder={t("crud.unlimited")} /></Field>
+          <Field label={t("crud.homeroomTeacher")}>
+            <select className={SELECT_CLS} value={editForm.homeroomTeacherId} onChange={(e) => setEditForm({ ...editForm, homeroomTeacherId: e.target.value })}>
+              <option value="">{t("crud.notSet")}</option>
+              {teachers?.map((tc) => <option key={tc.id} value={tc.id}>{tc.user?.full_name ?? tc.staff_no}</option>)}
+            </select>
+          </Field>
           <div className="flex justify-end gap-2 border-t border-line pt-3">
             <Button variant="ghost" onClick={() => setEditing(null)}>{t("common.cancel")}</Button>
             <Button onClick={() => update.mutate()} disabled={!editForm.name || update.isPending}>{t("common.save")}</Button>
