@@ -2,12 +2,13 @@
 // unscoped RLS branch (`get_role_for_user(auth.uid()) = 'super_admin'`), so
 // counts span all tenants rather than a single school.
 import { useTranslation } from "react-i18next";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { Panel } from "@/components/ui/Panel";
 import { Badge } from "@/components/ui/Badge";
+import { Pagination, pageRange } from "@/components/ui/Pagination";
 import { EthDate } from "@/components/EthDate";
 import { ReportStat, ReportBarChart, ReportSection } from "@/features/reports/ReportComponents";
 
@@ -33,6 +34,9 @@ function fmtEtb(n: number) {
 
 export function PlatformReportPage() {
   const { t } = useTranslation();
+  const [tenantPage, setTenantPage] = useState(1);
+  const [rolePage, setRolePage] = useState(1);
+  const [integrationsPage, setIntegrationsPage] = useState(1);
   const { data, isLoading } = useQuery({
     queryKey: ["platform-report"],
     queryFn: async () => {
@@ -149,6 +153,16 @@ export function PlatformReportPage() {
 
   const recentAudit = data?.audit.slice(0, 12) ?? [];
 
+  // Slicing here only affects what's rendered — perTenant/byRole/integrations
+  // (and the stat cards above, sourced from the full fetched arrays) keep
+  // reporting the complete totals.
+  const [tenantFrom, tenantTo] = pageRange(tenantPage);
+  const visiblePerTenant = perTenant.slice(tenantFrom, tenantTo + 1);
+  const [roleFrom, roleTo] = pageRange(rolePage);
+  const visibleByRole = byRole.slice(roleFrom, roleTo + 1);
+  const [integrationsFrom, integrationsTo] = pageRange(integrationsPage);
+  const visibleIntegrations = (data?.integrations ?? []).slice(integrationsFrom, integrationsTo + 1);
+
   return (
     <div className="space-y-4">
       <h1 className="font-display text-2xl font-bold text-ink">{t("platformNav.platformReport")}</h1>
@@ -193,7 +207,7 @@ export function PlatformReportPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
-              {perTenant.map((t) => (
+              {visiblePerTenant.map((t) => (
                 <tr key={t.id} className="hover:bg-sidebar">
                   <td className="px-5 py-3">
                     <Link to={`/platform/tenants/${t.id}`} className="font-medium text-navy hover:underline">{t.name}</Link>
@@ -213,6 +227,7 @@ export function PlatformReportPage() {
             </tbody>
           </table>
         )}
+        <Pagination page={tenantPage} totalCount={perTenant.length} onPageChange={setTenantPage} className="px-5" />
       </Panel>
 
       <div className="grid gap-4 lg:grid-cols-3">
@@ -223,7 +238,7 @@ export function PlatformReportPage() {
           ) : (
             <table className="w-full text-sm">
               <tbody className="divide-y divide-line">
-                {byRole.map(([role, count]) => (
+                {visibleByRole.map(([role, count]) => (
                   <tr key={role}>
                     <td className="px-5 py-3 text-ink-soft">{ROLE_LABEL[role] ?? role}</td>
                     <td className="px-5 py-3 text-right font-medium text-ink tabular-nums">{count}</td>
@@ -232,6 +247,7 @@ export function PlatformReportPage() {
               </tbody>
             </table>
           )}
+          <Pagination page={rolePage} totalCount={byRole.length} onPageChange={setRolePage} className="px-5" />
         </Panel>
 
         <Panel>
@@ -241,7 +257,7 @@ export function PlatformReportPage() {
           ) : (
             <table className="w-full text-sm">
               <tbody className="divide-y divide-line">
-                {data.integrations.map((i) => (
+                {visibleIntegrations.map((i) => (
                   <tr key={i.provider}>
                     <td className="px-5 py-3 text-ink-soft">{i.display_name}</td>
                     <td className="px-5 py-3 text-right">
@@ -252,6 +268,7 @@ export function PlatformReportPage() {
               </tbody>
             </table>
           )}
+          <Pagination page={integrationsPage} totalCount={data?.integrations.length ?? 0} onPageChange={setIntegrationsPage} className="px-5" />
         </Panel>
 
         <Panel>

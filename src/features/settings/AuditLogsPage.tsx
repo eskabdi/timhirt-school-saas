@@ -7,6 +7,7 @@ import { Panel } from "@/components/ui/Panel";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { EthDate } from "@/components/EthDate";
+import { Pagination, pageRange } from "@/components/ui/Pagination";
 
 // Mirrors the core audit_logs schema (20260713000001_core.sql): append-only,
 // PII-redacted, written by public.audit_trigger().
@@ -31,6 +32,10 @@ export function AuditLogsPage() {
   const [endDate, setEndDate] = useState(() => new Date().toISOString().split("T")[0]);
   const [tableFilter, setTableFilter] = useState("");
   const [actionFilter, setActionFilter] = useState("");
+  const [page, setPage] = useState(1);
+  // Any filter change re-queries the (still-capped) full set from the top —
+  // page 2 of a stale, wider result set is meaningless once the filter narrows it.
+  const setFilter = <T,>(setter: (v: T) => void) => (v: T) => { setter(v); setPage(1); };
 
   const { data: logs, isLoading } = useQuery({
     queryKey: ["audit-logs", startDate, endDate, tableFilter, actionFilter],
@@ -67,6 +72,12 @@ export function AuditLogsPage() {
     return Array.from(ts).sort();
   }, [logs]);
 
+  // Client-side windowing of the already-fetched (capped) set for the
+  // on-screen table only — the CSV export below still uses the full `logs`
+  // array, not this slice, so it keeps exporting everything fetched.
+  const [from, to] = pageRange(page);
+  const visibleLogs = useMemo(() => logs?.slice(from, to + 1), [logs, from, to]);
+
   const downloadCsv = () => {
     if (!logs) return;
     const rows = logs.map((l) => [
@@ -97,17 +108,17 @@ export function AuditLogsPage() {
         <div className="grid gap-4 md:grid-cols-4">
           <div>
             <label className="mb-1 block text-sm font-medium text-ink-faint">{t("audit.fromDate")}</label>
-            <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+            <Input type="date" value={startDate} onChange={(e) => setFilter(setStartDate)(e.target.value)} />
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-ink-faint">{t("audit.toDate")}</label>
-            <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+            <Input type="date" value={endDate} onChange={(e) => setFilter(setEndDate)(e.target.value)} />
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-ink-faint">{t("audit.table")}</label>
             <select
               value={tableFilter}
-              onChange={(e) => setTableFilter(e.target.value)}
+              onChange={(e) => setFilter(setTableFilter)(e.target.value)}
               className="w-full rounded-control border border-line bg-card px-3 py-2 text-sm text-ink"
             >
               <option value="">—</option>
@@ -122,7 +133,7 @@ export function AuditLogsPage() {
             <label className="mb-1 block text-sm font-medium text-ink-faint">{t("audit.action")}</label>
             <select
               value={actionFilter}
-              onChange={(e) => setActionFilter(e.target.value)}
+              onChange={(e) => setFilter(setActionFilter)(e.target.value)}
               className="w-full rounded-control border border-line bg-card px-3 py-2 text-sm text-ink"
             >
               <option value="">—</option>
@@ -154,7 +165,7 @@ export function AuditLogsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
-              {logs.map((log) => (
+              {visibleLogs?.map((log) => (
                 <tr key={log.id} className="hover:bg-sidebar">
                   <td className="px-4 py-3 text-xs text-ink-faint">
                     <EthDate value={new Date(log.created_at)} /> {log.created_at.slice(11, 19)}
@@ -183,6 +194,7 @@ export function AuditLogsPage() {
               ))}
             </tbody>
           </table>
+          <Pagination page={page} totalCount={logs.length} onPageChange={setPage} className="px-4" />
         </Panel>
       )}
     </div>

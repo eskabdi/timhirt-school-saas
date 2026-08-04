@@ -7,6 +7,7 @@ import { todayEthiopian } from "@/lib/ethiopian-date";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { Pagination, pageRange } from "@/components/ui/Pagination";
 
 const STATUS_TONE = { draft: "neutral", approved: "navy", paid: "ok", void: "danger" } as const;
 
@@ -16,17 +17,20 @@ export function PayrollRunsPage() {
   const today = todayEthiopian();
   const [ecYear, setEcYear] = useState(today.year);
   const [ecMonth, setEcMonth] = useState(today.month);
+  const [page, setPage] = useState(1);
 
-  const { data: runs } = useQuery({
-    queryKey: ["payroll-runs"],
+  const { data } = useQuery({
+    queryKey: ["payroll-runs", page],
     queryFn: async () => {
-      const { data, error } = await supabase.from("payroll_runs")
-        .select("id, ec_year, ec_month, status, prepared_by, approved_by")
-        .order("ec_year", { ascending: false }).order("ec_month", { ascending: false });
+      const { data, error, count } = await supabase.from("payroll_runs")
+        .select("id, ec_year, ec_month, status, prepared_by, approved_by", { count: "exact" })
+        .order("ec_year", { ascending: false }).order("ec_month", { ascending: false })
+        .range(...pageRange(page));
       if (error) throw error;
-      return data;
+      return { rows: data ?? [], count: count ?? 0 };
     },
   });
+  const runs = data?.rows;
 
   const runPayroll = useMutation({
     mutationFn: async () => {
@@ -39,7 +43,7 @@ export function PayrollRunsPage() {
       if (!res.ok) throw new Error((await res.json()).error ?? "failed");
       return res.json();
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["payroll-runs"] }),
+    onSuccess: () => { setPage(1); qc.invalidateQueries({ queryKey: ["payroll-runs"] }); },
   });
 
   return (
@@ -83,6 +87,7 @@ export function PayrollRunsPage() {
           </Link>
         ))}
       </div>
+      <Pagination page={page} totalCount={data?.count ?? 0} onPageChange={setPage} />
       <p className="text-xs text-ink-faint">{t("hr.sodNote")}</p>
     </div>
   );

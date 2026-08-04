@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -6,6 +7,7 @@ import { Card } from "@/components/ui/Card";
 import { Panel } from "@/components/ui/Panel";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { Pagination, pageRange } from "@/components/ui/Pagination";
 import { EthDate } from "@/components/EthDate";
 import { onRowDoubleClick } from "@/lib/utils";
 
@@ -14,16 +16,19 @@ const STATUS_TONE = { draft: "late", active: "ok", on_leave: "late", terminated:
 export function EmployeeListPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const [page, setPage] = useState(1);
 
-  const { data: employees } = useQuery({
-    queryKey: ["employees"],
+  const { data } = useQuery({
+    queryKey: ["employees", page],
     queryFn: async () => {
-      const { data, error } = await supabase.from("employees")
-        .select("id, employee_no, full_name, employee_type, hire_date, status").order("full_name");
+      const { data, error, count } = await supabase.from("employees")
+        .select("id, employee_no, full_name, employee_type, hire_date, status", { count: "exact" })
+        .order("full_name").range(...pageRange(page));
       if (error) throw error;
-      return data;
+      return { rows: data ?? [], count: count ?? 0 };
     },
   });
+  const employees = data?.rows;
 
   return (
     <div className="space-y-4">
@@ -54,6 +59,7 @@ export function EmployeeListPage() {
               ))}
             </tbody>
           </table>
+          <Pagination page={page} totalCount={data?.count ?? 0} onPageChange={setPage} className="px-4" />
         </Panel>
       )}
     </div>

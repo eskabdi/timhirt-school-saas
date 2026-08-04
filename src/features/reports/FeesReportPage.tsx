@@ -1,10 +1,11 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { tField } from "@/lib/i18n";
 import { Panel } from "@/components/ui/Panel";
 import { Badge } from "@/components/ui/Badge";
+import { Pagination, pageRange } from "@/components/ui/Pagination";
 import { ReportStat, ReportSection } from "./ReportComponents";
 
 const STATUS_TONE = { pending: "neutral", partial: "late", paid: "ok", overdue: "danger" } as const;
@@ -21,6 +22,8 @@ function fmtEtb(n: number) {
 export function FeesReportPage() {
   const { t, i18n } = useTranslation();
   const locale = i18n.resolvedLanguage ?? "en";
+  const [classPage, setClassPage] = useState(1);
+  const [structurePage, setStructurePage] = useState(1);
 
   const { data, isLoading } = useQuery({
     queryKey: ["fees-report"],
@@ -94,6 +97,13 @@ export function FeesReportPage() {
     return { due, paid, rate: due > 0 ? (paid / due) * 100 : 0 };
   }, [data]);
 
+  // Pagination only slices what's rendered — perClass/perStructure/totals
+  // above stay full-array so the stat cards keep reporting real totals.
+  const [classFrom, classTo] = pageRange(classPage);
+  const visiblePerClass = perClass.slice(classFrom, classTo + 1);
+  const [structureFrom, structureTo] = pageRange(structurePage);
+  const visiblePerStructure = perStructure.slice(structureFrom, structureTo + 1);
+
   return (
     <div className="space-y-4">
       <h1 className="font-display text-2xl font-bold text-ink">{t("reportPages.feesTitle")}</h1>
@@ -127,7 +137,7 @@ export function FeesReportPage() {
               <tr><th className="px-5 py-2">{t("common.class")}</th><th className="px-5 py-2">{t("reportPages.students")}</th><th className="px-5 py-2">{t("common.due")}</th><th className="px-5 py-2">{t("reportPages.collected")}</th><th className="px-5 py-2">{t("reportPages.rate")}</th></tr>
             </thead>
             <tbody className="divide-y divide-line">
-              {perClass.map((row) => (
+              {visiblePerClass.map((row) => (
                 <tr key={row.classId} className="hover:bg-sidebar">
                   <td className="px-5 py-3 font-medium text-ink">{row.label}</td>
                   <td className="px-5 py-3 text-ink-soft">{row.students}</td>
@@ -139,6 +149,7 @@ export function FeesReportPage() {
             </tbody>
           </table>
         )}
+        <Pagination page={classPage} totalCount={perClass.length} onPageChange={setClassPage} className="px-5" />
       </Panel>
 
       <Panel>
@@ -151,7 +162,7 @@ export function FeesReportPage() {
               <tr><th className="px-5 py-2">{t("common.name")}</th><th className="px-5 py-2">{t("reportPages.cycle")}</th><th className="px-5 py-2">{t("fees.amount")}</th><th className="px-5 py-2">{t("reportPages.invoices")}</th><th className="px-5 py-2">{t("reportPages.collected")}</th></tr>
             </thead>
             <tbody className="divide-y divide-line">
-              {perStructure.map((row) => (
+              {visiblePerStructure.map((row) => (
                 <tr key={row.id} className="hover:bg-sidebar">
                   <td className="px-5 py-3 font-medium text-ink">{row.name}</td>
                   <td className="px-5 py-3 capitalize text-ink-soft">{row.cycle}</td>
@@ -163,6 +174,7 @@ export function FeesReportPage() {
             </tbody>
           </table>
         )}
+        <Pagination page={structurePage} totalCount={perStructure.length} onPageChange={setStructurePage} className="px-5" />
       </Panel>
     </div>
   );

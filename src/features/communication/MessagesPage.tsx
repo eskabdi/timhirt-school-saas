@@ -10,6 +10,7 @@ import { useSession } from "@/features/auth/useSession";
 import { Card } from "@/components/ui/Card";
 import { Panel, PanelHeader } from "@/components/ui/Panel";
 import { Button } from "@/components/ui/Button";
+import { Pagination, PAGE_SIZE } from "@/components/ui/Pagination";
 import { EthDate } from "@/components/EthDate";
 import { useMessages } from "@/features/dashboard/useDashboardData";
 
@@ -19,8 +20,16 @@ export function MessagesPage() {
   const qc = useQueryClient();
   const [activeThread, setActiveThread] = useState<string | null>(null);
   const [reply, setReply] = useState("");
+  const [page, setPage] = useState(1);
 
   const { data: threads } = useMessages(profile?.id);
+  // Threads are grouped client-side from every message the user is a party
+  // to (see useDashboardData's useMessages) -- correct grouping needs the
+  // full set, so pagination here slices the already-grouped thread list
+  // rather than range()-limiting the underlying `messages` query, which
+  // would split threads across pages and break the dashboard card's shared
+  // fetch (it needs every thread for its own unread count).
+  const pagedThreads = threads?.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const active = threads?.find((th) => th.threadId === activeThread) ?? null;
 
@@ -69,7 +78,7 @@ export function MessagesPage() {
             <p className="p-6 text-center text-sm text-ink-faint">{t("messages.empty")}</p>
           ) : (
             <ul className="divide-y divide-line">
-              {threads.map((th) => (
+              {pagedThreads?.map((th) => (
                 <li key={th.threadId}>
                   <button type="button" onClick={() => openThread(th.threadId)}
                     className={`w-full px-4 py-3 text-left hover:bg-sidebar ${activeThread === th.threadId ? "bg-navy-wash" : ""}`}>
@@ -84,6 +93,7 @@ export function MessagesPage() {
               ))}
             </ul>
           )}
+          <Pagination page={page} totalCount={threads?.length ?? 0} onPageChange={setPage} className="px-4" />
         </Panel>
 
         <div className="lg:col-span-2">

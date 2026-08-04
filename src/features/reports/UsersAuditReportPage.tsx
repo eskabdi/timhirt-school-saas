@@ -1,10 +1,11 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { Panel } from "@/components/ui/Panel";
 import { Badge } from "@/components/ui/Badge";
+import { Pagination, pageRange } from "@/components/ui/Pagination";
 import { EthDate } from "@/components/EthDate";
 import { ReportStat, ReportSection } from "./ReportComponents";
 
@@ -19,6 +20,7 @@ interface AuditLog { id: number; action: string; table_name: string; actor_id: s
 
 export function UsersAuditReportPage() {
   const { t } = useTranslation();
+  const [rolePage, setRolePage] = useState(1);
 
   const { data, isLoading } = useQuery({
     queryKey: ["users-audit-report"],
@@ -63,6 +65,12 @@ export function UsersAuditReportPage() {
 
   const recent = data?.logs.slice(0, 15) ?? [];
 
+  // Slicing here only affects what's rendered — byRole (and the stat cards
+  // above, sourced from the full data.users/data.logs arrays) keeps
+  // reporting the complete totals.
+  const [roleFrom, roleTo] = pageRange(rolePage);
+  const visibleByRole = byRole.slice(roleFrom, roleTo + 1);
+
   return (
     <div className="space-y-4">
       <h1 className="font-display text-2xl font-bold text-ink">{t("reportPages.usersAuditTitle")}</h1>
@@ -83,7 +91,7 @@ export function UsersAuditReportPage() {
           ) : (
             <table className="w-full text-sm">
               <tbody className="divide-y divide-line">
-                {byRole.map(([role, count]) => (
+                {visibleByRole.map(([role, count]) => (
                   <tr key={role}>
                     <td className="px-5 py-3 text-ink-soft">{ROLE_LABEL[role] ?? role}</td>
                     <td className="px-5 py-3 text-right font-medium text-ink">{count}</td>
@@ -92,6 +100,7 @@ export function UsersAuditReportPage() {
               </tbody>
             </table>
           )}
+          <Pagination page={rolePage} totalCount={byRole.length} onPageChange={setRolePage} className="px-5" />
         </Panel>
 
         <Panel>

@@ -1,9 +1,11 @@
+import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/Button";
 import { Panel } from "@/components/ui/Panel";
 import { Badge } from "@/components/ui/Badge";
+import { Pagination, pageRange } from "@/components/ui/Pagination";
 import { EthDate } from "@/components/EthDate";
 import { formatETB } from "@/lib/i18n";
 import { onRowDoubleClick } from "@/lib/utils";
@@ -14,16 +16,19 @@ const STATUS_TONE = { pending: "neutral", partial: "navy", paid: "ok", overdue: 
 export function InvoicesPage() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
-  const { data: invoices } = useQuery({
-    queryKey: ["invoices"],
+  const [page, setPage] = useState(1);
+  const { data } = useQuery({
+    queryKey: ["invoices", page],
     queryFn: async () => {
-      const { data, error } = await supabase.from("fee_invoices")
-        .select("id, amount_due, amount_paid, due_date, status, students(first_name,last_name)")
-        .order("due_date", { ascending: false });
+      const { data, error, count } = await supabase.from("fee_invoices")
+        .select("id, amount_due, amount_paid, due_date, status, students(first_name,last_name)", { count: "exact" })
+        .order("due_date", { ascending: false })
+        .range(...pageRange(page));
       if (error) throw error;
-      return data;
+      return { rows: data ?? [], count: count ?? 0 };
     },
   });
+  const invoices = data?.rows;
 
   const pay = useMutation({
     mutationFn: async (invoiceId: string) => {
@@ -65,6 +70,7 @@ export function InvoicesPage() {
             ))}
           </tbody>
         </table>
+        <Pagination page={page} totalCount={data?.count ?? 0} onPageChange={setPage} className="px-4" />
       </Panel>
     </div>
   );

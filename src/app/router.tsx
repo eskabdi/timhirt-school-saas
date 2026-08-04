@@ -82,6 +82,7 @@ import { IdCardTemplateDesignerPage } from "@/features/settings/IdCardTemplateDe
 import { UsersPage } from "@/features/settings/UsersPage";
 import { CalendarPreferencesPage } from "@/features/settings/CalendarPreferencesPage";
 import { ClassesPage } from "@/features/settings/ClassesPage";
+import { ClassDetailPage } from "@/features/settings/ClassDetailPage";
 import { SubjectsPage } from "@/features/settings/SubjectsPage";
 import { TeachersPage } from "@/features/settings/TeachersPage";
 import { AuditLogsPage } from "@/features/settings/AuditLogsPage";
@@ -169,6 +170,7 @@ export const router = createBrowserRouter([
             element: <RequireRole roles={["school_admin"]} />,
             children: [
               { path: "classes", element: <ClassesPage /> },
+              { path: "classes/:id", element: <ClassDetailPage /> },
               { path: "subjects", element: <SubjectsPage /> },
               { path: "settings/teachers", element: <TeachersPage /> },
               {

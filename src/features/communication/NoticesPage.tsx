@@ -11,6 +11,7 @@ import { Panel } from "@/components/ui/Panel";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { EthDate } from "@/components/EthDate";
+import { Pagination, pageRange } from "@/components/ui/Pagination";
 import { richTextToPlain } from "@/components/ui/RichText";
 import { VISIBILITY_ROLES } from "@/components/ui/RoleVisibility";
 import { tField } from "@/lib/i18n";
@@ -21,20 +22,24 @@ export function NoticesPage() {
   const { profile } = useSession();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<NoticeRow | null>(null);
+  const [page, setPage] = useState(1);
   const locale = i18n.resolvedLanguage ?? "en";
 
-  const { data: notices } = useQuery({
-    queryKey: ["notices", profile?.tenant_id],
+  const { data: noticesData } = useQuery({
+    queryKey: ["notices", profile?.tenant_id, page],
     enabled: !!profile?.tenant_id,
     queryFn: async () => {
-      const { data, error } = await supabase.from("notices")
-        .select("id, title_i18n, body_html, visible_from, visible_to, sort_order, visible_all_school, visible_to_roles")
+      const [from, to] = pageRange(page);
+      const { data, error, count } = await supabase.from("notices")
+        .select("id, title_i18n, body_html, visible_from, visible_to, sort_order, visible_all_school, visible_to_roles", { count: "exact" })
         .order("sort_order")
-        .order("visible_from", { ascending: false });
+        .order("visible_from", { ascending: false })
+        .range(from, to);
       if (error) throw error;
-      return (data ?? []) as NoticeRow[];
+      return { rows: (data ?? []) as NoticeRow[], count: count ?? 0 };
     },
   });
+  const notices = noticesData?.rows;
 
   const today = new Date().toISOString().slice(0, 10);
   const roleLabel = (role: string) =>
@@ -99,6 +104,7 @@ export function NoticesPage() {
               })}
             </tbody>
           </table>
+          <Pagination page={page} totalCount={noticesData?.count ?? 0} onPageChange={setPage} className="px-4" />
         </Panel>
       )}
 

@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Field } from "@/components/ui/Field";
 import { Modal } from "@/components/ui/Modal";
+import { Pagination, pageRange } from "@/components/ui/Pagination";
 import { EthDate } from "@/components/EthDate";
 import { EthDatePicker } from "@/components/EthDatePicker";
 import { toIsoDate } from "@/lib/ethiopian-date";
@@ -35,22 +36,36 @@ export function LibraryPage() {
   const [checkout, setCheckout] = useState<Book | null>(null);
   const [coForm, setCoForm] = useState<{ studentId: string; due: Date | null }>({ studentId: "", due: null });
   const [error, setError] = useState<string | null>(null);
+  const [booksPage, setBooksPage] = useState(1);
+  const [checkoutsPage, setCheckoutsPage] = useState(1);
 
-  const { data: books } = useQuery({
-    queryKey: ["library_books"],
-    queryFn: async () => ((await supabase.from("library_books").select("id,title,author,isbn,copies").order("title")).data ?? []) as Book[],
+  const { data: booksData } = useQuery({
+    queryKey: ["library_books", booksPage],
+    queryFn: async () => {
+      const [from, to] = pageRange(booksPage);
+      const { data, error, count } = await supabase.from("library_books")
+        .select("id,title,author,isbn,copies", { count: "exact" }).order("title").range(from, to);
+      if (error) throw error;
+      return { rows: (data ?? []) as Book[], count: count ?? 0 };
+    },
   });
+  const books = booksData?.rows;
   const { data: students } = useQuery({
     queryKey: ["library_students"],
     queryFn: async () => (await supabase.from("students").select("id,first_name,last_name").eq("status", "active").order("first_name")).data ?? [],
   });
-  const { data: active } = useQuery({
-    queryKey: ["library_checkouts_active"],
-    queryFn: async () =>
-      ((await supabase.from("library_checkouts")
-        .select("id, due_on, checked_out_on, status, library_books(title), students(first_name,last_name)")
-        .neq("status", "returned").order("due_on")).data ?? []) as unknown as Checkout[],
+  const { data: activeData } = useQuery({
+    queryKey: ["library_checkouts_active", checkoutsPage],
+    queryFn: async () => {
+      const [from, to] = pageRange(checkoutsPage);
+      const { data, error, count } = await supabase.from("library_checkouts")
+        .select("id, due_on, checked_out_on, status, library_books(title), students(first_name,last_name)", { count: "exact" })
+        .neq("status", "returned").order("due_on").range(from, to);
+      if (error) throw error;
+      return { rows: (data ?? []) as unknown as Checkout[], count: count ?? 0 };
+    },
   });
+  const active = activeData?.rows;
 
   const bookPayload = (f: BookForm) => ({ title: f.title, author: f.author || null, isbn: f.isbn || null, copies: Number(f.copies || 1) });
 
@@ -135,6 +150,7 @@ export function LibraryPage() {
               ))}
             </tbody>
           </table>
+          <Pagination page={booksPage} totalCount={booksData?.count ?? 0} onPageChange={setBooksPage} className="px-4" />
         </Panel>
       )}
 
@@ -155,6 +171,7 @@ export function LibraryPage() {
               </div>
             </Card>
           ))}
+          <Pagination page={checkoutsPage} totalCount={activeData?.count ?? 0} onPageChange={setCheckoutsPage} />
         </div>
       )}
 

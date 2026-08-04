@@ -24,6 +24,7 @@ import { supabase } from "@/lib/supabase";
 import { Panel } from "@/components/ui/Panel";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { Pagination, pageRange } from "@/components/ui/Pagination";
 import { EthDate } from "@/components/EthDate";
 import { EnrollStudentModal } from "./EnrollStudentModal";
 import { AdmissionReviewModal, type ReviewApplication } from "./AdmissionReviewModal";
@@ -45,18 +46,21 @@ export function AdmissionsListPage() {
   const navigate = useNavigate();
   const [enrolling, setEnrolling] = useState<EnrollTarget | null>(null);
   const [reviewing, setReviewing] = useState<ReviewApplication | null>(null);
+  const [page, setPage] = useState(1);
 
-  const { data: apps } = useQuery({
-    queryKey: ["admissions"],
+  const { data } = useQuery({
+    queryKey: ["admissions", page],
     queryFn: async () => {
-      const { data, error } = await supabase.from("admission_applications")
-        .select("id, applicant_name, date_of_birth, desired_grade, stage, tenant_id, applicant_first_name, applicant_last_name, photo_path, converted_student_id, application_complete, meets_academic_requirements, meets_financial_requirements, documents_verified, acceptance_letter_sent, student_accepted")
+      const { data, error, count } = await supabase.from("admission_applications")
+        .select("id, applicant_name, date_of_birth, desired_grade, stage, tenant_id, applicant_first_name, applicant_last_name, photo_path, converted_student_id, application_complete, meets_academic_requirements, meets_financial_requirements, documents_verified, acceptance_letter_sent, student_accepted", { count: "exact" })
         .is("converted_student_id", null)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .range(...pageRange(page));
       if (error) throw error;
-      return data;
+      return { rows: data ?? [], count: count ?? 0 };
     },
   });
+  const apps = data?.rows;
 
 
   return (
@@ -114,6 +118,7 @@ export function AdmissionsListPage() {
               ))}
             </tbody>
           </table>
+          <Pagination page={page} totalCount={data?.count ?? 0} onPageChange={setPage} className="px-4" />
         </Panel>
       )}
 

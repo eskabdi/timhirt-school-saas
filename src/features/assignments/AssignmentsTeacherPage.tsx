@@ -1,21 +1,27 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { Pagination, pageRange } from "@/components/ui/Pagination";
 import { EthDate } from "@/components/EthDate";
 import { tField } from "@/lib/i18n";
 
 export function AssignmentsTeacherPage() {
   const { t, i18n } = useTranslation();
+  const [page, setPage] = useState(1);
   const { data: assignments } = useQuery({
-    queryKey: ["assignments"],
+    queryKey: ["assignments", page],
     queryFn: async () => {
-      const { data, error } = await supabase.from("assignments")
-        .select("id, title, due_date, status, classes(name, section), subjects(name_i18n)").order("due_date");
+      const [from, to] = pageRange(page);
+      const { data, error, count } = await supabase.from("assignments")
+        .select("id, title, due_date, status, classes(name, section), subjects(name_i18n)", { count: "exact" })
+        .order("due_date")
+        .range(from, to);
       if (error) throw error;
-      return data;
+      return { rows: data ?? [], count: count ?? 0 };
     },
   });
   return (
@@ -25,7 +31,7 @@ export function AssignmentsTeacherPage() {
         <Link to="/assignments/new"><Button>{t("assignments.new")}</Button></Link>
       </div>
       <div className="space-y-2">
-        {assignments?.map((a) => (
+        {assignments?.rows.map((a) => (
           <Card key={a.id} className="flex items-center justify-between">
             <div>
               <Link to={`/assignments/${a.id}`} className="font-medium text-ink hover:text-navy hover:underline">
@@ -42,6 +48,7 @@ export function AssignmentsTeacherPage() {
           </Card>
         ))}
       </div>
+      <Pagination page={page} totalCount={assignments?.count ?? 0} onPageChange={setPage} />
     </div>
   );
 }

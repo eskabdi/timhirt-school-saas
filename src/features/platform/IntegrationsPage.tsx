@@ -13,6 +13,7 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Field } from "@/components/ui/Field";
+import { Pagination, pageRange } from "@/components/ui/Pagination";
 import { EthDate } from "@/components/EthDate";
 
 // labelKey rather than label: this map is built at module load, where the
@@ -107,6 +108,7 @@ function ProviderCard({ provider, displayName, configured, updatedAt }: {
 
 export function IntegrationsPage() {
   const { t } = useTranslation();
+  const [page, setPage] = useState(1);
   const { data: integrations } = useQuery({
     queryKey: ["platform-integrations"],
     queryFn: async () => {
@@ -117,6 +119,9 @@ export function IntegrationsPage() {
     },
   });
 
+  const [from, to] = pageRange(page);
+  const visibleIntegrations = (integrations ?? []).slice(from, to + 1);
+
   return (
     <div className="space-y-4">
       <h1 className="font-display text-2xl font-bold">{t("platformPagesX.integrations")}</h1>
@@ -124,7 +129,7 @@ export function IntegrationsPage() {
         {t("help.integrationsNote")}
       </p>
       <div className="grid gap-3 md:grid-cols-2">
-        {integrations?.map((i) => (
+        {visibleIntegrations.map((i) => (
           <ProviderCard
             key={i.provider}
             provider={i.provider}
@@ -134,6 +139,7 @@ export function IntegrationsPage() {
           />
         ))}
       </div>
+      <Pagination page={page} totalCount={integrations?.length ?? 0} onPageChange={setPage} />
     </div>
   );
 }

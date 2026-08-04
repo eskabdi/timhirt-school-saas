@@ -22,6 +22,7 @@ import { Input } from "@/components/ui/Input";
 import { Field } from "@/components/ui/Field";
 import { Card } from "@/components/ui/Card";
 import { Panel, PanelHeader } from "@/components/ui/Panel";
+import { Pagination, pageRange } from "@/components/ui/Pagination";
 
 interface TeacherRow {
   id: string;
@@ -58,16 +59,19 @@ export function TeachersPage() {
 
   const [assignClass, setAssignClass] = useState<Record<string, string>>({});
   const [assignSubject, setAssignSubject] = useState<Record<string, string>>({});
+  const [page, setPage] = useState(1);
 
-  const { data: teachers } = useQuery({
-    queryKey: ["teachers-admin"],
+  const { data: teachersData } = useQuery({
+    queryKey: ["teachers-admin", page],
     queryFn: async () => {
-      const { data, error } = await supabase.from("teachers")
-        .select("id, staff_no, user:users(full_name, email)").order("staff_no");
+      const { data, error, count } = await supabase.from("teachers")
+        .select("id, staff_no, user:users(full_name, email)", { count: "exact" })
+        .order("staff_no").range(...pageRange(page));
       if (error) throw error;
-      return data as unknown as TeacherRow[];
+      return { rows: (data ?? []) as unknown as TeacherRow[], count: count ?? 0 };
     },
   });
+  const teachers = teachersData?.rows;
   const { data: classes } = useQuery({
     queryKey: ["classes-brief"],
     queryFn: async () => (await supabase.from("classes").select("id, name, section").order("name")).data ?? [],
@@ -217,6 +221,8 @@ export function TeachersPage() {
           );
         })
       )}
+
+      <Pagination page={page} totalCount={teachersData?.count ?? 0} onPageChange={setPage} />
     </div>
   );
 }

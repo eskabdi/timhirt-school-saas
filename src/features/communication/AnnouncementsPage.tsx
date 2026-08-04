@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card } from "@/components/ui/Card";
 import { Field } from "@/components/ui/Field";
+import { Pagination, pageRange } from "@/components/ui/Pagination";
 import { tField } from "@/lib/i18n";
 
 export function AnnouncementsPage() {
@@ -16,16 +17,21 @@ export function AnnouncementsPage() {
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [audience, setAudience] = useState<"all" | "staff" | "parents">("all");
+  const [page, setPage] = useState(1);
 
-  const { data: announcements } = useQuery({
-    queryKey: ["announcements"],
+  const { data: announcementsData } = useQuery({
+    queryKey: ["announcements", page],
     queryFn: async () => {
-      const { data, error } = await supabase.from("announcements")
-        .select("id, title_i18n, body_i18n, audience, published_at").order("published_at", { ascending: false });
+      const [from, to] = pageRange(page);
+      const { data, error, count } = await supabase.from("announcements")
+        .select("id, title_i18n, body_i18n, audience, published_at", { count: "exact" })
+        .order("published_at", { ascending: false })
+        .range(from, to);
       if (error) throw error;
-      return data;
+      return { rows: data ?? [], count: count ?? 0 };
     },
   });
+  const announcements = announcementsData?.rows;
 
   const publish = useMutation({
     mutationFn: async () => {
@@ -64,6 +70,7 @@ export function AnnouncementsPage() {
             <p className="text-sm text-ink-faint">{tField(a.body_i18n, i18n.resolvedLanguage!)}</p>
           </Card>
         ))}
+        <Pagination page={page} totalCount={announcementsData?.count ?? 0} onPageChange={setPage} />
       </div>
     </div>
   );

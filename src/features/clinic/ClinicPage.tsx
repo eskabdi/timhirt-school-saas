@@ -12,6 +12,7 @@ import { useSession } from "@/features/auth/useSession";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Field } from "@/components/ui/Field";
+import { Pagination, pageRange } from "@/components/ui/Pagination";
 import { EthDate } from "@/components/EthDate";
 
 export function ClinicPage() {
@@ -23,16 +24,19 @@ export function ClinicPage() {
   const [complaint, setComplaint] = useState("");
   const [treatment, setTreatment] = useState("");
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
 
   const { data: students } = useQuery({ queryKey: ["students-brief"], queryFn: async () => (await supabase.from("students").select("id,first_name,last_name")).data ?? [] });
   const { data: visits } = useQuery({
-    queryKey: ["clinic"],
+    queryKey: ["clinic", page],
     queryFn: async () => {
-      const { data, error } = await supabase.from("clinic_visits")
-        .select("id, visit_date, guardian_notified, students(first_name,last_name)")
-        .order("visit_date", { ascending: false });
+      const [from, to] = pageRange(page);
+      const { data, error, count } = await supabase.from("clinic_visits")
+        .select("id, visit_date, guardian_notified, students(first_name,last_name)", { count: "exact" })
+        .order("visit_date", { ascending: false })
+        .range(from, to);
       if (error) throw error;
-      return data;
+      return { rows: data ?? [], count: count ?? 0 };
     },
   });
   const { data: detail } = useQuery({
@@ -82,7 +86,7 @@ export function ClinicPage() {
         </Card>
       )}
       <div className="space-y-2">
-        {visits?.map((v) => (
+        {visits?.rows.map((v) => (
           <Card key={v.id} className="text-sm">
             <button
               onClick={() => setExpanded((cur) => (cur === v.id ? null : v.id))}
@@ -101,6 +105,7 @@ export function ClinicPage() {
           </Card>
         ))}
       </div>
+      <Pagination page={page} totalCount={visits?.count ?? 0} onPageChange={setPage} />
       <p className="text-xs text-ink-faint">{t("clinic.restrictedNote")}</p>
     </div>
   );

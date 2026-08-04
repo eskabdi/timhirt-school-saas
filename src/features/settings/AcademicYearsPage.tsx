@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Field } from "@/components/ui/Field";
 import { EthDate } from "@/components/EthDate";
+import { Pagination, pageRange } from "@/components/ui/Pagination";
 import { tField } from "@/lib/i18n";
 
 const YEAR_STATUS_TONE = { active: "ok", closed: "neutral", draft: "navy" } as const;
@@ -32,11 +33,19 @@ export function AcademicYearsPage() {
   const [semester, setSemester] = useState(1);
   const [term, setTerm] = useState(1);
   const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
 
-  const { data: years } = useQuery({
-    queryKey: ["academic-years"],
-    queryFn: async () => (await supabase.from("academic_years").select("id, ec_year, starts_on, ends_on, status").order("ec_year", { ascending: false })).data ?? [],
+  const { data: yearsData } = useQuery({
+    queryKey: ["academic-years", page],
+    queryFn: async () => {
+      const { data, count } = await supabase.from("academic_years")
+        .select("id, ec_year, starts_on, ends_on, status", { count: "exact" })
+        .order("ec_year", { ascending: false })
+        .range(...pageRange(page));
+      return { rows: data ?? [], count: count ?? 0 };
+    },
   });
+  const years = yearsData?.rows;
   const { data: terms } = useQuery({
     queryKey: ["academic-terms"],
     queryFn: async () => (await supabase.from("academic_terms")
@@ -49,8 +58,12 @@ export function AcademicYearsPage() {
       setError(null);
       // Reuse the year if it already exists (adding a second/third/fourth
       // term to a year already created is the common case) rather than
-      // erroring on the unique (tenant_id, ec_year) constraint.
-      let year = years?.find((y) => y.ec_year === ecYear);
+      // erroring on the unique (tenant_id, ec_year) constraint. Queried
+      // directly rather than found in the (now paginated) `years` list —
+      // the target year may not be on the currently loaded page.
+      const { data: existing } = await supabase.from("academic_years")
+        .select("id, ec_year, starts_on, ends_on, status").eq("ec_year", ecYear).maybeSingle();
+      let year = existing ?? undefined;
       let startsOn = year?.starts_on;
       let endsOn = year?.ends_on;
       if (!year) {
@@ -87,6 +100,7 @@ export function AcademicYearsPage() {
       }
     },
     onSuccess: () => {
+      setPage(1);
       qc.invalidateQueries({ queryKey: ["academic-years"] });
       qc.invalidateQueries({ queryKey: ["academic-terms"] });
     },
@@ -143,6 +157,7 @@ export function AcademicYearsPage() {
           );
         })}
       </div>
+      <Pagination page={page} totalCount={yearsData?.count ?? 0} onPageChange={setPage} />
     </div>
   );
 }

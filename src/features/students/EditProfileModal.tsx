@@ -241,7 +241,7 @@ export function EditProfileModal({ student, guardian, open, onClose }: {
             <Field label={t("students.edit.admissionDate")}>
               <EthDatePicker value={f.admission_date} onChange={(d) => setF({ ...f, admission_date: d })} />
             </Field>
-            <Field label={t("students.edit.rollNumber")}>
+            <Field label={t("students.edit.rollNumber")} hint={t("students.edit.rollNumberHint")}>
               <Input value={f.roll_number} onChange={(e) => setF({ ...f, roll_number: e.target.value })} maxLength={20} />
             </Field>
             <Field label={t("students.edit.section")}>

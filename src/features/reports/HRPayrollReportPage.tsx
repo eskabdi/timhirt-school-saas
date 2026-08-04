@@ -1,10 +1,11 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { tField } from "@/lib/i18n";
 import { Panel } from "@/components/ui/Panel";
 import { Badge } from "@/components/ui/Badge";
+import { Pagination, pageRange } from "@/components/ui/Pagination";
 import { ReportStat, ReportBarChart, ReportSection } from "./ReportComponents";
 
 const EMPLOYEE_TYPE_LABEL: Record<string, string> = { teacher: "Teacher", admin_staff: "Admin Staff", support: "Support" };
@@ -23,6 +24,8 @@ function fmtEtb(n: number) {
 export function HRPayrollReportPage() {
   const { t, i18n } = useTranslation();
   const locale = i18n.resolvedLanguage ?? "en";
+  const [typePage, setTypePage] = useState(1);
+  const [leavePage, setLeavePage] = useState(1);
 
   const { data, isLoading } = useQuery({
     queryKey: ["hr-payroll-report"],
@@ -88,6 +91,14 @@ export function HRPayrollReportPage() {
     return Array.from(rows.entries()).map(([id, count]) => ({ label: typeById.get(id) ?? "—", count }));
   }, [data, locale]);
 
+  // Slicing here is display-only — byType/pendingLeaveByType (and the stat
+  // cards above, sourced from the full data.employees/leaves arrays) keep
+  // reporting the complete totals.
+  const [typeFrom, typeTo] = pageRange(typePage);
+  const visibleByType = byType.slice(typeFrom, typeTo + 1);
+  const [leaveFrom, leaveTo] = pageRange(leavePage);
+  const visiblePendingLeaveByType = pendingLeaveByType.slice(leaveFrom, leaveTo + 1);
+
   return (
     <div className="space-y-4">
       <h1 className="font-display text-2xl font-bold text-ink">{t("reportPages.hrTitle")}</h1>
@@ -111,7 +122,7 @@ export function HRPayrollReportPage() {
           ) : (
             <table className="w-full text-sm">
               <tbody className="divide-y divide-line">
-                {byType.map(([type, count]) => (
+                {visibleByType.map(([type, count]) => (
                   <tr key={type}>
                     <td className="px-5 py-3 text-ink-soft">{EMPLOYEE_TYPE_LABEL[type] ?? type}</td>
                     <td className="px-5 py-3 text-right font-medium text-ink">{count}</td>
@@ -120,6 +131,7 @@ export function HRPayrollReportPage() {
               </tbody>
             </table>
           )}
+          <Pagination page={typePage} totalCount={byType.length} onPageChange={setTypePage} className="px-5" />
         </Panel>
 
         <Panel>
@@ -145,7 +157,7 @@ export function HRPayrollReportPage() {
         ) : (
           <table className="w-full text-sm">
             <tbody className="divide-y divide-line">
-              {pendingLeaveByType.map((row) => (
+              {visiblePendingLeaveByType.map((row) => (
                 <tr key={row.label}>
                   <td className="px-5 py-3 text-ink-soft">{row.label}</td>
                   <td className="px-5 py-3 text-right font-medium text-ink">{row.count}</td>
@@ -154,6 +166,7 @@ export function HRPayrollReportPage() {
             </tbody>
           </table>
         )}
+        <Pagination page={leavePage} totalCount={pendingLeaveByType.length} onPageChange={setLeavePage} className="px-5" />
       </Panel>
     </div>
   );

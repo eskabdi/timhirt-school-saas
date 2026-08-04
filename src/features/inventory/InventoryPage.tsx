@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Field } from "@/components/ui/Field";
 import { Modal } from "@/components/ui/Modal";
+import { Pagination, pageRange } from "@/components/ui/Pagination";
 import { toIsoDate } from "@/lib/ethiopian-date";
 
 interface Item {
@@ -33,12 +34,19 @@ export function InventoryPage() {
   const [moving, setMoving] = useState<Item | null>(null);
   const [moveForm, setMoveForm] = useState({ type: "in", qty: "", notes: "" });
   const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
 
-  const { data } = useQuery({
-    queryKey: ["inventory_items"],
-    queryFn: async () =>
-      ((await supabase.from("inventory_items").select("id,name,sku,unit,reorder_level").order("name")).data ?? []) as Item[],
+  const { data: itemsData } = useQuery({
+    queryKey: ["inventory_items", page],
+    queryFn: async () => {
+      const [from, to] = pageRange(page);
+      const { data, error, count } = await supabase.from("inventory_items")
+        .select("id,name,sku,unit,reorder_level", { count: "exact" }).order("name").range(from, to);
+      if (error) throw error;
+      return { rows: (data ?? []) as Item[], count: count ?? 0 };
+    },
   });
+  const data = itemsData?.rows;
 
   const itemPayload = (f: ItemForm) => ({ name: f.name, sku: f.sku || null, unit: f.unit || "unit", reorder_level: Number(f.reorder || 0) });
 
@@ -115,6 +123,7 @@ export function InventoryPage() {
               ))}
             </tbody>
           </table>
+          <Pagination page={page} totalCount={itemsData?.count ?? 0} onPageChange={setPage} className="px-4" />
         </Panel>
       )}
 

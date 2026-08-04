@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Field } from "@/components/ui/Field";
 import { Modal } from "@/components/ui/Modal";
+import { Pagination, pageRange } from "@/components/ui/Pagination";
 
 interface Route { id: string; name: string; vehicle_no: string | null; driver_name: string | null; }
 type RouteForm = { name: string; vehicle: string; driver: string };
@@ -25,11 +26,19 @@ export function TransportPage() {
   const [assigning, setAssigning] = useState<Route | null>(null);
   const [studentId, setStudentId] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
 
-  const { data: routes } = useQuery({
-    queryKey: ["transport_routes"],
-    queryFn: async () => ((await supabase.from("transport_routes").select("id,name,vehicle_no,driver_name").order("name")).data ?? []) as Route[],
+  const { data: routesData } = useQuery({
+    queryKey: ["transport_routes", page],
+    queryFn: async () => {
+      const [from, to] = pageRange(page);
+      const { data, error, count } = await supabase.from("transport_routes")
+        .select("id,name,vehicle_no,driver_name", { count: "exact" }).order("name").range(from, to);
+      if (error) throw error;
+      return { rows: (data ?? []) as Route[], count: count ?? 0 };
+    },
   });
+  const routes = routesData?.rows;
   const { data: students } = useQuery({
     queryKey: ["transport_students"],
     queryFn: async () => (await supabase.from("students").select("id,first_name,last_name").eq("status", "active").order("first_name")).data ?? [],
@@ -108,6 +117,7 @@ export function TransportPage() {
         ))}
         {!routes?.length && <Card className="py-12 text-center text-ink-faint md:col-span-2">{t("noRecordsYet")}</Card>}
       </div>
+      <Pagination page={page} totalCount={routesData?.count ?? 0} onPageChange={setPage} />
 
       <Modal open={showCreate} onClose={() => setShowCreate(false)} title={t("modules.addRoute")}>
         {fields(form, setForm)}

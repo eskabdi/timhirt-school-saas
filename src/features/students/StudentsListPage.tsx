@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/Input";
 import { Card } from "@/components/ui/Card";
 import { Panel } from "@/components/ui/Panel";
 import { Field } from "@/components/ui/Field";
+import { Pagination, pageRange } from "@/components/ui/Pagination";
 import { EthDate } from "@/components/EthDate";
 import { onRowDoubleClick } from "@/lib/utils";
 
@@ -20,17 +21,22 @@ export function StudentsListPage() {
   const [classId, setClassId] = useState("");
   const [status, setStatus] = useState("");
   const [gender, setGender] = useState("");
+  const [page, setPage] = useState(1);
 
   const { data: classes } = useQuery({ queryKey: ["classes-for-filter"], queryFn: listClasses });
 
   const filters = { search: search || undefined, classId: classId || undefined, status: status || undefined, gender: gender || undefined };
-  const { data: students, isLoading } = useQuery({
-    queryKey: ["students", filters],
-    queryFn: () => listStudents(filters),
+  const { data, isLoading } = useQuery({
+    queryKey: ["students", filters, page],
+    queryFn: () => listStudents(filters, pageRange(page)),
   });
+  const students = data?.rows;
 
   const hasActiveFilters = !!(search || classId || status || gender);
-  const clearFilters = () => { setSearch(""); setClassId(""); setStatus(""); setGender(""); };
+  // Any filter change re-queries from the top — page 2 of an old, wider
+  // result set is meaningless once the filter narrows it.
+  const clearFilters = () => { setSearch(""); setClassId(""); setStatus(""); setGender(""); setPage(1); };
+  const setFilter = <T,>(setter: (v: T) => void) => (v: T) => { setter(v); setPage(1); };
 
   return (
     <div className="space-y-4">
@@ -43,10 +49,10 @@ export function StudentsListPage() {
         <div className="grid gap-3 md:grid-cols-4">
           <Field label={t("students.search")}>
             <Input placeholder={t("students.search")} value={search}
-              onChange={(e) => setSearch(e.target.value)} maxLength={100} />
+              onChange={(e) => setFilter(setSearch)(e.target.value)} maxLength={100} />
           </Field>
           <Field label={t("students.class")}>
-            <select className={SELECT_CLS} value={classId} onChange={(e) => setClassId(e.target.value)}>
+            <select className={SELECT_CLS} value={classId} onChange={(e) => setFilter(setClassId)(e.target.value)}>
               <option value="">{t("crud.allClasses")}</option>
               {classes?.map((c) => (
                 <option key={c.id} value={c.id}>{c.name}{c.section ? ` - ${c.section}` : ""}</option>
@@ -54,7 +60,7 @@ export function StudentsListPage() {
             </select>
           </Field>
           <Field label={t("students.status")}>
-            <select className={SELECT_CLS} value={status} onChange={(e) => setStatus(e.target.value)}>
+            <select className={SELECT_CLS} value={status} onChange={(e) => setFilter(setStatus)(e.target.value)}>
               <option value="">{t("students.allStatuses")}</option>
               <option value="active">{t("students.active")}</option>
               <option value="graduated">{t("students.graduated")}</option>
@@ -62,7 +68,7 @@ export function StudentsListPage() {
             </select>
           </Field>
           <Field label={t("students.gender")}>
-            <select className={SELECT_CLS} value={gender} onChange={(e) => setGender(e.target.value)}>
+            <select className={SELECT_CLS} value={gender} onChange={(e) => setFilter(setGender)(e.target.value)}>
               <option value="">{t("students.allGenders")}</option>
               <option value="male">{t("students.male")}</option>
               <option value="female">{t("students.female")}</option>
@@ -105,6 +111,7 @@ export function StudentsListPage() {
               ))}
             </tbody>
           </table>
+          <Pagination page={page} totalCount={data?.count ?? 0} onPageChange={setPage} className="px-5" />
         </Panel>
       )}
     </div>

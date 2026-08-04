@@ -2,14 +2,17 @@
 // includes. Tenants inherit their tier's modules (see useEnabledModules);
 // one-off exceptions are set per-tenant on TenantDetailPage instead of here.
 import { useTranslation } from "react-i18next";
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { Panel } from "@/components/ui/Panel";
+import { Pagination, pageRange } from "@/components/ui/Pagination";
 import { cn } from "@/lib/utils";
 
 export function ModulesMatrixPage() {
   const { t } = useTranslation();
   const qc = useQueryClient();
+  const [page, setPage] = useState(1);
 
   const { data: modules } = useQuery({
     queryKey: ["modules"],
@@ -55,6 +58,9 @@ export function ModulesMatrixPage() {
   const included = (tierKey: string, moduleKey: string) =>
     tierModules?.some((tm) => tm.tier_key === tierKey && tm.module_key === moduleKey) ?? false;
 
+  const [from, to] = pageRange(page);
+  const visibleModules = (modules ?? []).slice(from, to + 1);
+
   return (
     <div className="space-y-4">
       <div>
@@ -72,7 +78,7 @@ export function ModulesMatrixPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-line">
-            {modules?.map((m) => (
+            {visibleModules.map((m) => (
               <tr key={m.key}>
                 <td className="px-4 py-2 font-medium text-ink">{m.display_name}</td>
                 {tiers?.map((t) => (
@@ -97,6 +103,7 @@ export function ModulesMatrixPage() {
             ))}
           </tbody>
         </table>
+        <Pagination page={page} totalCount={modules?.length ?? 0} onPageChange={setPage} className="px-4" />
       </Panel>
     </div>
   );

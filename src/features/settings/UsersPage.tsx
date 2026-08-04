@@ -1,14 +1,24 @@
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { Panel } from "@/components/ui/Panel";
+import { Pagination, pageRange } from "@/components/ui/Pagination";
 
 export function UsersPage() {
   const { t } = useTranslation();
-  const { data: users } = useQuery({
-    queryKey: ["tenant-users"],
-    queryFn: async () => (await supabase.from("users").select("id, full_name, email, role, locale").order("full_name")).data ?? [],
+  const [page, setPage] = useState(1);
+  const { data } = useQuery({
+    queryKey: ["tenant-users", page],
+    queryFn: async () => {
+      const { data: rows, error, count } = await supabase.from("users")
+        .select("id, full_name, email, role, locale", { count: "exact" })
+        .order("full_name").range(...pageRange(page));
+      if (error) throw error;
+      return { rows: rows ?? [], count: count ?? 0 };
+    },
   });
+  const users = data?.rows;
   return (
     <div className="space-y-4">
       <h1 className="font-display text-2xl font-bold text-ink">{t("settingsPages.users")}</h1>
@@ -28,6 +38,7 @@ export function UsersPage() {
             ))}
           </tbody>
         </table>
+        <Pagination page={page} totalCount={data?.count ?? 0} onPageChange={setPage} className="px-4" />
       </Panel>
     </div>
   );

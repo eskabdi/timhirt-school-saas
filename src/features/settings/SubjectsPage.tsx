@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card } from "@/components/ui/Card";
 import { Field } from "@/components/ui/Field";
+import { Pagination, pageRange } from "@/components/ui/Pagination";
 
 export function SubjectsPage() {
   const { t } = useTranslation();
@@ -15,8 +16,18 @@ export function SubjectsPage() {
   const [nameEn, setNameEn] = useState("");
   const [nameAm, setNameAm] = useState("");
   const [code, setCode] = useState("");
+  const [page, setPage] = useState(1);
 
-  const { data: subjects } = useQuery({ queryKey: ["subjects-admin"], queryFn: async () => (await supabase.from("subjects").select("id,name_i18n,code")).data ?? [] });
+  const { data } = useQuery({
+    queryKey: ["subjects-admin", page],
+    queryFn: async () => {
+      const { data: rows, count } = await supabase.from("subjects")
+        .select("id,name_i18n,code", { count: "exact" })
+        .range(...pageRange(page));
+      return { rows: rows ?? [], count: count ?? 0 };
+    },
+  });
+  const subjects = data?.rows;
 
   const create = useMutation({
     mutationFn: async () => {
@@ -25,7 +36,7 @@ export function SubjectsPage() {
       });
       if (error) throw error;
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["subjects-admin"] }); setNameEn(""); setNameAm(""); setCode(""); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["subjects-admin"] }); setNameEn(""); setNameAm(""); setCode(""); setPage(1); },
   });
 
   return (
@@ -40,6 +51,7 @@ export function SubjectsPage() {
       <div className="grid gap-2 md:grid-cols-3">
         {subjects?.map((s) => <Card key={s.id} className="text-sm"><span className="font-mono text-xs text-ink-faint">{s.code}</span> {s.name_i18n?.en}</Card>)}
       </div>
+      <Pagination page={page} totalCount={data?.count ?? 0} onPageChange={setPage} />
     </div>
   );
 }

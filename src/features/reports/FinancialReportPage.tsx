@@ -1,9 +1,10 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { Panel } from "@/components/ui/Panel";
 import { Badge } from "@/components/ui/Badge";
+import { Pagination, pageRange } from "@/components/ui/Pagination";
 import { ReportStat, ReportBarChart, ReportSection } from "./ReportComponents";
 
 const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -19,6 +20,8 @@ function fmtEtb(n: number) {
 
 export function FinancialReportPage() {
   const { t } = useTranslation();
+  const [providerPage, setProviderPage] = useState(1);
+  const [statusPage, setStatusPage] = useState(1);
 
   const { data: invoices, isLoading: loadingInvoices } = useQuery({
     queryKey: ["financial-report", "invoices"],
@@ -83,6 +86,14 @@ export function FinancialReportPage() {
 
   const loading = loadingInvoices || loadingPayments;
 
+  // Slicing here only affects what's rendered — byProvider/byStatus (and the
+  // stat cards above, which derive from the full invoices/payments arrays)
+  // keep reporting the complete totals.
+  const [providerFrom, providerTo] = pageRange(providerPage);
+  const visibleByProvider = byProvider.slice(providerFrom, providerTo + 1);
+  const [statusFrom, statusTo] = pageRange(statusPage);
+  const visibleByStatus = byStatus.slice(statusFrom, statusTo + 1);
+
   return (
     <div className="space-y-4">
       <h1 className="font-display text-2xl font-bold text-ink">{t("reportPages.financialTitle")}</h1>
@@ -106,7 +117,7 @@ export function FinancialReportPage() {
           ) : (
             <table className="w-full text-sm">
               <tbody className="divide-y divide-line">
-                {byProvider.map(([provider, amount]) => (
+                {visibleByProvider.map(([provider, amount]) => (
                   <tr key={provider}>
                     <td className="px-5 py-3 text-ink-soft">{PROVIDER_LABEL[provider] ?? provider}</td>
                     <td className="px-5 py-3 text-right font-medium text-ink">{fmtEtb(amount)}</td>
@@ -115,6 +126,7 @@ export function FinancialReportPage() {
               </tbody>
             </table>
           )}
+          <Pagination page={providerPage} totalCount={byProvider.length} onPageChange={setProviderPage} className="px-5" />
         </Panel>
 
         <Panel>
@@ -124,7 +136,7 @@ export function FinancialReportPage() {
           ) : (
             <table className="w-full text-sm">
               <tbody className="divide-y divide-line">
-                {byStatus.map(([status, row]) => (
+                {visibleByStatus.map(([status, row]) => (
                   <tr key={status}>
                     <td className="px-5 py-3"><Badge tone={STATUS_TONE[status as keyof typeof STATUS_TONE] ?? "neutral"}>{status}</Badge></td>
                     <td className="px-5 py-3 text-ink-soft">{row.count} invoices</td>
@@ -134,6 +146,7 @@ export function FinancialReportPage() {
               </tbody>
             </table>
           )}
+          <Pagination page={statusPage} totalCount={byStatus.length} onPageChange={setStatusPage} className="px-5" />
         </Panel>
       </div>
     </div>

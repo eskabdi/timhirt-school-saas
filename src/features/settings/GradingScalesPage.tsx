@@ -14,6 +14,7 @@ import { useSession } from "@/features/auth/useSession";
 import { Panel } from "@/components/ui/Panel";
 import { Button } from "@/components/ui/Button";
 import { Toggle } from "@/components/ui/Toggle";
+import { Pagination, pageRange } from "@/components/ui/Pagination";
 import { cn } from "@/lib/utils";
 
 interface Band {
@@ -50,18 +51,24 @@ export function GradingScalesPage() {
   const [bands, setBands] = useState<Band[]>([]);
   const [dirty, setDirty] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
 
-  const { data: scale, isLoading } = useQuery({
-    queryKey: ["grading-scale", profile?.tenant_id],
+  // Only one row can ever come back here — a unique index enforces at most
+  // one is_default=true scale per tenant — so this is always a single page,
+  // but the fetch still follows the shared count+range pagination shape.
+  const { data: scaleData, isLoading } = useQuery({
+    queryKey: ["grading-scale", profile?.tenant_id, page],
     enabled: !!profile?.tenant_id,
     queryFn: async () => {
-      const { data, error: err } = await supabase.from("grading_scales")
-        .select("id, name, description, grade_bands(id, letter, min_percent, gpa_points, description_i18n, is_pass, sort_order)")
-        .eq("is_default", true).maybeSingle();
+      const { data, error: err, count } = await supabase.from("grading_scales")
+        .select("id, name, description, grade_bands(id, letter, min_percent, gpa_points, description_i18n, is_pass, sort_order)", { count: "exact" })
+        .eq("is_default", true)
+        .range(...pageRange(page));
       if (err) throw err;
-      return data as ScaleRow | null;
+      return { rows: (data ?? []) as ScaleRow[], count: count ?? 0 };
     },
   });
+  const scale = scaleData?.rows[0] ?? null;
 
   // Highest floor first, the way a grade table is read.
   const hydrate = (s: ScaleRow | null | undefined): Band[] =>
@@ -240,6 +247,7 @@ export function GradingScalesPage() {
             </table>
           </div>
         )}
+        <Pagination page={page} totalCount={scaleData?.count ?? 0} onPageChange={setPage} className="px-5" />
       </Panel>
     </div>
   );

@@ -56,17 +56,18 @@ export interface StudentFilters {
   gender?: string;
 }
 
-export async function listStudents(filters: StudentFilters = {}) {
+export async function listStudents(filters: StudentFilters = {}, range?: [number, number]) {
   let q = supabase.from("students")
-    .select("id, admission_no, first_name, last_name, status, gender, date_of_birth, class:classes(id, name, section)")
+    .select("id, admission_no, first_name, last_name, status, gender, date_of_birth, class:classes(id, name, section)", { count: "exact" })
     .order("last_name");
   if (filters.search) q = q.textSearch("search_vector", filters.search, { type: "websearch" });
   if (filters.classId) q = q.eq("class_id", filters.classId);
   if (filters.status) q = q.eq("status", filters.status);
   if (filters.gender) q = q.eq("gender", filters.gender);
-  const { data, error } = await q;
+  if (range) q = q.range(range[0], range[1]);
+  const { data, error, count } = await q;
   if (error) throw error;
-  return data;
+  return { rows: data ?? [], count: count ?? 0 };
 }
 
 export async function createStudent(tenantId: string, input: StudentInput) {

@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useSession } from "@/features/auth/useSession";
 import { Button } from "@/components/ui/Button";
+import { Pagination, pageRange } from "@/components/ui/Pagination";
 import { z } from "zod";
 
 interface Role {
@@ -43,19 +44,22 @@ export function RolesPage() {
   const [showPermissionsDialog, setShowPermissionsDialog] = useState(false);
   const [formData, setFormData] = useState<RoleFormData>({ name: "", description: "" });
   const [selectedPermissions, setSelectedPermissions] = useState<Set<string>>(new Set());
+  const [page, setPage] = useState(1);
 
-  const { data: roles, isLoading: rolesLoading } = useQuery({
-    queryKey: ["roles", profile?.tenant_id],
+  const { data: rolesData, isLoading: rolesLoading } = useQuery({
+    queryKey: ["roles", profile?.tenant_id, page],
     enabled: !!profile?.tenant_id,
     queryFn: async () => {
-      const { data } = await supabase
+      const { data, count } = await supabase
         .from("roles")
-        .select("*")
+        .select("*", { count: "exact" })
         .eq("tenant_id", profile!.tenant_id!)
-        .order("name");
-      return (data as Role[]) || [];
+        .order("name")
+        .range(...pageRange(page));
+      return { rows: (data as Role[]) || [], count: count ?? 0 };
     },
   });
+  const roles = rolesData?.rows;
 
   const { data: allPermissions } = useQuery({
     queryKey: ["permissions"],
@@ -209,6 +213,7 @@ export function RolesPage() {
           ))}
         </div>
       )}
+      <Pagination page={page} totalCount={rolesData?.count ?? 0} onPageChange={setPage} />
 
       {selectedRole && !selectedRole.is_builtin && (
         <div className="flex gap-2 border-t border-line pt-4">

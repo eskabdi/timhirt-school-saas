@@ -22,6 +22,7 @@ import { Field } from "@/components/ui/Field";
 import { Card } from "@/components/ui/Card";
 import { Panel } from "@/components/ui/Panel";
 import { Badge } from "@/components/ui/Badge";
+import { Pagination, pageRange } from "@/components/ui/Pagination";
 import { onRowDoubleClick } from "@/lib/utils";
 
 const STATUS_TONE = { active: "ok", suspended: "danger" } as const;
@@ -121,11 +122,21 @@ export function TenantsManagementPage() {
   const [creating, setCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
+  const [page, setPage] = useState(1);
 
-  const { data: tenants } = useQuery({
-    queryKey: ["platform-tenants"],
-    queryFn: async () => (await supabase.from("tenants").select("id, name, slug, status, created_at").order("created_at", { ascending: false })).data ?? [],
+  const { data } = useQuery({
+    queryKey: ["platform-tenants", page],
+    queryFn: async () => {
+      const [from, to] = pageRange(page);
+      const { data, error, count } = await supabase.from("tenants")
+        .select("id, name, slug, status, created_at", { count: "exact" })
+        .order("created_at", { ascending: false })
+        .range(from, to);
+      if (error) throw error;
+      return { rows: data ?? [], count: count ?? 0 };
+    },
   });
+  const tenants = data?.rows;
 
   const rename = useMutation({
     mutationFn: async ({ id, name }: { id: string; name: string }) => {
@@ -222,6 +233,7 @@ export function TenantsManagementPage() {
             ))}
           </tbody>
         </table>
+        <Pagination page={page} totalCount={data?.count ?? 0} onPageChange={setPage} className="px-4" />
       </Panel>
     </div>
   );

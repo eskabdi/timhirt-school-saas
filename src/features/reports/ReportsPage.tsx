@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Field } from "@/components/ui/Field";
 import { Modal } from "@/components/ui/Modal";
+import { Pagination, pageRange } from "@/components/ui/Pagination";
 
 const STATUS_TONE = { queued: "neutral", processing: "navy", done: "ok", failed: "danger" } as const;
 const EXPORT_TYPES = ["enrollment_census", "performance_summary"] as const;
@@ -25,6 +26,7 @@ export function ReportsPage() {
   const [type, setType] = useState<ExportType>("enrollment_census");
   const [ecYear, setEcYear] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
 
   const { data } = useQuery({
     queryKey: ["moe_exports"],
@@ -49,6 +51,9 @@ export function ReportsPage() {
     onError: (e: unknown) => setError(e instanceof Error ? e.message : "Failed"),
   });
 
+  const [from, to] = pageRange(page);
+  const visibleData = (data ?? []).slice(from, to + 1);
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -67,7 +72,7 @@ export function ReportsPage() {
               <tr><th className="px-4 py-2">{t("reportPages.export")}</th><th className="px-4 py-2">{t("reportPages.ecYear")}</th><th className="px-4 py-2">{t("students.status")}</th></tr>
             </thead>
             <tbody className="divide-y divide-line">
-              {data.map((row) => (
+              {visibleData.map((row) => (
                 <tr key={row.id} className="hover:bg-sidebar">
                   <td className="px-4 py-2 text-ink">{t(`reports.exportType.${row.export_type}`)}</td>
                   <td className="px-4 py-2 text-ink">{row.ec_year}</td>
@@ -78,6 +83,7 @@ export function ReportsPage() {
               ))}
             </tbody>
           </table>
+          <Pagination page={page} totalCount={data.length} onPageChange={setPage} className="px-4" />
         </Panel>
       )}
 

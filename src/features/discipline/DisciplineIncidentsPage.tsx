@@ -8,6 +8,7 @@ import { EthDate } from "@/components/EthDate";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Field } from "@/components/ui/Field";
+import { Pagination, pageRange } from "@/components/ui/Pagination";
 import { toIsoDate } from "@/lib/ethiopian-date";
 
 const SEVERITIES = ["minor", "moderate", "major"] as const;
@@ -21,16 +22,19 @@ export function DisciplineIncidentsPage() {
   const [date, setDate] = useState<Date | null>(new Date());
   const [description, setDescription] = useState("");
   const [severity, setSeverity] = useState<typeof SEVERITIES[number]>("minor");
+  const [page, setPage] = useState(1);
 
   const { data: students } = useQuery({ queryKey: ["students-brief"], queryFn: async () => (await supabase.from("students").select("id,first_name,last_name")).data ?? [] });
   const { data: incidents } = useQuery({
-    queryKey: ["discipline"],
+    queryKey: ["discipline", page],
     queryFn: async () => {
-      const { data, error } = await supabase.from("discipline_incidents")
-        .select("id, incident_date, description, severity, students(first_name,last_name)")
-        .order("incident_date", { ascending: false });
+      const [from, to] = pageRange(page);
+      const { data, error, count } = await supabase.from("discipline_incidents")
+        .select("id, incident_date, description, severity, students(first_name,last_name)", { count: "exact" })
+        .order("incident_date", { ascending: false })
+        .range(from, to);
       if (error) throw error;
-      return data;
+      return { rows: data ?? [], count: count ?? 0 };
     },
   });
 
@@ -78,7 +82,7 @@ export function DisciplineIncidentsPage() {
       )}
 
       <div className="space-y-2">
-        {incidents?.map((i) => (
+        {incidents?.rows.map((i) => (
           <Card key={i.id} className="flex items-center justify-between">
             <div>
               <p className="font-medium text-ink">{(i.students as any)?.first_name} {(i.students as any)?.last_name}</p>
@@ -91,6 +95,7 @@ export function DisciplineIncidentsPage() {
           </Card>
         ))}
       </div>
+      <Pagination page={page} totalCount={incidents?.count ?? 0} onPageChange={setPage} />
     </div>
   );
 }
