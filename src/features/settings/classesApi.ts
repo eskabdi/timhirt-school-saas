@@ -89,10 +89,27 @@ export interface ClassDetail extends ClassRow {
 
 export async function getClassDetail(id: string) {
   const { data, error } = await supabase.from("classes")
-    .select("id,name,section,grade_level,capacity,academic_year_id, academic_years(ec_year), homeroom_teacher_id, teachers:homeroom_teacher_id(users(full_name))")
+    .select("id,name,section,grade_level,capacity,academic_year_id, academic_years(ec_year), homeroom_teacher_id")
     .eq("id", id).single();
   if (error) throw error;
-  return data as unknown as ClassRow & {
+
+  // classes.homeroom_teacher_id carries no foreign key (20260713000002), so
+  // PostgREST can't embed it via a schema-cache relationship -- a
+  // `teachers:homeroom_teacher_id(...)` select 400s with PGRST200 ("Could
+  // not find a relationship"). Fetch the name as a second, explicit query.
+  let teacherName: string | null = null;
+  if (data.homeroom_teacher_id) {
+    const { data: teacher } = await supabase.from("teachers")
+      .select("users(full_name)")
+      .eq("id", data.homeroom_teacher_id)
+      .maybeSingle();
+    teacherName = (teacher as unknown as { users: { full_name: string } | null } | null)?.users?.full_name ?? null;
+  }
+
+  return {
+    ...data,
+    teachers: teacherName ? { users: { full_name: teacherName } } : null,
+  } as unknown as ClassRow & {
     academic_years: { ec_year: number } | null;
     teachers: { users: { full_name: string } | null } | null;
   };
