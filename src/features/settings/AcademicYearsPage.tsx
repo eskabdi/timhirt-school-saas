@@ -96,7 +96,7 @@ export function AcademicYearsPage() {
   return (
     <div className="space-y-4">
       <h1 className="font-display text-2xl font-bold text-ink">{t("settingsPages.academicYears")}</h1>
-      {error && <Card className="border-danger bg-danger-tint py-3 text-sm text-danger">{error}</Card>}
+      {error && <Card className="border border-danger bg-danger-tint py-3 text-sm text-danger">{error}</Card>}
       <Card className="flex flex-wrap items-end gap-3">
         <Field label={t("common.ecYear")}>
           <input type="number" value={ecYear} onChange={(e) => setEcYear(Number(e.target.value))}

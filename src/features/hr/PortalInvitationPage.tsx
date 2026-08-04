@@ -93,7 +93,7 @@ export function PortalInvitationPage() {
       </div>
 
       {alreadyLinked && (
-        <Card className="border-ok bg-ok-tint/40">
+        <Card className="border border-ok bg-ok-tint/40">
           <p className="text-sm text-ok">{t("invitePortal.alreadyLinked")}</p>
         </Card>
       )}
@@ -164,7 +164,7 @@ export function PortalInvitationPage() {
               {invite.isPending ? "…" : t("invitePortal.send")}
             </Button>
           ) : (
-            <Card className="border-ok bg-ok-tint/40 text-center text-sm text-ok">{t("invitePortal.sent")}</Card>
+            <Card className="border border-ok bg-ok-tint/40 text-center text-sm text-ok">{t("invitePortal.sent")}</Card>
           )}
           {error && <p className="text-xs text-danger">{error}</p>}
           {!email && <p className="text-xs text-danger">{t("invitePortal.noEmailOnFile")}</p>}

@@ -434,7 +434,7 @@ export function StaffRegistrationPage() {
         </Button>
       </div>
       <Stepper step={step} labels={stepLabels} />
-      {saveError && <Card className="border-danger bg-danger-tint py-2 text-sm text-danger">{saveError}</Card>}
+      {saveError && <Card className="border border-danger bg-danger-tint py-2 text-sm text-danger">{saveError}</Card>}
 
       {step === 1 && (
         <div className="grid gap-4 lg:grid-cols-3">

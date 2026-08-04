@@ -216,7 +216,7 @@ export function StudentDetailPage() {
           <Button onClick={() => setShowEdit(true)}>✎ {t("students.profile.editProfile")}</Button>
         </div>
       </div>
-      {printError && <Card className="no-print border-danger bg-danger-tint py-3 text-sm text-danger">{printError}</Card>}
+      {printError && <Card className="no-print border border-danger bg-danger-tint py-3 text-sm text-danger">{printError}</Card>}
 
       {/* Identity header */}
       <Card className="flex flex-wrap items-center gap-4">

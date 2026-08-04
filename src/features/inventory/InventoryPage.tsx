@@ -87,7 +87,7 @@ export function InventoryPage() {
         <Button onClick={() => { setForm(emptyItem); setShowCreate(true); }}>+ {t("modules.addItem")}</Button>
       </div>
 
-      {error && <Card className="border-danger bg-danger-tint py-3 text-sm text-danger">{error}</Card>}
+      {error && <Card className="border border-danger bg-danger-tint py-3 text-sm text-danger">{error}</Card>}
 
       {!data?.length ? (
         <Card className="py-12 text-center text-ink-faint">{t("noRecordsYet")}</Card>

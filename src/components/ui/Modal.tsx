@@ -54,7 +54,7 @@ export function Modal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-navy/40 backdrop-blur-sm p-4"
       onClick={onClose}
     >
       <div
@@ -64,7 +64,7 @@ export function Modal({
         aria-labelledby={titleId}
         tabIndex={-1}
         className={cn(
-          "w-full rounded-lg bg-card p-6 shadow-lg max-h-[90vh] overflow-y-auto outline-none",
+          "w-full rounded-panel bg-card/95 backdrop-blur-xl p-6 shadow-ambient-lg max-h-[90vh] overflow-y-auto outline-none",
           size === "md" && "max-w-md",
           size === "lg" && "max-w-2xl",
           size === "xl" && "max-w-4xl",

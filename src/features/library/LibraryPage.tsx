@@ -107,7 +107,7 @@ export function LibraryPage() {
         <Button onClick={() => { setForm(emptyBook); setShowCreate(true); }}>+ {t("modules.addBook")}</Button>
       </div>
 
-      {error && <Card className="border-danger bg-danger-tint py-3 text-sm text-danger">{error}</Card>}
+      {error && <Card className="border border-danger bg-danger-tint py-3 text-sm text-danger">{error}</Card>}
 
       {!books?.length ? (
         <Card className="py-12 text-center text-ink-faint">{t("noRecordsYet")}</Card>

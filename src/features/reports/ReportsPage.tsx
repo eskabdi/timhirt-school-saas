@@ -56,7 +56,7 @@ export function ReportsPage() {
         <Button onClick={() => { setEcYear(activeYear?.ec_year ? String(activeYear.ec_year) : ""); setShow(true); }}>+ {t("reportPages.generateExport")}</Button>
       </div>
 
-      {error && <Card className="border-danger bg-danger-tint py-3 text-sm text-danger">{error}</Card>}
+      {error && <Card className="border border-danger bg-danger-tint py-3 text-sm text-danger">{error}</Card>}
 
       {!data?.length ? (
         <Card className="py-12 text-center text-ink-faint">{t("reports.empty")}</Card>

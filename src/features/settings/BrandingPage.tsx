@@ -204,7 +204,7 @@ export function BrandingPage() {
             </div>
           </Card>
 
-          <Card className="space-y-3 border-danger bg-danger-tint">
+          <Card className="space-y-3 border border-danger bg-danger-tint">
             <h2 className="text-sm font-bold uppercase text-danger">{t("branding.advancedActions")}</h2>
             <button onClick={() => { if (confirm(t("branding.resetConfirm"))) resetPalette(); }} className="w-full rounded-control border border-danger bg-card py-3 text-sm font-medium text-danger">{t("branding.resetAll")}</button>
             <p className="text-xs text-ink-faint">{t("branding.resetHint")}</p>

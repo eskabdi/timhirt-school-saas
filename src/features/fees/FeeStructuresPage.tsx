@@ -104,7 +104,7 @@ export function FeeStructuresPage() {
         <Button onClick={() => { setForm(emptyForm); setShowCreate(true); }}>+ {t("crud.addFeeStructure")}</Button>
       </div>
 
-      {error && <Card className="border-danger bg-danger-tint py-3 text-sm text-danger">{error}</Card>}
+      {error && <Card className="border border-danger bg-danger-tint py-3 text-sm text-danger">{error}</Card>}
 
       <div className="grid gap-3 md:grid-cols-2">
         {data?.map((f) => (

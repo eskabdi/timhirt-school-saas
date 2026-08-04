@@ -224,19 +224,105 @@ export function DashboardShell() {
   }, [userMenuOpen]);
 
   return (
-    <div className="flex min-h-screen bg-page">
-      <aside className="flex w-60 flex-col border-r border-line bg-sidebar">
-        <div className="flex items-center gap-2.5 border-b border-line px-5 py-4">
+    <div className="flex min-h-screen flex-col bg-page">
+      {/* Full-width signature bar — DESIGN.md §2: primary -> primary-container
+          gradient grounds the institution's identity; gold carries the date
+          and the tagline underline, "jewelry" against the deep navy. */}
+      <header className="flex items-center justify-between gap-4 bg-gradient-to-r from-navy to-navy-container px-6 py-3">
+        <div className="flex min-w-0 items-center gap-2.5">
           {logoUrl
-            ? <img src={logoUrl} alt="" className="h-9 w-9 shrink-0 rounded-full object-cover" />
-            : <Avatar name={brandName} size="md" />}
+            ? <img src={logoUrl} alt="" className="h-9 w-9 shrink-0 rounded-full object-cover ring-2 ring-gold/60" />
+            : <Avatar name={brandName} size="md" className="bg-white/10 ring-2 ring-gold/60" />}
           <div className="min-w-0">
-            <h1 className="truncate font-display text-base font-bold leading-tight text-navy">{brandName}</h1>
-            <p className="truncate text-xs text-ink-faint">{t("app.tagline")}</p>
+            <h1 className="truncate font-display text-base font-bold leading-tight text-white">{brandName}</h1>
+            <p className="truncate text-xs font-medium text-gold-bright underline decoration-gold/50 underline-offset-2">{t("app.tagline")}</p>
           </div>
         </div>
-        <nav className="flex-1 space-y-4 overflow-y-auto p-3">
-          {NAV.map((section, si) => {
+        <div className="hidden shrink-0 text-sm text-white/70 md:block">
+          {t("dashboard.today")}: <span className="font-semibold text-gold-bright"><EthDate value={new Date()} /></span>
+        </div>
+        <div className="flex shrink-0 items-center gap-3">
+          <LanguageSwitcher variant="dark" />
+          <NavLink to="/messages" aria-label={t("nav.messages")}
+            className="relative flex h-9 w-9 items-center justify-center rounded-full text-gold-bright hover:bg-white/10">
+            <svg viewBox="0 0 20 20" fill="currentColor" className="h-5 w-5" aria-hidden>
+              <path d="M10 2a6 6 0 0 0-6 6v3.09c0 .45-.16.89-.46 1.24L2.4 13.9c-.86 1-.15 2.6 1.18 2.6h12.84c1.33 0 2.04-1.6 1.18-2.6l-1.14-1.57A2 2 0 0 1 16 11.1V8a6 6 0 0 0-6-6Z" />
+              <path d="M8.2 17.5a1.8 1.8 0 0 0 3.6 0h-3.6Z" />
+            </svg>
+            {!!unreadMessages && (
+              <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-pill bg-danger px-1 text-[10px] font-bold text-white">
+                {unreadMessages}
+              </span>
+            )}
+          </NavLink>
+          <div className="relative" ref={userMenuRef}>
+            <button
+              type="button"
+              onClick={() => setUserMenuOpen((v) => !v)}
+              aria-expanded={userMenuOpen}
+              aria-haspopup="menu"
+              className="flex items-center gap-2 rounded-pill px-2 py-1.5 hover:bg-white/10"
+            >
+              <Avatar name={profile?.full_name ?? "?"} size="sm" className="ring-2 ring-gold/60" />
+              <span className="text-sm text-white">{profile?.full_name}</span>
+              <svg viewBox="0 0 12 12" className={cn("h-3 w-3 text-white/60 transition-transform", userMenuOpen ? "rotate-180" : "")} aria-hidden>
+                <path d="M2.5 4.5 6 8l3.5-3.5" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+            {userMenuOpen && (
+              <div role="menu" className="absolute right-0 z-20 mt-1 w-56 rounded-panel bg-card py-1 text-left shadow-ambient-lg">
+                {visibleUserMenuLinks.length > 0 && (
+                  <>
+                    <div className="px-4 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-ink-faint/80">
+                      {t("nav.section.selfServicePortal")}
+                    </div>
+                    {visibleUserMenuLinks.map((n) => (
+                      <NavLink
+                        key={n.to}
+                        to={n.to}
+                        role="menuitem"
+                        onClick={() => setUserMenuOpen(false)}
+                        className={({ isActive }) =>
+                          cn("block px-4 py-2 text-left text-sm",
+                             isActive ? "bg-navy-wash font-medium text-navy" : "text-ink hover:bg-sidebar")}
+                      >
+                        {t(n.key)}
+                      </NavLink>
+                    ))}
+                    <div className="border-t border-line" />
+                  </>
+                )}
+                <div className="px-4 py-2 text-xs text-ink-faint">
+                  {t("userMenu.role")}: <span className="font-medium text-ink">{profile ? t(`roles.${profile.role}`) : "—"}</span>
+                </div>
+                <div className="border-t border-line" />
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => { setChangingPassword(true); setUserMenuOpen(false); }}
+                  className="block w-full px-4 py-2 text-left text-sm text-ink hover:bg-sidebar"
+                >
+                  {t("userMenu.changePassword")}
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={signOut}
+                  className="block w-full px-4 py-2 text-left text-sm text-danger hover:bg-danger-tint"
+                >
+                  {t("userMenu.logout")}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </header>
+      {changingPassword && <ChangePasswordModal onClose={() => setChangingPassword(false)} />}
+
+      <div className="flex flex-1">
+        <aside className="flex w-60 shrink-0 flex-col bg-sidebar">
+          <nav className="flex-1 space-y-4 overflow-y-auto p-3 pt-4">
+            {NAV.map((section, si) => {
             const visible = (n: NavItem) =>
               (!profile || isSuperAdmin || n.roles.includes(profile.role))
               && (!n.module || isSuperAdmin || modules?.has(n.module));
@@ -293,8 +379,10 @@ export function DashboardShell() {
                                     to={n.to}
                                     end={n.end ?? false}
                                     className={({ isActive }) =>
-                                      cn("block rounded-control px-3 py-2 text-sm transition-colors",
-                                         isActive ? "bg-navy font-semibold text-white" : "text-ink-soft hover:bg-navy-wash")}
+                                      cn("relative block rounded-control px-3 py-2 text-sm transition-colors",
+                                         isActive
+                                           ? "bg-navy font-semibold text-white before:absolute before:inset-y-1.5 before:left-0 before:w-1 before:rounded-full before:bg-gold-bright"
+                                           : "text-ink-soft hover:bg-navy-wash")}
                                   >
                                     {t(n.key)}
                                   </NavLink>
@@ -339,8 +427,10 @@ export function DashboardShell() {
                         to={n.to}
                         end={n.end ?? false}
                         className={({ isActive }) =>
-                          cn("flex items-center justify-between rounded-control px-3 py-2 text-sm transition-colors",
-                             isActive ? "bg-navy font-semibold text-white" : "text-ink-soft hover:bg-navy-wash")}
+                          cn("relative flex items-center justify-between rounded-control px-3 py-2 text-sm transition-colors",
+                             isActive
+                               ? "bg-navy font-semibold text-white before:absolute before:inset-y-1.5 before:left-0 before:w-1 before:rounded-full before:bg-gold-bright"
+                               : "text-ink-soft hover:bg-navy-wash")}
                       >
                         {t(n.key)}
                         {n.to === "/messages" && !!unreadMessages && (
@@ -358,79 +448,9 @@ export function DashboardShell() {
         </nav>
       </aside>
 
-      <div className="flex flex-1 flex-col">
-        <header className="flex items-center justify-between border-b border-line bg-card px-6 py-3">
-          <div className="text-sm text-ink-faint">
-            {t("dashboard.today")}: <span className="font-medium text-ink"><EthDate value={new Date()} /></span>
-          </div>
-          <div className="flex items-center gap-3">
-            <LanguageSwitcher />
-            <div className="relative" ref={userMenuRef}>
-              <button
-                type="button"
-                onClick={() => setUserMenuOpen((v) => !v)}
-                aria-expanded={userMenuOpen}
-                aria-haspopup="menu"
-                className="flex items-center gap-2 rounded-control px-2 py-1.5 hover:bg-sidebar"
-              >
-                <Avatar name={profile?.full_name ?? "?"} size="sm" />
-                <span className="text-sm text-ink-soft">{profile?.full_name}</span>
-                <svg viewBox="0 0 12 12" className={cn("h-3 w-3 text-ink-faint transition-transform", userMenuOpen ? "rotate-180" : "")} aria-hidden>
-                  <path d="M2.5 4.5 6 8l3.5-3.5" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </button>
-              {userMenuOpen && (
-                <div role="menu" className="absolute right-0 z-20 mt-1 w-56 rounded-panel border border-line bg-card py-1 shadow-lg">
-                  {visibleUserMenuLinks.length > 0 && (
-                    <>
-                      <div className="px-4 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-ink-faint/80">
-                        {t("nav.section.selfServicePortal")}
-                      </div>
-                      {visibleUserMenuLinks.map((n) => (
-                        <NavLink
-                          key={n.to}
-                          to={n.to}
-                          role="menuitem"
-                          onClick={() => setUserMenuOpen(false)}
-                          className={({ isActive }) =>
-                            cn("block px-4 py-2 text-left text-sm",
-                               isActive ? "bg-navy-wash font-medium text-navy" : "text-ink hover:bg-sidebar")}
-                        >
-                          {t(n.key)}
-                        </NavLink>
-                      ))}
-                      <div className="border-t border-line" />
-                    </>
-                  )}
-                  <div className="px-4 py-2 text-xs text-ink-faint">
-                    {t("userMenu.role")}: <span className="font-medium text-ink">{profile ? t(`roles.${profile.role}`) : "—"}</span>
-                  </div>
-                  <div className="border-t border-line" />
-                  <button
-                    type="button"
-                    role="menuitem"
-                    onClick={() => { setChangingPassword(true); setUserMenuOpen(false); }}
-                    className="block w-full px-4 py-2 text-left text-sm text-ink hover:bg-sidebar"
-                  >
-                    {t("userMenu.changePassword")}
-                  </button>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    onClick={signOut}
-                    className="block w-full px-4 py-2 text-left text-sm text-danger hover:bg-danger-tint"
-                  >
-                    {t("userMenu.logout")}
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        </header>
-        {changingPassword && <ChangePasswordModal onClose={() => setChangingPassword(false)} />}
-        <main className="flex-1 p-6">
-          <Outlet />
-        </main>
+      <main className="flex-1 p-6">
+        <Outlet />
+      </main>
       </div>
     </div>
   );

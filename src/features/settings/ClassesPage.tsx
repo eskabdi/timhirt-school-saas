@@ -114,7 +114,7 @@ export function ClassesPage() {
     <div className="space-y-4">
       <h1 className="font-display text-2xl font-bold text-ink">{t("crud.classes")}</h1>
 
-      {error && <Card className="border-danger bg-danger-tint py-3 text-sm text-danger">{error}</Card>}
+      {error && <Card className="border border-danger bg-danger-tint py-3 text-sm text-danger">{error}</Card>}
 
       <Card className="flex flex-wrap items-end gap-2">
         <Field label={t("common.name")}><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} maxLength={40} placeholder={t("confirm.gradeExample")} /></Field>

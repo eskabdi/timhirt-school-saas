@@ -173,7 +173,7 @@ export function StaffProfilePage() {
       <p className="text-sm text-ink-faint">
         <Link to="/hr/employees" className="hover:underline">{t("hr.employees")}</Link> › {breadcrumbMiddle} › <span className="text-navy">{t("students.profile.breadcrumb")}</span>
       </p>
-      {printError && <Card className="border-danger bg-danger-tint py-3 text-sm text-danger">{printError}</Card>}
+      {printError && <Card className="border border-danger bg-danger-tint py-3 text-sm text-danger">{printError}</Card>}
       <Card className="bg-navy-wash/40">
         <div className="flex flex-wrap items-center gap-4">
           <div className="h-16 w-16 shrink-0 overflow-hidden rounded-full border-2 border-line bg-card">

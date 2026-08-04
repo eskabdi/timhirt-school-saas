@@ -2,10 +2,13 @@
 import { useTranslation } from "react-i18next";
 import { supabase } from "@/lib/supabase";
 import { SUPPORTED_LOCALES, type AppLocale } from "@/lib/i18n";
+import { cn } from "@/lib/utils";
 
 const LABELS: Record<AppLocale, string> = { en: "English", am: "አማርኛ", om: "Afaan Oromoo" };
 
-export function LanguageSwitcher() {
+// `dark` renders as a pill legible on the navy top bar (DashboardShell);
+// every other call site (login, public forms) keeps the light default.
+export function LanguageSwitcher({ variant = "light" }: { variant?: "light" | "dark" }) {
   const { t } = useTranslation();
   const { i18n } = useTranslation();
   const change = async (lng: AppLocale) => {
@@ -18,9 +21,14 @@ export function LanguageSwitcher() {
       aria-label={t("common.language")}
       value={i18n.resolvedLanguage}
       onChange={(e) => change(e.target.value as AppLocale)}
-      className="rounded-control border border-line bg-card px-2 py-1.5 text-sm"
+      className={cn(
+        "rounded-pill px-3 py-1.5 text-sm",
+        variant === "dark"
+          ? "border border-white/20 bg-white/10 text-white [color-scheme:dark] hover:bg-white/15"
+          : "border border-line bg-card text-ink",
+      )}
     >
-      {SUPPORTED_LOCALES.map((l) => <option key={l} value={l}>{LABELS[l]}</option>)}
+      {SUPPORTED_LOCALES.map((l) => <option key={l} value={l} className="text-ink">{LABELS[l]}</option>)}
     </select>
   );
 }

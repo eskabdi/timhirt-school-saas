@@ -22,16 +22,23 @@
 
 /* Design-system palette defaults, as space-separated RGB channels so Tailwind
    opacity modifiers work (see tailwind.config.ts). A tenant's Branding page
-   palette overrides these on :root at runtime via lib/brand-theme.ts; with
-   nothing saved, these values are the shipped Navy/Rounded theme. */
+   palette overrides --brand-primary/-secondary/-accent on :root at runtime via
+   lib/brand-theme.ts; with nothing saved, these values are the shipped
+   "Academic Atelier" theme (docs/uploads DESIGN.md — Deep Navy + Burnished
+   Gold). --brand-gold* is deliberately NOT part of the tenant-overridable set:
+   it is the platform's own chrome signature (top bar, active-nav indicator),
+   not one of the tenant's three configurable brand colours. */
 :root {
-  --brand-primary: 30 42 112;        /* #1E2A70 navy        */
-  --brand-primary-deep: 22 32 90;    /* #16205A navy-deep   */
-  --brand-primary-wash: 233 234 247; /* #E9EAF7 navy-wash   */
-  --brand-secondary: 30 138 95;      /* #1E8A5F ok          */
-  --brand-secondary-tint: 228 245 236; /* #E4F5EC ok-tint   */
-  --brand-accent: 168 92 36;         /* #A85C24 late        */
-  --brand-accent-tint: 251 234 221;  /* #FBEADD late-tint   */
+  --brand-primary: 4 22 53;          /* #041635 Deep Navy         */
+  --brand-primary-deep: 2 10 24;     /* #020A18 navy-deep (hover) */
+  --brand-primary-wash: 226 230 237; /* #E2E6ED navy-wash (tint)  */
+  --brand-primary-container: 27 43 75; /* #1B2B4B gradient/focus  */
+  --brand-secondary: 30 138 95;      /* #1E8A5F ok (success, unchanged) */
+  --brand-secondary-tint: 228 245 236; /* #E4F5EC ok-tint         */
+  --brand-accent: 168 92 36;         /* #A85C24 late (warning, unchanged) */
+  --brand-accent-tint: 251 234 221;  /* #FBEADD late-tint        */
+  --gold: 125 88 0;                  /* #7D5800 Burnished Gold   */
+  --gold-bright: 246 189 80;         /* #F6BD50 gold highlight   */
 }
 
 @layer base {

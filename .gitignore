@@ -11,3 +11,6 @@ supabase/.temp
 
 # i18n review export — a work product, not source
 i18n-review*.csv
+
+# Throwaway mocked-Supabase harness used for browser-driven design/QA checks
+.design-harness/

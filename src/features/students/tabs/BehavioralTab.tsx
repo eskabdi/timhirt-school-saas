@@ -82,7 +82,7 @@ export function BehavioralTab({ studentId, readOnly = false }: { studentId: stri
 
   return (
     <div className="space-y-4">
-      {error && <Card className="border-danger bg-danger-tint py-3 text-sm text-danger">{error}</Card>}
+      {error && <Card className="border border-danger bg-danger-tint py-3 text-sm text-danger">{error}</Card>}
 
       {/* Disciplinary Incident Log */}
       <Card className="p-0">

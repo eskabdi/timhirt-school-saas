@@ -70,7 +70,7 @@ export function PayrollRunDetailPage() {
       </div>
       {approve.isError && <p className="text-sm text-danger">{t("hr.sodNote")}</p>}
 
-      <Card className="border-navy bg-navy text-white">
+      <Card className="bg-gradient-to-br from-navy to-navy-container text-white">
         <p className="text-xs font-medium uppercase tracking-wide text-white/70">{t("hr.grossTotal")}</p>
         <p className="mt-2 font-display text-3xl font-bold tabular-nums">
           {formatETB(grossTotal, i18n.resolvedLanguage!)}
