@@ -103,7 +103,8 @@
     "heading": "ምዝገባ ተቀብለናል",
     "message": "እናመሰግናለን — ማመልከቻውን እንገመግማለን እና እናገኝዎታለን።",
     "trackingCodeLabel": "የክትትል ኮድዎ",
-    "trackingCodeHint": "ይህን ኮድ ያስቀምጡ — የማመልከቻዎን ሁኔታ ለማየት ያስፈልግዎታል።"
+    "trackingCodeHint": "ይህን ኮድ ያስቀምጡ — የማመልከቻዎን ሁኔታ ለማየት ያስፈልግዎታል።",
+    "copyTrackingCode": "የክትትል ኮድ ቅዳ"
   },
   "checkStatus": "የማመልከቻ ሁኔታ ይመልከቱ",
   "status": {

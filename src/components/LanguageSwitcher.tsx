@@ -22,7 +22,7 @@ export function LanguageSwitcher({ variant = "light" }: { variant?: "light" | "d
       value={i18n.resolvedLanguage}
       onChange={(e) => change(e.target.value as AppLocale)}
       className={cn(
-        "rounded-pill px-3 py-1.5 text-sm",
+        "w-20 truncate rounded-pill px-2 py-1 text-xs sm:w-auto sm:px-3 sm:py-1.5 sm:text-sm",
         variant === "dark"
           ? "border border-white/20 bg-white/10 text-white [color-scheme:dark] hover:bg-white/15"
           : "border border-line bg-card text-ink",

@@ -49,6 +49,7 @@ import { EthDatePicker } from "@/components/EthDatePicker";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { toIsoDate } from "@/lib/ethiopian-date";
 import { Stepper } from "@/components/ui/Stepper";
+import { CopyButton } from "@/components/ui/CopyButton";
 import { cn } from "@/lib/utils";
 
 const step1Schema = z.object({
@@ -317,9 +318,12 @@ export function PublicAdmissionFormPage() {
           {trackingCode && (
             <div className="mt-4 rounded-control border border-line bg-page p-4">
               <p className="text-xs font-medium uppercase tracking-wide text-ink-faint">{t("completed.trackingCodeLabel")}</p>
-              <p className="mt-1 font-mono text-lg font-bold tracking-widest text-navy">
-                {trackingCode.slice(0, 5)}-{trackingCode.slice(5)}
-              </p>
+              <div className="mt-1 flex items-center justify-center gap-2">
+                <p className="font-mono text-lg font-bold tracking-widest text-navy">
+                  {trackingCode.slice(0, 5)}-{trackingCode.slice(5)}
+                </p>
+                <CopyButton value={`${trackingCode.slice(0, 5)}-${trackingCode.slice(5)}`} label={t("completed.copyTrackingCode")} />
+              </div>
               <p className="mt-2 text-xs text-ink-faint">{t("completed.trackingCodeHint")}</p>
             </div>
           )}
@@ -335,8 +339,8 @@ export function PublicAdmissionFormPage() {
 
   return (
     <div className="min-h-screen bg-page">
-      <header className="flex items-center justify-between border-b border-line bg-card px-6 py-4">
-        <span className="font-display text-lg font-bold text-navy">{meta?.tenantName ?? t("schoolFallback")}</span>
+      <header className="flex flex-wrap items-center justify-between gap-2 border-b border-line bg-card px-4 py-4 sm:px-6">
+        <span className="min-w-0 truncate font-display text-lg font-bold text-navy">{meta?.tenantName ?? t("schoolFallback")}</span>
         <div className="flex items-center gap-4">
           <Link to={`/apply/${tenantSlug}/status`} className="text-sm text-navy hover:underline">{t("checkStatus")}</Link>
           <LanguageSwitcher />

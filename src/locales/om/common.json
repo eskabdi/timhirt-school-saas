@@ -36,6 +36,7 @@
       "student": "Barataa", "guardian": "Guddisaa", "inviteSent": "Imeelii Affeerraa Ergameera",
       "alreadyLinked": "Duraanuu herrega jiruutti hidhameera", "loginEmail": "Seensa",
       "tempPassword": "Jecha Iccitii Yeroof", "copyWarning": "Amma garagalchaa — jechi iccitii kun deebi'ee hin agarsiifamu.",
+      "copyLoginEmail": "Imeelii seensaa garagalchi", "copyTempPassword": "Jecha iccitii yeroof garagalchi",
       "done": "Xumurameera" } },
   "reports": { "title": "Gabaasa", "empty": "Ammatti galmeen hin jiru.",
     "exportType": { "enrollment_census": "Lakkoofsa Galmee", "performance_summary": "Cuunfaa Raawwii" },
@@ -60,7 +61,7 @@
     "exams": "Qormaatawwan", "name": "Maqaa", "maxScore": "Qabxii Ol'aanaa", "windowStart": "Jalqaba Yeroo (ALI)", "createExam": "Qormaata Uumi",
     "reportCards": "Kaardii Qabxii", "queuePdf": "PDF Uumuu Jalqabsiisi ({count})",
     "reportCardNote": "Uumuun Edge Function generate-report-card irratti hojjeta; guyyoonni semistaraa ALI miilla PDF irratti maxxanfamu." },
-  "nav": { "dashboard": "Gabatee", "students": "Barattoota", "attendance": "Hordoffii", "hr": "HR fi Mindaa", "leave": "Eeyyama", "payroll": "Mindaa", "signOut": "Ba'i",
+  "nav": { "dashboard": "Gabatee", "students": "Barattoota", "attendance": "Hordoffii", "hr": "HR fi Mindaa", "leave": "Eeyyama", "payroll": "Mindaa", "signOut": "Ba'i", "openMenu": "Baaba bani", "closeMenu": "Baaba cufi",
     "admissions": "Galmee", "idCards": "Waraqaa Eenyummaa", "attendanceOverview": "Ilaalcha Hordoffii", "timetable": "Sagantaa", "gradebook": "Galmee Qabxii", "assignments": "Hojii Manaa",
     "feeStructures": "Caasaa Kaffaltii", "invoices": "Waraqaa Kaffaltii", "inventory": "Meeshaalee", "reports": "Gabaasa",
     "communication": "Walqunnamtii", "hostel": "Iddoo Jireenyaa", "discipline": "Amala", "clinic": "Kilinika", "library": "Mana Kitaabaa", "transport": "Geejjiba", "events": "Sagantaalee",
@@ -101,6 +102,7 @@
   "messages": { "title": "Ergaawwan", "inbox": "Saanduqa Ergaa", "empty": "Ammatti ergaan hin jiru.", "selectThread": "Dubbisuuf haasawa filadhu.", "replyPlaceholder": "Deebii barreessi...", "reply": "Deebisi", "composeTitle": "{name} tiif Ergaa", "from": "Irraa", "titleLabel": "Mata duree", "bodyLabel": "Ergaa", "send": "Ergi", "sending": "Ergaa jira…", "sendFailed": "Ergaa erguun hin danda'amne.", "titleRequired": "Mata duree galchi.", "bodyRequired": "Ergaa galchi." },
   "admissionReview": { "review": "Gamaaggama", "applicationId": "Eenyummaa Iyyannoo", "processSteps": "Tarkaanfiiwwan Adeemsaa", "stepComplete": "Iyyannoon guutuu dha", "stepAcademic": "Barataan ulaagaa barnootaa guuteera", "stepFinancial": "Barataan ulaagaa maallaqaa guuteera", "stepDocuments": "Ragaaleen barbaachisan mirkanaa'aniiru", "stepLetterSent": "Xalayaan fudhatamaa barataaf ergameera", "stepAccepted": "Barataan fudhatameera", "enrollmentStatus": "Haala Galmee", "update": "Haaromsi", "updating": "Haaromsaa jira…", "saveFailed": "Gamaaggama olkaa'uun hin danda'amne.", "status": {"applied": "Iyyateera", "incomplete_application": "Iyyannoo Hin Guutamne", "provisionally_accepted": "Yeroof Fudhatame", "accepted": "Fudhatame", "rejected": "Didame", "waitlisted": "Tarree Eegaa Keessa", "enrolled": "Galmaa'eera", "shortlisted": "Tarree Gabaabaa Keessa", "offered": "Carraan Kennameera", "registered": "Galmaa'eera"} },
   "auth": { "email": "Imeelii", "password": "Jecha darbii", "signIn": "Seeni", "signingIn": "Seenaa jira…", "invalid": "Imeeliin ykn jechi darbii sirrii miti",
+    "tooManyAttempts": "Yaalii seensaa baay'ee. {minutes}:{seconds} keessatti irra deebi'ii yaali.", "idleLoggedOut": "Sa'aatii tokkoof hojjechuu waan dhiifteef baafamteerta.",
     "acceptInvite": { "title": "Jecha Darbii Keessan Qindeessaa", "subtitle": "Baga nagaan dhuftan — herrega keessan xumuruuf jecha darbii filadhaa.", "newPassword": "Jecha Darbii Haaraa", "confirmPassword": "Jecha Darbii Mirkaneessi", "submit": "Jecha Darbii Qindeessi fi Itti Fufi", "submitting": "Jecha Darbii Qindeessaa jira…", "mismatch": "Jechi darbii wal hin simu", "tooShort": "Jechi darbii yoo xiqqaate qubee 8 ta'uu qaba", "invalidLink": "Hidhannoon afeerraa kun sirrii miti ykn yeroon isaa darbeera. Bulchaa mana barumsaa keessan akka isiniif deebi'anii ergan gaafadhaa." },
     "changePassword": { "title": "Jecha Darbii Jijjiiri", "submit": "Jecha Darbii Haaromsi", "submitting": "Haaromsaa jira…", "success": "Jechi darbii haaromfameera.", "close": "Cufi" } },
   "userMenu": { "role": "Gahee", "changePassword": "Jecha Darbii Jijjiiri", "logout": "Ba'i" },
@@ -144,5 +146,5 @@
   "my": { "classesTitle": "Kutaalee Koo", "todaySchedule": "Sagantaa Har'aa", "todayPeriod": "Har'a", "attendance": "Hordoffii", "gradebook": "Galmee Qabxii", "assignments": "Hojii Manaa", "homeroom": "Kutaa Jedhaatti", "noStudents": "Kutaa jedhaatti barataan hin jiru.", "noClasses": "Kutaa ramadamte hin jiru." },
   "health": { "alerts": "Ajjeesota Fayyaa", "noAlerts": "Ajjeesni socho'u hin jiru. Sirni fayyaa qaba.", "title": "Hordoffii Fayyaa Sirni", "subtitle": "Raawwii sirni, humna, fi ajjeesota barbaachisu hordoffi" },
   "noRecordsYet": "Ammatti galmeen hin jiru.",
-  "actions": { "retry": "Irra deebi'i yaali", "refresh": "Haaroomsi", "close": "Cufi" }
+  "actions": { "retry": "Irra deebi'i yaali", "refresh": "Haaroomsi", "close": "Cufi", "copy": "Garagalchi", "copied": "Garagalfameera" }
 }

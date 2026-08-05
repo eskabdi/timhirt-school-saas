@@ -36,6 +36,7 @@
       "student": "ተማሪ", "guardian": "አሳዳጊ", "inviteSent": "የግብዣ ኢሜይል ተልኳል",
       "alreadyLinked": "ቀድሞውኑ ካለ መለያ ጋር ተያይዟል", "loginEmail": "መግቢያ",
       "tempPassword": "ጊዜያዊ የይለፍ ቃል", "copyWarning": "አሁን ይቅዱት — የይለፍ ቃሉ እንደገና አይታይም።",
+      "copyLoginEmail": "የመግቢያ ኢሜይል ቅዳ", "copyTempPassword": "ጊዜያዊ የይለፍ ቃል ቅዳ",
       "done": "ተጠናቋል" } },
   "reports": { "title": "ሪፖርቶች", "empty": "እስካሁን መዝገብ የለም።",
     "exportType": { "enrollment_census": "የምዝገባ ቆጠራ", "performance_summary": "የአፈጻጸም ማጠቃለያ" },
@@ -60,7 +61,7 @@
     "exams": "ፈተናዎች", "name": "ስም", "maxScore": "ከፍተኛ ውጤት", "windowStart": "መጀመሪያ ቀን (ዓ.ም)", "createExam": "ፈተና ፍጠር",
     "reportCards": "የውጤት ካርዶች", "queuePdf": "PDF ማመንጨት ጀምር ({count})",
     "reportCardNote": "ማመንጨት የሚከናወነው በ generate-report-card Edge Function ነው፤ የዓ.ም ወሰነ ትምህርት ቀናት በPDF ግርጌ ይታተማሉ።" },
-  "nav": { "dashboard": "ዳሽቦርድ", "students": "ተማሪዎች", "attendance": "ክትትል", "hr": "ሰው ኃይል እና ደመወዝ", "leave": "ፈቃድ", "payroll": "ደመወዝ", "signOut": "ውጣ",
+  "nav": { "dashboard": "ዳሽቦርድ", "students": "ተማሪዎች", "attendance": "ክትትል", "hr": "ሰው ኃይል እና ደመወዝ", "leave": "ፈቃድ", "payroll": "ደመወዝ", "signOut": "ውጣ", "openMenu": "ምናሌ ክፈት", "closeMenu": "ምናሌ ዝጋ",
     "admissions": "ምዝገባ", "idCards": "መታወቂያ ካርድ", "attendanceOverview": "የክትትል አጠቃላይ እይታ", "timetable": "መርሃ ግብር", "gradebook": "ውጤት መዝገብ", "assignments": "ስራዎች",
     "feeStructures": "የክፍያ አወቃቀር", "invoices": "ደረሰኞች", "inventory": "እቃ ንብረት", "reports": "ሪፖርቶች",
     "communication": "ግንኙነት", "hostel": "ማደሪያ", "discipline": "ስነ ስርዓት", "clinic": "ክሊኒክ", "library": "ቤተ መጻሕፍት", "transport": "ትራንስፖርት", "events": "ዝግጅቶች",
@@ -101,6 +102,7 @@
   "messages": { "title": "መልዕክቶች", "inbox": "ገቢ መልዕክቶች", "empty": "እስካሁን መልእክት የለም።", "selectThread": "ለማንበብ ውይይት ይምረጡ።", "replyPlaceholder": "መልስ ይጻፉ...", "reply": "መልስ", "composeTitle": "ለ{name} መልእክት", "from": "ከ", "titleLabel": "ርዕስ", "bodyLabel": "መልእክት", "send": "ላክ", "sending": "በመላክ ላይ…", "sendFailed": "መልእክቱን መላክ አልተቻለም።", "titleRequired": "ርዕስ ያስገቡ።", "bodyRequired": "መልእክት ያስገቡ።" },
   "admissionReview": { "review": "ግምገማ", "applicationId": "የማመልከቻ መለያ", "processSteps": "የሂደት ደረጃዎች", "stepComplete": "ማመልከቻው ተሟልቷል", "stepAcademic": "ተማሪው የትምህርት መስፈርቶችን አሟልቷል", "stepFinancial": "ተማሪው የክፍያ መስፈርቶችን አሟልቷል", "stepDocuments": "የሚያስፈልጉ ሰነዶች ተረጋግጠዋል", "stepLetterSent": "የመቀበያ ደብዳቤ ለተማሪው ተልኳል", "stepAccepted": "ተማሪው ተቀብሏል", "enrollmentStatus": "የምዝገባ ሁኔታ", "update": "አዘምን", "updating": "በማዘመን ላይ…", "saveFailed": "ግምገማውን ማስቀመጥ አልተቻለም።", "status": {"applied": "አመልክቷል", "incomplete_application": "ያልተሟላ ማመልከቻ", "provisionally_accepted": "በጊዜያዊነት ተቀብሏል", "accepted": "ተቀብሏል", "rejected": "ውድቅ ተደርጓል", "waitlisted": "በተጠባባቂ ዝርዝር", "enrolled": "ተመዝግቧል", "shortlisted": "አጭር ዝርዝር ውስጥ", "offered": "ዕድል ተሰጥቷል", "registered": "ተመዝግቧል"} },
   "auth": { "email": "ኢሜይል", "password": "የይለፍ ቃል", "signIn": "ግባ", "signingIn": "በመግባት ላይ…", "invalid": "ኢሜይል ወይም የይለፍ ቃል ትክክል አይደለም",
+    "tooManyAttempts": "በጣም ብዙ የመግቢያ ሙከራዎች። በ{minutes}:{seconds} ውስጥ እንደገና ይሞክሩ።", "idleLoggedOut": "ለአንድ ሰዓት እንቅስቃሴ ስለሌለ ወጥተዋል።",
     "acceptInvite": { "title": "የይለፍ ቃልዎን ያዘጋጁ", "subtitle": "እንኳን ደህና መጡ — መለያዎን ለማጠናቀቅ የይለፍ ቃል ይምረጡ።", "newPassword": "አዲስ የይለፍ ቃል", "confirmPassword": "የይለፍ ቃል ያረጋግጡ", "submit": "የይለፍ ቃል አዘጋጅ እና ቀጥል", "submitting": "የይለፍ ቃል በማዘጋጀት ላይ…", "mismatch": "የይለፍ ቃላት አይመሳሰሉም", "tooShort": "የይለፍ ቃል ቢያንስ 8 ፊደላት መሆን አለበት", "invalidLink": "ይህ የግብዣ አገናኝ ልክ ያልሆነ ወይም ጊዜው አልፎበታል። የትምህርት ቤት አስተዳዳሪዎን እንደገና እንዲልክልዎ ይጠይቁ።" },
     "changePassword": { "title": "የይለፍ ቃል ቀይር", "submit": "የይለፍ ቃል አዘምን", "submitting": "በማዘመን ላይ…", "success": "የይለፍ ቃል ተዘምኗል።", "close": "ዝጋ" } },
   "userMenu": { "role": "ሚና", "changePassword": "የይለፍ ቃል ቀይር", "logout": "ውጣ" },
@@ -144,5 +146,5 @@
   "my": { "classesTitle": "የእኔ ክፍሎች", "todaySchedule": "የዛሬ መርሃ ግብር", "todayPeriod": "ዛሬ", "attendance": "ክትትል", "gradebook": "ውጤት መዝገብ", "assignments": "ስራዎች", "homeroom": "የመደበኛ ክፍል", "noStudents": "በመደበኛ ክፍሉ ተማሪ የለም።", "noClasses": "የተመደበ ክፍል የለም።" },
   "health": { "alerts": "ጤና ተንቦዎች", "noAlerts": "ንቁ ተንቦ የለም። ስርዓት ጤናማ ነው።", "title": "የስርዓት ጤና ክትትል", "subtitle": "የስርዓት አፈጻጸም፣ አቅም እና ወሳኝ ተንቦዎች ይከታተሉ" },
   "noRecordsYet": "እስካሁን መዝገብ የለም።",
-  "actions": { "retry": "እንደገና ሞክር", "refresh": "ዝመናአስገባ", "close": "ዝጋ" }
+  "actions": { "retry": "እንደገና ሞክር", "refresh": "ዝመናአስገባ", "close": "ዝጋ", "copy": "ቅዳ", "copied": "ተቀድቷል" }
 }

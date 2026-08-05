@@ -36,6 +36,7 @@
       "student": "Student", "guardian": "Guardian", "inviteSent": "Invitation email sent",
       "alreadyLinked": "Already linked to an existing account", "loginEmail": "Login",
       "tempPassword": "Temporary password", "copyWarning": "Copy these now — the password won't be shown again.",
+      "copyLoginEmail": "Copy login email", "copyTempPassword": "Copy temporary password",
       "done": "Done" } },
   "reports": { "title": "Reports", "empty": "No records yet.",
     "exportType": { "enrollment_census": "Enrollment Census", "performance_summary": "Performance Summary" },
@@ -60,7 +61,7 @@
     "exams": "Exams", "name": "Name", "maxScore": "Max score", "windowStart": "Window start (EC)", "createExam": "Create exam",
     "reportCards": "Report cards", "queuePdf": "Queue PDF generation ({count})",
     "reportCardNote": "Generation runs via the generate-report-card Edge Function; EC term dates print on the PDF footer." },
-  "nav": { "dashboard": "Dashboard", "students": "Students", "attendance": "Attendance", "hr": "HR & Payroll", "leave": "Leave", "payroll": "Payroll", "signOut": "Sign out",
+  "nav": { "dashboard": "Dashboard", "students": "Students", "attendance": "Attendance", "hr": "HR & Payroll", "leave": "Leave", "payroll": "Payroll", "signOut": "Sign out", "openMenu": "Open menu", "closeMenu": "Close menu",
     "admissions": "Admissions", "idCards": "ID Cards", "attendanceOverview": "Attendance Overview", "timetable": "Timetable", "gradebook": "Gradebook", "assignments": "Assignments",
     "feeStructures": "Fee Structures", "invoices": "Invoices", "inventory": "Inventory", "reports": "Reports",
     "communication": "Communication", "hostel": "Hostel", "discipline": "Discipline", "clinic": "Clinic", "library": "Library", "transport": "Transport", "events": "Events",
@@ -101,6 +102,7 @@
   "messages": { "title": "Messages", "inbox": "Inbox", "empty": "No messages yet.", "selectThread": "Select a conversation to read it.", "replyPlaceholder": "Write a reply...", "reply": "Reply", "composeTitle": "Message {name}", "from": "From", "titleLabel": "Title", "bodyLabel": "Message", "send": "Send", "sending": "Sending…", "sendFailed": "Could not send the message.", "titleRequired": "Enter a title.", "bodyRequired": "Enter a message." },
   "admissionReview": { "review": "Review", "applicationId": "Application ID", "processSteps": "Process Steps", "stepComplete": "Application is complete", "stepAcademic": "Student meets academic requirements", "stepFinancial": "Student meets financial requirements", "stepDocuments": "Required documents verified", "stepLetterSent": "Acceptance letter was sent to student", "stepAccepted": "Student accepted", "enrollmentStatus": "Enrollment Status", "update": "Update", "updating": "Updating…", "saveFailed": "Could not save the review.", "status": {"applied": "Applied", "incomplete_application": "Incomplete Application", "provisionally_accepted": "Provisionally Accepted", "accepted": "Accepted", "rejected": "Rejected", "waitlisted": "Waitlisted", "enrolled": "Enrolled", "shortlisted": "Shortlisted", "offered": "Offered", "registered": "Registered"} },
   "auth": { "email": "Email", "password": "Password", "signIn": "Sign in", "signingIn": "Signing in…", "invalid": "Email or password is incorrect",
+    "tooManyAttempts": "Too many sign-in attempts. Try again in {minutes}:{seconds}.", "idleLoggedOut": "You were signed out after an hour of inactivity.",
     "acceptInvite": { "title": "Set your password", "subtitle": "Welcome — choose a password to finish setting up your account.", "newPassword": "New password", "confirmPassword": "Confirm password", "submit": "Set password & continue", "submitting": "Setting password…", "mismatch": "Passwords do not match", "tooShort": "Password must be at least 8 characters", "invalidLink": "This invite link is invalid or has expired. Ask your school administrator to resend it." },
     "changePassword": { "title": "Change password", "submit": "Update password", "submitting": "Updating…", "success": "Password updated.", "close": "Close" } },
   "userMenu": { "role": "Role", "changePassword": "Change password", "logout": "Logout" },
@@ -144,5 +146,5 @@
   "my": { "classesTitle": "My Classes", "todaySchedule": "Today's Schedule", "todayPeriod": "Today", "attendance": "Attendance", "gradebook": "Gradebook", "assignments": "Assignments", "homeroom": "Homeroom", "noStudents": "No students in homeroom.", "noClasses": "No classes assigned." },
   "health": { "alerts": "Health Alerts", "noAlerts": "No active alerts. System is healthy.", "title": "System Health Monitoring", "subtitle": "Monitor system performance, capacity, and critical alerts" },
   "noRecordsYet": "No records yet.",
-  "actions": { "retry": "Retry", "refresh": "Refresh", "close": "Close" }
+  "actions": { "retry": "Retry", "refresh": "Refresh", "close": "Close", "copy": "Copy", "copied": "Copied" }
 }

@@ -103,7 +103,8 @@
     "heading": "Registration received",
     "message": "Thank you — we'll review the application and be in touch.",
     "trackingCodeLabel": "Your tracking code",
-    "trackingCodeHint": "Save this code — you'll need it to check your application status."
+    "trackingCodeHint": "Save this code — you'll need it to check your application status.",
+    "copyTrackingCode": "Copy tracking code"
   },
   "checkStatus": "Check application status",
   "status": {

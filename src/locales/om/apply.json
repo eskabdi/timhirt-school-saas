@@ -103,7 +103,8 @@
     "heading": "Galmeen keessan qeebalameera",
     "message": "Galatoomaa — iyyata keessan ni ilaalla, ni qunnamna.",
     "trackingCodeLabel": "Koodii hordoffii keessan",
-    "trackingCodeHint": "Koodii kana olkaa'aa — haala iyyata keessanii ilaaluuf isin barbaachisa."
+    "trackingCodeHint": "Koodii kana olkaa'aa — haala iyyata keessanii ilaaluuf isin barbaachisa.",
+    "copyTrackingCode": "Koodii hordoffii garagalchi"
   },
   "checkStatus": "Haala Iyyataa Ilaali",
   "status": {

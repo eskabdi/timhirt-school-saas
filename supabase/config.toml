@@ -52,3 +52,6 @@ verify_jwt = false                     # public status lookup; rate-limited in-c
 
 [functions.chapa-webhook]
 verify_jwt = false                     # HMAC signature verified in-code instead
+
+[functions.check-login-attempt]
+verify_jwt = false                     # public pre-auth gate; rate-limited in-code

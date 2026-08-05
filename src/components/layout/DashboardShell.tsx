@@ -161,6 +161,7 @@ export function DashboardShell() {
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set(ALL_COLLAPSIBLE_KEYS));
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   const isSuperAdmin = profile?.role === "super_admin";
@@ -223,13 +224,35 @@ export function DashboardShell() {
     return () => document.removeEventListener("mousedown", onDocMouseDown);
   }, [userMenuOpen]);
 
+  // The drawer is a mobile-only affordance for reaching a link, not a page
+  // of its own -- close it the moment navigation actually happens so it
+  // never sits open over the page the user just chose.
+  useEffect(() => setMobileNavOpen(false), [location.pathname]);
+
   return (
     <div className="flex min-h-screen flex-col bg-page">
       {/* Full-width signature bar — DESIGN.md §2: primary -> primary-container
           gradient grounds the institution's identity; gold carries the date
           and the tagline underline, "jewelry" against the deep navy. */}
-      <header className="flex items-center justify-between gap-4 bg-gradient-to-r from-navy to-navy-container px-6 py-3">
+      <header className="relative z-50 flex items-center justify-between gap-2 bg-gradient-to-r from-navy to-navy-container px-3 py-3 sm:gap-4 sm:px-6">
         <div className="flex min-w-0 items-center gap-2.5">
+          <button
+            type="button"
+            onClick={() => setMobileNavOpen((v) => !v)}
+            aria-label={t(mobileNavOpen ? "nav.closeMenu" : "nav.openMenu")}
+            aria-expanded={mobileNavOpen}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-white hover:bg-white/10 md:hidden"
+          >
+            {mobileNavOpen ? (
+              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5" aria-hidden>
+                <path d="M5 5l10 10M15 5 5 15" strokeLinecap="round" />
+              </svg>
+            ) : (
+              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5" aria-hidden>
+                <path d="M3 5h14M3 10h14M3 15h14" strokeLinecap="round" />
+              </svg>
+            )}
+          </button>
           {logoUrl
             ? <img src={logoUrl} alt="" className="h-9 w-9 shrink-0 rounded-full object-cover ring-2 ring-gold/60" />
             : <Avatar name={brandName} size="md" className="bg-white/10 ring-2 ring-gold/60" />}
@@ -241,7 +264,7 @@ export function DashboardShell() {
         <div className="hidden shrink-0 text-sm text-white/70 md:block">
           {t("dashboard.today")}: <span className="font-semibold text-gold-bright"><EthDate value={new Date()} /></span>
         </div>
-        <div className="flex shrink-0 items-center gap-3">
+        <div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
           <LanguageSwitcher variant="dark" />
           <NavLink to="/messages" aria-label={t("nav.messages")}
             className="relative flex h-9 w-9 items-center justify-center rounded-full text-gold-bright hover:bg-white/10">
@@ -264,7 +287,7 @@ export function DashboardShell() {
               className="flex items-center gap-2 rounded-pill px-2 py-1.5 hover:bg-white/10"
             >
               <Avatar name={profile?.full_name ?? "?"} size="sm" className="ring-2 ring-gold/60" />
-              <span className="text-sm text-white">{profile?.full_name}</span>
+              <span className="hidden text-sm text-white sm:inline">{profile?.full_name}</span>
               <svg viewBox="0 0 12 12" className={cn("h-3 w-3 text-white/60 transition-transform", userMenuOpen ? "rotate-180" : "")} aria-hidden>
                 <path d="M2.5 4.5 6 8l3.5-3.5" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
@@ -320,7 +343,20 @@ export function DashboardShell() {
       {changingPassword && <ChangePasswordModal onClose={() => setChangingPassword(false)} />}
 
       <div className="flex flex-1">
-        <aside className="flex w-60 shrink-0 flex-col bg-sidebar">
+        {mobileNavOpen && (
+          <div
+            className="fixed inset-0 z-30 bg-ink/50 md:hidden"
+            onClick={() => setMobileNavOpen(false)}
+            aria-hidden
+          />
+        )}
+        <aside
+          className={cn(
+            "fixed inset-y-0 left-0 z-40 flex w-64 -translate-x-full flex-col bg-sidebar transition-transform duration-200",
+            "md:static md:z-auto md:w-60 md:shrink-0 md:translate-x-0",
+            mobileNavOpen && "translate-x-0",
+          )}
+        >
           <nav className="flex-1 space-y-4 overflow-y-auto p-3 pt-4">
             {NAV.map((section, si) => {
             const visible = (n: NavItem) =>
@@ -448,7 +484,7 @@ export function DashboardShell() {
         </nav>
       </aside>
 
-      <main className="flex-1 p-6">
+      <main className="min-w-0 flex-1 p-4 sm:p-6">
         <Outlet />
       </main>
       </div>
