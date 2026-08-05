@@ -104,6 +104,7 @@ import { IntegrationsPage } from "@/features/platform/IntegrationsPage";
 import { BillingPage } from "@/features/platform/BillingPage";
 import { StatutoryConfigPage } from "@/features/platform/StatutoryConfigPage";
 import { PlatformReportPage } from "@/features/platform/PlatformReportPage";
+import { SecuritySettingsPage } from "@/features/platform/SecuritySettingsPage";
 
 import { PublicAdmissionFormPage } from "@/features/public/PublicAdmissionFormPage";
 import { AdmissionStatusPage } from "@/features/public/AdmissionStatusPage";
@@ -381,6 +382,7 @@ export const router = createBrowserRouter([
               { path: "billing", element: <BillingPage /> },
               { path: "reports", element: <PlatformReportPage /> },
               { path: "statutory", element: <StatutoryConfigPage /> },
+              { path: "security", element: <SecuritySettingsPage /> },
             ],
           },
         ],

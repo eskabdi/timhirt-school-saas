@@ -13,15 +13,19 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Field } from "@/components/ui/Field";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { useSecuritySettings } from "@/lib/useSecuritySettings";
+import { passwordMeetsPolicy } from "@/lib/passwordPolicy";
+import { PasswordPolicyHint } from "./PasswordPolicyHint";
 
 const schema = z.object({
-  password: z.string().min(8).max(200),
+  password: z.string().min(1).max(200),
   confirm: z.string(),
 });
 
 export function AcceptInvitePage() {
   const { t } = useTranslation();
   const nav = useNavigate();
+  const { passwordPolicy } = useSecuritySettings();
   const [hasSession, setHasSession] = useState<boolean | null>(null);
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -37,6 +41,7 @@ export function AcceptInvitePage() {
     setError(null);
     const parsed = schema.safeParse({ password, confirm });
     if (!parsed.success) { setError(t("auth.acceptInvite.tooShort")); return; }
+    if (!passwordMeetsPolicy(password, passwordPolicy)) { setError(t("auth.acceptInvite.policyNotMet")); return; }
     if (password !== confirm) { setError(t("auth.acceptInvite.mismatch")); return; }
     setBusy(true);
     const { error: updateErr } = await supabase.auth.updateUser({ password });
@@ -59,11 +64,12 @@ export function AcceptInvitePage() {
             <p className="mb-6 text-sm text-ink-faint">{t("auth.acceptInvite.subtitle")}</p>
             <form onSubmit={onSubmit} className="space-y-4" noValidate>
               <Field label={t("auth.acceptInvite.newPassword")}>
-                <Input type="password" autoComplete="new-password" required minLength={8} maxLength={200}
+                <Input type="password" autoComplete="new-password" required minLength={passwordPolicy.minLength} maxLength={200}
                   value={password} onChange={(e) => setPassword(e.target.value)} />
               </Field>
+              <PasswordPolicyHint policy={passwordPolicy} />
               <Field label={t("auth.acceptInvite.confirmPassword")}>
-                <Input type="password" autoComplete="new-password" required minLength={8} maxLength={200}
+                <Input type="password" autoComplete="new-password" required minLength={passwordPolicy.minLength} maxLength={200}
                   value={confirm} onChange={(e) => setConfirm(e.target.value)} />
               </Field>
               {error && <p role="alert" className="text-sm text-danger">{error}</p>}

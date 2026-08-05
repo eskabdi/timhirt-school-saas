@@ -5,14 +5,18 @@ import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Field } from "@/components/ui/Field";
+import { useSecuritySettings } from "@/lib/useSecuritySettings";
+import { passwordMeetsPolicy } from "@/lib/passwordPolicy";
+import { PasswordPolicyHint } from "./PasswordPolicyHint";
 
 const schema = z.object({
-  password: z.string().min(8).max(200),
+  password: z.string().min(1).max(200),
   confirm: z.string(),
 });
 
 export function ChangePasswordModal({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation();
+  const { passwordPolicy } = useSecuritySettings();
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -24,6 +28,7 @@ export function ChangePasswordModal({ onClose }: { onClose: () => void }) {
     setError(null);
     const parsed = schema.safeParse({ password, confirm });
     if (!parsed.success) { setError(t("auth.acceptInvite.tooShort")); return; }
+    if (!passwordMeetsPolicy(password, passwordPolicy)) { setError(t("auth.acceptInvite.policyNotMet")); return; }
     if (password !== confirm) { setError(t("auth.acceptInvite.mismatch")); return; }
     setBusy(true);
     const { error: updateErr } = await supabase.auth.updateUser({ password });
@@ -48,8 +53,9 @@ export function ChangePasswordModal({ onClose }: { onClose: () => void }) {
         ) : (
           <form onSubmit={onSubmit} className="space-y-4" noValidate>
             <Field label={t("auth.acceptInvite.newPassword")}>
-              <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} maxLength={200} required autoFocus />
+              <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} maxLength={200} minLength={passwordPolicy.minLength} required autoFocus />
             </Field>
+            <PasswordPolicyHint policy={passwordPolicy} />
             <Field label={t("auth.acceptInvite.confirmPassword")}>
               <Input type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} maxLength={200} required />
             </Field>

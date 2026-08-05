@@ -33,7 +33,10 @@ const PLATFORM_NAV: PlatformSection[] = [
   },
   {
     sectionKey: "platformNav.configuration",
-    items: [{ to: "/platform/statutory", labelKey: "platformNav.statutoryConfig" }],
+    items: [
+      { to: "/platform/statutory", labelKey: "platformNav.statutoryConfig" },
+      { to: "/platform/security", labelKey: "platformNav.security" },
+    ],
   },
 ];
 

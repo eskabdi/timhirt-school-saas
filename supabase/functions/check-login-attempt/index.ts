@@ -11,11 +11,34 @@
 // (stops repeated guesses against one account) and the caller's IP (stops
 // one source spraying attempts across many emails). Either bucket tripping
 // blocks the attempt.
+//
+// Thresholds come from public.system_config (20260806000001), set by a
+// super_admin at /platform/security -- read fresh on every call (no cache)
+// so a policy change is effective immediately, not just for isolates that
+// cold-start after the edit.
 // ============================================================================
 import { z } from "npm:zod@3";
+import { createClient } from "npm:@supabase/supabase-js@2";
 import { errors, json, rateLimit, corsHeaders } from "../_shared/security.ts";
 
 const Payload = z.object({ email: z.string().email().max(254) });
+
+const DEFAULTS = {
+  login_max_attempts: 5, login_attempt_window_minutes: 15,
+  login_ip_max_attempts: 20, login_ip_window_minutes: 15,
+};
+
+async function loadThresholds(): Promise<typeof DEFAULTS> {
+  const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+  const { data } = await db.from("system_config")
+    .select("key,value").is("tenant_id", null).in("key", Object.keys(DEFAULTS));
+  const out = { ...DEFAULTS };
+  for (const row of data ?? []) {
+    const n = Number(row.value);
+    if (Number.isFinite(n) && n > 0 && row.key in out) (out as Record<string, number>)[row.key] = n;
+  }
+  return out;
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -27,15 +50,15 @@ Deno.serve(async (req) => {
     const email = parsed.data.email.trim().toLowerCase();
 
     const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+    const t = await loadThresholds();
 
-    // 5 attempts / 15 min per account, 20 attempts / 15 min per IP. Both run
-    // (not short-circuited) so a blocked IP still burns the email bucket too
-    // — otherwise an attacker could learn which gate tripped by which retry
-    // recovers first.
-    const emailOk = await rateLimit(`login:email:${email}`, 5, 15 * 60_000);
-    const ipOk = await rateLimit(`login:ip:${ip}`, 20, 15 * 60_000);
+    // Both run (not short-circuited) so a blocked IP still burns the email
+    // bucket too — otherwise an attacker could learn which gate tripped by
+    // which retry recovers first.
+    const emailOk = await rateLimit(`login:email:${email}`, t.login_max_attempts, t.login_attempt_window_minutes * 60_000);
+    const ipOk = await rateLimit(`login:ip:${ip}`, t.login_ip_max_attempts, t.login_ip_window_minutes * 60_000);
 
-    if (!emailOk || !ipOk) return errors.tooMany(15 * 60);
+    if (!emailOk || !ipOk) return errors.tooMany(Math.max(t.login_attempt_window_minutes, t.login_ip_window_minutes) * 60);
     return json({ allowed: true }, 200);
   } catch (err) {
     console.error("check-login-attempt failed", { message: (err as Error).message });
