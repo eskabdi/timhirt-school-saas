@@ -163,8 +163,8 @@ export function TenantsManagementPage() {
 
       {creating && <NewTenantForm onDone={() => setCreating(false)} />}
 
-      <Panel>
-        <table className="w-full text-sm">
+      <Panel className="overflow-x-auto">
+        <table className="w-full min-w-[640px] text-sm">
           <thead className="bg-sidebar text-left text-xs uppercase text-ink-faint">
             <tr>
               <th className="px-4 py-2">{t("common.name")}</th>

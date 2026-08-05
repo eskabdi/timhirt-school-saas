@@ -40,7 +40,7 @@ const PLATFORM_NAV: PlatformSection[] = [
   },
 ];
 
-export function PlatformNav() {
+export function PlatformNav({ mobileNavOpen = false }: { mobileNavOpen?: boolean }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const { profile } = useSession();
@@ -51,7 +51,13 @@ export function PlatformNav() {
   };
 
   return (
-    <aside className="flex w-60 shrink-0 flex-col border-r border-line bg-sidebar">
+    <aside
+      className={cn(
+        "fixed inset-y-0 left-0 z-40 flex w-64 -translate-x-full flex-col border-r border-line bg-sidebar transition-transform duration-200",
+        "md:static md:z-auto md:w-60 md:shrink-0 md:translate-x-0",
+        mobileNavOpen && "translate-x-0",
+      )}
+    >
       <div className="flex items-center gap-2.5 border-b border-line px-5 py-4">
         <Avatar name={t("app.name")} size="md" />
         <div className="min-w-0">

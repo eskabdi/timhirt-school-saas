@@ -231,7 +231,7 @@ export function PlatformReportPage() {
       </Panel>
 
       <div className="grid gap-4 lg:grid-cols-3">
-        <Panel>
+        <Panel className="overflow-x-auto">
           <div className="border-b border-line px-5 py-4"><h2 className="font-semibold text-ink">{t("reportPages.usersByRole")}</h2></div>
           {!byRole.length ? (
             <p className="px-5 py-8 text-center text-sm text-ink-faint">{t("noRecordsYet")}</p>
@@ -250,7 +250,7 @@ export function PlatformReportPage() {
           <Pagination page={rolePage} totalCount={byRole.length} onPageChange={setRolePage} className="px-5" />
         </Panel>
 
-        <Panel>
+        <Panel className="overflow-x-auto">
           <div className="border-b border-line px-5 py-4"><h2 className="font-semibold text-ink">{t("reportPages.integrationsTitle")}</h2></div>
           {!data?.integrations.length ? (
             <p className="px-5 py-8 text-center text-sm text-ink-faint">{t("noRecordsYet")}</p>
@@ -271,7 +271,7 @@ export function PlatformReportPage() {
           <Pagination page={integrationsPage} totalCount={data?.integrations.length ?? 0} onPageChange={setIntegrationsPage} className="px-5" />
         </Panel>
 
-        <Panel>
+        <Panel className="overflow-x-auto">
           <div className="border-b border-line px-5 py-4"><h2 className="font-semibold text-ink">{t("reportPages.mostChangedTables")}</h2></div>
           {!auditByTable.length ? (
             <p className="px-5 py-8 text-center text-sm text-ink-faint">{t("noRecordsYet")}</p>
@@ -294,7 +294,8 @@ export function PlatformReportPage() {
         {!recentAudit.length ? (
           <p className="text-sm text-ink-faint">{t("noRecordsYet")}</p>
         ) : (
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[480px] text-sm">
             <thead className="text-left text-xs uppercase text-ink-faint">
               <tr><th className="py-2">{t("reportPages.time")}</th><th className="py-2">{t("reportPages.tenant")}</th><th className="py-2">{t("audit.action")}</th><th className="py-2">{t("reportPages.table")}</th></tr>
             </thead>
@@ -312,6 +313,7 @@ export function PlatformReportPage() {
               })}
             </tbody>
           </table>
+          </div>
         )}
       </ReportSection>
     </div>

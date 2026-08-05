@@ -30,7 +30,8 @@ export function StatutoryConfigPage() {
       <h1 className="font-display text-2xl font-bold text-ink">{t("platformPagesX.statutoryConfig")}</h1>
       <Card>
         <h2 className="mb-3 font-semibold text-ink">{t("platformPagesX.taxBrackets")}</h2>
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto">
+        <table className="w-full min-w-[520px] text-sm">
           <thead className="text-left text-xs uppercase text-ink-faint">
             <tr><th className="py-1">{t("platformPagesX.from")}</th><th className="py-1">{t("platformPagesX.to")}</th><th className="py-1">{t("platformPagesX.rate")}</th><th className="py-1">{t("platformPagesX.deduction")}</th><th className="py-1">{t("platformPagesX.effective")}</th></tr>
           </thead>
@@ -46,6 +47,7 @@ export function StatutoryConfigPage() {
             ))}
           </tbody>
         </table>
+        </div>
         <Pagination page={bracketsPage} totalCount={brackets?.length ?? 0} onPageChange={setBracketsPage} />
       </Card>
       <Card>

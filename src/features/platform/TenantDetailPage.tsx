@@ -188,7 +188,7 @@ export function TenantDetailPage() {
           <h1 className="font-display text-2xl font-bold text-ink">{tenant.name}</h1>
           <Badge tone={STATUS_TONE[tenant.status as keyof typeof STATUS_TONE] ?? "neutral"}>{tenant.status}</Badge>
         </div>
-        <dl className="mt-4 grid grid-cols-2 gap-4 text-sm">
+        <dl className="mt-4 grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
           <div><dt className="text-ink-faint">{t("platformPagesX.slug")}</dt><dd className="font-medium text-ink">{tenant.slug}</dd></div>
           <div><dt className="text-ink-faint">{t("platformPagesX.created")}</dt><dd className="font-medium text-ink"><EthDate value={tenant.created_at.slice(0, 10)} /></dd></div>
           <div>
@@ -212,8 +212,8 @@ export function TenantDetailPage() {
         <p className="mb-3 text-sm text-ink-faint">
           {t("help.inheritedFrom", { tier: tiers?.find((tr) => tr.key === tenant.tier_key)?.display_name ?? tenant.tier_key })}
         </p>
-        <Panel>
-          <table className="w-full text-sm">
+        <Panel className="overflow-x-auto">
+          <table className="w-full min-w-[480px] text-sm">
             <thead className="bg-sidebar text-left text-xs uppercase text-ink-faint">
               <tr><th className="px-4 py-2">{t("common.module")}</th><th className="px-4 py-2">{t("platformPagesX.enabled")}</th><th className="px-4 py-2" /></tr>
             </thead>
@@ -269,8 +269,8 @@ export function TenantDetailPage() {
           </div>
         )}
 
-        <Panel>
-          <table className="w-full text-sm">
+        <Panel className="overflow-x-auto">
+          <table className="w-full min-w-[480px] text-sm">
             <thead className="bg-sidebar text-left text-xs uppercase text-ink-faint">
               <tr><th className="px-4 py-2">{t("common.name")}</th><th className="px-4 py-2">{t("common.email")}</th><th className="px-4 py-2">{t("common.locale")}</th></tr>
             </thead>
