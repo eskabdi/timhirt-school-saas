@@ -42,7 +42,7 @@ export function StaffProfilePage() {
   const [printError, setPrintError] = useState<string | null>(null);
   const canSeeSensitive = !!profile && ["school_admin", "hr_officer", "accountant"].includes(profile.role);
 
-  const { data: employee } = useQuery({
+  const { data: employee, isLoading, error } = useQuery({
     queryKey: ["staff-profile", id],
     enabled: !!id,
     queryFn: async () => {
@@ -158,6 +158,14 @@ export function StaffProfilePage() {
     }
   };
 
+  if (isLoading) return <p className="text-ink-faint">…</p>;
+  if (error) {
+    return (
+      <Card className="border border-danger bg-danger-tint py-3 text-sm text-danger">
+        {error instanceof Error ? error.message : t("staffProfile.printFailed")}
+      </Card>
+    );
+  }
   if (!employee) return null;
 
   const tabLabels: Record<Tab, string> = {
