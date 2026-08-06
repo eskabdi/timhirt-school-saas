@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { supabase } from "@/lib/supabase";
 import { useSession } from "@/features/auth/useSession";
@@ -25,7 +25,34 @@ const PALETTE = [
 const colorFor = (key: string) => PALETTE[[...key].reduce((a, c) => a + c.charCodeAt(0), 0) % PALETTE.length]!;
 const initials = (s: string) => s.split(/\s+/).map((w) => w[0]).slice(0, 2).join("").toUpperCase();
 
+// The school's own Ethiopian-time clock values, taken as given -- these are
+// NOT western clock times and must never be shifted by +6h or any other
+// offset before storage. period_no is scoped per (tenant, shift), so morning
+// and afternoon each restart at 1 without colliding.
+const STANDARD_SHIFT_PERIODS: Record<"morning" | "afternoon", { period_no: number; starts_at: string; ends_at: string; is_break: boolean }[]> = {
+  morning: [
+    { period_no: 1, starts_at: "02:00", ends_at: "02:40", is_break: false },
+    { period_no: 2, starts_at: "02:40", ends_at: "03:20", is_break: false },
+    { period_no: 3, starts_at: "03:20", ends_at: "04:00", is_break: false },
+    { period_no: 4, starts_at: "04:00", ends_at: "04:30", is_break: true },
+    { period_no: 5, starts_at: "04:30", ends_at: "05:10", is_break: false },
+    { period_no: 6, starts_at: "05:10", ends_at: "05:50", is_break: false },
+    { period_no: 7, starts_at: "05:50", ends_at: "06:30", is_break: false },
+  ],
+  afternoon: [
+    { period_no: 1, starts_at: "07:00", ends_at: "07:40", is_break: false },
+    { period_no: 2, starts_at: "07:40", ends_at: "08:20", is_break: false },
+    { period_no: 3, starts_at: "08:20", ends_at: "09:00", is_break: false },
+    { period_no: 4, starts_at: "09:00", ends_at: "09:30", is_break: true },
+    { period_no: 5, starts_at: "09:30", ends_at: "10:10", is_break: false },
+    { period_no: 6, starts_at: "10:10", ends_at: "10:50", is_break: false },
+    { period_no: 7, starts_at: "10:50", ends_at: "11:30", is_break: false },
+  ],
+};
+
 interface Period { id: string; period_no: number; label: string | null; starts_at: string; ends_at: string; is_break: boolean; shift: string | null }
+interface PeriodDraft { period_no: string; label: string; starts_at: string; ends_at: string; is_break: boolean; shift: string }
+const emptyPeriodDraft: PeriodDraft = { period_no: "", label: "", starts_at: "", ends_at: "", is_break: false, shift: "" };
 interface Slot {
   id: string; day_of_week: number; period_id: string; room: string | null;
   class_id: string; teacher_id: string; subject_id: string;
@@ -38,6 +65,7 @@ export function TimetableEditorPage() {
   const { t, i18n } = useTranslation();
   const { t: tc } = useTranslation("calendar");
   const { profile } = useSession();
+  const queryClient = useQueryClient();
   const weekdays = t("weekdays", { returnObjects: true }) as string[];
   const [view, setView] = useState<"Weekly" | "Teacher View" | "Room View">("Weekly");
   const [classId, setClassId] = useState("");
@@ -46,8 +74,12 @@ export function TimetableEditorPage() {
   const [cell, setCell] = useState<{ dayOfWeek: number; periodId: string; existing: ExistingSlot | null } | null>(null);
   const [showGenerate, setShowGenerate] = useState(false);
   const [pdfBusy, setPdfBusy] = useState(false);
+  const [editingPeriodId, setEditingPeriodId] = useState<string | null>(null);
+  const [periodDraft, setPeriodDraft] = useState<PeriodDraft>(emptyPeriodDraft);
+  const [periodError, setPeriodError] = useState<string | null>(null);
 
   const tenantId = profile?.tenant_id ?? "";
+  const canManagePeriods = profile?.role === "school_admin";
 
   const { data: classes } = useQuery({
     queryKey: ["tt-classes", tenantId], enabled: !!tenantId,
@@ -61,7 +93,7 @@ export function TimetableEditorPage() {
     queryKey: ["periods", tenantId], enabled: !!tenantId,
     queryFn: async () => {
       const { data, error } = await supabase.from("periods").select("id,period_no,label,starts_at,ends_at,is_break,shift")
-        .eq("tenant_id", tenantId).order("period_no");
+        .eq("tenant_id", tenantId).order("starts_at");
       if (error) throw error;
       return (data ?? []) as Period[];
     },
@@ -84,6 +116,83 @@ export function TimetableEditorPage() {
       return data ?? [];
     },
   });
+  const { data: tenantConfig } = useQuery({
+    queryKey: ["tenant-config", tenantId], enabled: !!tenantId,
+    queryFn: async () => (await supabase.from("tenant_configs").select("operational_mode_key").eq("tenant_id", tenantId).maybeSingle()).data,
+  });
+  const isDoubleShift = tenantConfig?.operational_mode_key === "double_shift";
+
+  const invalidatePeriods = () => queryClient.invalidateQueries({ queryKey: ["periods", tenantId] });
+
+  const startEditPeriod = (p: Period) => {
+    if (!canManagePeriods) return;
+    setEditingPeriodId(p.id);
+    setPeriodDraft({
+      period_no: String(p.period_no), label: p.label ?? "",
+      starts_at: p.starts_at.slice(0, 5), ends_at: p.ends_at.slice(0, 5),
+      is_break: p.is_break, shift: p.shift ?? "",
+    });
+    setPeriodError(null);
+  };
+  const startAddPeriod = () => {
+    const nextNo = Math.max(0, ...(periods ?? []).map((p) => p.period_no)) + 1;
+    setEditingPeriodId("__new__");
+    setPeriodDraft({ ...emptyPeriodDraft, period_no: String(nextNo) });
+    setPeriodError(null);
+  };
+  const cancelPeriodEdit = () => { setEditingPeriodId(null); setPeriodError(null); };
+
+  const savePeriod = useMutation({
+    mutationFn: async () => {
+      if (!periodDraft.starts_at || !periodDraft.ends_at) throw new Error(t("timetable.periodTimesRequired"));
+      const payload = {
+        period_no: Number(periodDraft.period_no) || 1,
+        label: periodDraft.label.trim() || null,
+        starts_at: periodDraft.starts_at,
+        ends_at: periodDraft.ends_at,
+        is_break: periodDraft.is_break,
+        shift: periodDraft.shift || null,
+      };
+      if (editingPeriodId && editingPeriodId !== "__new__") {
+        const { error } = await supabase.from("periods").update(payload).eq("id", editingPeriodId);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("periods").insert({ tenant_id: tenantId, ...payload });
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => { invalidatePeriods(); setEditingPeriodId(null); setPeriodError(null); },
+    onError: (e: unknown) => setPeriodError(e instanceof Error ? e.message : t("timetable.periodSaveFailed")),
+  });
+
+  const deletePeriod = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("periods").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => { invalidatePeriods(); setEditingPeriodId(null); },
+    onError: (e: unknown) => setPeriodError(e instanceof Error ? e.message : t("timetable.periodDeleteFailed")),
+  });
+
+  // One-click population of the school's standard 7-row shift schedule, using
+  // its own Ethiopian clock values verbatim (see STANDARD_SHIFT_PERIODS) --
+  // offered only until that shift already has periods, so it can't be fired
+  // twice into a duplicate set.
+  const seedShiftPeriods = useMutation({
+    mutationFn: async (shift: "morning" | "afternoon") => {
+      const rows = STANDARD_SHIFT_PERIODS[shift].map((p) => ({
+        tenant_id: tenantId, period_no: p.period_no, shift,
+        label: p.is_break ? t("timetable.breakLabel") : null,
+        starts_at: p.starts_at, ends_at: p.ends_at, is_break: p.is_break,
+      }));
+      const { error } = await supabase.from("periods").insert(rows);
+      if (error) throw error;
+    },
+    onSuccess: invalidatePeriods,
+    onError: (e: unknown) => setPeriodError(e instanceof Error ? e.message : t("timetable.periodSaveFailed")),
+  });
+  const hasMorningPeriods = (periods ?? []).some((p) => p.shift === "morning");
+  const hasAfternoonPeriods = (periods ?? []).some((p) => p.shift === "afternoon");
 
   const selectedClass = useMemo(() => classes?.find((c) => c.id === classId), [classes, classId]);
   // A double-shift class only ever meets during its own shift's periods (or
@@ -174,6 +283,43 @@ export function TimetableEditorPage() {
     }
   };
 
+  const renderPeriodForm = () => (
+    <div className="space-y-1.5" onClick={(e) => e.stopPropagation()}>
+      <input type="text" value={periodDraft.label} onChange={(e) => setPeriodDraft({ ...periodDraft, label: e.target.value })}
+        placeholder={t("crud.time")} maxLength={40}
+        className="w-full rounded border border-line bg-card px-1.5 py-1 text-xs text-ink" />
+      <div className="flex items-center gap-1">
+        <input type="time" value={periodDraft.starts_at} onChange={(e) => setPeriodDraft({ ...periodDraft, starts_at: e.target.value })}
+          className="w-full rounded border border-line bg-card px-1 py-1 text-xs text-ink" />
+        <span className="text-ink-faint">–</span>
+        <input type="time" value={periodDraft.ends_at} onChange={(e) => setPeriodDraft({ ...periodDraft, ends_at: e.target.value })}
+          className="w-full rounded border border-line bg-card px-1 py-1 text-xs text-ink" />
+      </div>
+      {isDoubleShift && (
+        <select value={periodDraft.shift} onChange={(e) => setPeriodDraft({ ...periodDraft, shift: e.target.value })}
+          className="w-full rounded border border-line bg-card px-1 py-1 text-xs text-ink">
+          <option value="">{t("timetable.anyShift")}</option>
+          <option value="morning">{t("hr.shiftOption.morning")}</option>
+          <option value="afternoon">{t("hr.shiftOption.afternoon")}</option>
+        </select>
+      )}
+      <label className="flex items-center gap-1 text-[11px] text-ink-faint">
+        <input type="checkbox" checked={periodDraft.is_break} onChange={(e) => setPeriodDraft({ ...periodDraft, is_break: e.target.checked })} />
+        {t("timetable.breakLabel")}
+      </label>
+      <div className="flex flex-wrap gap-1.5 pt-0.5">
+        <button type="button" onClick={() => savePeriod.mutate()} disabled={savePeriod.isPending}
+          className="rounded bg-navy px-2 py-0.5 text-[11px] font-medium text-white disabled:opacity-60">{t("common.save")}</button>
+        <button type="button" onClick={cancelPeriodEdit}
+          className="rounded border border-line px-2 py-0.5 text-[11px] text-ink-soft">{t("common.cancel")}</button>
+        {editingPeriodId && editingPeriodId !== "__new__" && (
+          <button type="button" onClick={() => deletePeriod.mutate(editingPeriodId)} disabled={deletePeriod.isPending}
+            className="rounded px-2 py-0.5 text-[11px] font-medium text-danger">{t("crud.delete")}</button>
+        )}
+      </div>
+    </div>
+  );
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -233,6 +379,26 @@ export function TimetableEditorPage() {
       <div className="grid gap-4 lg:grid-cols-3">
         {/* Grid */}
         <Card className="overflow-x-auto p-0 lg:col-span-2">
+          {canManagePeriods && (
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line p-3">
+              <div className="flex flex-wrap gap-2">
+                {isDoubleShift && !hasMorningPeriods && (
+                  <Button variant="ghost" className="border border-line text-xs" onClick={() => seedShiftPeriods.mutate("morning")} disabled={seedShiftPeriods.isPending}>
+                    {t("timetable.addStandardMorning")}
+                  </Button>
+                )}
+                {isDoubleShift && !hasAfternoonPeriods && (
+                  <Button variant="ghost" className="border border-line text-xs" onClick={() => seedShiftPeriods.mutate("afternoon")} disabled={seedShiftPeriods.isPending}>
+                    {t("timetable.addStandardAfternoon")}
+                  </Button>
+                )}
+              </div>
+              <Button variant="ghost" className="border border-line text-xs" onClick={startAddPeriod} disabled={editingPeriodId !== null}>
+                + {t("timetable.addPeriod")}
+              </Button>
+            </div>
+          )}
+          {periodError && <p className="border-b border-line bg-danger-tint px-3 py-2 text-xs text-danger">{periodError}</p>}
           <table className="w-full border-collapse text-sm">
             <thead>
               <tr className="bg-navy-wash">
@@ -241,11 +407,19 @@ export function TimetableEditorPage() {
               </tr>
             </thead>
             <tbody>
-              {visiblePeriods.length ? visiblePeriods.map((p) => (
+              {visiblePeriods.map((p) => (
                 <tr key={p.id} className={p.is_break ? "bg-sidebar/60" : ""}>
-                  <td className="border-b border-line px-3 py-4 align-top text-xs font-semibold text-ink">
-                    {p.label ?? `${t("crud.time")} ${p.period_no}`}<br />
-                    <span className="font-normal text-ink-faint">{p.starts_at.slice(0, 5)}–{p.ends_at.slice(0, 5)}</span>
+                  <td className="border-b border-line px-3 py-2 align-top text-xs font-semibold text-ink">
+                    {editingPeriodId === p.id ? (
+                      renderPeriodForm()
+                    ) : (
+                      <div className={canManagePeriods ? "cursor-pointer py-2 hover:text-navy" : "py-2"} onClick={() => startEditPeriod(p)}>
+                        {p.label ?? `${t("crud.time")} ${p.period_no}`}
+                        {p.shift && <span className="ml-1 text-[10px] font-normal text-ink-faint">({t(`hr.shiftOption.${p.shift}`)})</span>}
+                        <br />
+                        <span className="font-normal text-ink-faint">{p.starts_at.slice(0, 5)}–{p.ends_at.slice(0, 5)}</span>
+                      </div>
+                    )}
                   </td>
                   {DAYS.map((dow) => {
                     const s = cellFor(dow, p.id);
@@ -272,7 +446,16 @@ export function TimetableEditorPage() {
                     );
                   })}
                 </tr>
-              )) : <tr><td colSpan={DAYS.length + 1} className="py-16 text-center text-ink-faint">{t("crud.noSlots")}</td></tr>}
+              ))}
+              {editingPeriodId === "__new__" && (
+                <tr>
+                  <td className="border-b border-line px-3 py-2 align-top text-xs font-semibold text-ink">{renderPeriodForm()}</td>
+                  {DAYS.map((dow) => <td key={dow} className="border-b border-l border-line" />)}
+                </tr>
+              )}
+              {!visiblePeriods.length && editingPeriodId !== "__new__" && (
+                <tr><td colSpan={DAYS.length + 1} className="py-16 text-center text-ink-faint">{t("crud.noSlots")}</td></tr>
+              )}
             </tbody>
           </table>
         </Card>
