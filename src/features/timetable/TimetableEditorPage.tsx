@@ -134,10 +134,10 @@ export function TimetableEditorPage() {
     });
     setPeriodError(null);
   };
-  const startAddPeriod = () => {
-    const nextNo = Math.max(0, ...(periods ?? []).map((p) => p.period_no)) + 1;
+  const startAddPeriod = (shift: string = "") => {
+    const nextNo = Math.max(0, ...(periods ?? []).filter((p) => (p.shift ?? "") === shift).map((p) => p.period_no)) + 1;
     setEditingPeriodId("__new__");
-    setPeriodDraft({ ...emptyPeriodDraft, period_no: String(nextNo) });
+    setPeriodDraft({ ...emptyPeriodDraft, period_no: String(nextNo), shift });
     setPeriodError(null);
   };
   const cancelPeriodEdit = () => { setEditingPeriodId(null); setPeriodError(null); };
@@ -204,6 +204,26 @@ export function TimetableEditorPage() {
     return (periods ?? []).filter((p) => !p.shift || p.shift === selectedClass.shift);
   }, [periods, view, selectedClass]);
   const teachingPeriods = useMemo(() => visiblePeriods.filter((p) => !p.is_break), [visiblePeriods]);
+
+  // A double-shift school's Morning and Afternoon periods are two unrelated
+  // clocks -- "Period 1" means a different literal time in each -- so they're
+  // always rendered as two separate tables rather than one list interleaved
+  // by start time. Shared/shift-agnostic periods (legacy or full-day) get
+  // their own group too, but only when any exist. When a shift-scoped class
+  // is already selected, visiblePeriods is pre-narrowed to that one shift, so
+  // only its table (plus any shared one) renders.
+  const groupedPeriods = useMemo(() => {
+    if (!isDoubleShift) return [{ key: "all", heading: null as string | null, rows: visiblePeriods }];
+    const shared = visiblePeriods.filter((p) => !p.shift);
+    const morning = visiblePeriods.filter((p) => p.shift === "morning");
+    const afternoon = visiblePeriods.filter((p) => p.shift === "afternoon");
+    const showBothShifts = view !== "Weekly" || !selectedClass?.shift;
+    const groups: { key: string; heading: string | null; rows: Period[] }[] = [];
+    if (shared.length) groups.push({ key: "shared", heading: t("timetable.sharedPeriods"), rows: shared });
+    if (morning.length || showBothShifts) groups.push({ key: "morning", heading: t("hr.shiftOption.morning"), rows: morning });
+    if (afternoon.length || showBothShifts) groups.push({ key: "afternoon", heading: t("hr.shiftOption.afternoon"), rows: afternoon });
+    return groups;
+  }, [isDoubleShift, visiblePeriods, view, selectedClass, t]);
 
   const rooms = useMemo(() => [...new Set((slots ?? []).map((s) => s.room).filter((r): r is string => !!r))].sort(), [slots]);
 
@@ -320,6 +340,81 @@ export function TimetableEditorPage() {
     </div>
   );
 
+  const renderPeriodRow = (p: Period) => (
+    <tr key={p.id} className={p.is_break ? "bg-sidebar/60" : ""}>
+      <td className="border-b border-line px-3 py-2 align-top text-xs font-semibold text-ink">
+        {editingPeriodId === p.id ? (
+          renderPeriodForm()
+        ) : (
+          <div className={canManagePeriods ? "cursor-pointer py-2 hover:text-navy" : "py-2"} onClick={() => startEditPeriod(p)}>
+            {p.label ?? `${t("crud.time")} ${p.period_no}`}<br />
+            <span className="font-normal text-ink-faint">{p.starts_at.slice(0, 5)}–{p.ends_at.slice(0, 5)}</span>
+          </div>
+        )}
+      </td>
+      {DAYS.map((dow) => {
+        const s = cellFor(dow, p.id);
+        const c = s ? colorFor(s.subjects?.code ?? "") : null;
+        const clickable = view === "Weekly" && !!classId && !p.is_break;
+        return (
+          <td key={dow} className={`border-b border-l border-line p-1.5 align-top ${clickable ? "cursor-pointer hover:bg-navy-wash/40" : ""}`}
+            onClick={() => openCell(dow, p)}>
+            {p.is_break ? (
+              <div className="py-3 text-center text-xs text-ink-faint">{t("timetable.breakLabel")}</div>
+            ) : s && c ? (
+              <div className="rounded-md p-2" style={{ background: c.bg, borderLeft: `3px solid ${c.bar}` }}>
+                <p className="text-sm font-semibold" style={{ color: c.text }}>{tField(s.subjects?.name_i18n, i18n.resolvedLanguage!) || s.subjects?.code}</p>
+                <p className="mt-1 flex justify-between text-xs text-ink-faint">
+                  <span>{initials(s.teachers?.users?.full_name ?? s.teachers?.staff_no ?? "")}</span>
+                  <span>{s.room ?? ""}</span>
+                </p>
+                {view !== "Weekly" && (
+                  <p className="mt-0.5 text-[11px] text-ink-faint">{(s.classes as any)?.name} {(s.classes as any)?.section}</p>
+                )}
+              </div>
+            ) : <div className="py-3 text-center text-xs text-ink-faint">{t("crud.noSession")}</div>}
+          </td>
+        );
+      })}
+    </tr>
+  );
+
+  const renderShiftTable = (group: { key: string; heading: string | null; rows: Period[] }) => (
+    <div key={group.key}>
+      {group.heading && (
+        <div className="flex items-center justify-between border-b border-t border-line bg-sidebar/40 px-3 py-2 first:border-t-0">
+          <h3 className="text-xs font-bold uppercase tracking-wide text-ink-soft">{group.heading}</h3>
+          {canManagePeriods && (
+            <button type="button" onClick={() => startAddPeriod(group.key === "shared" ? "" : group.key)} disabled={editingPeriodId !== null}
+              className="text-xs font-medium text-navy hover:underline disabled:opacity-50 disabled:no-underline">
+              + {t("timetable.addPeriod")}
+            </button>
+          )}
+        </div>
+      )}
+      <table className="w-full border-collapse text-sm">
+        <thead>
+          <tr className="bg-navy-wash">
+            <th className="w-24 border-b border-line px-3 py-3 text-left text-ink-soft">{t("crud.time")}</th>
+            {DAYS.map((dow) => <th key={dow} className="border-b border-l border-line px-3 py-3 text-center font-bold text-navy">{weekdays[dow]}</th>)}
+          </tr>
+        </thead>
+        <tbody>
+          {group.rows.map(renderPeriodRow)}
+          {editingPeriodId === "__new__" && (periodDraft.shift || "shared") === group.key && (
+            <tr>
+              <td className="border-b border-line px-3 py-2 align-top text-xs font-semibold text-ink">{renderPeriodForm()}</td>
+              {DAYS.map((dow) => <td key={dow} className="border-b border-l border-line" />)}
+            </tr>
+          )}
+          {!group.rows.length && (editingPeriodId !== "__new__" || (periodDraft.shift || "shared") !== group.key) && (
+            <tr><td colSpan={DAYS.length + 1} className="py-8 text-center text-xs text-ink-faint">{t("crud.noSlots")}</td></tr>
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -379,7 +474,7 @@ export function TimetableEditorPage() {
       <div className="grid gap-4 lg:grid-cols-3">
         {/* Grid */}
         <Card className="overflow-x-auto p-0 lg:col-span-2">
-          {canManagePeriods && (
+          {canManagePeriods && (isDoubleShift ? (!hasMorningPeriods || !hasAfternoonPeriods) : true) && (
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line p-3">
               <div className="flex flex-wrap gap-2">
                 {isDoubleShift && !hasMorningPeriods && (
@@ -393,71 +488,15 @@ export function TimetableEditorPage() {
                   </Button>
                 )}
               </div>
-              <Button variant="ghost" className="border border-line text-xs" onClick={startAddPeriod} disabled={editingPeriodId !== null}>
-                + {t("timetable.addPeriod")}
-              </Button>
+              {!isDoubleShift && (
+                <Button variant="ghost" className="border border-line text-xs" onClick={() => startAddPeriod()} disabled={editingPeriodId !== null}>
+                  + {t("timetable.addPeriod")}
+                </Button>
+              )}
             </div>
           )}
           {periodError && <p className="border-b border-line bg-danger-tint px-3 py-2 text-xs text-danger">{periodError}</p>}
-          <table className="w-full border-collapse text-sm">
-            <thead>
-              <tr className="bg-navy-wash">
-                <th className="w-24 border-b border-line px-3 py-3 text-left text-ink-soft">{t("crud.time")}</th>
-                {DAYS.map((dow) => <th key={dow} className="border-b border-l border-line px-3 py-3 text-center font-bold text-navy">{weekdays[dow]}</th>)}
-              </tr>
-            </thead>
-            <tbody>
-              {visiblePeriods.map((p) => (
-                <tr key={p.id} className={p.is_break ? "bg-sidebar/60" : ""}>
-                  <td className="border-b border-line px-3 py-2 align-top text-xs font-semibold text-ink">
-                    {editingPeriodId === p.id ? (
-                      renderPeriodForm()
-                    ) : (
-                      <div className={canManagePeriods ? "cursor-pointer py-2 hover:text-navy" : "py-2"} onClick={() => startEditPeriod(p)}>
-                        {p.label ?? `${t("crud.time")} ${p.period_no}`}
-                        {p.shift && <span className="ml-1 text-[10px] font-normal text-ink-faint">({t(`hr.shiftOption.${p.shift}`)})</span>}
-                        <br />
-                        <span className="font-normal text-ink-faint">{p.starts_at.slice(0, 5)}–{p.ends_at.slice(0, 5)}</span>
-                      </div>
-                    )}
-                  </td>
-                  {DAYS.map((dow) => {
-                    const s = cellFor(dow, p.id);
-                    const c = s ? colorFor(s.subjects?.code ?? "") : null;
-                    const clickable = view === "Weekly" && !!classId && !p.is_break;
-                    return (
-                      <td key={dow} className={`border-b border-l border-line p-1.5 align-top ${clickable ? "cursor-pointer hover:bg-navy-wash/40" : ""}`}
-                        onClick={() => openCell(dow, p)}>
-                        {p.is_break ? (
-                          <div className="py-3 text-center text-xs text-ink-faint">{t("timetable.breakLabel")}</div>
-                        ) : s && c ? (
-                          <div className="rounded-md p-2" style={{ background: c.bg, borderLeft: `3px solid ${c.bar}` }}>
-                            <p className="text-sm font-semibold" style={{ color: c.text }}>{tField(s.subjects?.name_i18n, i18n.resolvedLanguage!) || s.subjects?.code}</p>
-                            <p className="mt-1 flex justify-between text-xs text-ink-faint">
-                              <span>{initials(s.teachers?.users?.full_name ?? s.teachers?.staff_no ?? "")}</span>
-                              <span>{s.room ?? ""}</span>
-                            </p>
-                            {view !== "Weekly" && (
-                              <p className="mt-0.5 text-[11px] text-ink-faint">{(s.classes as any)?.name} {(s.classes as any)?.section}</p>
-                            )}
-                          </div>
-                        ) : <div className="py-3 text-center text-xs text-ink-faint">{t("crud.noSession")}</div>}
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-              {editingPeriodId === "__new__" && (
-                <tr>
-                  <td className="border-b border-line px-3 py-2 align-top text-xs font-semibold text-ink">{renderPeriodForm()}</td>
-                  {DAYS.map((dow) => <td key={dow} className="border-b border-l border-line" />)}
-                </tr>
-              )}
-              {!visiblePeriods.length && editingPeriodId !== "__new__" && (
-                <tr><td colSpan={DAYS.length + 1} className="py-16 text-center text-ink-faint">{t("crud.noSlots")}</td></tr>
-              )}
-            </tbody>
-          </table>
+          {groupedPeriods.map(renderShiftTable)}
         </Card>
 
         {/* Side panel */}
