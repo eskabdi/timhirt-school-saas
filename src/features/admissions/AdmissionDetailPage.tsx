@@ -1,14 +1,19 @@
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { useSession } from "@/features/auth/useSession";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { Field } from "@/components/ui/Field";
 import { Panel, PanelHeader } from "@/components/ui/Panel";
 import { EthDate } from "@/components/EthDate";
 import { EnrollStudentModal } from "./EnrollStudentModal";
+
+const REFUND_TONE = { not_applicable: "neutral", pending: "late", completed: "ok" } as const;
 
 const STAGE_TONE = {
   applied: "neutral", shortlisted: "navy", offered: "late", registered: "ok", rejected: "danger",
@@ -37,7 +42,10 @@ async function signedUrlsFor(paths: Record<string, string | null>) {
 export function AdmissionDetailPage() {
   const { t } = useTranslation();
   const { id } = useParams();
+  const { profile } = useSession();
+  const qc = useQueryClient();
   const [enrolling, setEnrolling] = useState(false);
+  const [refundNotes, setRefundNotes] = useState("");
   const { data } = useQuery({
     queryKey: ["admission", id],
     queryFn: async () => {
@@ -76,9 +84,29 @@ export function AdmissionDetailPage() {
     },
   });
 
+  // Registration payments on a never-enrolled application (rejected here --
+  // the concrete case that surfaced this gap) can't go through
+  // fee_invoices/payments (student_id is NOT NULL there, and a rejected
+  // applicant never gets a students row). This is a minimal status flag
+  // directly on the application so staff can track the refund through to
+  // completion. Covered by the existing admissions_write RLS policy --
+  // no new policy needed for these columns.
+  const setRefundStatus = useMutation({
+    mutationFn: async (status: "pending" | "completed") => {
+      const { error } = await supabase.from("admission_applications").update({
+        refund_status: status,
+        refund_notes: refundNotes.trim() || null,
+        ...(status === "completed" ? { refund_processed_at: new Date().toISOString(), refund_processed_by: profile?.id ?? null } : {}),
+      }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["admission", id] }),
+  });
+
   if (!data) return null;
 
   const hasBilingualName = data.applicant_first_name || data.applicant_first_name_am;
+  const needsRefundTracking = data.stage === "rejected" && data.payment_method && !data.converted_student_id;
 
   return (
     <div className="max-w-2xl space-y-4">
@@ -166,6 +194,44 @@ export function AdmissionDetailPage() {
               {bankVerification.previewUrl && (
                 <iframe title={t("admissions.bankVerification.title")} src={bankVerification.previewUrl}
                   className="mt-3 h-96 w-full rounded-control border border-line" />
+              )}
+            </div>
+          )}
+          {needsRefundTracking && (
+            <div className="border-t border-line p-5">
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-sm font-semibold text-ink">{t("admissions.refund.title")}</p>
+                <Badge tone={REFUND_TONE[data.refund_status as keyof typeof REFUND_TONE] ?? "neutral"}>
+                  {t(`admissions.refund.status.${data.refund_status}`)}
+                </Badge>
+              </div>
+              <p className="text-xs text-ink-faint">
+                {t("admissions.refund.hint", { amount: data.fees_total_etb, method: t(`admissions.paymentMethod.${data.payment_method}`) })}
+              </p>
+              {data.refund_status === "completed" ? (
+                <div className="mt-2 text-xs text-ink-faint">
+                  {data.refund_processed_at && (
+                    <p>{t("admissions.refund.completedOn")} <EthDate value={data.refund_processed_at} /></p>
+                  )}
+                  {data.refund_notes && <p className="mt-1 text-ink">{data.refund_notes}</p>}
+                </div>
+              ) : (
+                <div className="mt-3 space-y-2">
+                  <Field label={t("admissions.refund.notes")}>
+                    <Input value={refundNotes} onChange={(e) => setRefundNotes(e.target.value)} maxLength={500}
+                      placeholder={t("admissions.refund.notesPlaceholder")} />
+                  </Field>
+                  <div className="flex gap-2">
+                    {data.refund_status === "not_applicable" && (
+                      <Button variant="ghost" onClick={() => setRefundStatus.mutate("pending")} disabled={setRefundStatus.isPending}>
+                        {t("admissions.refund.markPending")}
+                      </Button>
+                    )}
+                    <Button onClick={() => setRefundStatus.mutate("completed")} disabled={setRefundStatus.isPending}>
+                      {t("admissions.refund.markCompleted")}
+                    </Button>
+                  </div>
+                </div>
               )}
             </div>
           )}
