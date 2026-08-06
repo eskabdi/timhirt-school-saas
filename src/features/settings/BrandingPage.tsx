@@ -7,25 +7,18 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { applyBrandPalette } from "@/lib/brand-theme";
 
-const SCHOOL_TYPES = ["public", "private", "religious", "community"] as const;
-type SchoolType = (typeof SCHOOL_TYPES)[number];
-const OPERATIONAL_MODES = ["full_day", "double_shift"] as const;
-type OperationalMode = (typeof OPERATIONAL_MODES)[number];
-
 interface Branding {
   nameEn: string; nameAm: string; nameOm: string; motto: string;
   logoPath: string | null; sealPath: string | null;
   primaryColor: string; secondaryColor: string; accentColor: string;
   langEn: boolean; langAm: boolean; langOm: boolean;
   calendar: "EC" | "GC";
-  schoolType: SchoolType; operationalMode: OperationalMode;
 }
 const DEFAULTS: Branding = {
   nameEn: "", nameAm: "", nameOm: "", motto: "",
   logoPath: null, sealPath: null,
   primaryColor: "#1a56db", secondaryColor: "#006c4a", accentColor: "#ffd6a8",
   langEn: true, langAm: false, langOm: false, calendar: "EC",
-  schoolType: "private", operationalMode: "full_day",
 };
 
 function publicUrl(path: string | null): string | null {
@@ -38,6 +31,8 @@ export function BrandingPage() {
   const { profile } = useSession();
   const qc = useQueryClient();
   const [b, setB] = useState<Branding>(DEFAULTS);
+  const [schoolTypeKey, setSchoolTypeKey] = useState<string>("");
+  const [operationalModeKey, setOperationalModeKey] = useState<string>("");
   const [toast, setToast] = useState<string | null>(null);
   const logoInput = useRef<HTMLInputElement>(null);
   const sealInput = useRef<HTMLInputElement>(null);
@@ -45,10 +40,26 @@ export function BrandingPage() {
   const { data: config } = useQuery({
     queryKey: ["tenant-config", profile?.tenant_id],
     enabled: !!profile?.tenant_id,
-    queryFn: async () => (await supabase.from("tenant_configs").select("settings").eq("tenant_id", profile!.tenant_id!).maybeSingle()).data,
+    queryFn: async () => (await supabase.from("tenant_configs")
+      .select("settings, school_type_key, operational_mode_key")
+      .eq("tenant_id", profile!.tenant_id!).maybeSingle()).data,
+  });
+  // Platform-wide reference catalogs (§ school_types/operational_modes,
+  // 20260810000001) -- same shape as the modules/subscription_tiers pattern,
+  // not free text, so the dropdown options always match what the DB's FK
+  // constraint actually accepts.
+  const { data: schoolTypes } = useQuery({
+    queryKey: ["school-types"],
+    queryFn: async () => (await supabase.from("school_types").select("key, display_name").order("sort_order")).data ?? [],
+  });
+  const { data: operationalModes } = useQuery({
+    queryKey: ["operational-modes"],
+    queryFn: async () => (await supabase.from("operational_modes").select("key, display_name").order("sort_order")).data ?? [],
   });
   useEffect(() => {
     if (config?.settings?.branding) setB({ ...DEFAULTS, ...config.settings.branding });
+    setSchoolTypeKey(config?.school_type_key ?? "");
+    setOperationalModeKey(config?.operational_mode_key ?? "");
   }, [config]);
   useEffect(() => {
     if (!toast) return;
@@ -77,7 +88,12 @@ export function BrandingPage() {
   const save = useMutation({
     mutationFn: async () => {
       const settings = { ...(config?.settings ?? {}), branding: b };
-      const { error } = await supabase.from("tenant_configs").upsert({ tenant_id: profile!.tenant_id, settings });
+      const { error } = await supabase.from("tenant_configs").upsert({
+        tenant_id: profile!.tenant_id,
+        settings,
+        school_type_key: schoolTypeKey || null,
+        operational_mode_key: operationalModeKey || null,
+      });
       if (error) throw error;
     },
     // Shares the ["tenant-config", …] key with the sidebar, so the nav name +
@@ -115,7 +131,7 @@ export function BrandingPage() {
           <p className="mt-1 text-xs text-ink-faint">{t("branding.breadcrumb")}</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="ghost" className="border border-line" onClick={() => setB(DEFAULTS)}>{t("branding.resetDefault")}</Button>
+          <Button variant="ghost" className="border border-line" onClick={() => { setB(DEFAULTS); setSchoolTypeKey(""); setOperationalModeKey(""); }}>{t("branding.resetDefault")}</Button>
           <Button onClick={() => save.mutate()} disabled={save.isPending}>▣ {t("branding.saveChanges")}</Button>
         </div>
       </div>
@@ -215,18 +231,19 @@ export function BrandingPage() {
             {sectionHead("🏫", t("branding.schoolTypeOperations"))}
             <div>
               <label className="mb-1 block text-xs font-semibold text-ink">{t("branding.schoolType")}</label>
-              <select value={b.schoolType} onChange={(e) => setB({ ...b, schoolType: e.target.value as SchoolType })}
+              <select value={schoolTypeKey} onChange={(e) => setSchoolTypeKey(e.target.value)}
                 className="w-full rounded-control border border-line bg-navy-wash px-3 py-2 text-sm text-ink">
-                {SCHOOL_TYPES.map((s) => <option key={s} value={s}>{t(`branding.schoolTypeOption.${s}`)}</option>)}
+                <option value="">{t("crud.notSet")}</option>
+                {schoolTypes?.map((s) => <option key={s.key} value={s.key}>{t(`branding.schoolTypeOption.${s.key}`, { defaultValue: s.display_name })}</option>)}
               </select>
             </div>
             <div className="flex items-center justify-between rounded-lg bg-navy-wash p-3">
               <p className="text-sm font-bold text-ink">🕐 {t("branding.operationalMode")}</p>
               <div className="flex overflow-hidden rounded-control border border-line">
-                {OPERATIONAL_MODES.map((m) => (
-                  <button key={m} onClick={() => setB({ ...b, operationalMode: m })}
-                    className={`px-3 py-1 text-sm font-medium ${b.operationalMode === m ? "bg-navy text-white" : "bg-card text-ink-soft"}`}>
-                    {t(`branding.operationalModeOption.${m}`)}
+                {operationalModes?.map((m) => (
+                  <button key={m.key} onClick={() => setOperationalModeKey(m.key)}
+                    className={`px-3 py-1 text-sm font-medium ${operationalModeKey === m.key ? "bg-navy text-white" : "bg-card text-ink-soft"}`}>
+                    {t(`branding.operationalModeOption.${m.key}`, { defaultValue: m.display_name })}
                   </button>
                 ))}
               </div>
