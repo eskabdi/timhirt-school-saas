@@ -22,6 +22,7 @@ import { supabase } from "@/lib/supabase";
 import { useSession } from "@/features/auth/useSession";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { PhoneInput } from "@/components/ui/PhoneInput";
 import { Field } from "@/components/ui/Field";
 import { Card } from "@/components/ui/Card";
 import { Panel } from "@/components/ui/Panel";
@@ -468,7 +469,7 @@ export function StaffRegistrationPage() {
                   <Input value={s1.national_id} onChange={(e) => setS1({ ...s1, national_id: e.target.value })} />
                 </Field>
                 <Field label={t("staffReg.phone")}>
-                  <Input value={s1.phone} onChange={(e) => setS1({ ...s1, phone: e.target.value })} placeholder="+251 9…" />
+                  <PhoneInput value={s1.phone} onChange={(v) => setS1({ ...s1, phone: v })} />
                 </Field>
                 <Field label={t("staffReg.personalEmail")}>
                   <Input type="email" value={s1.personal_email} onChange={(e) => setS1({ ...s1, personal_email: e.target.value })} />
@@ -492,7 +493,7 @@ export function StaffRegistrationPage() {
                   <Input value={ec.relationship} onChange={(e) => setEc({ ...ec, relationship: e.target.value })} />
                 </Field>
                 <Field label={t("staffReg.phone")}>
-                  <Input value={ec.phone} onChange={(e) => setEc({ ...ec, phone: e.target.value })} placeholder="+251 9…" />
+                  <PhoneInput value={ec.phone} onChange={(v) => setEc({ ...ec, phone: v })} />
                 </Field>
                 <Field label={t("staffReg.personalEmail")}>
                   <Input type="email" value={ec.email} onChange={(e) => setEc({ ...ec, email: e.target.value })} />
@@ -637,7 +638,7 @@ export function StaffRegistrationPage() {
               <Input type="email" value={s3.institutional_email} onChange={(e) => setS3({ ...s3, institutional_email: e.target.value })} />
             </Field>
             <Field label={t("staffReg.workPhone")}>
-              <Input value={s3.work_phone} onChange={(e) => setS3({ ...s3, work_phone: e.target.value })} placeholder="+251 9…" />
+              <PhoneInput value={s3.work_phone} onChange={(v) => setS3({ ...s3, work_phone: v })} />
             </Field>
           </SectionCard>
 

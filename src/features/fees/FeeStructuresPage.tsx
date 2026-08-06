@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useSession } from "@/features/auth/useSession";
@@ -40,8 +40,17 @@ export function FeeStructuresPage() {
   });
   const { data: classes } = useQuery({
     queryKey: ["fee-classes"],
-    queryFn: async () => (await supabase.from("classes").select("id,name,section").order("grade_level")).data ?? [],
+    queryFn: async () => (await supabase.from("classes").select("id,name,section,grade_level").order("grade_level")).data ?? [],
   });
+  // A fee structure scopes to a grade, not a specific section -- classes has
+  // one row per section, so the picker dedupes by name and keys the fee to
+  // the first section's row in that grade, mirroring the same dedupe-by-name
+  // grade list submit-admission already builds for the public form.
+  const grades = useMemo(() => {
+    const byName = new Map<string, { id: string; name: string; grade_level: number | null }>();
+    for (const c of classes ?? []) if (!byName.has(c.name)) byName.set(c.name, c);
+    return [...byName.values()].sort((a, b) => (a.grade_level ?? 999) - (b.grade_level ?? 999));
+  }, [classes]);
 
   const payload = (f: FormState) => ({
     name_i18n: { en: f.name },
@@ -76,7 +85,7 @@ export function FeeStructuresPage() {
   const classLabel = (id: string | null) => {
     if (!id) return "All classes";
     const c = classes?.find((x) => x.id === id);
-    return c ? `${c.name} ${c.section ?? ""}`.trim() : "—";
+    return c ? c.name : "—";
   };
 
   const formFields = (f: FormState, set: (f: FormState) => void) => (
@@ -91,7 +100,7 @@ export function FeeStructuresPage() {
       <Field label={t("crud.classOptional")}>
         <select value={f.classId} onChange={(e) => set({ ...f, classId: e.target.value })} className="w-full rounded-control border border-line bg-card px-3 py-2 text-sm text-ink">
           <option value="">{t("crud.allClasses")}</option>
-          {classes?.map((c) => <option key={c.id} value={c.id}>{c.name} {c.section}</option>)}
+          {grades.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
       </Field>
     </div>

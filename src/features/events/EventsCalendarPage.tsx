@@ -48,6 +48,7 @@ export function EventsCalendarPage() {
 
   const months = tc("months", { returnObjects: true }) as string[];
   const weekdays = t("weekdays", { returnObjects: true }) as string[];
+  const weekdaysShort = t("weekdaysShort", { returnObjects: true }) as string[];
   const locale = i18n.resolvedLanguage ?? "en";
 
   // Cells for the active view. Month pads to whole weeks so the grid stays
@@ -156,8 +157,8 @@ export function EventsCalendarPage() {
         onKeyDown={(ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); openOn(c); } }}
         aria-label={`${months[c.eth.month - 1]} ${c.eth.day} — ${t("eventsCalendar.addOnThisDay")}`}
         className={cn(
-          "flex cursor-pointer flex-col items-stretch gap-1 border-b border-l border-line p-2 text-left transition-[filter] hover:brightness-95",
-          tall ? "min-h-[112px]" : "min-h-[68px]",
+          "flex cursor-pointer flex-col items-stretch gap-1 border-b border-l border-line p-1.5 text-left transition-[filter] hover:brightness-95 sm:p-2",
+          tall ? "min-h-[64px] sm:min-h-[112px]" : "min-h-[44px] sm:min-h-[68px]",
           !c.inMonth && "opacity-45",
           holiday ? "bg-danger-tint" : sunday ? "bg-danger-tint/60" : "bg-ok-tint/70",
         )}
@@ -237,9 +238,10 @@ export function EventsCalendarPage() {
         {view !== "day" && (
           <div className="grid grid-cols-7">
             {weekdays.slice(1).map((d, i) => (
-              <div key={d} className={cn("border-b border-l border-line px-3 py-3 text-center text-sm font-bold",
+              <div key={d} className={cn("border-b border-l border-line px-1 py-2 text-center text-xs font-bold sm:px-3 sm:py-3 sm:text-sm",
                 i === 0 || i === 6 ? "text-danger" : "text-ink")}>
-                {d}
+                <span className="hidden sm:inline">{d}</span>
+                <span className="sm:hidden">{weekdaysShort[i + 1]}</span>
               </div>
             ))}
           </div>

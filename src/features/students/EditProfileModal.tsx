@@ -6,6 +6,7 @@ import { useSession } from "@/features/auth/useSession";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { PhoneInput } from "@/components/ui/PhoneInput";
 import { Field } from "@/components/ui/Field";
 import { EthnicitySelect } from "./EthnicitySelect";
 import { EthDatePicker } from "@/components/EthDatePicker";
@@ -243,7 +244,7 @@ export function EditProfileModal({ student, guardian, open, onClose }: {
               </select>
             </Field>
             <Field label={t("admissions.phone")}>
-              <Input value={f.g_phone} onChange={(e) => setF({ ...f, g_phone: e.target.value })} placeholder="+251911223344" />
+              <PhoneInput value={f.g_phone} onChange={(v) => setF({ ...f, g_phone: v })} />
             </Field>
             <Field label={t("admissions.email")}>
               <Input type="email" value={f.g_email} onChange={(e) => setF({ ...f, g_email: e.target.value })} />

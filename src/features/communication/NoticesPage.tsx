@@ -3,13 +3,14 @@
 // a notice that quietly expired looks identical to a live one otherwise.
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useSession } from "@/features/auth/useSession";
 import { Card } from "@/components/ui/Card";
 import { Panel } from "@/components/ui/Panel";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { Modal } from "@/components/ui/Modal";
 import { EthDate } from "@/components/EthDate";
 import { Pagination, pageRange } from "@/components/ui/Pagination";
 import { richTextToPlain } from "@/components/ui/RichText";
@@ -20,8 +21,10 @@ import { NoticeFormModal, type NoticeRow } from "./NoticeFormModal";
 export function NoticesPage() {
   const { t, i18n } = useTranslation();
   const { profile } = useSession();
+  const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<NoticeRow | null>(null);
+  const [deleting, setDeleting] = useState<NoticeRow | null>(null);
   const [page, setPage] = useState(1);
   const locale = i18n.resolvedLanguage ?? "en";
 
@@ -40,6 +43,14 @@ export function NoticesPage() {
     },
   });
   const notices = noticesData?.rows;
+
+  const remove = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.from("notices").delete().eq("id", deleting!.id);
+      if (error) throw error;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["notices"] }); setDeleting(null); },
+  });
 
   const today = new Date().toISOString().slice(0, 10);
   const roleLabel = (role: string) =>
@@ -94,10 +105,16 @@ export function NoticesPage() {
                       </Badge>
                     </td>
                     <td className="px-4 py-3">
-                      <button onClick={() => { setEditing(n); setOpen(true); }}
-                        className="rounded-control bg-navy-wash px-2.5 py-1 text-xs font-medium text-navy hover:bg-line">
-                        {t("crud.edit")}
-                      </button>
+                      <div className="flex gap-2">
+                        <button onClick={() => { setEditing(n); setOpen(true); }}
+                          className="rounded-control bg-navy-wash px-2.5 py-1 text-xs font-medium text-navy hover:bg-line">
+                          {t("crud.edit")}
+                        </button>
+                        <button onClick={() => setDeleting(n)}
+                          className="rounded-control bg-danger-tint px-2.5 py-1 text-xs font-medium text-danger hover:bg-danger-tint/70">
+                          {t("crud.delete")}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -109,6 +126,16 @@ export function NoticesPage() {
       )}
 
       <NoticeFormModal open={open} onClose={() => setOpen(false)} editing={editing} />
+
+      <Modal open={!!deleting} onClose={() => setDeleting(null)} title={t("notices.deleteConfirm")}>
+        <p className="text-sm text-ink-soft">
+          {t("crud.delete")} <span className="font-medium text-ink">{deleting && tField(deleting.title_i18n, locale)}</span>?
+        </p>
+        <div className="mt-4 flex justify-end gap-2 border-t border-line pt-3">
+          <Button variant="ghost" onClick={() => setDeleting(null)}>{t("common.cancel")}</Button>
+          <Button variant="danger" onClick={() => remove.mutate()} disabled={remove.isPending}>{t("crud.delete")}</Button>
+        </div>
+      </Modal>
     </div>
   );
 }

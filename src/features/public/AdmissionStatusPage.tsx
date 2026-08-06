@@ -63,9 +63,9 @@ export function AdmissionStatusPage() {
 
   return (
     <div className="min-h-screen bg-page">
-      <header className="flex items-center justify-between border-b border-line bg-card px-6 py-4">
-        <span className="font-display text-lg font-bold text-navy">{t("schoolFallback")}</span>
-        <LanguageSwitcher />
+      <header className="flex items-center justify-between bg-gradient-to-r from-navy to-navy-container px-6 py-4">
+        <span className="font-display text-lg font-bold text-white">{t("schoolFallback")}</span>
+        <LanguageSwitcher variant="dark" />
       </header>
 
       <div className="mx-auto max-w-md px-4 py-10">

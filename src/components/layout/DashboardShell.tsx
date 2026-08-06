@@ -204,11 +204,14 @@ export function DashboardShell() {
       return count ?? 0;
     },
   });
-  const branding = brandConfig?.settings?.branding as { nameEn?: string; nameAm?: string; nameOm?: string; logoPath?: string | null } | undefined;
+  const branding = brandConfig?.settings?.branding as { nameEn?: string; nameAm?: string; nameOm?: string; motto?: string; logoPath?: string | null } | undefined;
   const lang = i18n.resolvedLanguage;
   const brandName =
     (lang === "am" ? branding?.nameAm : lang === "om" ? branding?.nameOm : branding?.nameEn) ||
     branding?.nameEn || tenant?.name || t("app.name");
+  // The tenant's own motto (Branding page) replaces the generic app tagline
+  // once one is set -- a school's identity line, not ours.
+  const motto = branding?.motto || t("app.tagline");
   const logoUrl = branding?.logoPath
     ? supabase.storage.from("branding").getPublicUrl(branding.logoPath).data.publicUrl
     : null;
@@ -270,9 +273,9 @@ export function DashboardShell() {
           {logoUrl
             ? <img src={logoUrl} alt="" className="h-9 w-9 shrink-0 rounded-full object-cover ring-2 ring-gold/60" />
             : <Avatar name={brandName} size="md" className="bg-white/10 ring-2 ring-gold/60" />}
-          <div className="min-w-0">
+          <div className="hidden min-w-0 md:block">
             <h1 className="truncate font-display text-base font-bold leading-tight text-white">{brandName}</h1>
-            <p className="truncate text-xs font-medium text-gold-bright underline decoration-gold/50 underline-offset-2">{t("app.tagline")}</p>
+            <p className="truncate text-xs font-medium text-gold-bright underline decoration-gold/50 underline-offset-2">{motto}</p>
           </div>
         </div>
         <div className="hidden shrink-0 text-sm text-white/70 md:block">

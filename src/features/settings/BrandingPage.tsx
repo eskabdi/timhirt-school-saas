@@ -7,18 +7,25 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { applyBrandPalette } from "@/lib/brand-theme";
 
+const SCHOOL_TYPES = ["public", "private", "religious", "community"] as const;
+type SchoolType = (typeof SCHOOL_TYPES)[number];
+const OPERATIONAL_MODES = ["full_day", "double_shift"] as const;
+type OperationalMode = (typeof OPERATIONAL_MODES)[number];
+
 interface Branding {
   nameEn: string; nameAm: string; nameOm: string; motto: string;
   logoPath: string | null; sealPath: string | null;
   primaryColor: string; secondaryColor: string; accentColor: string;
   langEn: boolean; langAm: boolean; langOm: boolean;
   calendar: "EC" | "GC";
+  schoolType: SchoolType; operationalMode: OperationalMode;
 }
 const DEFAULTS: Branding = {
   nameEn: "", nameAm: "", nameOm: "", motto: "",
   logoPath: null, sealPath: null,
   primaryColor: "#1a56db", secondaryColor: "#006c4a", accentColor: "#ffd6a8",
   langEn: true, langAm: false, langOm: false, calendar: "EC",
+  schoolType: "private", operationalMode: "full_day",
 };
 
 function publicUrl(path: string | null): string | null {
@@ -201,6 +208,28 @@ export function BrandingPage() {
             <div>
               <p className="mb-1 text-sm font-semibold text-ink">{t("branding.yearStart")}</p>
               <div className="rounded-control border border-line bg-card px-3 py-2 text-sm text-ink">📅 {t("branding.yearStartValue")}</div>
+            </div>
+          </Card>
+
+          <Card className="space-y-4">
+            {sectionHead("🏫", t("branding.schoolTypeOperations"))}
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-ink">{t("branding.schoolType")}</label>
+              <select value={b.schoolType} onChange={(e) => setB({ ...b, schoolType: e.target.value as SchoolType })}
+                className="w-full rounded-control border border-line bg-navy-wash px-3 py-2 text-sm text-ink">
+                {SCHOOL_TYPES.map((s) => <option key={s} value={s}>{t(`branding.schoolTypeOption.${s}`)}</option>)}
+              </select>
+            </div>
+            <div className="flex items-center justify-between rounded-lg bg-navy-wash p-3">
+              <p className="text-sm font-bold text-ink">🕐 {t("branding.operationalMode")}</p>
+              <div className="flex overflow-hidden rounded-control border border-line">
+                {OPERATIONAL_MODES.map((m) => (
+                  <button key={m} onClick={() => setB({ ...b, operationalMode: m })}
+                    className={`px-3 py-1 text-sm font-medium ${b.operationalMode === m ? "bg-navy text-white" : "bg-card text-ink-soft"}`}>
+                    {t(`branding.operationalModeOption.${m}`)}
+                  </button>
+                ))}
+              </div>
             </div>
           </Card>
 

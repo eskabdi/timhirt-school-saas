@@ -13,6 +13,7 @@ import { supabase } from "@/lib/supabase";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { PhoneInput } from "@/components/ui/PhoneInput";
 import { Field } from "@/components/ui/Field";
 import { EthDatePicker } from "@/components/EthDatePicker";
 import { toIsoDate } from "@/lib/ethiopian-date";
@@ -178,7 +179,7 @@ export function EditProfileModal({ employee, open, onClose }: {
             <Field label={t("staffReg.dob")}><EthDatePicker value={f.dob} onChange={(d) => setF({ ...f, dob: d })} /></Field>
             <Field label={t("staffReg.nationality")}><Input value={f.nationality} onChange={(e) => setF({ ...f, nationality: e.target.value })} maxLength={60} /></Field>
             <Field label={t("staffReg.nationalId")}><Input value={f.national_id} onChange={(e) => setF({ ...f, national_id: e.target.value })} maxLength={40} /></Field>
-            <Field label={t("staffReg.phone")}><Input value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} placeholder="+251911223344" /></Field>
+            <Field label={t("staffReg.phone")}><PhoneInput value={f.phone} onChange={(v) => setF({ ...f, phone: v })} /></Field>
             <Field label={t("staffReg.personalEmail")}><Input type="email" value={f.personal_email} onChange={(e) => setF({ ...f, personal_email: e.target.value })} /></Field>
           </div>
         </Group>
@@ -232,7 +233,7 @@ export function EditProfileModal({ employee, open, onClose }: {
             <Field label={t("staffProfile.officeLocation")}><Input value={f.office_location} onChange={(e) => setF({ ...f, office_location: e.target.value })} maxLength={80} /></Field>
             <Field label={t("staffProfile.campus")}><Input value={f.campus} onChange={(e) => setF({ ...f, campus: e.target.value })} maxLength={80} /></Field>
             <Field label={t("staffReg.institutionalEmail")}><Input type="email" value={f.institutional_email} onChange={(e) => setF({ ...f, institutional_email: e.target.value })} /></Field>
-            <Field label={t("staffReg.workPhone")}><Input value={f.work_phone} onChange={(e) => setF({ ...f, work_phone: e.target.value })} placeholder="+251911223344" /></Field>
+            <Field label={t("staffReg.workPhone")}><PhoneInput value={f.work_phone} onChange={(v) => setF({ ...f, work_phone: v })} /></Field>
             <Field label={t("staffReg.reportingManager")}>
               <select className={SELECT_CLS} value={f.reporting_manager_id} onChange={(e) => setF({ ...f, reporting_manager_id: e.target.value })}>
                 <option value="">{t("staffReg.noManager")}</option>

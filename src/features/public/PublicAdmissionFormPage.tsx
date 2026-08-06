@@ -40,6 +40,7 @@ import { z } from "zod";
 import { formatETB, tField } from "@/lib/i18n";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { PhoneInput } from "@/components/ui/PhoneInput";
 import { Field } from "@/components/ui/Field";
 import { useEthnicityOptions } from "@/features/students/EthnicitySelect";
 import { Card } from "@/components/ui/Card";
@@ -409,11 +410,11 @@ export function PublicAdmissionFormPage() {
 
   return (
     <div className="min-h-screen bg-page">
-      <header className="flex flex-wrap items-center justify-between gap-2 border-b border-line bg-card px-4 py-4 sm:px-6">
-        <span className="min-w-0 truncate font-display text-lg font-bold text-navy">{meta?.tenantName ?? t("schoolFallback")}</span>
+      <header className="flex flex-wrap items-center justify-between gap-2 bg-gradient-to-r from-navy to-navy-container px-4 py-4 sm:px-6">
+        <span className="min-w-0 truncate font-display text-lg font-bold text-white">{meta?.tenantName ?? t("schoolFallback")}</span>
         <div className="flex items-center gap-4">
-          <Link to={`/apply/${tenantSlug}/status`} className="text-sm text-navy hover:underline">{t("checkStatus")}</Link>
-          <LanguageSwitcher />
+          <Link to={`/apply/${tenantSlug}/status`} className="text-sm text-white/90 hover:text-white hover:underline">{t("checkStatus")}</Link>
+          <LanguageSwitcher variant="dark" />
         </div>
       </header>
 
@@ -556,8 +557,8 @@ export function PublicAdmissionFormPage() {
               </div>
               <div className="grid gap-4 md:grid-cols-2">
                 <Field label={t("step2.phone")} error={s2Errors.guardian_phone}>
-                  <Input placeholder="+251 911 234 567" maxLength={15} value={s2.guardian_phone}
-                    onChange={(e) => setS2((v) => ({ ...v, guardian_phone: e.target.value }))} />
+                  <PhoneInput value={s2.guardian_phone}
+                    onChange={(v) => setS2((s) => ({ ...s, guardian_phone: v }))} />
                 </Field>
                 <Field label={t("step2.email")} error={s2Errors.guardian_email}>
                   <Input type="email" placeholder="email@example.com" maxLength={254} value={s2.guardian_email}

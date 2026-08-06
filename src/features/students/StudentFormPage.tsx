@@ -20,6 +20,7 @@ import { useSession } from "@/features/auth/useSession";
 import { formatETB, tField } from "@/lib/i18n";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { PhoneInput } from "@/components/ui/PhoneInput";
 import { Field } from "@/components/ui/Field";
 import { Card } from "@/components/ui/Card";
 import { Panel } from "@/components/ui/Panel";
@@ -270,8 +271,8 @@ export function StudentFormPage() {
                 </select>
               </Field>
               <Field label={t("admissions.phone")}>
-                <Input value={s2.phone} placeholder="+251 911 234 567" maxLength={15}
-                  onChange={(e) => setS2((s) => ({ ...s, phone: e.target.value }))} />
+                <PhoneInput value={s2.phone}
+                  onChange={(v) => setS2((s) => ({ ...s, phone: v }))} />
               </Field>
             </div>
             <Field label={t("admissions.email")}>
