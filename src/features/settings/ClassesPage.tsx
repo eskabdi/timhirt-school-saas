@@ -21,7 +21,8 @@ import {
 import { buildClassesPdf } from "./classes-pdf";
 
 const SELECT_CLS = "w-full rounded-control border border-line bg-card px-3 py-2 text-sm text-ink";
-const emptyForm: ClassInput = { name: "", section: "", gradeLevel: "", capacity: "", homeroomTeacherId: "" };
+const SHIFTS = ["morning", "afternoon"] as const;
+const emptyForm: ClassInput = { name: "", section: "", gradeLevel: "", capacity: "", homeroomTeacherId: "", shift: "" };
 
 function downloadBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
@@ -63,6 +64,14 @@ export function ClassesPage() {
     return years.find((y) => y.starts_on <= today && today <= y.ends_on) ?? years[0];
   }, [years]);
   const { data: teachers } = useQuery({ queryKey: ["teachers-for-classes"], queryFn: listTeachers });
+  // Shift only means anything for a double-shift school -- a full-day
+  // tenant never sees the field at all rather than a dead one.
+  const { data: tenantConfig } = useQuery({
+    queryKey: ["tenant-config", profile?.tenant_id],
+    enabled: !!profile?.tenant_id,
+    queryFn: async () => (await supabase.from("tenant_configs").select("operational_mode_key").eq("tenant_id", profile!.tenant_id!).maybeSingle()).data,
+  });
+  const isDoubleShift = tenantConfig?.operational_mode_key === "double_shift";
   // Unfiltered, columns-only fetch to populate the grade/section filter
   // options with every real value in use — a school has tens of classes,
   // not thousands, so this is cheap next to the paginated table query below.
@@ -164,9 +173,22 @@ export function ClassesPage() {
     setEditForm({
       name: c.name, section: c.section ?? "",
       gradeLevel: c.grade_level?.toString() ?? "", capacity: c.capacity?.toString() ?? "",
-      homeroomTeacherId: c.homeroom_teacher_id ?? "",
+      homeroomTeacherId: c.homeroom_teacher_id ?? "", shift: c.shift ?? "",
     });
   };
+
+  const shiftField = (value: string, onChange: (v: string) => void) => (
+    <Field label={t("hr.workingShift")}>
+      <div className="flex overflow-hidden rounded-control border border-line">
+        {SHIFTS.map((s) => (
+          <button key={s} type="button" onClick={() => onChange(s)}
+            className={`flex-1 px-3 py-2 text-sm font-medium ${value === s ? "bg-navy text-white" : "bg-card text-ink-soft"}`}>
+            {t(`hr.shiftOption.${s}`)}
+          </button>
+        ))}
+      </div>
+    </Field>
+  );
 
   // Both exports act on every row matching the current filters, not just the
   // page on screen — a registrar exporting "Grade 3" expects all of Grade 3.
@@ -264,6 +286,7 @@ export function ClassesPage() {
                 <th className="px-5 py-3">{t("crud.gradeLevel")}</th>
                 <th className="px-5 py-3">{t("crud.capacity")}</th>
                 <th className="px-5 py-3">{t("crud.enrolled")}</th>
+                {isDoubleShift && <th className="px-5 py-3">{t("hr.workingShift")}</th>}
                 <th className="no-print px-5 py-3 text-right">{t("crud.edit")}</th>
               </tr>
             </thead>
@@ -281,6 +304,9 @@ export function ClassesPage() {
                     <td className="px-5 py-3 text-ink-faint">
                       {c.capacity != null ? `${enrolled}/${c.capacity}` : enrolled}
                     </td>
+                    {isDoubleShift && (
+                      <td className="px-5 py-3 text-ink-faint">{c.shift ? t(`hr.shiftOption.${c.shift}`) : "—"}</td>
+                    )}
                     <td className="no-print px-5 py-3">
                       <div className="flex justify-end gap-3 text-xs">
                         <Link to={`/classes/${c.id}`} className="font-medium text-navy hover:underline">{t("crud.view")}</Link>
@@ -309,6 +335,7 @@ export function ClassesPage() {
               {availableTeachers.map((tc) => <option key={tc.id} value={tc.id}>{tc.user?.full_name ?? tc.staff_no}</option>)}
             </select>
           </Field>
+          {isDoubleShift && shiftField(form.shift, (v) => setForm({ ...form, shift: v }))}
           <div className="flex justify-end gap-2 border-t border-line pt-3">
             <Button variant="ghost" onClick={() => setAdding(false)}>{t("common.cancel")}</Button>
             <Button onClick={() => create.mutate()} disabled={!form.name || create.isPending}>{t("common.add")}</Button>
@@ -328,6 +355,7 @@ export function ClassesPage() {
               {availableTeachers.map((tc) => <option key={tc.id} value={tc.id}>{tc.user?.full_name ?? tc.staff_no}</option>)}
             </select>
           </Field>
+          {isDoubleShift && shiftField(editForm.shift, (v) => setEditForm({ ...editForm, shift: v }))}
           <div className="flex justify-end gap-2 border-t border-line pt-3">
             <Button variant="ghost" onClick={() => setEditing(null)}>{t("common.cancel")}</Button>
             <Button onClick={() => update.mutate()} disabled={!editForm.name || update.isPending}>{t("common.save")}</Button>

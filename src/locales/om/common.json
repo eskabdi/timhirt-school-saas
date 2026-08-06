@@ -140,6 +140,7 @@
   "hr": { "employees": "Hojjettoota", "payrollRuns": "Marsaa mindaa", "runPayroll": "Mindaa kaffali", "period": "Yeroo", "statusLabel": "Haala", "grossTotal": "Waliigala mindaa", "employeesCount": "{count, plural, one {hojjetaa #} other {hojjettoota #}}", "skippedNoSalaryCount": "{count, plural, one {hojjetaa # hin dabalamne — mindaan bu'uuraa hin murtoofne} other {hojjettoota # hin dabalamne — mindaan bu'uuraa hin murtoofne}}", "draft": "Wixinee", "approved": "Mirkanaa'eera", "paid": "Kaffalameera", "void": "Haqameera", "approve": "Mirkaneessi", "prepared": "Kan qopheesse", "recalculate": "Irra deebi'ii shallagi", "leaveRequests": "Gaaffii eeyyamaa", "pending": "Eegamaa jira", "approveLeave": "Mirkaneessi", "reject": "Didi", "netPay": "Kaffaltii qulqulluu", "payslip": "Waraqaa mindaa", "sodNote": "Namni marsaa qopheesse ofii isaatii mirkaneessuu hin danda'u.",
     "employeeNo": "Lakk. Hojjetaa", "name": "Maqaa", "type": "Gosa", "hired": "Guyyaa Qacaramuu",
     "employeeType": { "teacher": "Barsiisaa", "admin_staff": "Hojjetaa Bulchiinsaa", "support": "Deggersa" },
+    "workingShift": "Shiftii Hojii", "shiftOption": { "morning": "Ganama", "afternoon": "Waaree Booda" },
     "employeeStatus": { "draft": "Daraafta", "active": "Hojiirra jiru", "on_leave": "Eeyyama irra jira", "terminated": "Ari'ameera" },
     "currentContract": "Waliigaltee Ammaa", "started": "jalqabame",
     "restrictedIdentifiers": "Eenyummeewwan Daangeffaman", "tin": "Lakk. TIN", "pensionNo": "Lakk. Sooramaa", "bankAccount": "Herrega Baankii",

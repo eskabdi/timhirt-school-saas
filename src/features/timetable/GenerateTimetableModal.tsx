@@ -24,14 +24,17 @@ export function GenerateTimetableModal({ open, onClose, tenantId, classId }: {
   const run = useMutation({
     mutationFn: async () => {
       const assignmentsQuery = supabase.from("class_subject_teachers")
-        .select("class_id, subject_id, teacher_id, periods_per_week, subjects(name_i18n, code), classes(name, section), teachers(staff_no, users(full_name))")
+        .select("class_id, subject_id, teacher_id, periods_per_week, subjects(name_i18n, code), classes(name, section, shift), teachers(staff_no, users(full_name))")
         .not("periods_per_week", "is", null);
       const { data: assignments, error: aErr } = classId ? await assignmentsQuery.eq("class_id", classId) : await assignmentsQuery;
       if (aErr) throw aErr;
       if (!assignments?.length) throw new Error(t("timetable.noTargetsToGenerate"));
 
+      // shift travels with each period so a double-shift class only ever
+      // gets placed into its own shift's periods (or a shift-agnostic one) --
+      // see generateTimetable()'s candidatesForShift.
       const { data: periods, error: pErr } = await supabase.from("periods")
-        .select("id").eq("tenant_id", tenantId).eq("is_break", false);
+        .select("id, shift").eq("tenant_id", tenantId).eq("is_break", false);
       if (pErr) throw pErr;
       if (!periods?.length) throw new Error(t("timetable.noPeriods"));
 
@@ -42,8 +45,9 @@ export function GenerateTimetableModal({ open, onClose, tenantId, classId }: {
       const { placements, unplaced } = generateTimetable({
         requirements: assignments.map((a) => ({
           classId: a.class_id, subjectId: a.subject_id, teacherId: a.teacher_id, periodsPerWeek: a.periods_per_week!,
+          shift: (a.classes as any)?.shift ?? null,
         })),
-        periods: periods.map((p) => ({ id: p.id })),
+        periods: periods.map((p) => ({ id: p.id, shift: p.shift })),
         days: DAYS,
         existingSlots: (existing ?? []).map((s) => ({
           classId: s.class_id, subjectId: s.subject_id, teacherId: s.teacher_id, dayOfWeek: s.day_of_week, periodId: s.period_id,

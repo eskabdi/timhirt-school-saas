@@ -25,7 +25,7 @@ const PALETTE = [
 const colorFor = (key: string) => PALETTE[[...key].reduce((a, c) => a + c.charCodeAt(0), 0) % PALETTE.length]!;
 const initials = (s: string) => s.split(/\s+/).map((w) => w[0]).slice(0, 2).join("").toUpperCase();
 
-interface Period { id: string; period_no: number; label: string | null; starts_at: string; ends_at: string; is_break: boolean }
+interface Period { id: string; period_no: number; label: string | null; starts_at: string; ends_at: string; is_break: boolean; shift: string | null }
 interface Slot {
   id: string; day_of_week: number; period_id: string; room: string | null;
   class_id: string; teacher_id: string; subject_id: string;
@@ -51,7 +51,7 @@ export function TimetableEditorPage() {
 
   const { data: classes } = useQuery({
     queryKey: ["tt-classes", tenantId], enabled: !!tenantId,
-    queryFn: async () => (await supabase.from("classes").select("id,name,section,grade_level").order("grade_level")).data ?? [],
+    queryFn: async () => (await supabase.from("classes").select("id,name,section,grade_level,shift").order("grade_level")).data ?? [],
   });
   const { data: teachers } = useQuery({
     queryKey: ["tt-teachers", tenantId], enabled: !!tenantId,
@@ -60,7 +60,7 @@ export function TimetableEditorPage() {
   const { data: periods } = useQuery({
     queryKey: ["periods", tenantId], enabled: !!tenantId,
     queryFn: async () => {
-      const { data, error } = await supabase.from("periods").select("id,period_no,label,starts_at,ends_at,is_break")
+      const { data, error } = await supabase.from("periods").select("id,period_no,label,starts_at,ends_at,is_break,shift")
         .eq("tenant_id", tenantId).order("period_no");
       if (error) throw error;
       return (data ?? []) as Period[];
@@ -85,7 +85,16 @@ export function TimetableEditorPage() {
     },
   });
 
-  const teachingPeriods = useMemo(() => (periods ?? []).filter((p) => !p.is_break), [periods]);
+  const selectedClass = useMemo(() => classes?.find((c) => c.id === classId), [classes, classId]);
+  // A double-shift class only ever meets during its own shift's periods (or
+  // a shift-agnostic shared one), so narrow the grid to those rather than
+  // showing rows this class can never occupy. Teacher/Room views span both
+  // shifts at once, so they keep the full period list.
+  const visiblePeriods = useMemo(() => {
+    if (view !== "Weekly" || !selectedClass?.shift) return periods ?? [];
+    return (periods ?? []).filter((p) => !p.shift || p.shift === selectedClass.shift);
+  }, [periods, view, selectedClass]);
+  const teachingPeriods = useMemo(() => visiblePeriods.filter((p) => !p.is_break), [visiblePeriods]);
 
   const rooms = useMemo(() => [...new Set((slots ?? []).map((s) => s.room).filter((r): r is string => !!r))].sort(), [slots]);
 
@@ -194,6 +203,11 @@ export function TimetableEditorPage() {
               {classes?.map((c) => <option key={c.id} value={c.id}>{c.name} {c.section}</option>)}
             </select>
             {!classId && <span className="text-xs text-ink-faint">{t("timetable.pickGradeToEdit")}</span>}
+            {selectedClass?.shift && (
+              <span className="rounded-pill bg-navy-wash px-2.5 py-1 text-xs font-medium text-navy">
+                {t(`hr.shiftOption.${selectedClass.shift}`)}
+              </span>
+            )}
           </>
         )}
         {view === "Teacher View" && (
@@ -227,7 +241,7 @@ export function TimetableEditorPage() {
               </tr>
             </thead>
             <tbody>
-              {periods?.length ? periods.map((p) => (
+              {visiblePeriods.length ? visiblePeriods.map((p) => (
                 <tr key={p.id} className={p.is_break ? "bg-sidebar/60" : ""}>
                   <td className="border-b border-line px-3 py-4 align-top text-xs font-semibold text-ink">
                     {p.label ?? `${t("crud.time")} ${p.period_no}`}<br />

@@ -10,6 +10,7 @@ export interface ClassRow {
   capacity: number | null;
   academic_year_id: string;
   homeroom_teacher_id: string | null;
+  shift: string | null;
 }
 
 export interface ClassFilters {
@@ -21,7 +22,7 @@ export interface ClassFilters {
 
 export async function listClasses(filters: ClassFilters = {}, range?: [number, number]) {
   let q = supabase.from("classes")
-    .select("id,name,section,grade_level,capacity,academic_year_id,homeroom_teacher_id", { count: "exact" })
+    .select("id,name,section,grade_level,capacity,academic_year_id,homeroom_teacher_id,shift", { count: "exact" })
     .order("grade_level").order("section");
   if (filters.search) q = q.or(`name.ilike.%${filters.search}%,section.ilike.%${filters.search}%`);
   if (filters.gradeLevel) q = q.eq("grade_level", Number(filters.gradeLevel));
@@ -67,6 +68,7 @@ export interface ClassInput {
   gradeLevel: string;
   capacity: string;
   homeroomTeacherId: string;
+  shift: string;
 }
 
 export async function createClass(tenantId: string, academicYearId: string, input: ClassInput) {
@@ -78,6 +80,7 @@ export async function createClass(tenantId: string, academicYearId: string, inpu
     grade_level: input.gradeLevel === "" ? null : Number(input.gradeLevel),
     capacity: input.capacity === "" ? null : Number(input.capacity),
     homeroom_teacher_id: input.homeroomTeacherId || null,
+    shift: input.shift || null,
   });
   if (error) throw error;
 }
@@ -89,6 +92,7 @@ export async function updateClass(id: string, input: ClassInput) {
     grade_level: input.gradeLevel === "" ? null : Number(input.gradeLevel),
     capacity: input.capacity === "" ? null : Number(input.capacity),
     homeroom_teacher_id: input.homeroomTeacherId || null,
+    shift: input.shift || null,
   }).eq("id", id);
   if (error) throw error;
 }
@@ -105,7 +109,7 @@ export interface ClassDetail extends ClassRow {
 
 export async function getClassDetail(id: string) {
   const { data, error } = await supabase.from("classes")
-    .select("id,name,section,grade_level,capacity,academic_year_id, academic_years(ec_year), homeroom_teacher_id")
+    .select("id,name,section,grade_level,capacity,academic_year_id,shift, academic_years(ec_year), homeroom_teacher_id")
     .eq("id", id).single();
   if (error) throw error;
 

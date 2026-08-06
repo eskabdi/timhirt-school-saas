@@ -140,6 +140,7 @@
   "hr": { "employees": "ሠራተኞች", "payrollRuns": "የደመወዝ ዙሮች", "runPayroll": "ደመወዝ አስሂድ", "period": "ወቅት", "statusLabel": "ሁኔታ", "grossTotal": "ጠቅላላ ደመወዝ", "employeesCount": "{count, plural, one {# ሠራተኛ} other {# ሠራተኞች}}", "skippedNoSalaryCount": "{count, plural, one {# ሠራተኛ ተትቷል — መሠረታዊ ደመወዝ ገና አልተቀመጠም} other {# ሠራተኞች ተትተዋል — መሠረታዊ ደመወዝ ገና አልተቀመጠም}}", "draft": "ረቂቅ", "approved": "ጸድቋል", "paid": "ተከፍሏል", "void": "ተሰርዟል", "approve": "አጽድቅ", "prepared": "ያዘጋጀው", "recalculate": "እንደገና አስላ", "leaveRequests": "የፈቃድ ጥያቄዎች", "pending": "በመጠባበቅ ላይ", "approveLeave": "አጽድቅ", "reject": "እምቢ", "netPay": "የተጣራ ክፍያ", "payslip": "የደመወዝ ወረቀት", "sodNote": "ዙሩን ያዘጋጀው ሰው ራሱ ማጽደቅ አይችልም።",
     "employeeNo": "የሠራተኛ ቁጥር", "name": "ስም", "type": "ዓይነት", "hired": "የተቀጠረበት ቀን",
     "employeeType": { "teacher": "መምህር", "admin_staff": "አስተዳደር ሠራተኛ", "support": "ድጋፍ ሰጪ" },
+    "workingShift": "የስራ ፈረቃ", "shiftOption": { "morning": "ጠዋት", "afternoon": "ከሰዓት በኋላ" },
     "employeeStatus": { "draft": "ረቂቅ", "active": "ንቁ", "on_leave": "በፈቃድ ላይ", "terminated": "ተሰናብቷል" },
     "currentContract": "የአሁኑ ውል", "started": "ተጀምሯል",
     "restrictedIdentifiers": "የተገደቡ መለያዎች", "tin": "የግብር መለያ ቁጥር", "pensionNo": "የጡረታ ቁጥር", "bankAccount": "የባንክ አካውንት",

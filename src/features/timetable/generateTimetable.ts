@@ -22,10 +22,17 @@ export interface GenRequirement {
   subjectId: string;
   teacherId: string;
   periodsPerWeek: number;
+  // The class's shift (double-shift schools only). null/undefined means no
+  // constraint -- matches any period, which is what every full-day tenant
+  // (and every existing caller/test) passes implicitly.
+  shift?: string | null;
 }
 
 export interface GenPeriod {
   id: string;
+  // null/undefined means the period is shift-agnostic (a full-day tenant's
+  // only kind of period, or a double-shift tenant's shared/break slot).
+  shift?: string | null;
 }
 
 export interface GenExistingSlot {
@@ -79,12 +86,12 @@ export function generateTimetable(input: GenerateTimetableInput): GenerateTimeta
     alreadyPlacedCount.set(key, (alreadyPlacedCount.get(key) ?? 0) + 1);
   }
 
-  interface Ticket { reqIndex: number; classId: string; subjectId: string; teacherId: string }
+  interface Ticket { reqIndex: number; classId: string; subjectId: string; teacherId: string; shift?: string | null }
   const tickets: Ticket[] = [];
   requirements.forEach((r, reqIndex) => {
     const already = alreadyPlacedCount.get(reqKey(r.classId, r.subjectId)) ?? 0;
     const need = Math.max(0, r.periodsPerWeek - already);
-    for (let i = 0; i < need; i++) tickets.push({ reqIndex, classId: r.classId, subjectId: r.subjectId, teacherId: r.teacherId });
+    for (let i = 0; i < need; i++) tickets.push({ reqIndex, classId: r.classId, subjectId: r.subjectId, teacherId: r.teacherId, shift: r.shift });
   });
 
   const teacherLoad = new Map<string, number>();
@@ -104,7 +111,21 @@ export function generateTimetable(input: GenerateTimetableInput): GenerateTimeta
   }
 
   const subjectDaysUsed = new Map<string, Set<number>>();
-  const candidates = days.flatMap((day) => periods.map((p) => ({ day, periodId: p.id })));
+  // Candidates depend on the ticket's shift (a double-shift class can only
+  // land in that shift's periods, or a shift-agnostic one) -- cached per
+  // distinct shift value since there are only ever a handful (null,
+  // 'morning', 'afternoon'), not per ticket.
+  const candidatesCache = new Map<string, { day: number; periodId: string }[]>();
+  const candidatesForShift = (shift: string | null | undefined) => {
+    const key = shift ?? "";
+    let list = candidatesCache.get(key);
+    if (!list) {
+      const usablePeriods = periods.filter((p) => !p.shift || !shift || p.shift === shift);
+      list = days.flatMap((day) => usablePeriods.map((p) => ({ day, periodId: p.id })));
+      candidatesCache.set(key, list);
+    }
+    return list;
+  };
 
   const placements: GenPlacement[] = [];
   const missingByReq = new Map<number, number>();
@@ -114,6 +135,7 @@ export function generateTimetable(input: GenerateTimetableInput): GenerateTimeta
     const free = (c: { day: number; periodId: string }) =>
       !classBusy.has(cellKey(ticket.classId, c.day, c.periodId)) && !teacherBusy.has(cellKey(ticket.teacherId, c.day, c.periodId));
 
+    const candidates = candidatesForShift(ticket.shift);
     const preferred = candidates.find((c) => !daysUsed.has(c.day) && free(c));
     const fallback = preferred ? undefined : candidates.find(free);
     const chosen = preferred ?? fallback;

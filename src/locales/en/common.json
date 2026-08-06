@@ -140,6 +140,7 @@
   "hr": { "employees": "Employees", "payrollRuns": "Payroll runs", "runPayroll": "Run payroll", "period": "Period", "statusLabel": "Status", "grossTotal": "Gross total", "employeesCount": "{count, plural, one {# employee} other {# employees}}", "skippedNoSalaryCount": "{count, plural, one {# employee excluded — base salary not yet set} other {# employees excluded — base salary not yet set}}", "draft": "Draft", "approved": "Approved", "paid": "Paid", "void": "Void", "approve": "Approve", "prepared": "Prepared by", "recalculate": "Recalculate", "leaveRequests": "Leave requests", "pending": "Pending", "approveLeave": "Approve", "reject": "Reject", "netPay": "Net pay", "payslip": "Payslip", "sodNote": "A run cannot be approved by the person who prepared it.",
     "employeeNo": "Employee No.", "name": "Name", "type": "Type", "hired": "Hired",
     "employeeType": { "teacher": "Teacher", "admin_staff": "Admin Staff", "support": "Support" },
+    "workingShift": "Working Shift", "shiftOption": { "morning": "Morning", "afternoon": "Afternoon" },
     "employeeStatus": { "draft": "Draft", "active": "Active", "on_leave": "On Leave", "terminated": "Terminated" },
     "currentContract": "Current contract", "started": "started",
     "restrictedIdentifiers": "Restricted identifiers", "tin": "TIN", "pensionNo": "Pension No.", "bankAccount": "Bank account",

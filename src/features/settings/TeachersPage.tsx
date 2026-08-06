@@ -24,9 +24,12 @@ import { Card } from "@/components/ui/Card";
 import { Panel, PanelHeader } from "@/components/ui/Panel";
 import { Pagination, pageRange } from "@/components/ui/Pagination";
 
+const SHIFTS = ["morning", "afternoon"] as const;
+
 interface TeacherRow {
   id: string;
   staff_no: string;
+  shift: string | null;
   user: { full_name: string; email: string } | null;
 }
 interface AssignmentRow {
@@ -65,7 +68,7 @@ export function TeachersPage() {
     queryKey: ["teachers-admin", page],
     queryFn: async () => {
       const { data, error, count } = await supabase.from("teachers")
-        .select("id, staff_no, user:users(full_name, email)", { count: "exact" })
+        .select("id, staff_no, shift, user:users(full_name, email)", { count: "exact" })
         .order("staff_no").range(...pageRange(page));
       if (error) throw error;
       return { rows: (data ?? []) as unknown as TeacherRow[], count: count ?? 0 };
@@ -129,6 +132,22 @@ export function TeachersPage() {
     queryKey: ["my-tenant-id"],
     queryFn: async () => (await supabase.from("users").select("tenant_id").limit(1).single()).data?.tenant_id as string,
   });
+  // Working shift only means anything for a double-shift school -- a
+  // full-day tenant never sees the control at all rather than a dead one.
+  const { data: tenantConfig } = useQuery({
+    queryKey: ["tenant-config", myTenant],
+    enabled: !!myTenant,
+    queryFn: async () => (await supabase.from("tenant_configs").select("operational_mode_key").eq("tenant_id", myTenant!).maybeSingle()).data,
+  });
+  const isDoubleShift = tenantConfig?.operational_mode_key === "double_shift";
+
+  const setShift = useMutation({
+    mutationFn: async ({ teacherId, shift }: { teacherId: string; shift: string }) => {
+      const { error } = await supabase.from("teachers").update({ shift }).eq("id", teacherId);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["teachers-admin"] }),
+  });
 
   return (
     <div className="space-y-4">
@@ -164,6 +183,19 @@ export function TeachersPage() {
                 subtitle={teacher.user?.email}
               />
               <div className="space-y-3 p-5">
+                {isDoubleShift && (
+                  <div className="flex items-center justify-between rounded-control bg-navy-wash p-2.5">
+                    <span className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("hr.workingShift")}</span>
+                    <div className="flex overflow-hidden rounded-control border border-line">
+                      {SHIFTS.map((s) => (
+                        <button key={s} type="button" onClick={() => setShift.mutate({ teacherId: teacher.id, shift: s })}
+                          className={`px-3 py-1 text-xs font-medium ${teacher.shift === s ? "bg-navy text-white" : "bg-card text-ink-soft"}`}>
+                          {t(`hr.shiftOption.${s}`)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 {own.length === 0 ? (
                   <p className="text-sm text-ink-faint">{t("teachers.noAssignments")}</p>
                 ) : (

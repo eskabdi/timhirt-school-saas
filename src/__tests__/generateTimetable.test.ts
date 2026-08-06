@@ -117,4 +117,76 @@ describe("generateTimetable", () => {
     const run2 = generateTimetable({ requirements, periods: PERIODS, days: DAYS, existingSlots: [] });
     expect(run1).toEqual(run2);
   });
+
+  describe("double-shift schools", () => {
+    const SHIFT_PERIODS: GenPeriod[] = [
+      { id: "m1", shift: "morning" }, { id: "m2", shift: "morning" },
+      { id: "a1", shift: "afternoon" }, { id: "a2", shift: "afternoon" },
+    ];
+
+    it("only places a morning-shift class into morning-shift periods", () => {
+      const requirements: GenRequirement[] = [
+        { classId: "c1", subjectId: "math", teacherId: "t1", periodsPerWeek: 2, shift: "morning" },
+      ];
+      const { placements, unplaced } = generateTimetable({ requirements, periods: SHIFT_PERIODS, days: DAYS, existingSlots: [] });
+      expect(placements).toHaveLength(2);
+      expect(unplaced).toHaveLength(0);
+      expect(placements.every((p) => p.periodId === "m1" || p.periodId === "m2")).toBe(true);
+    });
+
+    it("only places an afternoon-shift class into afternoon-shift periods", () => {
+      const requirements: GenRequirement[] = [
+        { classId: "c1", subjectId: "math", teacherId: "t1", periodsPerWeek: 2, shift: "afternoon" },
+      ];
+      const { placements } = generateTimetable({ requirements, periods: SHIFT_PERIODS, days: DAYS, existingSlots: [] });
+      expect(placements.every((p) => p.periodId === "a1" || p.periodId === "a2")).toBe(true);
+    });
+
+    it("lets the same teacher work both shifts without a false double-booking conflict", () => {
+      // A teacher assigned to a morning class and an afternoon class on the
+      // same day occupies different real clock times, so both must place.
+      const requirements: GenRequirement[] = [
+        { classId: "c1", subjectId: "math", teacherId: "t1", periodsPerWeek: 2, shift: "morning" },
+        { classId: "c2", subjectId: "math", teacherId: "t1", periodsPerWeek: 2, shift: "afternoon" },
+      ];
+      const { placements, unplaced } = generateTimetable({ requirements, periods: SHIFT_PERIODS, days: DAYS, existingSlots: [] });
+      expect(placements).toHaveLength(4);
+      expect(unplaced).toHaveLength(0);
+    });
+
+    it("reports unplaced instead of leaking into the other shift's periods when a shift is full", () => {
+      // Only 2 morning periods x 5 days = 10 morning cells for this teacher;
+      // asking for 12 must never spill into the afternoon-shift periods.
+      const requirements: GenRequirement[] = [
+        { classId: "c1", subjectId: "math", teacherId: "t1", periodsPerWeek: 12, shift: "morning" },
+      ];
+      const { placements, unplaced } = generateTimetable({ requirements, periods: SHIFT_PERIODS, days: DAYS, existingSlots: [] });
+      expect(placements).toHaveLength(10);
+      expect(placements.every((p) => p.periodId === "m1" || p.periodId === "m2")).toBe(true);
+      expect(unplaced).toEqual([{ classId: "c1", subjectId: "math", teacherId: "t1", missing: 2 }]);
+    });
+
+    it("a shift-agnostic (null shift) period is usable by any class regardless of the class's shift", () => {
+      const mixedPeriods: GenPeriod[] = [...SHIFT_PERIODS, { id: "shared1" }];
+      const requirements: GenRequirement[] = [
+        { classId: "c1", subjectId: "math", teacherId: "t1", periodsPerWeek: 3, shift: "morning" },
+      ];
+      const { placements, unplaced } = generateTimetable({ requirements, periods: mixedPeriods, days: DAYS, existingSlots: [] });
+      // 2 morning periods can't cover 3/day-worth of ticket variety alone in
+      // this shrunk fixture, but combined with the shared period there's
+      // enough room across the week for all 3 to place.
+      expect(placements).toHaveLength(3);
+      expect(unplaced).toHaveLength(0);
+      expect(placements.every((p) => p.periodId === "m1" || p.periodId === "m2" || p.periodId === "shared1")).toBe(true);
+    });
+
+    it("a requirement with no shift (full-day tenant) can use any period, unaffected by other classes' shift tags", () => {
+      const requirements: GenRequirement[] = [
+        { classId: "c1", subjectId: "math", teacherId: "t1", periodsPerWeek: 4 },
+      ];
+      const { placements, unplaced } = generateTimetable({ requirements, periods: SHIFT_PERIODS, days: DAYS, existingSlots: [] });
+      expect(placements).toHaveLength(4);
+      expect(unplaced).toHaveLength(0);
+    });
+  });
 });
