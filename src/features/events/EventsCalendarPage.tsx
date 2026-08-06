@@ -25,8 +25,6 @@ type View = "month" | "week" | "day";
 /** One rendered day: its EC parts plus the Gregorian ISO key events join on. */
 interface Cell { eth: EthDate; iso: string; dow: number; inMonth: boolean }
 
-const HOLIDAY_TYPES = new Set(["holiday", "national"]);
-
 function addEthMonths(e: EthDate, delta: number): EthDate {
   const zero = e.month - 1 + delta;
   const year = e.year + Math.floor(zero / 13);
@@ -145,9 +143,10 @@ export function EventsCalendarPage() {
 
   const dayCell = (c: Cell, tall: boolean) => {
     const list = byDay.get(c.iso) ?? [];
-    const holiday = list.some((e) => HOLIDAY_TYPES.has(e.event_type));
     const hasEvents = list.length > 0;
-    const sunday = c.dow === 1;
+    // dow is 1-indexed from Sunday (§ cell builder above), so 1 and 7 are the
+    // weekend -- both ends, not just Sunday.
+    const weekend = c.dow === 1 || c.dow === 7;
     const shown = tall ? 3 : 2;
     return (
       <div
@@ -161,16 +160,15 @@ export function EventsCalendarPage() {
           "flex cursor-pointer flex-col items-stretch gap-1 border-b border-l border-line p-1.5 text-left transition-[filter] hover:brightness-95 sm:p-2",
           tall ? "min-h-[64px] sm:min-h-[112px]" : "min-h-[44px] sm:min-h-[68px]",
           !c.inMonth && "opacity-45",
-          // A day with a registered event needs to read as visually distinct
-          // from an empty one, not just carry the same weekday tint as every
-          // other cell -- holiday and hasEvents both win over the plain
-          // weekend tint, which itself wins over an untinted empty cell.
-          holiday ? "bg-danger-tint" : hasEvents ? "bg-ok-tint" : sunday ? "bg-danger-tint/60" : "bg-card",
+          // Three-state legend: weekend always reads red regardless of
+          // events, a weekday with a registered event reads blue, and an
+          // empty weekday reads green -- distinct at a glance from each other.
+          weekend ? "bg-danger-tint/60" : hasEvents ? "bg-blue-100" : "bg-green-50",
         )}
       >
         <span className={cn("text-sm font-medium",
           isToday(c) ? "inline-flex h-6 w-6 items-center justify-center rounded-full bg-navy text-white"
-            : sunday || holiday ? "text-danger" : "text-ink")}>
+            : weekend ? "text-danger" : "text-ink")}>
           {c.eth.day}
         </span>
         {list.slice(0, shown).map((e) => (
