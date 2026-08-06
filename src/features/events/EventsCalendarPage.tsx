@@ -146,6 +146,7 @@ export function EventsCalendarPage() {
   const dayCell = (c: Cell, tall: boolean) => {
     const list = byDay.get(c.iso) ?? [];
     const holiday = list.some((e) => HOLIDAY_TYPES.has(e.event_type));
+    const hasEvents = list.length > 0;
     const sunday = c.dow === 1;
     const shown = tall ? 3 : 2;
     return (
@@ -160,7 +161,11 @@ export function EventsCalendarPage() {
           "flex cursor-pointer flex-col items-stretch gap-1 border-b border-l border-line p-1.5 text-left transition-[filter] hover:brightness-95 sm:p-2",
           tall ? "min-h-[64px] sm:min-h-[112px]" : "min-h-[44px] sm:min-h-[68px]",
           !c.inMonth && "opacity-45",
-          holiday ? "bg-danger-tint" : sunday ? "bg-danger-tint/60" : "bg-ok-tint/70",
+          // A day with a registered event needs to read as visually distinct
+          // from an empty one, not just carry the same weekday tint as every
+          // other cell -- holiday and hasEvents both win over the plain
+          // weekend tint, which itself wins over an untinted empty cell.
+          holiday ? "bg-danger-tint" : hasEvents ? "bg-ok-tint" : sunday ? "bg-danger-tint/60" : "bg-card",
         )}
       >
         <span className={cn("text-sm font-medium",
