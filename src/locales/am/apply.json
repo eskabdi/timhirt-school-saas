@@ -86,6 +86,23 @@
     "uploadReceiptTitle": "የክፍያ ደረሰኝ ይስቀሉ",
     "uploadReceiptDesc": "ከላይ ላለው ጠቅላላ መጠን የክፍያ ማስረጃ ይስቀሉ።",
     "maxSize5mbAlt": "PDF፣ JPG፣ PNG (ቢበዛ 5MB)",
+    "bankVerificationUrl": "ወይም የባንክ ማረጋገጫ URL ይለጥፉ",
+    "bankVerificationUrlHint": "ባንክዎ ለዚህ ክፍያ የPDF ማረጋገጫ ማስፈንጠሪያ ከሰጠ፣ ፋይል ከመስቀል ይልቅ እዚህ ይለጥፉት።",
+    "verifyUrl": "አረጋግጥ", "verifying": "በማረጋገጥ ላይ…", "verified": "✓ ተረጋግጧል",
+    "verifyFailed": {
+      "invalid_url": "ይህ ትክክለኛ URL አይመስልም።",
+      "https_required": "URLው በhttps:// መጀመር አለበት።",
+      "no_domains_configured": "ለዚህ የክፍያ ዘዴ የባንክ URL ማረጋገጫ እስካሁን አልተዋቀረም — እባክዎ ደረሰኝ ይስቀሉ።",
+      "domain_not_allowed": "ይህ ለዚህ የክፍያ ዘዴ የታወቀ የባንክ ጎራ አይደለም።",
+      "fetch_failed": "ያንን URL ማግኘት አልተቻለም። ያረጋግጡና እንደገና ይሞክሩ።",
+      "redirect_blocked": "ያ URL ወደ ሌላ ቦታ ያዞራል፣ ይህም አይፈቀድም።",
+      "empty_body": "ያ URL ምንም ይዘት አልመለሰም።",
+      "too_large": "በዚያ URL ላይ ያለው ፋይል በጣም ትልቅ ነው።",
+      "not_a_pdf": "ያ URL PDF አልመለሰም።",
+      "storage_failed": "ማረጋገጫውን በማስቀመጥ ላይ ስህተት ተከስቷል። እንደገና ይሞክሩ።",
+      "network": "የአውታረ መረብ ስህተት ተከስቷል። እንደገና ይሞክሩ።",
+      "unknown": "ማረጋገጫው አልተሳካም። እባክዎ ደረሰኝ ይስቀሉ።"
+    },
     "back": "ተመለስ",
     "complete": "ምዝገባን አጠናቅቅ"
   },
@@ -121,6 +138,9 @@
     "congratulations": "እንኳን ደስ አለዎት!",
     "congratulationsBody": "{name} ገብቷል። ወደ ትምህርት ቤታችን እንኳን በደህና መጡ!",
     "downloadIdCard": "የመታወቂያ ካርድ ያውርዱ",
-    "idCardPending": "የመታወቂያ ካርድዎ በዝግጅት ላይ ነው — እባክዎ በቅርቡ ይመልከቱ።"
+    "idCardPending": "የመታወቂያ ካርድዎ በዝግጅት ላይ ነው — እባክዎ በቅርቡ ይመልከቱ።",
+    "downloadInvoice": "ደረሰኝ ያውርዱ",
+    "downloadReceipt": "የክፍያ ማረጋገጫ ያውርዱ",
+    "feeDocsPending": "ደረሰኝዎ በዝግጅት ላይ ነው — እባክዎ በቅርቡ ይመልከቱ።"
   }
 }

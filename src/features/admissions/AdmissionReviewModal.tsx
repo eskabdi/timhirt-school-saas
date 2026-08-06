@@ -7,7 +7,7 @@
 // change the status in a single action.
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useSession } from "@/features/auth/useSession";
 import { Modal } from "@/components/ui/Modal";
@@ -16,6 +16,7 @@ import { Field } from "@/components/ui/Field";
 import { cn } from "@/lib/utils";
 import { enrollApplication, type EnrollResult } from "./enrollApi";
 import { EnrollResultPanel } from "./EnrollResultPanel";
+import { useEnrollTargets } from "./useEnrollTargets";
 
 /** Stored on public.admission_stage. The first five predate this screen and are
  *  kept so existing applications keep resolving. */
@@ -85,6 +86,7 @@ export function AdmissionReviewModal({ application, open, onClose }: {
   });
   const [stage, setStage] = useState<string>("applied");
   const [classId, setClassId] = useState("");
+  const [feeStructureId, setFeeStructureId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [enrollResult, setEnrollResult] = useState<EnrollResult | null>(null);
 
@@ -93,6 +95,7 @@ export function AdmissionReviewModal({ application, open, onClose }: {
     setError(null);
     setEnrollResult(null);
     setClassId("");
+    setFeeStructureId("");
     setStage(application.stage);
     setSteps({
       application_complete: !!application.application_complete,
@@ -108,32 +111,16 @@ export function AdmissionReviewModal({ application, open, onClose }: {
   // Enroll button elsewhere -- it needs a section, not just a label change.
   const needsEnrollment = stage === "enrolled" && !application?.converted_student_id;
 
-  const { data: sections } = useQuery({
-    queryKey: ["admission-review-sections", application?.tenant_id, application?.desired_grade],
-    enabled: needsEnrollment && !!application?.desired_grade,
-    queryFn: async () => {
-      const { data: classes, error: classesErr } = await supabase.from("classes")
-        .select("id, name, section, capacity")
-        .eq("tenant_id", application!.tenant_id)
-        .eq("name", application!.desired_grade!);
-      if (classesErr) throw classesErr;
-      const ids = (classes ?? []).map((c) => c.id);
-      const { data: active, error: studentsErr } = ids.length
-        ? await supabase.from("students").select("class_id").eq("status", "active").in("class_id", ids)
-        : { data: [], error: null };
-      if (studentsErr) throw studentsErr;
-      const counts = new Map<string, number>();
-      for (const s of active ?? []) counts.set(s.class_id, (counts.get(s.class_id) ?? 0) + 1);
-      return (classes ?? []).map((c) => ({ ...c, enrolled: counts.get(c.id) ?? 0 }));
-    },
-  });
+  const { sections, feeStructures } = useEnrollTargets(
+    needsEnrollment ? application?.tenant_id : undefined, application?.desired_grade, classId,
+  );
 
   const save = useMutation({
     mutationFn: async () => {
       if (needsEnrollment) {
         const result = await enrollApplication({
           applicationId: application!.id, tenantId: application!.tenant_id,
-          classId, photoPath: application!.photo_path,
+          classId, photoPath: application!.photo_path, feeStructureId: feeStructureId || undefined,
         });
         // stage/converted_student_id/assigned_class_id are set by the RPC
         // itself -- only the checklist + review metadata need writing here.
@@ -217,6 +204,16 @@ export function AdmissionReviewModal({ application, open, onClose }: {
               })}
             </select>
             {sections?.length === 0 && <p className="text-xs text-ink-faint">{t("admissions.enroll.noSections")}</p>}
+          </Field>
+
+          <Field label={t("admissions.enroll.feeStructure")}>
+            <select value={feeStructureId} onChange={(e) => setFeeStructureId(e.target.value)} disabled={!classId}
+              className="w-full rounded-control border border-line bg-card px-3 py-2 text-sm text-ink">
+              <option value="">{t("admissions.enroll.noInvoice")}</option>
+              {feeStructures?.map((f) => (
+                <option key={f.id} value={f.id}>{(f.name_i18n as Record<string, string>)?.en ?? f.id} — {f.amount} ETB</option>
+              ))}
+            </select>
           </Field>
         </div>
       )}

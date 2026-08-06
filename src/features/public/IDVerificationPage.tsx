@@ -8,13 +8,25 @@ import { useTranslation } from "react-i18next";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
+import { Badge } from "@/components/ui/Badge";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { formatETB } from "@/lib/i18n";
+
+interface VerifyResult {
+  valid: boolean;
+  subject_type?: string;
+  issued_on?: string;
+  tenant_name?: string;
+  doc_no?: string | null;
+  amount?: number | null;
+  invoice_status?: string | null;
+}
 
 export function IDVerificationPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const params = useParams();
   const [code, setCode] = useState(params.code ?? "");
-  const [result, setResult] = useState<{ valid: boolean; subject_type?: string; issued_on?: string; tenant_name?: string } | null>(null);
+  const [result, setResult] = useState<VerifyResult | null>(null);
   const [busy, setBusy] = useState(false);
 
   const verify = async () => {
@@ -52,12 +64,30 @@ export function IDVerificationPage() {
         {result && (
           <div className="mt-4 rounded-panel bg-sidebar p-4 text-sm">
             {result.valid ? (
-              <p className="text-ok">
-                {t("idCards.validRecord", {
-                  type: t(`idCards.subjectType.${result.subject_type}`),
-                  tenant: result.tenant_name,
-                })}
-              </p>
+              <div className="space-y-2 text-left">
+                <p className="text-ok">
+                  {t("idCards.validRecord", {
+                    type: t(`idCards.subjectType.${result.subject_type}`),
+                    tenant: result.tenant_name,
+                  })}
+                </p>
+                {(result.subject_type === "invoice" || result.subject_type === "receipt") && (
+                  <dl className="space-y-1 text-xs text-ink-soft">
+                    {result.doc_no && (
+                      <div className="flex justify-between"><dt>{t("idCards.documentNo")}</dt><dd className="font-medium text-ink">{result.doc_no}</dd></div>
+                    )}
+                    {result.amount != null && (
+                      <div className="flex justify-between"><dt>{t("idCards.amount")}</dt><dd className="font-medium text-ink">{formatETB(result.amount, i18n.language)}</dd></div>
+                    )}
+                    {result.invoice_status && (
+                      <div className="flex items-center justify-between">
+                        <dt>{t("idCards.invoiceStatus")}</dt>
+                        <dd><Badge tone={result.invoice_status === "paid" ? "ok" : result.invoice_status === "overdue" ? "danger" : "neutral"}>{result.invoice_status}</Badge></dd>
+                      </div>
+                    )}
+                  </dl>
+                )}
+              </div>
             ) : (
               <p className="text-danger">{t("idCards.notFound")}</p>
             )}

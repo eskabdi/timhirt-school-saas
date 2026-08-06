@@ -86,6 +86,23 @@
     "uploadReceiptTitle": "Waraqaa Kaffaltii Fe'i",
     "uploadReceiptDesc": "Ragaa kaffaltii waliigala armaan olii fe'i.",
     "maxSize5mbAlt": "PDF, JPG, PNG (Hamma 5MB)",
+    "bankVerificationUrl": "Yookaan URL mirkaneessa baankii maxxansi",
+    "bankVerificationUrlHint": "Baankiin keessan kaffaltii kanaaf hidhannoo mirkaneessa PDF kenneera yoo ta'e, sanduuqa kana keessatti fe'uu mannaa asitti maxxansaa.",
+    "verifyUrl": "Mirkaneessi", "verifying": "Mirkaneessaa jira…", "verified": "✓ Mirkanaa'eera",
+    "verifyFailed": {
+      "invalid_url": "Kun URL sirrii hin fakkaatu.",
+      "https_required": "URL-n https:// jalqabuu qaba.",
+      "no_domains_configured": "Mirkaneessi URL baankii mala kaffaltii kanaaf ammatti hin qindoofne — maaloo waraqaa kaffaltii fe'i.",
+      "domain_not_allowed": "Kun mala kaffaltii kanaaf doomeenii baankii beekamaa miti.",
+      "fetch_failed": "URL sanaa qaqqabuu hin dandeenye. Ilaalii irra deebi'ii yaali.",
+      "redirect_blocked": "URL sun gara biraatti geessa, kunis hin eeyyamamu.",
+      "empty_body": "URL sun waan tokko illee hin deebisne.",
+      "too_large": "Faayilli URL sana irra jiru baay'ee guddaa dha.",
+      "not_a_pdf": "URL sun PDF hin deebisne.",
+      "storage_failed": "Mirkaneessa olkaa'uu keessatti dogoggorri uumameera. Irra deebi'ii yaali.",
+      "network": "Dogoggorri neetwoorkii uumameera. Irra deebi'ii yaali.",
+      "unknown": "Mirkaneessi hin milkoofne. Maaloo waraqaa kaffaltii fe'i."
+    },
     "back": "Duubatti",
     "complete": "Galmee Xumuri"
   },
@@ -121,6 +138,9 @@
     "congratulations": "Baga Gammaddan!",
     "congratulationsBody": "{name} galmaa'eera. Mana barumsaa keenyatti baga nagaan dhuftan!",
     "downloadIdCard": "Waraqaa Eenyummaa Buufadhu",
-    "idCardPending": "Waraqaan eenyummaa keessan qophaa'aa jira — yeroo dhiyootti deebi'aa ilaalaa."
+    "idCardPending": "Waraqaan eenyummaa keessan qophaa'aa jira — yeroo dhiyootti deebi'aa ilaalaa.",
+    "downloadInvoice": "Waraqaa Kaffaltii Buufadhu",
+    "downloadReceipt": "Ragaa Kaffaltii Buufadhu",
+    "feeDocsPending": "Waraqaan kaffaltii keessan qophaa'aa jira — yeroo dhiyootti deebi'aa ilaalaa."
   }
 }

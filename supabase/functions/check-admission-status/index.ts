@@ -19,6 +19,11 @@
 // exposed — id_cards has no anon policy and none is added here; this
 // function does the lookup server-side with the service-role client, same
 // as everything else in it.
+//
+// Same pattern extended to fee_documents (enroll-finalize-billing writes an
+// invoice, and a receipt when the applicant's declared payment was
+// verified): the applicant gets a signed URL for each, never the row
+// itself or any amount in this JSON — the PDF carries the numbers.
 // ============================================================================
 import { z } from "npm:zod@3";
 import { createClient } from "npm:@supabase/supabase-js@2";
@@ -62,6 +67,8 @@ Deno.serve(async (req) => {
     if (!application) return json({ found: false }, 200);
 
     let idCardUrl: string | null = null;
+    let invoiceUrl: string | null = null;
+    let receiptUrl: string | null = null;
     if (application.stage === "enrolled" && application.converted_student_id) {
       const { data: card } = await db.from("id_cards")
         .select("pdf_path, id_card_batches!inner(created_at)")
@@ -74,6 +81,21 @@ Deno.serve(async (req) => {
         const { data: signed } = await db.storage.from("id-cards").createSignedUrl(card.pdf_path, 300);
         idCardUrl = signed?.signedUrl ?? null;
       }
+
+      const { data: docs } = await db.from("fee_documents")
+        .select("kind, pdf_path, created_at, fee_invoices!inner(student_id)")
+        .eq("fee_invoices.student_id", application.converted_student_id)
+        .order("created_at", { ascending: false });
+      const invoiceDoc = docs?.find((d) => d.kind === "invoice");
+      const receiptDoc = docs?.find((d) => d.kind === "receipt");
+      if (invoiceDoc?.pdf_path) {
+        const { data: signed } = await db.storage.from("fee-documents").createSignedUrl(invoiceDoc.pdf_path, 300);
+        invoiceUrl = signed?.signedUrl ?? null;
+      }
+      if (receiptDoc?.pdf_path) {
+        const { data: signed } = await db.storage.from("fee-documents").createSignedUrl(receiptDoc.pdf_path, 300);
+        receiptUrl = signed?.signedUrl ?? null;
+      }
     }
 
     return json({
@@ -83,6 +105,8 @@ Deno.serve(async (req) => {
       stage: application.stage,
       submitted_on: application.created_at,
       id_card_url: idCardUrl,
+      invoice_url: invoiceUrl,
+      receipt_url: receiptUrl,
     }, 200);
   } catch (err) {
     console.error("check-admission-status failed", { message: (err as Error).message });

@@ -11,6 +11,7 @@
 import { supabase } from "@/lib/supabase";
 import { convertImageToPng, STUDENT_PHOTO_MAX_PX } from "@/lib/image";
 import { studentPhotoPath } from "@/features/students/api";
+import { callFunction } from "@/lib/functions";
 
 export interface ProvisionedAccount {
   kind: "student" | "guardian";
@@ -25,17 +26,9 @@ export interface EnrollResult {
   idCardError: string | null;
   accounts: ProvisionedAccount[];
   accountsError: string | null;
-}
-
-export async function callFunction(name: string, body: unknown) {
-  const { data: { session } } = await supabase.auth.getSession();
-  const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${name}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token}` },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? `${name} failed`);
-  return res.json();
+  invoiceUrl: string | null;
+  receiptUrl: string | null;
+  billingError: string | null;
 }
 
 // Best-effort: the application's photo (Step 3 of the public stepper) is the
@@ -70,6 +63,7 @@ async function copyApplicationPhoto(tenantId: string, photoPath: string, student
 
 export async function enrollApplication(args: {
   applicationId: string; tenantId: string; classId: string; photoPath: string | null;
+  feeStructureId?: string;
 }): Promise<EnrollResult> {
   // Student Number is generated DB-side (students_set_admission_no trigger,
   // migration 20260719000005) -- nothing to type here. The RPC also sets
@@ -94,11 +88,29 @@ export async function enrollApplication(args: {
     callFunction("provision-portal-accounts", { student_id: studentId }),
   ]);
 
+  // Runs AFTER provision-portal-accounts resolves so guardian/student `users`
+  // rows exist for notification recipients -- a recipient whose account is
+  // still being provisioned just has no notification yet; their invoice is
+  // still reachable via the tracking-code status page.
+  let billingRes: { invoice_url: string | null; receipt_url: string | null } | null = null;
+  let billingErr: string | null = null;
+  try {
+    billingRes = await callFunction("enroll-finalize-billing", {
+      application_id: args.applicationId, student_id: studentId,
+      fee_structure_id: args.feeStructureId,
+    });
+  } catch (err) {
+    billingErr = String(err);
+  }
+
   return {
     studentId,
     idCardUrl: cardRes.status === "fulfilled" ? (cardRes.value.url as string) : null,
     idCardError: cardRes.status === "rejected" ? String(cardRes.reason) : null,
     accounts: accountsRes.status === "fulfilled" ? (accountsRes.value.accounts as ProvisionedAccount[]) : [],
     accountsError: accountsRes.status === "rejected" ? String(accountsRes.reason) : null,
+    invoiceUrl: billingRes?.invoice_url ?? null,
+    receiptUrl: billingRes?.receipt_url ?? null,
+    billingError: billingErr,
   };
 }

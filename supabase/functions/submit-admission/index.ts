@@ -133,7 +133,15 @@ Deno.serve(async (req) => {
         }))
         .sort((a, b) => b.amount - a.amount);
 
-      return json({ tenant_name: tenant.name, grades, fees: feeSchedule }, 200);
+      // Which admission payment methods have at least one super_admin-managed
+      // allow-listed bank hostname configured (20260808000001) -- the "paste
+      // a bank verification URL" field only makes sense to offer for a
+      // method that can actually be checked; the image-upload option remains
+      // available for every method regardless.
+      const { data: domains } = await db.from("bank_verification_domains").select("payment_method");
+      const bankVerifiableMethods = [...new Set((domains ?? []).map((d) => d.payment_method))];
+
+      return json({ tenant_name: tenant.name, grades, fees: feeSchedule, bankVerifiableMethods }, 200);
     } catch (err) {
       console.error("submit-admission (GET) failed", { message: (err as Error).message });
       return errors.internal();

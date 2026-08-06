@@ -86,6 +86,23 @@
     "uploadReceiptTitle": "Upload Payment Receipt",
     "uploadReceiptDesc": "Upload proof of payment for the total amount above.",
     "maxSize5mbAlt": "PDF, JPG, PNG (Max 5MB)",
+    "bankVerificationUrl": "Or paste a bank verification URL",
+    "bankVerificationUrlHint": "If your bank issued a PDF verification link for this payment, paste it here instead of uploading a file.",
+    "verifyUrl": "Verify", "verifying": "Verifying…", "verified": "✓ Verified",
+    "verifyFailed": {
+      "invalid_url": "That doesn't look like a valid URL.",
+      "https_required": "The URL must start with https://.",
+      "no_domains_configured": "Bank URL verification isn't set up for this payment method yet — please upload a receipt instead.",
+      "domain_not_allowed": "This isn't a recognized bank domain for this payment method.",
+      "fetch_failed": "Couldn't reach that URL. Check it and try again.",
+      "redirect_blocked": "That URL redirects elsewhere, which isn't allowed.",
+      "empty_body": "That URL returned no content.",
+      "too_large": "The file at that URL is too large.",
+      "not_a_pdf": "That URL didn't return a PDF.",
+      "storage_failed": "Something went wrong saving the verification. Try again.",
+      "network": "A network error occurred. Try again.",
+      "unknown": "Verification failed. Please upload a receipt instead."
+    },
     "back": "Back",
     "complete": "Complete Registration"
   },
@@ -121,6 +138,9 @@
     "congratulations": "Congratulations!",
     "congratulationsBody": "{name} has been enrolled. Welcome to the school!",
     "downloadIdCard": "Download ID Card",
-    "idCardPending": "Your ID card is being prepared — check back shortly."
+    "idCardPending": "Your ID card is being prepared — check back shortly.",
+    "downloadInvoice": "Download Invoice",
+    "downloadReceipt": "Download Receipt",
+    "feeDocsPending": "Your invoice is being prepared — check back shortly."
   }
 }

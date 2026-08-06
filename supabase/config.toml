@@ -55,3 +55,12 @@ verify_jwt = false                     # HMAC signature verified in-code instead
 
 [functions.check-login-attempt]
 verify_jwt = false                     # public pre-auth gate; rate-limited in-code
+
+[functions.record-fee-payment]
+verify_jwt = true
+[functions.issue-fee-document]
+verify_jwt = true
+[functions.enroll-finalize-billing]
+verify_jwt = true
+[functions.verify-admission-bank-url]
+verify_jwt = false                     # public form; rate-limited + stage-gated in-code

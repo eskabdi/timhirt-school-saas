@@ -24,6 +24,28 @@ export function EnrollResultPanel({ result, onClose }: { result: EnrollResult; o
         )}
       </div>
 
+      {(result.invoiceUrl || result.receiptUrl || result.billingError) && (
+        <div className="rounded-control border border-line p-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("admissions.enroll.billing")}</p>
+          {result.billingError ? (
+            <p className="mt-1 text-sm text-danger">{t("admissions.enroll.billingFailed")}</p>
+          ) : (
+            <div className="mt-1 space-y-1">
+              {result.invoiceUrl && (
+                <a href={result.invoiceUrl} target="_blank" rel="noreferrer" className="block text-sm text-navy hover:underline">
+                  {t("admissions.enroll.invoiceCreated")}
+                </a>
+              )}
+              {result.receiptUrl && (
+                <a href={result.receiptUrl} target="_blank" rel="noreferrer" className="block text-sm text-navy hover:underline">
+                  {t("admissions.enroll.receiptCreated")}
+                </a>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="rounded-control border border-line p-3">
         <p className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{t("admissions.enroll.portalAccounts")}</p>
         {result.accountsError ? (

@@ -135,7 +135,7 @@ const NAV: NavSection[] = [
       { to: "/portal/grades", key: "nav.grades", roles: ["student"] },
       { to: "/portal/attendance", key: "nav.attendance", roles: ["student"] },
       { to: "/portal/assignments", key: "nav.assignments", roles: ["student"] },
-      { to: "/portal/pay", key: "nav.makePayment", roles: ["parent"] },
+      { to: "/portal/pay", key: "nav.makePayment", roles: ["parent", "student"] },
     ],
   },
 ];
@@ -187,6 +187,20 @@ export function DashboardShell() {
     queryFn: async () => {
       const { count } = await supabase.from("messages").select("id", { count: "exact", head: true })
         .eq("recipient_id", profile!.id).is("read_at", null);
+      return count ?? 0;
+    },
+  });
+  // Same "light interval, no realtime" pattern as unreadMessages above, for
+  // the portal billing feed (invoice issued / payment received) on the
+  // /portal/pay nav item -- parent/student only, RLS already scopes
+  // portal_notifications to recipient_id = auth.uid() with no staff bypass.
+  const { data: unreadBilling } = useQuery({
+    queryKey: ["billing-notifications-unread", profile?.id],
+    enabled: !!profile?.id && (profile?.role === "parent" || profile?.role === "student"),
+    refetchInterval: 60_000,
+    queryFn: async () => {
+      const { count } = await supabase.from("portal_notifications").select("id", { count: "exact", head: true })
+        .is("read_at", null);
       return count ?? 0;
     },
   });
@@ -472,6 +486,11 @@ export function DashboardShell() {
                         {n.to === "/messages" && !!unreadMessages && (
                           <span className="rounded-pill bg-danger px-1.5 py-0.5 text-[11px] font-semibold text-white">
                             {unreadMessages}
+                          </span>
+                        )}
+                        {n.to === "/portal/pay" && !!unreadBilling && (
+                          <span className="rounded-pill bg-danger px-1.5 py-0.5 text-[11px] font-semibold text-white">
+                            {unreadBilling}
                           </span>
                         )}
                       </NavLink>

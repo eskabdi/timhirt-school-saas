@@ -16,6 +16,108 @@ import { Button } from "@/components/ui/Button";
 import { Field } from "@/components/ui/Field";
 import { Input } from "@/components/ui/Input";
 import { Toggle } from "@/components/ui/Toggle";
+import { Panel } from "@/components/ui/Panel";
+
+const BANK_METHODS = ["cbe", "awash_bank", "telebirr"] as const;
+
+interface BankDomain { id: string; payment_method: (typeof BANK_METHODS)[number]; hostname: string; label: string | null }
+
+/** super_admin-managed allow-list of official bank hostnames -- the only
+ *  gate on verify-admission-bank-url / record-fee-payment's optional
+ *  bank-URL field ever accepting a domain. Ships empty; immediate add/
+ *  remove rather than batched into the page's scalar "Save changes" button,
+ *  since that button's shape doesn't fit a variable-length list. */
+function BankVerificationDomainsCard() {
+  const { t } = useTranslation();
+  const qc = useQueryClient();
+  const [method, setMethod] = useState<(typeof BANK_METHODS)[number]>("cbe");
+  const [hostname, setHostname] = useState("");
+  const [label, setLabel] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  const { data: domains } = useQuery({
+    queryKey: ["bank-verification-domains"],
+    queryFn: async () => {
+      const { data, error: err } = await supabase.from("bank_verification_domains")
+        .select("id, payment_method, hostname, label").order("payment_method");
+      if (err) throw err;
+      return data as BankDomain[];
+    },
+  });
+
+  const add = useMutation({
+    mutationFn: async () => {
+      const host = hostname.trim().toLowerCase();
+      if (!host) throw new Error(t("securitySettings.bankDomains.hostnameRequired"));
+      const { error: err } = await supabase.from("bank_verification_domains")
+        .insert({ payment_method: method, hostname: host, label: label.trim() || null });
+      if (err) throw err;
+    },
+    onSuccess: () => {
+      setHostname(""); setLabel(""); setError(null);
+      qc.invalidateQueries({ queryKey: ["bank-verification-domains"] });
+    },
+    onError: (err: unknown) => setError(err instanceof Error ? err.message : String(err)),
+  });
+
+  const remove = useMutation({
+    mutationFn: async (id: string) => {
+      const { error: err } = await supabase.from("bank_verification_domains").delete().eq("id", id);
+      if (err) throw err;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["bank-verification-domains"] }),
+  });
+
+  return (
+    <Card className="space-y-4">
+      <h2 className="font-semibold text-ink">{t("securitySettings.bankDomains.title")}</h2>
+      <p className="text-xs text-ink-faint">{t("securitySettings.bankDomains.hint")}</p>
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-[auto_1fr_1fr_auto] sm:items-end">
+        <Field label={t("securitySettings.bankDomains.method")}>
+          <select value={method} onChange={(e) => setMethod(e.target.value as typeof method)}
+            className="w-full rounded-control border border-line bg-card px-3 py-2 text-sm text-ink">
+            {BANK_METHODS.map((m) => <option key={m} value={m}>{t(`admissions.paymentMethod.${m}`)}</option>)}
+          </select>
+        </Field>
+        <Field label={t("securitySettings.bankDomains.hostname")}>
+          <Input value={hostname} onChange={(e) => setHostname(e.target.value)} maxLength={253} placeholder="secure.bank.example.com" />
+        </Field>
+        <Field label={t("securitySettings.bankDomains.label")}>
+          <Input value={label} onChange={(e) => setLabel(e.target.value)} maxLength={100} />
+        </Field>
+        <Button onClick={() => add.mutate()} disabled={add.isPending || !hostname.trim()}>{t("securitySettings.bankDomains.add")}</Button>
+      </div>
+      {error && <p role="alert" className="text-sm text-danger">{error}</p>}
+
+      <Panel className="overflow-x-auto">
+        {!domains?.length ? (
+          <p className="p-4 text-sm text-ink-faint">{t("securitySettings.bankDomains.empty")}</p>
+        ) : (
+          <table className="w-full min-w-[480px] text-sm">
+            <thead className="bg-sidebar text-left text-xs uppercase text-ink-faint">
+              <tr><th className="px-4 py-2">{t("securitySettings.bankDomains.method")}</th><th className="px-4 py-2">{t("securitySettings.bankDomains.hostname")}</th><th className="px-4 py-2">{t("securitySettings.bankDomains.label")}</th><th /></tr>
+            </thead>
+            <tbody className="divide-y divide-line">
+              {domains.map((d) => (
+                <tr key={d.id}>
+                  <td className="px-4 py-2 text-ink">{t(`admissions.paymentMethod.${d.payment_method}`)}</td>
+                  <td className="px-4 py-2 font-mono text-xs text-ink">{d.hostname}</td>
+                  <td className="px-4 py-2 text-ink-faint">{d.label ?? "—"}</td>
+                  <td className="px-4 py-2 text-right">
+                    <button type="button" className="text-xs text-danger hover:underline" onClick={() => remove.mutate(d.id)} disabled={remove.isPending}>
+                      {t("common.remove")}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </Panel>
+    </Card>
+  );
+}
 
 const KEYS = [
   "login_max_attempts", "login_attempt_window_minutes",
@@ -182,6 +284,8 @@ export function SecuritySettingsPage() {
           <span className="text-sm text-ok">{t("securitySettings.saved")}</span>
         )}
       </div>
+
+      <BankVerificationDomainsCard />
     </div>
   );
 }

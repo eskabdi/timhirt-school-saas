@@ -29,6 +29,8 @@ interface StatusResult {
   stage?: keyof typeof STAGE_TONE;
   submitted_on?: string;
   id_card_url?: string | null;
+  invoice_url?: string | null;
+  receipt_url?: string | null;
 }
 
 export function AdmissionStatusPage() {
@@ -93,14 +95,31 @@ export function AdmissionStatusPage() {
                   <div className="rounded-control border-2 border-ok bg-ok-tint/40 p-4 text-center">
                     <p className="font-display text-lg font-bold text-ok">{t("status.congratulations")}</p>
                     <p className="mt-1 text-sm text-ink">{t("status.congratulationsBody", { name: result.applicant_name })}</p>
-                    {result.id_card_url ? (
-                      <a href={result.id_card_url} target="_blank" rel="noreferrer"
-                        className="mt-3 inline-block rounded-control bg-ok px-4 py-2 text-sm font-semibold text-white hover:opacity-90">
-                        {t("status.downloadIdCard")}
-                      </a>
-                    ) : (
-                      <p className="mt-3 text-xs text-ink-faint">{t("status.idCardPending")}</p>
-                    )}
+                    <div className="mt-3 flex flex-wrap justify-center gap-2">
+                      {result.id_card_url ? (
+                        <a href={result.id_card_url} target="_blank" rel="noreferrer"
+                          className="inline-block rounded-control bg-ok px-4 py-2 text-sm font-semibold text-white hover:opacity-90">
+                          {t("status.downloadIdCard")}
+                        </a>
+                      ) : (
+                        <p className="text-xs text-ink-faint">{t("status.idCardPending")}</p>
+                      )}
+                      {result.invoice_url && (
+                        <a href={result.invoice_url} target="_blank" rel="noreferrer"
+                          className="inline-block rounded-control border border-ok px-4 py-2 text-sm font-semibold text-ok hover:bg-ok-tint/40">
+                          {t("status.downloadInvoice")}
+                        </a>
+                      )}
+                      {result.receipt_url && (
+                        <a href={result.receipt_url} target="_blank" rel="noreferrer"
+                          className="inline-block rounded-control border border-ok px-4 py-2 text-sm font-semibold text-ok hover:bg-ok-tint/40">
+                          {t("status.downloadReceipt")}
+                        </a>
+                      )}
+                      {!result.invoice_url && !result.receipt_url && (
+                        <p className="text-xs text-ink-faint">{t("status.feeDocsPending")}</p>
+                      )}
+                    </div>
                   </div>
                 )}
                 <div className="flex items-center justify-between">

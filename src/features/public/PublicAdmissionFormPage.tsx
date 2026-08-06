@@ -103,13 +103,82 @@ function BilingualField({ label, error, children }: { label: string; error?: str
 
 async function fetchAdmissionMeta(tenantSlug: string) {
   const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/submit-admission?tenant_slug=${encodeURIComponent(tenantSlug)}`);
-  if (!res.ok) return { tenantName: null, grades: [], fees: [] as PublicFee[] };
+  if (!res.ok) return { tenantName: null, grades: [], fees: [] as PublicFee[], bankVerifiableMethods: [] as string[] };
   const data = (await res.json()) as {
     tenant_name: string;
     grades: { name: string; grade_level: number | null }[];
     fees?: PublicFee[];
+    bankVerifiableMethods?: string[];
   };
-  return { tenantName: data.tenant_name, grades: data.grades, fees: data.fees ?? [] };
+  return { tenantName: data.tenant_name, grades: data.grades, fees: data.fees ?? [], bankVerifiableMethods: data.bankVerifiableMethods ?? [] };
+}
+
+type BankUrlStatus = "idle" | "verifying" | "verified" | "failed";
+
+/** Alongside the manual receipt-image upload (DocumentUploadSlot above), an
+ *  applicant can instead paste a bank-generated verification URL -- a PDF
+ *  the bank itself hosts. Only rendered for a payment method that has at
+ *  least one super_admin-managed allow-listed hostname configured
+ *  (meta.bankVerifiableMethods); verify-admission-bank-url fetches and
+ *  checks it server-side (_shared/bank-verify.ts). Failure here blocks
+ *  the registrant -- this establishes trust for an anonymous submitter
+ *  before any human has reviewed the application. */
+function BankVerifyUrlSlot({
+  applicationId, paymentMethod, onVerified,
+}: { applicationId: string; paymentMethod: "cbe" | "awash_bank" | "telebirr"; onVerified: (verified: boolean) => void }) {
+  const { t } = useTranslation("apply");
+  const [url, setUrl] = useState("");
+  const [status, setStatus] = useState<BankUrlStatus>("idle");
+  const [reason, setReason] = useState<string | null>(null);
+
+  const verify = async () => {
+    if (!url.trim()) return;
+    setStatus("verifying");
+    setReason(null);
+    try {
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/verify-admission-bank-url`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ application_id: applicationId, payment_method: paymentMethod, verification_url: url.trim() }),
+      });
+      const data = await res.json().catch(() => ({ ok: false }));
+      if (res.ok && data.ok) {
+        setStatus("verified");
+        onVerified(true);
+      } else {
+        setStatus("failed");
+        setReason(data.reason ?? "unknown");
+        onVerified(false);
+      }
+    } catch {
+      setStatus("failed");
+      setReason("network");
+      onVerified(false);
+    }
+  };
+
+  return (
+    <div className="mt-4 rounded-control border border-line p-4">
+      <p className="text-sm font-medium text-ink">{t("step4.bankVerificationUrl")}</p>
+      <p className="mt-1 text-xs text-ink-faint">{t("step4.bankVerificationUrlHint")}</p>
+      <div className="mt-2 flex flex-wrap gap-2">
+        <Input
+          type="url" value={url} maxLength={2048}
+          onChange={(e) => { setUrl(e.target.value); if (status !== "idle") { setStatus("idle"); onVerified(false); } }}
+          placeholder="https://…" className="min-w-0 flex-1"
+        />
+        <Button type="button" variant="ghost" onClick={verify} disabled={!url.trim() || status === "verifying"}>
+          {status === "verifying" ? t("step4.verifying") : t("step4.verifyUrl")}
+        </Button>
+      </div>
+      {status === "verified" && <p className="mt-2 text-sm text-ok">{t("step4.verified")}</p>}
+      {status === "failed" && (
+        <p className="mt-2 text-sm text-danger">
+          {t(`step4.verifyFailed.${reason}`, { defaultValue: t("step4.verifyFailed.unknown") })}
+        </p>
+      )}
+    </div>
+  );
 }
 
 function DocumentUploadSlot({
@@ -218,6 +287,7 @@ export function PublicAdmissionFormPage() {
   const [busOpted, setBusOpted] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<"cbe" | "awash_bank" | "telebirr">("cbe");
   const [receiptDone, setReceiptDone] = useState(false);
+  const [bankUrlVerified, setBankUrlVerified] = useState(false);
   const [feesError, setFeesError] = useState<string | null>(null);
 
   const { data: meta } = useQuery({
@@ -303,7 +373,7 @@ export function PublicAdmissionFormPage() {
   };
 
   const completeRegistration = () => {
-    if (!receiptDone) { setFeesError(t("errors.receiptMissing")); return; }
+    if (!receiptDone && !bankUrlVerified) { setFeesError(t("errors.receiptMissing")); return; }
     setFeesError(null);
     setCompleted(true);
   };
@@ -596,7 +666,8 @@ export function PublicAdmissionFormPage() {
               </div>
               <div className="grid grid-cols-3 gap-3 p-6">
                 {([["cbe", "CBE"], ["awash_bank", "Awash Bank"], ["telebirr", "Telebirr"]] as const).map(([value, label]) => (
-                  <button key={value} type="button" onClick={() => setPaymentMethod(value)}
+                  <button key={value} type="button"
+                    onClick={() => { setPaymentMethod(value); setBankUrlVerified(false); }}
                     className={cn(
                       "rounded-control border p-4 text-center text-sm font-medium transition-colors",
                       paymentMethod === value ? "border-navy bg-navy-wash text-navy" : "border-line text-ink hover:bg-sidebar",
@@ -611,7 +682,7 @@ export function PublicAdmissionFormPage() {
                   title={t("step4.uploadReceiptTitle")}
                   description={t("step4.uploadReceiptDesc")}
                   accept="application/pdf,image/jpeg,image/png" maxSizeLabel={t("step4.maxSize5mbAlt")}
-                  required
+                  required={!bankUrlVerified}
                   extraFields={() => ({
                     payment_method: paymentMethod,
                     bus_service_opted: String(busOpted),
@@ -619,6 +690,13 @@ export function PublicAdmissionFormPage() {
                   })}
                   onUploaded={() => setReceiptDone(true)}
                 />
+                {meta?.bankVerifiableMethods.includes(paymentMethod) && (
+                  <BankVerifyUrlSlot
+                    key={paymentMethod}
+                    applicationId={applicationId} paymentMethod={paymentMethod}
+                    onVerified={setBankUrlVerified}
+                  />
+                )}
               </div>
             </Panel>
             {feesError && <p role="alert" className="text-sm text-danger">{feesError}</p>}

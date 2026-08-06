@@ -10,6 +10,11 @@
 // 010). verify_code is required to be >= 24 chars (constraint in 010),
 // making brute-force guessing computationally infeasible even without the
 // rate limit — the rate limit is defense in depth against scripted scans.
+//
+// Calls verify_document() (20260807000001), which UNIONs id_cards and
+// fee_documents behind one RPC -- one QR target shape (/verify/:code), one
+// caller, one public page, for both ID cards and invoice/receipt PDFs.
+// verify_id_card() stays in place (superseded, unreferenced, not dropped).
 // ============================================================================
 import { z } from "npm:zod@3";
 import { createClient } from "npm:@supabase/supabase-js@2";
@@ -33,7 +38,7 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    const { data, error } = await db.rpc("verify_id_card", { p_code: parsed.data.code });
+    const { data, error } = await db.rpc("verify_document", { p_code: parsed.data.code });
     if (error) throw error;
 
     const result = data?.[0] ?? { valid: false };

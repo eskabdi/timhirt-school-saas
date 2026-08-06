@@ -15,12 +15,12 @@
 // ============================================================================
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/Button";
 import { Field } from "@/components/ui/Field";
 import { enrollApplication, type EnrollResult } from "./enrollApi";
 import { EnrollResultPanel } from "./EnrollResultPanel";
+import { useEnrollTargets } from "./useEnrollTargets";
 
 interface Application {
   id: string;
@@ -39,61 +39,18 @@ export function EnrollStudentModal({ application, onClose }: { application: Appl
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<EnrollResult | null>(null);
 
-  const { data: sections } = useQuery({
-    queryKey: ["admission-enroll-sections", application.tenant_id, application.desired_grade],
-    enabled: !!application.desired_grade,
-    queryFn: async () => {
-      const { data: classes, error: classesErr } = await supabase.from("classes")
-        .select("id, name, section, capacity")
-        .eq("tenant_id", application.tenant_id)
-        .eq("name", application.desired_grade!);
-      if (classesErr) throw classesErr;
-      const ids = (classes ?? []).map((c) => c.id);
-      const { data: active, error: studentsErr } = ids.length
-        ? await supabase.from("students").select("class_id").eq("status", "active").in("class_id", ids)
-        : { data: [], error: null };
-      if (studentsErr) throw studentsErr;
-      const counts = new Map<string, number>();
-      for (const s of active ?? []) counts.set(s.class_id, (counts.get(s.class_id) ?? 0) + 1);
-      return (classes ?? []).map((c) => ({ ...c, enrolled: counts.get(c.id) ?? 0 }));
-    },
-  });
-
-  const { data: feeStructures } = useQuery({
-    queryKey: ["admission-enroll-fee-structures", application.tenant_id, classId],
-    enabled: !!classId,
-    queryFn: async () => {
-      const { data, error: err } = await supabase.from("fee_structures")
-        .select("id, name_i18n, amount, billing_cycle")
-        .eq("tenant_id", application.tenant_id)
-        .or(`class_id.eq.${classId},class_id.is.null`);
-      if (err) throw err;
-      return data ?? [];
-    },
-  });
+  const { sections, feeStructures } = useEnrollTargets(application.tenant_id, application.desired_grade, classId);
 
   const enroll = useMutation({
     mutationFn: async (): Promise<EnrollResult> => {
-      const result = await enrollApplication({
+      // Invoice + (if the applicant declared payment evidence) receipt are
+      // both created server-side by enroll-finalize-billing -- see
+      // enrollApi.ts and its file header for why this can't be a direct
+      // client insert (registrar lacks invoices_write/payments_manual_insert).
+      return enrollApplication({
         applicationId: application.id, tenantId: application.tenant_id,
-        classId, photoPath: application.photo_path,
+        classId, photoPath: application.photo_path, feeStructureId: feeStructureId || undefined,
       });
-
-      if (feeStructureId) {
-        const structure = feeStructures?.find((f) => f.id === feeStructureId);
-        if (structure) {
-          const { error: invErr } = await supabase.from("fee_invoices").insert({
-            tenant_id: application.tenant_id,
-            student_id: result.studentId,
-            fee_structure_id: structure.id,
-            amount_due: structure.amount,
-            due_date: new Date().toISOString().slice(0, 10),
-          });
-          if (invErr) throw invErr;
-        }
-      }
-
-      return result;
     },
     onSuccess: (r) => {
       setResult(r);

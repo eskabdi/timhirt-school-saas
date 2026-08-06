@@ -58,6 +58,24 @@ export function AdmissionDetailPage() {
     }),
   });
 
+  // Latest bank-URL verification attempt for this application (Part 3) --
+  // extends the Documents/Payment panel with a staff-facing preview of the
+  // bank-hosted PDF the system fetched and re-stored, alongside the raw
+  // submitted URL as a cross-check link and the pass/fail status.
+  const { data: bankVerification } = useQuery({
+    queryKey: ["admission-bank-verification", id],
+    enabled: !!id,
+    queryFn: async () => {
+      const { data: row } = await supabase.from("bank_payment_verifications")
+        .select("status, verification_url, pdf_path, failure_reason")
+        .eq("admission_application_id", id).maybeSingle();
+      if (!row) return null;
+      if (row.status !== "verified" || !row.pdf_path) return { ...row, previewUrl: null };
+      const { data: signed } = await supabase.storage.from("bank-verifications").createSignedUrl(row.pdf_path, 300);
+      return { ...row, previewUrl: signed?.signedUrl ?? null };
+    },
+  });
+
   if (!data) return null;
 
   const hasBilingualName = data.applicant_first_name || data.applicant_first_name_am;
@@ -131,6 +149,26 @@ export function AdmissionDetailPage() {
             <div><dt className="text-ink-faint">{t("admissions.total")}</dt><dd className="tabular-nums text-ink">{data.fees_total_etb} ETB</dd></div>
             <div><dt className="text-ink-faint">{t("admissions.schoolBus")}</dt><dd className="text-ink">{data.bus_service_opted ? t("admissions.yes") : t("admissions.no")}</dd></div>
           </dl>
+          {bankVerification && (
+            <div className="border-t border-line p-5">
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-sm font-semibold text-ink">{t("admissions.bankVerification.title")}</p>
+                <Badge tone={bankVerification.status === "verified" ? "ok" : bankVerification.status === "pending" ? "neutral" : "danger"}>
+                  {t(`admissions.bankVerification.status.${bankVerification.status}`)}
+                </Badge>
+              </div>
+              <a href={bankVerification.verification_url} target="_blank" rel="noreferrer" className="block truncate text-xs text-navy hover:underline">
+                {bankVerification.verification_url}
+              </a>
+              {bankVerification.failure_reason && (
+                <p className="mt-1 text-xs text-danger">{bankVerification.failure_reason}</p>
+              )}
+              {bankVerification.previewUrl && (
+                <iframe title={t("admissions.bankVerification.title")} src={bankVerification.previewUrl}
+                  className="mt-3 h-96 w-full rounded-control border border-line" />
+              )}
+            </div>
+          )}
         </Panel>
       )}
 

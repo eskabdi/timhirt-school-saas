@@ -16,6 +16,7 @@
 // ============================================================================
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { errors, json, verifyHmac, getCredential, corsHeaders } from "../_shared/security.ts";
+import { issueFeeDocument, notifyBilling, renderReceiptPdf } from "../_shared/fee-pdf.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -79,6 +80,57 @@ Deno.serve(async (req) => {
     // No amounts logged beyond the tx_ref (no financial data in logs).
     if (result === "amount_mismatch") {
       console.error("chapa-webhook amount mismatch", { txRef });
+    }
+
+    // Receipt + notification generation is best-effort and must NEVER affect
+    // this function's 200 ack: the payment is already settled and the
+    // invoice already credited atomically inside settle_gateway_payment().
+    // Failing the ack here would just make Chapa retry a call whose retry
+    // can't repair a receipt-generation failure (repeat settlement returns
+    // 'duplicate'). The repair path is the on-demand issue-fee-document
+    // endpoint, which is idempotent via fee_documents_receipt_uq.
+    if (result === "ok") {
+      try {
+        const { data: payment } = await db.from("payments")
+          .select("id, tenant_id, invoice_id, amount, paid_at, provider, provider_ref")
+          .eq("provider_ref", txRef).eq("provider", "chapa").maybeSingle();
+        if (payment) {
+          const { data: invoice } = await db.from("fee_invoices")
+            .select("id, student_id, amount_due, amount_paid")
+            .eq("id", payment.invoice_id).maybeSingle();
+          if (invoice) {
+            const { data: student } = await db.from("students")
+              .select("id, tenant_id, first_name, last_name, admission_no")
+              .eq("id", invoice.student_id).maybeSingle();
+            const { data: tenant } = await db.from("tenants").select("name").eq("id", payment.tenant_id).maybeSingle();
+            if (student && tenant) {
+              const doc = await issueFeeDocument(db, {
+                kind: "receipt", tenantId: payment.tenant_id, invoiceId: invoice.id,
+                paymentId: payment.id, amount: payment.amount,
+                render: ({ docNo, verifyCode }) => renderReceiptPdf({
+                  tenantName: tenant.name,
+                  docNo, verifyCode, issuedOn: new Date().toISOString().slice(0, 10),
+                  studentName: `${student.first_name} ${student.last_name}`.trim(),
+                  admissionNo: student.admission_no,
+                  receivedFrom: `${student.first_name} ${student.last_name}`.trim(),
+                  amount: payment.amount, provider: "chapa", providerRef: payment.provider_ref,
+                  paidAt: (payment.paid_at ?? new Date().toISOString()).slice(0, 10),
+                  invoiceBalanceAfter: Math.max(0, invoice.amount_due - invoice.amount_paid),
+                }),
+              });
+              if (doc) {
+                await notifyBilling(db, {
+                  tenantId: payment.tenant_id, studentId: invoice.student_id,
+                  kind: "payment_received", invoiceId: invoice.id, paymentId: payment.id,
+                  amount: payment.amount,
+                });
+              }
+            }
+          }
+        }
+      } catch (docErr) {
+        console.error("chapa-webhook: receipt/notification generation failed (non-fatal)", { message: (docErr as Error).message });
+      }
     }
 
     return json({ received: true, result }, 200);
