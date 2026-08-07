@@ -24,6 +24,20 @@
 // (no custom DNS pinning) -- accepted given the allow-list only ever
 // contains a handful of well-known public bank hostnames an admin adds
 // manually, not attacker-influenced input.
+//
+// Known reachability gap, confirmed against production (2026-08-07): CBE's
+// apps.cbe.com.et:100 and Telebirr's transactioninfo.ethiotelecom.et were
+// allow-listed and tested with real transaction URLs through the live
+// verify-admission-bank-url function. Both failed with reason "fetch_failed";
+// the function's own logs show the cause is FETCH_TIMEOUT_MS (10s) expiring
+// -- "Signal timed out." -- not a code defect. A from-sandbox curl probe to
+// the same two URLs independently reset/timed out the same way, so this
+// isn't proxy-specific either. Most likely these banks geo/IP-restrict to
+// Ethiopian networks and simply never respond to cloud egress IPs (Supabase's
+// edge network included). No fix identified from outside an Ethiopian IP;
+// until one is, a registrant/accountant using either domain should expect
+// "Failed" here and fall back to the manual receipt-image upload, which
+// remains available alongside the URL option by design.
 // ============================================================================
 import type { AuthContext } from "./security.ts";
 
