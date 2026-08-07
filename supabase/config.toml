@@ -64,3 +64,6 @@ verify_jwt = true
 verify_jwt = true
 [functions.verify-admission-bank-url]
 verify_jwt = false                     # public form; rate-limited + stage-gated in-code
+
+[functions.process-import-job]
+verify_jwt = true

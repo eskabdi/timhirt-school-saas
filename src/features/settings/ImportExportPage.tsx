@@ -6,6 +6,7 @@ import { useSession } from "@/features/auth/useSession";
 import { Button } from "@/components/ui/Button";
 import { EthDate } from "@/components/EthDate";
 import { buildImportTemplates } from "./importTemplates";
+import { callFunction } from "@/lib/functions";
 
 function downloadCsv(filename: string, rows: string[][]) {
   const csv = rows.map((r) => r.map((v) => `"${v.replace(/"/g, '""')}"`).join(",")).join("\n");
@@ -72,6 +73,12 @@ export function ImportExportPage() {
         .upload(filePath, file);
 
       if (uploadError) throw uploadError;
+
+      // Kicks off the actual row-by-row parse + insert. Errors here are
+      // per-row and land in data_jobs.error_log (surfaced via the Job
+      // History list below), not thrown -- the job record is the result,
+      // not this call's return value.
+      await callFunction("process-import-job", { job_id: job, storage_path: filePath });
 
       return job;
     },
@@ -293,8 +300,11 @@ export function ImportExportPage() {
                     </div>
                   )}
                   {job.status === "completed" && (
-                    <div className="text-right text-sm text-ink-faint">
-                      {job.processed_rows} {t("importExport.rows")}
+                    <div className="text-right text-sm">
+                      <div className="text-ink-faint">{job.processed_rows} {t("importExport.rows")}</div>
+                      {job.error_count > 0 && (
+                        <div className="text-danger">{job.error_count} {t("importExport.errors")}</div>
+                      )}
                     </div>
                   )}
                   {job.status === "failed" && (
