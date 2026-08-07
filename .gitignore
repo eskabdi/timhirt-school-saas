@@ -14,3 +14,6 @@ i18n-review*.csv
 
 # Throwaway mocked-Supabase harness used for browser-driven design/QA checks
 .design-harness/
+
+# Deploy tokens staged transiently during a deploy, shredded immediately after use
+.deploy-secrets/
