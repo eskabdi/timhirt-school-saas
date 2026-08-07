@@ -1,10 +1,19 @@
-import { useState, useRef } from "react";
+import { useMemo, useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useSession } from "@/features/auth/useSession";
 import { Button } from "@/components/ui/Button";
 import { EthDate } from "@/components/EthDate";
+import { buildImportTemplates } from "./importTemplates";
+
+function downloadCsv(filename: string, rows: string[][]) {
+  const csv = rows.map((r) => r.map((v) => `"${v.replace(/"/g, '""')}"`).join(",")).join("\n");
+  const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+  const a = document.createElement("a");
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
 
 interface DataJob {
   id: string;
@@ -28,6 +37,8 @@ export function ImportExportPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   const entities = ["students", "teachers", "fees"];
+  const templates = useMemo(() => buildImportTemplates(t), [t]);
+  const activeTemplate = templates[selectedEntity as keyof typeof templates];
 
   const { data: jobs, isLoading: jobsLoading } = useQuery({
     queryKey: ["data-jobs", profile?.tenant_id],
@@ -167,6 +178,45 @@ export function ImportExportPage() {
             >
               {t("importExport.startImport")}
             </Button>
+            <Button
+              variant="ghost"
+              onClick={() =>
+                downloadCsv(`${selectedEntity}-import-template.csv`, [
+                  activeTemplate.headers,
+                  activeTemplate.example,
+                ])
+              }
+            >
+              {t("importExport.downloadTemplate")}
+            </Button>
+          </div>
+
+          <div className="pt-2">
+            <h3 className="text-sm font-semibold text-ink mb-1">{t("importExport.templatePreview")}</h3>
+            <p className="text-xs text-ink-faint mb-3">{t("importExport.templateHint")}</p>
+            <div className="overflow-x-auto rounded border border-line">
+              <table className="min-w-full text-xs">
+                <thead className="bg-sidebar">
+                  <tr>
+                    {activeTemplate.headers.map((h, i) => (
+                      <th key={i} className="whitespace-nowrap px-3 py-2 text-left font-medium text-ink">
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="border-t border-line">
+                    {activeTemplate.example.map((v, i) => (
+                      <td key={i} className="whitespace-nowrap px-3 py-2 text-ink-faint">
+                        {v}
+                      </td>
+                    ))}
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p className="mt-1 text-[11px] text-ink-faint">{t("importExport.exampleRow")}</p>
           </div>
         </div>
       </div>
