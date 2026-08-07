@@ -247,6 +247,13 @@ Deno.serve(async (req) => {
       return json({ ok: false, reason: "upload_failed" }, 200);
     }
 
+    // update_job_progress sets processed_rows -- complete_job never touches
+    // it (only total_rows/storage_path/status). Skipping this left every
+    // completed export showing "0 rows" in the Job History list, the same
+    // shape of bug complete_job's error_count gap left for imports.
+    await ctx.adminClient.rpc("update_job_progress", {
+      p_job_id: job_id, p_processed_rows: rows.length, p_progress_percent: 100,
+    });
     await ctx.adminClient.rpc("complete_job", {
       p_job_id: job_id, p_total_rows: rows.length, p_storage_path: storagePath,
     });
