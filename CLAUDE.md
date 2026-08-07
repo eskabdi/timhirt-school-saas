@@ -9,6 +9,51 @@ Code comments cite it by section (§6.2 route guards, §17.2 canonical date
 storage, §10.4 injection/XSS). It ends at §20 — a few comments cite §21.9 for
 INSA reasoning, and that section is not in the document.
 
+There is no backend service to run: the browser talks to Supabase directly with
+the anon key, and RLS + Edge Functions + SECURITY DEFINER RPCs are the whole
+server. "Deploy" means three separate things — migrations, Edge Functions, and
+the Vercel frontend (see [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md)).
+
+---
+
+## Layout
+
+```
+src/
+  app/            App.tsx, providers.tsx (single QueryClient), router.tsx (~50
+                  routes over Admin / Teacher / Student / Parent / Public /
+                  Platform surfaces)
+  features/<domain>/   feature-sliced (~28 domains: students, attendance,
+                  gradebook, fees, hr, admissions, portal, platform, settings,
+                  …). A folder holds its *Page.tsx views plus, as needed,
+                  api.ts / *Api.ts (Supabase data access) and schemas.ts (zod).
+                  Data is fetched with TanStack useQuery/useMutation inline in
+                  the page, keyed by qk() — never a hand-written key array.
+  components/     cross-feature: EthDate, EthDatePicker, LanguageSwitcher
+    ui/           design-system primitives — Button, Card, Field/FieldGroup,
+                  Modal, RichText, Stepper, Toggle, SegmentedControl, …
+    layout/       DashboardShell (tenant app), PlatformShell/PlatformNav (super-
+                  admin console)
+    charts/       Bars, Pie (hand-rolled SVG, no chart lib)
+  lib/            supabase.ts (the one client), queryKeys.ts (qk), i18n.ts,
+                  ethiopian-date.ts, brand-theme.ts, ethnic-groups.ts, image.ts,
+                  utils.ts, database.types.ts (generated — `npm run gen:types`)
+  locales/{en,am,om}/   common / apply / calendar namespaces, at full parity
+  __tests__/      vitest unit tests (Ethiopian-date math, EC parity, payroll)
+
+supabase/
+  migrations/     44 timestamped SQL files, applied in filename order
+  functions/      15 Deno Edge Functions + _shared/ (security.ts, dates)
+  tests/          run.sh + rls/ pgTAP suites (7)
+
+scripts/          check-locales.mjs, i18n-audit.mjs, i18n-review-export.mjs
+docs/             architecture blueprint, DEPLOYMENT.md
+```
+
+Auth is three composable guards in `src/features/auth/`: `RequireAuth`
+(session), `RequireRole` (role gate), `RequireModule` (tenant module toggle) —
+all UX-only; RLS is what actually enforces access.
+
 ---
 
 ## Traps that have already cost real time
@@ -99,7 +144,7 @@ npx vitest run
 npm run check:i18n                  # must be 0
 npm run check:locales               # parity + no wholesale reformat
 npm run build
-PGHOST=… ./supabase/tests/run.sh    # 38 migrations + 5 pgTAP suites
+PGHOST=… ./supabase/tests/run.sh    # 44 migrations + 7 pgTAP suites
 ```
 
 `eslint scripts/` reports `no-undef` on node globals — `scripts/` is outside the
