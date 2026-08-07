@@ -374,7 +374,7 @@ export function DashboardShell() {
             mobileNavOpen && "translate-x-0",
           )}
         >
-          <nav className="flex-1 space-y-4 overflow-y-auto p-3 pt-4">
+          <nav className="flex-1 divide-y divide-line overflow-y-auto p-3 pt-4">
             {NAV.map((section, si) => {
             const visible = (n: NavItem) =>
               (!profile || isSuperAdmin || n.roles.includes(profile.role))
@@ -392,13 +392,16 @@ export function DashboardShell() {
               const isOpen = !section.section || !collapsed.has(section.section) || hasActiveRoute;
 
               return (
-                <div key={si} className="space-y-1">
+                <div key={si} className="space-y-1 py-3 first:pt-0">
                   {section.section && (
                     <button
                       type="button"
                       onClick={() => toggleSection(section.section!)}
                       aria-expanded={isOpen}
-                      className="flex w-full items-center justify-between gap-2 px-3 pb-1 text-left text-xs font-semibold uppercase tracking-wide text-ink-faint hover:text-ink"
+                      className={cn(
+                        "flex w-full items-center justify-between gap-2 px-3 pb-1 text-left text-xs uppercase tracking-wide text-navy",
+                        hasActiveRoute ? "font-bold underline underline-offset-2" : "font-semibold",
+                      )}
                     >
                       {t(section.section)}
                       <svg viewBox="0 0 12 12" className={cn("h-3 w-3 transition-transform", isOpen ? "rotate-180" : "")} aria-hidden>
@@ -407,7 +410,7 @@ export function DashboardShell() {
                     </button>
                   )}
                   <div className={cn("grid transition-[grid-template-rows] duration-200 ease-out", isOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]")}>
-                    <div className="space-y-3 overflow-hidden pl-1">
+                    <div className="space-y-3 overflow-hidden pl-4">
                       {groups.map((g) => {
                         const groupHasActive = g.items.some(isActiveRoute);
                         const groupOpen = !collapsed.has(g.key) || groupHasActive;
@@ -417,7 +420,10 @@ export function DashboardShell() {
                               type="button"
                               onClick={() => toggleSection(g.key)}
                               aria-expanded={groupOpen}
-                              className="flex w-full items-center justify-between gap-2 px-3 pb-1 text-left text-[11px] font-semibold uppercase tracking-wide text-ink-faint/80 hover:text-ink"
+                              className={cn(
+                                "flex w-full items-center justify-between gap-2 px-3 pb-1 text-left text-[11px] uppercase tracking-wide text-navy",
+                                groupHasActive ? "font-bold underline underline-offset-2" : "font-semibold",
+                              )}
                             >
                               {t(g.key)}
                               <svg viewBox="0 0 12 12" className={cn("h-3 w-3 transition-transform", groupOpen ? "rotate-180" : "")} aria-hidden>
@@ -425,7 +431,7 @@ export function DashboardShell() {
                               </svg>
                             </button>
                             <div className={cn("grid transition-[grid-template-rows] duration-200 ease-out", groupOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]")}>
-                              <div className="space-y-1 overflow-hidden pl-1">
+                              <div className="space-y-1 overflow-hidden pl-4">
                                 {g.items.map((n) => (
                                   <NavLink
                                     key={n.to}
@@ -458,13 +464,16 @@ export function DashboardShell() {
             const isOpen = !section.section || !collapsed.has(section.section) || hasActiveRoute;
 
             return (
-              <div key={si} className="space-y-1">
+              <div key={si} className="space-y-1 py-3 first:pt-0">
                 {section.section && (
                   <button
                     type="button"
                     onClick={() => toggleSection(section.section!)}
                     aria-expanded={isOpen}
-                    className="flex w-full items-center justify-between gap-2 px-3 pb-1 text-left text-xs font-semibold uppercase tracking-wide text-ink-faint hover:text-ink"
+                    className={cn(
+                      "flex w-full items-center justify-between gap-2 px-3 pb-1 text-left text-xs uppercase tracking-wide text-navy",
+                      hasActiveRoute ? "font-bold underline underline-offset-2" : "font-semibold",
+                    )}
                   >
                     {t(section.section)}
                     <svg viewBox="0 0 12 12" className={cn("h-3 w-3 transition-transform", isOpen ? "rotate-180" : "")} aria-hidden>
@@ -473,7 +482,7 @@ export function DashboardShell() {
                   </button>
                 )}
                 <div className={cn("grid transition-[grid-template-rows] duration-200 ease-out", isOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]")}>
-                  <div className={cn("space-y-1 overflow-hidden", section.section && "pl-1")}>
+                  <div className={cn("space-y-1 overflow-hidden", section.section && "pl-4")}>
                     {items.map((n) => (
                       <NavLink
                         key={n.to}
