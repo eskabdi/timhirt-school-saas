@@ -25,6 +25,7 @@ interface DataJob {
   total_rows: number | null;
   processed_rows: number;
   error_count: number;
+  storage_path: string | null;
   created_at: string;
   completed_at: string | null;
 }
@@ -99,12 +100,34 @@ export function ImportExportPage() {
       });
 
       if (!job) throw new Error("Failed to create job");
+
+      // Same fix as the import mutation: create_export_job only inserts the
+      // data_jobs row -- nothing processed it, so every export sat at
+      // status='queued' forever. process-export-job is the missing consumer.
+      await callFunction("process-export-job", { job_id: job });
+
       return job;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["data-jobs"] });
     },
   });
+
+  const [downloadingJobId, setDownloadingJobId] = useState<string | null>(null);
+
+  const handleDownloadExport = async (job: DataJob) => {
+    if (!job.storage_path) return;
+    setDownloadingJobId(job.id);
+    try {
+      const { data, error } = await supabase.storage
+        .from("data-imports")
+        .createSignedUrl(job.storage_path, 300);
+      if (error || !data) throw error ?? new Error("no signed url");
+      window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+    } finally {
+      setDownloadingJobId(null);
+    }
+  };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files?.[0]) {
@@ -304,6 +327,16 @@ export function ImportExportPage() {
                       <div className="text-ink-faint">{job.processed_rows} {t("importExport.rows")}</div>
                       {job.error_count > 0 && (
                         <div className="text-danger">{job.error_count} {t("importExport.errors")}</div>
+                      )}
+                      {job.job_type === "export" && job.storage_path && (
+                        <Button
+                          variant="ghost"
+                          className="mt-1 h-auto px-2 py-1 text-xs"
+                          disabled={downloadingJobId === job.id}
+                          onClick={() => handleDownloadExport(job)}
+                        >
+                          {t("importExport.download")}
+                        </Button>
                       )}
                     </div>
                   )}

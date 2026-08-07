@@ -67,3 +67,5 @@ verify_jwt = false                     # public form; rate-limited + stage-gated
 
 [functions.process-import-job]
 verify_jwt = true
+[functions.process-export-job]
+verify_jwt = true
