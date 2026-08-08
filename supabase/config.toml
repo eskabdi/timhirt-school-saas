@@ -69,3 +69,5 @@ verify_jwt = false                     # public form; rate-limited + stage-gated
 verify_jwt = true
 [functions.process-export-job]
 verify_jwt = true
+[functions.process-library-circulation]
+verify_jwt = true
