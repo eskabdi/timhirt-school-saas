@@ -30,10 +30,10 @@ create table public.grade_cycles (
 );
 
 insert into public.grade_cycles (key, name_i18n, min_grade, max_grade, sort_order) values
-  ('first_cycle',     '{"en":"First Cycle","am":"የመጀመሪያ ደረጃ","om":"Sadarkaa Jalqabaa"}',            1,  4,  1),
-  ('second_cycle',    '{"en":"Second Cycle","am":"ሁለተኛ ደረጃ","om":"Sadarkaa Lammaffaa"}',            5,  8,  2),
-  ('lower_secondary', '{"en":"Lower Secondary","am":"ዝቅተኛ ሁለተኛ ደረጃ","om":"Sadarkaa 2ffaa Gadaanaa"}', 9,  10, 3),
-  ('upper_secondary', '{"en":"Upper Secondary","am":"ከፍተኛ ሁለተኛ ደረጃ","om":"Sadarkaa 2ffaa Olaanaa"}',  11, 12, 4);
+  ('first_cycle',     '{"en":"Primary School 1st Cycle","am":"የመጀመሪያ ደረጃ 1ኛ ዑደት","om":"Sadarkaa Tokkoffaa Marsaa 1ffaa"}',                          1,  4,  1),
+  ('second_cycle',    '{"en":"Primary School 2nd Cycle / Middle School","am":"ሁለተኛ ደረጃ","om":"Sadarkaa Tokkoffaa Marsaa 2ffaa / Giddu-galeessa"}', 5,  8,  2),
+  ('lower_secondary', '{"en":"General Secondary School 1st Cycle","am":"አጠቃላይ ሁለተኛ ደረጃ","om":"Sadarkaa Lammaffaa Marsaa 1ffaa / Waliigala"}',      9,  10, 3),
+  ('upper_secondary', '{"en":"Secondary School 2nd Cycle / Preparatory Level","am":"ዝግጅት ዑደት","om":"Sadarkaa Lammaffaa Marsaa 2ffaa / Qophii"}',   11, 12, 4);
 
 alter table public.grade_cycles enable row level security;
 alter table public.grade_cycles force row level security;

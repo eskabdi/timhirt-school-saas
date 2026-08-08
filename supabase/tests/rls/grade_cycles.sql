@@ -94,7 +94,7 @@ select lives_ok(
 set local request.jwt.claim.sub = '9c000003-0000-0000-0000-000000000003'; -- super_admin, verifying read
 
 select is(
-  (select name_i18n->>'en' from public.grade_cycles where key = 'first_cycle'), 'First Cycle',
+  (select name_i18n->>'en' from public.grade_cycles where key = 'first_cycle'), 'Primary School 1st Cycle',
   'name_i18n is unchanged -- the teacher''s write matched zero rows');
 
 select lives_ok(
