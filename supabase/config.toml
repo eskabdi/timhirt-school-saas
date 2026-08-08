@@ -71,3 +71,5 @@ verify_jwt = true
 verify_jwt = true
 [functions.process-library-circulation]
 verify_jwt = true
+[functions.generate-fee-invoices]
+verify_jwt = true
