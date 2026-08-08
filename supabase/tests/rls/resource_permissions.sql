@@ -181,13 +181,16 @@ select is(
 
 reset role;
 
--- ---------- 7. un-piloted table is unaffected -------------------------------
+-- ---------- 7. a resource not yet touched by any permissions-matrix --------
+-- ---------- migration is unaffected. (academic_years was the control here --
+-- ---------- until 20260817000002 brought it into the matrix too; library_-
+-- ---------- books stays untouched until 20260817000004.) -----------------
 set local role authenticated;
 set local request.jwt.claim.sub = '9d000002-0000-0000-0000-000000000002'; -- teacher
 
 select is(
   (select count(*)::int from public.academic_years where tenant_id = '9d000000-0000-0000-0000-00000000000a'), 1,
-  'academic_years (not in the pilot) still reads exactly as before, untouched by this migration');
+  'academic_years now reads through the matrix too, but zero configuration reproduces the same open-read count as before');
 
 reset role;
 
