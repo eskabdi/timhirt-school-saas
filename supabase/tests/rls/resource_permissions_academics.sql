@@ -17,7 +17,7 @@
 -- defaults is getting the population itself right, not just the mechanism.
 -- ============================================================================
 begin;
-select plan(49);
+select plan(52);
 
 insert into auth.users (instance_id, id, aud, role, email, encrypted_password,
   email_confirmed_at, created_at, updated_at, confirmation_token, email_change,
@@ -393,6 +393,33 @@ set local request.jwt.claim.sub = '9e000002-0000-0000-0000-000000000002'; -- tea
 select is((select count(*)::int from public.admission_applications), 0, 'unconfigured: a teacher sees zero admission applications (default read = school_admin+registrar only, no open branch)');
 set local request.jwt.claim.sub = '9e000004-0000-0000-0000-000000000004'; -- registrar
 select is((select count(*)::int from public.admission_applications), 1, 'unconfigured: registrar still reads admission applications (default population preserved)');
+reset role;
+
+-- ============================================================================
+-- report_templates: regression test for the write-population fix in
+-- 20260817000005 -- the pre-matrix policy granted school_admin, registrar,
+-- AND accountant; this migration's initial seed wrongly narrowed that to
+-- school_admin only. Proves the backfill restored registrar/accountant
+-- write access with zero manual grant configuration, and that a role
+-- outside that population (teacher) is still correctly denied.
+-- ============================================================================
+set local role authenticated;
+set local request.jwt.claim.sub = '9e000004-0000-0000-0000-000000000004'; -- registrar
+insert into public.report_templates (id, tenant_id, name)
+values ('9e000000-0000-0000-0000-000000007101', '9e000000-0000-0000-0000-00000000000a', 'Registrar Report');
+select is((select count(*)::int from public.report_templates where id = '9e000000-0000-0000-0000-000000007101'), 1,
+  'unconfigured: registrar can create report_templates (write population = school_admin+registrar+accountant, matching the pre-matrix policy)');
+
+set local request.jwt.claim.sub = '9e000006-0000-0000-0000-000000000006'; -- accountant
+update public.report_templates set name = 'Accountant Edited' where id = '9e000000-0000-0000-0000-000000007101';
+select is((select name from public.report_templates where id = '9e000000-0000-0000-0000-000000007101'), 'Accountant Edited',
+  'unconfigured: accountant can update report_templates (write population preserved)');
+
+set local request.jwt.claim.sub = '9e000002-0000-0000-0000-000000000002'; -- teacher, never in the write population
+select throws_ok(
+  $stmt$ insert into public.report_templates (id, tenant_id, name)
+         values ('9e000000-0000-0000-0000-000000007102', '9e000000-0000-0000-0000-00000000000a', 'Teacher Report') $stmt$,
+  '42501', null, 'unconfigured: a teacher still cannot create report_templates (not in the write population)');
 reset role;
 
 select * from finish();

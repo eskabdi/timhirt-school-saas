@@ -14,9 +14,12 @@
 --   7. The existing, untouched has_permission()/role_permissions/user_roles
 --      system (20260719000008) still works, unrelated to any of this --
 --      confirms nothing collided.
+--   8. (20260817000005) A school_admin cannot write a user_permission_override
+--      for a user outside their own tenant, and even a pre-existing
+--      cross-tenant row is not honored by has_resource_permission().
 -- ============================================================================
 begin;
-select plan(16);
+select plan(20);
 
 insert into auth.users (instance_id, id, aud, role, email, encrypted_password,
   email_confirmed_at, created_at, updated_at, confirmation_token, email_change,
@@ -26,7 +29,8 @@ values
   ('00000000-0000-0000-0000-000000000000', '9d000002-0000-0000-0000-000000000002', 'authenticated', 'authenticated', 'rp-teacher@test.example', crypt('x', gen_salt('bf')), now(), now(), now(), '', '', '', ''),
   ('00000000-0000-0000-0000-000000000000', '9d000003-0000-0000-0000-000000000003', 'authenticated', 'authenticated', 'rp-teacher2@test.example', crypt('x', gen_salt('bf')), now(), now(), now(), '', '', '', ''),
   ('00000000-0000-0000-0000-000000000000', '9d000004-0000-0000-0000-000000000004', 'authenticated', 'authenticated', 'rp-super@test.example',   crypt('x', gen_salt('bf')), now(), now(), now(), '', '', '', ''),
-  ('00000000-0000-0000-0000-000000000000', '9d000005-0000-0000-0000-000000000005', 'authenticated', 'authenticated', 'rp-admin-b@test.example', crypt('x', gen_salt('bf')), now(), now(), now(), '', '', '', '');
+  ('00000000-0000-0000-0000-000000000000', '9d000005-0000-0000-0000-000000000005', 'authenticated', 'authenticated', 'rp-admin-b@test.example', crypt('x', gen_salt('bf')), now(), now(), now(), '', '', '', ''),
+  ('00000000-0000-0000-0000-000000000000', '9d000006-0000-0000-0000-000000000006', 'authenticated', 'authenticated', 'rp-teacher-b@test.example', crypt('x', gen_salt('bf')), now(), now(), now(), '', '', '', '');
 
 insert into public.tenants (id, name, slug, status) values
   ('9d000000-0000-0000-0000-00000000000a', 'RP Tenant A', 'rp-tenant-a', 'active'),
@@ -37,7 +41,8 @@ insert into public.users (id, tenant_id, role, full_name, email) values
   ('9d000002-0000-0000-0000-000000000002', '9d000000-0000-0000-0000-00000000000a', 'teacher',      'RP Teacher',   'rp-teacher@test.example'),
   ('9d000003-0000-0000-0000-000000000003', '9d000000-0000-0000-0000-00000000000a', 'teacher',      'RP Teacher 2', 'rp-teacher2@test.example'),
   ('9d000004-0000-0000-0000-000000000004', null,                                    'super_admin',  'RP Super',     'rp-super@test.example'),
-  ('9d000005-0000-0000-0000-000000000005', '9d000000-0000-0000-0000-00000000000b', 'school_admin', 'RP Admin B',   'rp-admin-b@test.example');
+  ('9d000005-0000-0000-0000-000000000005', '9d000000-0000-0000-0000-00000000000b', 'school_admin', 'RP Admin B',   'rp-admin-b@test.example'),
+  ('9d000006-0000-0000-0000-000000000006', '9d000000-0000-0000-0000-00000000000b', 'teacher',      'RP Teacher B', 'rp-teacher-b@test.example');
 
 insert into public.academic_years (id, tenant_id, ec_year, label_i18n, starts_on, ends_on, status) values
   ('9d000000-0000-0000-0000-00000000ea01', '9d000000-0000-0000-0000-00000000000a', 2018, '{}'::jsonb, '2025-09-01', '2026-06-30', 'active');
@@ -201,6 +206,52 @@ select is(
 select is(
   (select count(*)::int from public.roles where tenant_id = '9d000000-0000-0000-0000-00000000000a'), 0,
   'the pre-existing roles table is untouched -- still empty, nothing collided');
+
+-- ============================================================================
+-- 9. regression test for 20260817000005: user_permission_overrides_write
+-- used to verify only the CALLER's tenant, never the TARGET user's tenant --
+-- a school_admin could grant/deny permissions for a user in a different
+-- tenant entirely. Proves the write is now rejected, and that even a
+-- pre-existing bad row (simulating data written before the fix, or any
+-- insert path that bypasses RLS) is not honored by has_resource_permission's
+-- resolution -- the tenant re-check lives in both places now.
+-- ============================================================================
+set local role authenticated;
+set local request.jwt.claim.sub = '9d000001-0000-0000-0000-000000000001'; -- school_admin, tenant A
+
+select throws_ok(
+  $stmt$ insert into public.user_permission_overrides (tenant_id, user_id, permission_id, granted)
+         select '9d000000-0000-0000-0000-00000000000a', '9d000006-0000-0000-0000-000000000006', id, true
+         from public.permissions where key = 'classes:delete' $stmt$,
+  '42501', null, 'a tenant-A school_admin cannot create an override for a tenant-B user (target user tenant mismatch)');
+
+reset role;
+
+select is(
+  (select count(*)::int from public.user_permission_overrides where user_id = '9d000006-0000-0000-0000-000000000006'), 0,
+  'the rejected cross-tenant override write matched zero rows');
+
+-- Simulate a pre-existing bad row (or any insert path that bypasses this
+-- policy) by inserting as superuser, then prove the resolution function's
+-- own tenant re-check still refuses to honor it for the target user.
+insert into public.user_permission_overrides (tenant_id, user_id, permission_id, granted)
+select '9d000000-0000-0000-0000-00000000000a', '9d000006-0000-0000-0000-000000000006', id, true
+from public.permissions where key = 'classes:delete';
+
+select is(
+  coalesce(public.has_resource_permission('9d000006-0000-0000-0000-000000000006', 'classes', 'delete'), false), false,
+  'defense in depth: a cross-tenant override row (tenant A) is not honored for a tenant-B user, even if it exists (NULL, treated as deny, per the function''s own documented coalesce-chain semantics)');
+
+delete from public.user_permission_overrides where user_id = '9d000006-0000-0000-0000-000000000006';
+
+-- Same-tenant overrides still work after the fix (the fix narrows, doesn't break, legitimate use).
+insert into public.user_permission_overrides (tenant_id, user_id, permission_id, granted)
+select '9d000000-0000-0000-0000-00000000000b', '9d000006-0000-0000-0000-000000000006', id, true
+from public.permissions where key = 'classes:delete';
+
+select is(
+  public.has_resource_permission('9d000006-0000-0000-0000-000000000006', 'classes', 'delete'), true,
+  'a same-tenant override still grants access as expected');
 
 select * from finish();
 rollback;

@@ -4,7 +4,7 @@
 // Grouped by domain since the resource list is too long for one flat grid;
 // each resource's grid only shows the action columns it actually has a
 // policy for (e.g. read-only resources show just Read).
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -87,7 +87,7 @@ export function PermissionsMatrixPage() {
   const [openDomains, setOpenDomains] = useState<Set<string>>(new Set());
   const [selectedRole, setSelectedRole] = useState<MatrixRole>(MATRIX_ROLES[0]);
 
-  const { data: permissions } = useQuery({
+  const { data: permissions, isLoading: permissionsLoading } = useQuery({
     queryKey: ["permissions-matrix-catalog"],
     queryFn: async () => {
       const { data, error } = await supabase.from("permissions").select("id, resource, action");
@@ -96,11 +96,20 @@ export function PermissionsMatrixPage() {
     },
   });
 
-  const permissionId = (resource: string, action: Action) =>
-    permissions?.find((p) => p.resource === resource && p.action === action)?.id;
+  // O(1) lookups instead of re-scanning `permissions` per resource/cell/render.
+  const permissionsByResource = useMemo(() => {
+    const map = new Map<string, Map<Action, string>>();
+    for (const p of permissions ?? []) {
+      if (!ACTIONS.includes(p.action as Action)) continue;
+      if (!map.has(p.resource)) map.set(p.resource, new Map());
+      map.get(p.resource)!.set(p.action as Action, p.id);
+    }
+    return map;
+  }, [permissions]);
 
-  const actionsFor = (resource: string): Action[] =>
-    ACTIONS.filter((a) => permissions?.some((p) => p.resource === resource && p.action === a));
+  const permissionId = (resource: string, action: Action) => permissionsByResource.get(resource)?.get(action);
+
+  const actionsFor = (resource: string): Action[] => ACTIONS.filter((a) => permissionsByResource.get(resource)?.has(a));
 
   const { data: roleGrants } = useQuery({
     queryKey: ["role-permission-grants", tenantId],
@@ -239,76 +248,80 @@ export function PermissionsMatrixPage() {
             ))}
           </select>
         </Field>
-        <div className="space-y-3">
-          {DOMAINS.map((domain) => {
-            const resourcesWithActions = domain.resources.filter((r) => actionsFor(r).length > 0);
-            if (resourcesWithActions.length === 0) return null;
-            const isOpen = openDomains.has(domain.key);
-            return (
-              <div key={domain.key} className="overflow-hidden rounded-control border border-line">
-                <button
-                  type="button"
-                  onClick={() => toggleDomain(domain.key)}
-                  aria-expanded={isOpen}
-                  className="flex w-full items-center justify-between bg-navy px-4 py-3 text-left text-sm font-semibold uppercase tracking-wide text-white"
-                >
-                  {t(`permissionsMatrix.domain.${domain.key}`)}
-                  <span className={cn("transition-transform", isOpen ? "rotate-180" : "")}>⌄</span>
-                </button>
-                {isOpen && (
-                  <div className="overflow-x-auto">
-                    <table className="w-full min-w-[520px] text-sm">
-                      <thead className="bg-sidebar text-left text-xs uppercase text-ink-faint">
-                        <tr>
-                          <th className="px-4 py-2">{t("permissionsMatrix.resourceColumn")}</th>
-                          {ACTIONS.map((a) => (
-                            <th key={a} className="px-4 py-2 text-center">{t(`permissionsMatrix.action.${a}`)}</th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-line">
-                        {resourcesWithActions.map((resource) => {
-                          const actions = actionsFor(resource);
-                          return (
-                            <tr key={resource}>
-                              <td className="px-4 py-2 font-medium text-ink">{t(`permissionsMatrix.resource.${resource}`)}</td>
-                              {ACTIONS.map((action) => {
-                                if (!actions.includes(action)) {
+        {permissionsLoading ? (
+          <div className="py-6 text-center text-sm text-ink-faint">{t("common.loading")}</div>
+        ) : (
+          <div className="space-y-3">
+            {DOMAINS.map((domain) => {
+              const resourcesWithActions = domain.resources.filter((r) => actionsFor(r).length > 0);
+              if (resourcesWithActions.length === 0) return null;
+              const isOpen = openDomains.has(domain.key);
+              return (
+                <div key={domain.key} className="overflow-hidden rounded-control border border-line">
+                  <button
+                    type="button"
+                    onClick={() => toggleDomain(domain.key)}
+                    aria-expanded={isOpen}
+                    className="flex w-full items-center justify-between bg-navy px-4 py-3 text-left text-sm font-semibold uppercase tracking-wide text-white"
+                  >
+                    {t(`permissionsMatrix.domain.${domain.key}`)}
+                    <span className={cn("transition-transform", isOpen ? "rotate-180" : "")}>⌄</span>
+                  </button>
+                  {isOpen && (
+                    <div className="overflow-x-auto">
+                      <table className="w-full min-w-[520px] text-sm">
+                        <thead className="bg-sidebar text-left text-xs uppercase text-ink-faint">
+                          <tr>
+                            <th className="px-4 py-2">{t("permissionsMatrix.resourceColumn")}</th>
+                            {ACTIONS.map((a) => (
+                              <th key={a} className="px-4 py-2 text-center">{t(`permissionsMatrix.action.${a}`)}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-line">
+                          {resourcesWithActions.map((resource) => {
+                            const actions = actionsFor(resource);
+                            return (
+                              <tr key={resource}>
+                                <td className="px-4 py-2 font-medium text-ink">{t(`permissionsMatrix.resource.${resource}`)}</td>
+                                {ACTIONS.map((action) => {
+                                  if (!actions.includes(action)) {
+                                    return (
+                                      <td key={action} className="px-4 py-2 text-center text-ink-faint">—</td>
+                                    );
+                                  }
+                                  const state = roleCellState(selectedRole, resource, action);
                                   return (
-                                    <td key={action} className="px-4 py-2 text-center text-ink-faint">—</td>
+                                    <td key={action} className="px-4 py-2 text-center">
+                                      <button
+                                        type="button"
+                                        disabled={cycleRoleGrant.isPending}
+                                        onClick={() => cycleRoleGrant.mutate({ role: selectedRole, resource, action })}
+                                        aria-label={`${t(`roles.${selectedRole}`)} ${t(`permissionsMatrix.resource.${resource}`)} ${t(`permissionsMatrix.action.${action}`)}`}
+                                        className={cn(
+                                          "inline-flex h-6 w-6 items-center justify-center rounded-control border transition-colors disabled:opacity-50",
+                                          state === "allow" && "border-navy bg-navy-wash text-navy",
+                                          state === "deny" && "border-danger bg-danger/10 text-danger",
+                                          state === "default" && "border-line text-ink-faint hover:bg-sidebar"
+                                        )}
+                                      >
+                                        {state === "allow" ? "✓" : state === "deny" ? "✕" : ""}
+                                      </button>
+                                    </td>
                                   );
-                                }
-                                const state = roleCellState(selectedRole, resource, action);
-                                return (
-                                  <td key={action} className="px-4 py-2 text-center">
-                                    <button
-                                      type="button"
-                                      disabled={cycleRoleGrant.isPending}
-                                      onClick={() => cycleRoleGrant.mutate({ role: selectedRole, resource, action })}
-                                      aria-label={`${t(`roles.${selectedRole}`)} ${t(`permissionsMatrix.resource.${resource}`)} ${t(`permissionsMatrix.action.${action}`)}`}
-                                      className={cn(
-                                        "inline-flex h-6 w-6 items-center justify-center rounded-control border transition-colors disabled:opacity-50",
-                                        state === "allow" && "border-navy bg-navy-wash text-navy",
-                                        state === "deny" && "border-danger bg-danger/10 text-danger",
-                                        state === "default" && "border-line text-ink-faint hover:bg-sidebar"
-                                      )}
-                                    >
-                                      {state === "allow" ? "✓" : state === "deny" ? "✕" : ""}
-                                    </button>
-                                  </td>
-                                );
-                              })}
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
+                                })}
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </Panel>
 
       <Panel className="space-y-4 p-4">
@@ -329,7 +342,10 @@ export function PermissionsMatrixPage() {
           </select>
         </Field>
 
-        {overrideUserId && (
+        {overrideUserId && permissionsLoading && (
+          <div className="py-6 text-center text-sm text-ink-faint">{t("common.loading")}</div>
+        )}
+        {overrideUserId && !permissionsLoading && (
           <div className="space-y-3">
             {DOMAINS.map((domain) => {
               const resourcesWithActions = domain.resources.filter((r) => actionsFor(r).length > 0);
