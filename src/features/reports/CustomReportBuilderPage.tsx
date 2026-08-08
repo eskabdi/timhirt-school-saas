@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/Input";
 import { Badge } from "@/components/ui/Badge";
 import { tField } from "@/lib/i18n";
 import { useTranslation } from "react-i18next";
+import { GRADE_CYCLES, gradeCycleI18nKey } from "@/lib/gradeCycles";
 
 const SOURCES = [{ k: "students", icon: "👥" }, { k: "attendance", icon: "🗓" }, { k: "grades", icon: "☆" }, { k: "finance", icon: "▤" }] as const;
 const GRADES = ["G1", "G2", "G3", "G4", "G5", "G6", "G7", "G8", "G9", "G10", "G11", "G12"];
@@ -55,6 +56,23 @@ export function CustomReportBuilderPage() {
 
   const toggle = <T,>(set: Set<T>, val: T, upd: (s: Set<T>) => void) => { const n = new Set(set); if (n.has(val)) n.delete(val); else n.add(val); upd(n); };
 
+  // Bulk-toggles every G{n} grade chip belonging to a cycle -- additive to
+  // the existing per-grade chips (report_templates.config still stores the
+  // same grades: string[], so saved templates keep working unchanged).
+  const cycleGradeIds = (key: string) => {
+    const cyc = GRADE_CYCLES.find((c) => c.key === key)!;
+    const ids: string[] = [];
+    for (let g = cyc.minGrade; g <= cyc.maxGrade; g++) ids.push(`G${g}`);
+    return ids;
+  };
+  const toggleCycle = (key: string) => {
+    const ids = cycleGradeIds(key);
+    const allSelected = ids.every((g) => grades.has(g));
+    const next = new Set(grades);
+    ids.forEach((g) => allSelected ? next.delete(g) : next.add(g));
+    setGrades(next);
+  };
+
   const saveTemplate = useMutation({
     mutationFn: async () => {
       const config = { grades: [...grades], section, gender, subjectId, minGrade, maxGrade, includeFailures, topPerformers, threshold, payment, columns: [...cols] };
@@ -99,6 +117,14 @@ export function CustomReportBuilderPage() {
           <h2 className="flex items-center gap-2 font-semibold text-ink">👤 {t("customReport.demographicFilters")}</h2>
           <div>
             <p className="mb-2 text-sm text-ink-soft">{t("customReport.gradeLevelMulti")}</p>
+            <div className="mb-2 flex flex-wrap gap-2">
+              {GRADE_CYCLES.map((c) => (
+                <button key={c.key} onClick={() => toggleCycle(c.key)}
+                  className={`${chip} border border-navy/40 ${cycleGradeIds(c.key).every((g) => grades.has(g)) ? "bg-navy text-white" : "bg-card text-navy"}`}>
+                  {t(`gradeCycles.${gradeCycleI18nKey(c.key)}`)}
+                </button>
+              ))}
+            </div>
             <div className="flex flex-wrap gap-2">
               {GRADES.map((g) => <button key={g} onClick={() => toggle(grades, g, setGrades)} className={`${chip} ${grades.has(g) ? "bg-navy text-white" : "bg-navy-wash text-ink-soft"}`}>{g}</button>)}
             </div>

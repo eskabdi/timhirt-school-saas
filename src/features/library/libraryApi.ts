@@ -111,16 +111,19 @@ export async function withdrawCopy(copyId: string) {
   if (error) throw error;
 }
 
+export interface GradeOption { name: string; gradeLevel: number | null }
+
 /** Distinct class names in grade_level order -- the same "one row per grade,
  *  not per section" dedupe FeeStructuresPage uses, since grade_label matches
  *  classes.name convention (freeform on the books table, but populated from
- *  this same list so it never drifts). */
-export async function listGradeOptions(): Promise<string[]> {
+ *  this same list so it never drifts). gradeLevel travels alongside so the
+ *  picker can group options under a grade-cycle <optgroup>. */
+export async function listGradeOptions(): Promise<GradeOption[]> {
   const { data, error } = await supabase.from("classes").select("name,grade_level").order("grade_level");
   if (error) throw error;
   const seen = new Map<string, number | null>();
   for (const c of data ?? []) if (!seen.has(c.name)) seen.set(c.name, c.grade_level);
-  return [...seen.keys()];
+  return [...seen.entries()].map(([name, gradeLevel]) => ({ name, gradeLevel }));
 }
 
 export interface ClassOption { id: string; name: string; section: string | null; grade_level: number | null }

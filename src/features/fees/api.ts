@@ -26,6 +26,11 @@ export async function recordFeePayment(input: RecordPaymentInput) {
   return res as { payment_id: string; receipt_url: string | null; bank_verification: { status: string; failure_reason?: string } | null };
 }
 
+export async function generateFeeInvoices(feeStructureId: string) {
+  const res = await callFunction("generate-fee-invoices", { fee_structure_id: feeStructureId });
+  return res as { created_count: number; skipped_count: number; total_matched: number };
+}
+
 export interface BillingNotification {
   id: string;
   kind: "invoice_issued" | "payment_received" | "invoice_overdue";

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router-dom";
@@ -11,31 +11,45 @@ import { Field } from "@/components/ui/Field";
 import { Pagination, pageRange } from "@/components/ui/Pagination";
 import { EthDate } from "@/components/EthDate";
 import { onRowDoubleClick } from "@/lib/utils";
+import { useGradeCycles, gradeCycleKeyFor } from "@/lib/gradeCycles";
+import { tField } from "@/lib/i18n";
 
 const SELECT_CLS = "w-full rounded-control border border-line bg-card px-3 py-2 text-sm text-ink";
 
 export function StudentsListPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [classId, setClassId] = useState("");
   const [status, setStatus] = useState("");
   const [gender, setGender] = useState("");
+  const [cycleId, setCycleId] = useState("");
   const [page, setPage] = useState(1);
 
   const { data: classes } = useQuery({ queryKey: ["classes-for-filter"], queryFn: listClasses });
+  const { data: cycles } = useGradeCycles();
 
-  const filters = { search: search || undefined, classId: classId || undefined, status: status || undefined, gender: gender || undefined };
+  const cycleClassIds = useMemo(() => {
+    if (!cycleId) return undefined;
+    const cyc = cycles?.find((c) => c.id === cycleId);
+    if (!cyc) return undefined;
+    return (classes ?? []).filter((c) => c.grade_level != null && gradeCycleKeyFor(c.grade_level) === cyc.key).map((c) => c.id);
+  }, [cycleId, cycles, classes]);
+
+  const filters = {
+    search: search || undefined, classId: classId || undefined,
+    classIds: cycleClassIds, status: status || undefined, gender: gender || undefined,
+  };
   const { data, isLoading } = useQuery({
     queryKey: ["students", filters, page],
     queryFn: () => listStudents(filters, pageRange(page)),
   });
   const students = data?.rows;
 
-  const hasActiveFilters = !!(search || classId || status || gender);
+  const hasActiveFilters = !!(search || classId || status || gender || cycleId);
   // Any filter change re-queries from the top — page 2 of an old, wider
   // result set is meaningless once the filter narrows it.
-  const clearFilters = () => { setSearch(""); setClassId(""); setStatus(""); setGender(""); setPage(1); };
+  const clearFilters = () => { setSearch(""); setClassId(""); setStatus(""); setGender(""); setCycleId(""); setPage(1); };
   const setFilter = <T,>(setter: (v: T) => void) => (v: T) => { setter(v); setPage(1); };
 
   return (
@@ -46,7 +60,7 @@ export function StudentsListPage() {
       </div>
 
       <Card className="space-y-3 p-4">
-        <div className="grid gap-3 md:grid-cols-4">
+        <div className="grid gap-3 md:grid-cols-5">
           <Field label={t("students.search")}>
             <Input placeholder={t("students.search")} value={search}
               onChange={(e) => setFilter(setSearch)(e.target.value)} maxLength={100} />
@@ -57,6 +71,12 @@ export function StudentsListPage() {
               {classes?.map((c) => (
                 <option key={c.id} value={c.id}>{c.name}{c.section ? ` - ${c.section}` : ""}</option>
               ))}
+            </select>
+          </Field>
+          <Field label={t("gradeCycles.cycle")}>
+            <select className={SELECT_CLS} value={cycleId} onChange={(e) => setFilter(setCycleId)(e.target.value)}>
+              <option value="">{t("gradeCycles.allGrades")}</option>
+              {cycles?.map((c) => <option key={c.id} value={c.id}>{tField(c.name_i18n, i18n.resolvedLanguage!)}</option>)}
             </select>
           </Field>
           <Field label={t("students.status")}>

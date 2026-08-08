@@ -14,6 +14,7 @@ import { PrintIDCardModal } from "./PrintIDCardModal";
 import { EditProfileModal } from "./EditProfileModal";
 import { buildStudentProfilePdf } from "./student-profile-pdf";
 import { formatEth } from "@/lib/ethiopian-date";
+import { gradeCycleKeyFor, gradeCycleI18nKey } from "@/lib/gradeCycles";
 
 const TABS = ["personalInfo", "academicRecord", "attendance", "behavioral"] as const;
 type Tab = (typeof TABS)[number];
@@ -98,6 +99,7 @@ export function StudentDetailPage() {
   const cls = student.class as { name?: string; section?: string; grade_level?: number } | null;
   const fullName = [student.first_name, student.middle_name, student.last_name].filter(Boolean).join(" ");
   const gradeLabel = cls?.grade_level != null ? `${t("students.profile.grade")} ${cls.grade_level}${cls.section ? `-${cls.section}` : ""}` : cls?.name ?? "—";
+  const cycleKey = gradeCycleKeyFor(cls?.grade_level);
 
   const printProfile = async () => {
     setPrintError(null);
@@ -231,7 +233,10 @@ export function StudentDetailPage() {
             <Badge tone={student.status === "active" ? "ok" : "neutral"}>{t(`students.${student.status}`)}</Badge>
           </div>
           <p className="mt-2 text-sm text-ink-soft">{t("students.admissionNo")}: <span className="font-medium text-ink">{student.admission_no}</span></p>
-          <p className="text-sm text-ink-soft">{t("students.profile.grade")}: <span className="font-medium text-ink">{gradeLabel}</span></p>
+          <p className="text-sm text-ink-soft">
+            {t("students.profile.grade")}: <span className="font-medium text-ink">{gradeLabel}</span>
+            {cycleKey && <Badge tone="navy" className="ml-2">{t(`gradeCycles.${gradeCycleI18nKey(cycleKey)}`)}</Badge>}
+          </p>
           <p className="text-sm text-ink-soft">{t("students.edit.rollNumber")}: <span className="font-medium text-ink">{student.roll_number ?? "—"}</span></p>
         </div>
         <div className="flex flex-1 gap-3">

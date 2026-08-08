@@ -14,8 +14,9 @@ import {
   listBooks, listAllBooks, listGradeOptions, listCopyCounts, listActiveClasses,
   createBook, updateBook, deleteBook, listCopies, addCopy, withdrawCopy,
   bulkRent, bulkReturn,
-  type LibraryBookRow, type BookInput, type CopyRow, type ClassOption,
+  type LibraryBookRow, type BookInput, type CopyRow, type ClassOption, type GradeOption,
 } from "./libraryApi";
+import { GRADE_CYCLES, gradeCycleKeyFor, gradeCycleI18nKey } from "@/lib/gradeCycles";
 
 const SELECT_CLS = "w-full rounded-control border border-line bg-card px-3 py-2 text-sm text-ink";
 const emptyForm: BookInput = { title: "", author: "", isbn: "", category: "", publisher: "", gradeLabel: "" };
@@ -40,6 +41,20 @@ export function LibraryCatalogPage() {
   const [error, setError] = useState<string | null>(null);
 
   const { data: grades } = useQuery({ queryKey: ["library-grade-options"], queryFn: listGradeOptions });
+  // Groups the freeform grade_label options under a grade-cycle <optgroup>
+  // heading, ordered by GRADE_CYCLES; anything that doesn't map to a known
+  // cycle (grade_level null or 0, e.g. KG) falls in a trailing "Other" group.
+  const gradeGroups = useMemo(() => {
+    const groups = GRADE_CYCLES.map((c) => ({ cycleKey: c.key as string | null, options: [] as GradeOption[] }));
+    const other: GradeOption[] = [];
+    for (const g of grades ?? []) {
+      const cycleKey = gradeCycleKeyFor(g.gradeLevel);
+      const group = groups.find((grp) => grp.cycleKey === cycleKey);
+      if (group) group.options.push(g); else other.push(g);
+    }
+    if (other.length) groups.push({ cycleKey: null, options: other });
+    return groups.filter((g) => g.options.length > 0);
+  }, [grades]);
   const filters = { search: search || undefined, gradeLabel: gradeLabel || undefined };
   const { data, isLoading } = useQuery({
     queryKey: ["library-books", filters, page],
@@ -92,11 +107,21 @@ export function LibraryCatalogPage() {
     });
   };
 
+  const gradeOptionGroups = (
+    <>
+      {gradeGroups.map((group) => (
+        <optgroup key={group.cycleKey ?? "other"} label={group.cycleKey ? t(`gradeCycles.${gradeCycleI18nKey(group.cycleKey)}`) : t("gradeCycles.otherGrades")}>
+          {group.options.map((g) => <option key={g.name} value={g.name}>{g.name}</option>)}
+        </optgroup>
+      ))}
+    </>
+  );
+
   const gradeField = (value: string, onChange: (v: string) => void) => (
     <Field label={t("library.gradeLabel")}>
       <select className={SELECT_CLS} value={value} onChange={(e) => onChange(e.target.value)}>
         <option value="">{t("library.generalCirculation")}</option>
-        {grades?.map((g) => <option key={g} value={g}>{g}</option>)}
+        {gradeOptionGroups}
       </select>
     </Field>
   );
@@ -145,7 +170,7 @@ export function LibraryCatalogPage() {
           <Field label={t("library.gradeLabel")}>
             <select className={SELECT_CLS} value={gradeLabel} onChange={(e) => setFilter(setGradeLabel)(e.target.value)}>
               <option value="">{t("library.allGrades")}</option>
-              {grades?.map((g) => <option key={g} value={g}>{g}</option>)}
+              {gradeOptionGroups}
             </select>
           </Field>
         </div>

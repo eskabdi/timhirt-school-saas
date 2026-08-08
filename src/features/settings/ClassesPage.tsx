@@ -11,8 +11,10 @@ import { Panel } from "@/components/ui/Panel";
 import { Field } from "@/components/ui/Field";
 import { Modal } from "@/components/ui/Modal";
 import { Pagination, pageRange } from "@/components/ui/Pagination";
+import { Badge } from "@/components/ui/Badge";
 import { onRowDoubleClick } from "@/lib/utils";
 import { formatEth } from "@/lib/ethiopian-date";
+import { gradeCycleKeyFor, gradeCycleI18nKey } from "@/lib/gradeCycles";
 import {
   listClasses, listEnrolledCounts, listActiveAcademicYears, listTeachers,
   createClass, updateClass, deleteClass,
@@ -299,7 +301,14 @@ export function ClassesPage() {
                       <Link to={`/classes/${c.id}`} className="font-medium text-navy hover:underline">{c.name}</Link>
                     </td>
                     <td className="px-5 py-3 text-ink">{c.section ?? "—"}</td>
-                    <td className="px-5 py-3 text-ink-faint">{c.grade_level ?? "—"}</td>
+                    <td className="px-5 py-3 text-ink-faint">
+                      <span className="flex items-center gap-2">
+                        {c.grade_level ?? "—"}
+                        {gradeCycleKeyFor(c.grade_level) && (
+                          <Badge tone="navy">{t(`gradeCycles.${gradeCycleI18nKey(gradeCycleKeyFor(c.grade_level)!)}`)}</Badge>
+                        )}
+                      </span>
+                    </td>
                     <td className="px-5 py-3 text-ink-faint">{c.capacity ?? t("crud.unlimited")}</td>
                     <td className="px-5 py-3 text-ink-faint">
                       {c.capacity != null ? `${enrolled}/${c.capacity}` : enrolled}

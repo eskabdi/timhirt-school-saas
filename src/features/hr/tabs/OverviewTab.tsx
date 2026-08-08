@@ -2,12 +2,14 @@
 // and upcoming schedule items. Every number here is a real aggregate; there
 // is no seeded or placeholder data.
 import { useTranslation } from "react-i18next";
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { Panel, PanelHeader } from "@/components/ui/Panel";
 import { EthDate } from "@/components/EthDate";
 import { todayEthiopian, toEthiopian } from "@/lib/ethiopian-date";
+import { GRADE_CYCLES, gradeCycleKeyFor, gradeCycleI18nKey } from "@/lib/gradeCycles";
 
 export function OverviewTab({ employeeId, tenantId }: { employeeId: string; tenantId: string }) {
   const { t } = useTranslation();
@@ -54,11 +56,11 @@ export function OverviewTab({ employeeId, tenantId }: { employeeId: string; tena
       const { data: teacher } = await supabase.from("teachers").select("id").eq("employee_id", employeeId).maybeSingle();
       if (!teacher) return [];
       const { data } = await supabase.from("class_subject_teachers")
-        .select("id, class_id, subject_id, class:classes(name, section), subject:subjects(name_i18n, code)")
+        .select("id, class_id, subject_id, class:classes(name, section, grade_level), subject:subjects(name_i18n, code)")
         .eq("teacher_id", teacher.id);
       const rows = (data ?? []) as unknown as {
         id: string; class_id: string; subject_id: string;
-        class: { name: string; section: string | null } | null;
+        class: { name: string; section: string | null; grade_level: number | null } | null;
         subject: { name_i18n: Record<string, string>; code: string } | null;
       }[];
       const withCounts = await Promise.all(rows.map(async (r) => {
@@ -88,6 +90,13 @@ export function OverviewTab({ employeeId, tenantId }: { employeeId: string; tena
     return names[dow] ?? "";
   };
 
+  // Distinct cycles this teacher's assigned classes span, in GRADE_CYCLES
+  // (i.e. sort_order) order -- a derived display summary, no new column.
+  const cyclesTaught = useMemo(() => {
+    const keys = new Set((classes ?? []).map((c) => gradeCycleKeyFor(c.class?.grade_level)).filter((k): k is string => !!k));
+    return GRADE_CYCLES.filter((c) => keys.has(c.key)).map((c) => c.key);
+  }, [classes]);
+
   return (
     <div className="grid gap-4 lg:grid-cols-3">
       <div className="space-y-4 lg:col-span-2">
@@ -107,6 +116,11 @@ export function OverviewTab({ employeeId, tenantId }: { employeeId: string; tena
 
         <Panel>
           <PanelHeader title={t("staffProfile.assignedClasses")} subtitle={t("staffProfile.academicYear", { year: ecYear })} />
+          {cyclesTaught.length > 0 && (
+            <p className="px-4 pt-3 text-xs text-ink-faint">
+              {t("gradeCycles.teachesAcrossCycles")} {cyclesTaught.map((k) => t(`gradeCycles.${gradeCycleI18nKey(k)}`)).join(", ")}
+            </p>
+          )}
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-sidebar text-left text-xs uppercase text-ink-faint">

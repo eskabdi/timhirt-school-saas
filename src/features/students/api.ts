@@ -52,6 +52,7 @@ export async function uploadStudentPhoto(tenantId: string, studentId: string, fi
 export interface StudentFilters {
   search?: string;
   classId?: string;
+  classIds?: string[];
   status?: string;
   gender?: string;
 }
@@ -62,6 +63,7 @@ export async function listStudents(filters: StudentFilters = {}, range?: [number
     .order("last_name");
   if (filters.search) q = q.textSearch("search_vector", filters.search, { type: "websearch" });
   if (filters.classId) q = q.eq("class_id", filters.classId);
+  if (filters.classIds) q = q.in("class_id", filters.classIds);
   if (filters.status) q = q.eq("status", filters.status);
   if (filters.gender) q = q.eq("gender", filters.gender);
   if (range) q = q.range(range[0], range[1]);
@@ -84,7 +86,7 @@ export async function createStudent(tenantId: string, input: StudentInput) {
 }
 
 export async function listClasses() {
-  const { data, error } = await supabase.from("classes").select("id, name, section").order("name");
+  const { data, error } = await supabase.from("classes").select("id, name, section, grade_level").order("grade_level");
   if (error) throw error;
   return data;
 }

@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/Card";
 import { Panel } from "@/components/ui/Panel";
 import { Badge } from "@/components/ui/Badge";
 import { getClassDetail, listClassRoster } from "./classesApi";
+import { gradeCycleKeyFor, gradeCycleI18nKey } from "@/lib/gradeCycles";
 
 const STATUS_TONE: Record<string, "ok" | "late" | "neutral"> = { active: "ok", graduated: "neutral", transferred: "late" };
 
@@ -26,6 +27,7 @@ export function ClassDetailPage() {
   if (isLoading || !cls) return <p className="text-ink-faint">…</p>;
 
   const enrolled = roster?.length ?? 0;
+  const cycleKey = gradeCycleKeyFor(cls.grade_level);
 
   return (
     <div className="space-y-4">
@@ -45,6 +47,7 @@ export function ClassDetailPage() {
         <Card className="text-center">
           <p className="text-xs font-medium uppercase tracking-wide text-ink-faint">{t("crud.gradeLevel")}</p>
           <p className="mt-2 font-display text-2xl font-bold text-ink">{cls.grade_level ?? "—"}</p>
+          {cycleKey && <Badge tone="navy" className="mt-2">{t(`gradeCycles.${gradeCycleI18nKey(cycleKey)}`)}</Badge>}
         </Card>
         <Card className="text-center">
           <p className="text-xs font-medium uppercase tracking-wide text-ink-faint">{t("crud.capacity")}</p>
