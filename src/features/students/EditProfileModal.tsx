@@ -135,7 +135,17 @@ export function EditProfileModal({ student, guardian, open, onClose }: {
       qc.invalidateQueries({ queryKey: ["student-photo-url"] });
       onClose();
     },
-    onError: (e: unknown) => setError(e instanceof Error ? e.message : t("students.edit.failed")),
+    // students_active_roll_number_unique (20260815000001) rejects a
+    // hand-typed roll_number that already belongs to another active student
+    // in the same section -- surface that as the specific, actionable
+    // message rather than a raw Postgres constraint-violation string.
+    onError: (e: unknown) => {
+      if (e && typeof e === "object" && "code" in e && (e as { code?: string }).code === "23505") {
+        setError(t("students.edit.rollNumberTaken"));
+      } else {
+        setError(e instanceof Error ? e.message : t("students.edit.failed"));
+      }
+    },
   });
 
   const shownPhoto = photoPreview ?? currentPhotoUrl ?? null;

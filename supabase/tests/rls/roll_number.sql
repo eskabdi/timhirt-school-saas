@@ -1,5 +1,6 @@
 -- ============================================================================
--- Roll number auto-assignment (migration 20260803000001).
+-- Roll number auto-assignment (migration 20260803000001) and the uniqueness
+-- backstop on top of it (20260815000001).
 --
 -- roll_number used to be free-typed and nothing computed it. The trigger
 -- makes it "how many active students are already in this section, plus
@@ -8,9 +9,17 @@
 -- disturbing the source section, and that a manually-corrected roll number
 -- survives an update that doesn't actually change the section (the "OF
 -- class_id" + IS NOT DISTINCT FROM guard).
+--
+-- That same guard is exactly what let a genuine duplicate through: a
+-- same-class resave with a hand-typed roll_number never revisits the
+-- trigger's count logic at all, so nothing checked it against the section's
+-- other active students. students_active_roll_number_unique closes that;
+-- these assertions prove it rejects a real collision while leaving the
+-- deliberate "departed student's slot gets reused" behavior (already proven
+-- above) untouched.
 -- ============================================================================
 begin;
-select plan(9);
+select plan(13);
 
 insert into public.tenants (id, name, slug, status) values
   ('aaaa0000-0000-0000-0000-00000000000a', 'Roll Number Tenant', 'roll-number-tenant', 'active');
@@ -75,6 +84,27 @@ select is((select roll_number from public.students where id = :'alpha_id'), '2',
 select is((select count(*)::int from public.students
             where class_id = 'dddd0000-0000-0000-0000-00000000000d' and status = 'active'),
   2, 'both transferred students now sit in the destination section');
+
+-- ---------- A genuine duplicate among active students is now rejected -------
+-- alpha and beta are both active in class dddd (roll #2 and #1). A
+-- same-class resave that hand-types alpha's roll_number to collide with
+-- beta's must be rejected, not silently accepted.
+select throws_ok(
+  format($stmt$ update public.students set class_id = 'dddd0000-0000-0000-0000-00000000000d', roll_number = '1'
+         where id = %L $stmt$, :'alpha_id'),
+  '23505', null, 'a hand-typed roll_number colliding with another ACTIVE student in the same section is rejected');
+
+select is((select roll_number from public.students where id = :'alpha_id'), '2',
+  'the rejected update left alpha''s roll_number unchanged');
+
+-- ---------- The deliberate departed-student reuse is NOT affected -----------
+-- gamma (graduated) and delta (active) both legitimately hold roll_number
+-- '3' in class cccc -- proven above -- and the partial index (status =
+-- 'active' only) must not treat that coexistence as a violation.
+select is((select roll_number from public.students where id = :'gamma_id'), '3',
+  'the graduated student keeps its old roll_number -- not cleared by the new index');
+select is((select roll_number from public.students where id = :'delta_id'), '3',
+  'the active student reusing that freed slot is unaffected by the graduated student sharing the same value');
 
 select * from finish();
 rollback;
