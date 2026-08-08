@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { rangeFor, type TermRow } from "@/features/attendance/AttendanceOverviewPage";
+import { rangeFor, type TermRow } from "@/features/attendance/attendanceRange";
 
 // Wednesday, 2026-08-12 -- deliberately mid-week/mid-month so week/month
 // boundaries are unambiguous.
