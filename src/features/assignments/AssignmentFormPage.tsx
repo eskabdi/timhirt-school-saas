@@ -28,6 +28,7 @@ import { Toggle } from "@/components/ui/Toggle";
 import { RichTextEditor } from "@/components/ui/RichTextEditor";
 import { toIsoDate } from "@/lib/ethiopian-date";
 import { tField } from "@/lib/i18n";
+import { convertImageToWebp, DOCUMENT_IMAGE_MAX_PX } from "@/lib/image";
 
 /** Mirrors assignments_category_check. */
 const CATEGORIES = [
@@ -189,15 +190,23 @@ export function AssignmentFormPage() {
       if (secErr) throw secErr;
 
       for (const file of pending) {
-        const ext = file.name.split(".").pop() ?? "bin";
+        // Attachments are downloaded/viewed raw by students, never embedded
+        // into a pdf-lib PDF, so an image attachment (a photographed
+        // worksheet, a diagram) can be re-encoded to WebP for a much smaller
+        // upload instead of being stored at whatever size the source camera
+        // produced. Non-image files (pdf/doc/docx) pass through unchanged.
+        const isImage = file.type.startsWith("image/");
+        const blob = isImage ? await convertImageToWebp(file, DOCUMENT_IMAGE_MAX_PX) : file;
+        const contentType = isImage ? "image/webp" : (file.type || undefined);
+        const ext = isImage ? "webp" : (file.name.split(".").pop() ?? "bin");
         const path = `${profile!.tenant_id}/${id}/${crypto.randomUUID()}.${ext}`;
         const { error: upErr } = await supabase.storage.from("assignment-attachments")
-          .upload(path, file, { contentType: file.type || undefined });
+          .upload(path, blob, { contentType });
         if (upErr) throw upErr;
         const { error: metaErr } = await supabase.from("assignment_attachments").insert({
           assignment_id: id!, tenant_id: profile!.tenant_id, path,
-          file_name: file.name.slice(0, 255), mime_type: file.type || null,
-          size_bytes: file.size, uploaded_by: profile!.id,
+          file_name: file.name.slice(0, 255), mime_type: contentType || null,
+          size_bytes: blob.size, uploaded_by: profile!.id,
         });
         if (metaErr) throw metaErr;
       }

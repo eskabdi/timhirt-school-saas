@@ -6,7 +6,7 @@
 // registration stepper now, the profile's edit modal later) and belong in one
 // spot rather than duplicated per caller.
 import { supabase } from "@/lib/supabase";
-import { convertImageToPng } from "@/lib/image";
+import { convertImageToPng, convertImageToWebp, DOCUMENT_IMAGE_MAX_PX } from "@/lib/image";
 
 export const STAFF_PHOTO_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const STAFF_PHOTO_MAX_PX = 800;
@@ -45,17 +45,29 @@ export type StaffDocType = (typeof STAFF_DOC_TYPES)[number]["key"];
 const DOC_MIME_TYPES = ["application/pdf", "image/jpeg", "image/png", "image/webp"];
 const DOC_MAX_BYTES = 5 * 1024 * 1024;
 
+/** Documents are viewed/downloaded raw (DocumentsTab's signed URL), never
+ *  embedded into a pdf-lib PDF, so unlike photo uploads this can re-encode
+ *  every image submission to WebP instead of normalizing to PNG -- a phone
+ *  photo of an ID or certificate shrinks dramatically with no visible loss.
+ *  PDFs pass through untouched. */
+async function prepareDocFile(file: File): Promise<{ blob: Blob; contentType: string; ext: string }> {
+  if (file.type === "application/pdf") return { blob: file, contentType: file.type, ext: "pdf" };
+  const webp = await convertImageToWebp(file, DOCUMENT_IMAGE_MAX_PX);
+  return { blob: webp, contentType: "image/webp", ext: "webp" };
+}
+
 export async function uploadStaffDocument(
   tenantId: string, employeeId: string, docType: StaffDocType, file: File,
 ) {
   if (!DOC_MIME_TYPES.includes(file.type)) throw new Error("bad_file_type");
   if (file.size > DOC_MAX_BYTES) throw new Error("file_too_large");
   const category = STAFF_DOC_TYPES.find((d) => d.key === docType)!.category;
-  const ext = file.type === "application/pdf" ? "pdf" : file.type.split("/")[1];
+  const { blob, contentType, ext } = await prepareDocFile(file);
+  if (blob.size > DOC_MAX_BYTES) throw new Error("file_too_large");
   const path = `${tenantId}/staff/${employeeId}/${docType}.${ext}`;
 
   const { error: upErr } = await supabase.storage.from("documents")
-    .upload(path, file, { contentType: file.type, upsert: true });
+    .upload(path, blob, { contentType, upsert: true });
   if (upErr) throw upErr;
 
   // No unique constraint on (employee_id, doc_type) — a re-upload replaces
@@ -82,10 +94,11 @@ export async function uploadCategoryDocument(
 ) {
   if (!DOC_MIME_TYPES.includes(file.type)) throw new Error("bad_file_type");
   if (file.size > DOC_MAX_BYTES) throw new Error("file_too_large");
-  const ext = file.type === "application/pdf" ? "pdf" : file.type.split("/")[1];
+  const { blob, contentType, ext } = await prepareDocFile(file);
+  if (blob.size > DOC_MAX_BYTES) throw new Error("file_too_large");
   const path = `${tenantId}/staff/${employeeId}/${crypto.randomUUID()}.${ext}`;
   const { error: upErr } = await supabase.storage.from("documents")
-    .upload(path, file, { contentType: file.type, upsert: false });
+    .upload(path, blob, { contentType, upsert: false });
   if (upErr) throw upErr;
   const { error } = await supabase.from("employee_documents").insert({
     tenant_id: tenantId, employee_id: employeeId, category, doc_type: label.slice(0, 60), storage_path: path,
