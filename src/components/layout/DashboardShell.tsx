@@ -17,7 +17,8 @@ const FINANCE = ["school_admin", "accountant"];
 const HR = ["school_admin", "hr_officer"];
 const HR_FINANCE = ["school_admin", "hr_officer", "accountant"];
 const TEACH = ["school_admin", "teacher"];
-const STAFF = ["school_admin", "teacher", "hr_officer", "accountant", "registrar"];
+const LIBRARY = ["school_admin", "librarian"];
+const STAFF = ["school_admin", "teacher", "hr_officer", "accountant", "registrar", "librarian"];
 
 interface NavItem { to: string; key: string; roles: string[]; module?: string; end?: boolean }
 interface NavGroup { key: string; items: NavItem[] }
@@ -71,7 +72,8 @@ const NAV: NavSection[] = [
       { to: "/hostel", key: "nav.hostel", roles: ["school_admin"], module: "hostel" },
       { to: "/discipline", key: "nav.discipline", roles: ["school_admin"], module: "discipline" },
       { to: "/clinic", key: "nav.clinic", roles: ["school_admin"], module: "clinic" },
-      { to: "/library", key: "nav.library", roles: ["school_admin"], module: "library" },
+      { to: "/library", key: "nav.library", roles: LIBRARY, module: "library" },
+      { to: "/library/circulation", key: "nav.libraryCirculation", roles: LIBRARY, module: "library" },
       { to: "/transport", key: "nav.transport", roles: ["school_admin"], module: "transport" },
       { to: "/events", key: "nav.events", roles: ["school_admin"], module: "events" },
     ],
@@ -113,6 +115,7 @@ const NAV: NavSection[] = [
           { to: "/settings/branding", key: "nav.branding", roles: ["school_admin"] },
           { to: "/settings/import-export", key: "nav.importExport", roles: ["school_admin"] },
           { to: "/settings/id-card-template", key: "nav.idCardTemplate", roles: ["school_admin"] },
+          { to: "/settings/library", key: "nav.librarySettings", roles: LIBRARY, module: "library" },
         ],
       },
       {
@@ -136,6 +139,7 @@ const NAV: NavSection[] = [
       { to: "/portal/attendance", key: "nav.attendance", roles: ["student"] },
       { to: "/portal/assignments", key: "nav.assignments", roles: ["student"] },
       { to: "/portal/pay", key: "nav.makePayment", roles: ["parent", "student"] },
+      { to: "/portal/library", key: "nav.library", roles: ["parent", "student"], module: "library" },
     ],
   },
 ];
@@ -201,6 +205,19 @@ export function DashboardShell() {
     queryFn: async () => {
       const { count } = await supabase.from("portal_notifications").select("id", { count: "exact", head: true })
         .is("read_at", null);
+      return count ?? 0;
+    },
+  });
+  // Same "light interval, no realtime" pattern as unreadBilling above, for
+  // the two library notification kinds (book_overdue/book_hold_ready) on
+  // the /portal/library nav item.
+  const { data: unreadLibrary } = useQuery({
+    queryKey: ["library-notifications-unread", profile?.id],
+    enabled: !!profile?.id && (profile?.role === "parent" || profile?.role === "student"),
+    refetchInterval: 60_000,
+    queryFn: async () => {
+      const { count } = await supabase.from("portal_notifications").select("id", { count: "exact", head: true })
+        .is("read_at", null).in("kind", ["book_overdue", "book_hold_ready"]);
       return count ?? 0;
     },
   });
@@ -503,6 +520,11 @@ export function DashboardShell() {
                         {n.to === "/portal/pay" && !!unreadBilling && (
                           <span className="rounded-pill bg-danger px-1.5 py-0.5 text-[11px] font-semibold text-white">
                             {unreadBilling}
+                          </span>
+                        )}
+                        {n.to === "/portal/library" && !!unreadLibrary && (
+                          <span className="rounded-pill bg-danger px-1.5 py-0.5 text-[11px] font-semibold text-white">
+                            {unreadLibrary}
                           </span>
                         )}
                       </NavLink>

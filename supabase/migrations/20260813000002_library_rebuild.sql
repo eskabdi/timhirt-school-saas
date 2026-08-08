@@ -214,8 +214,14 @@ on conflict (tenant_id) do nothing;
 -- admin client (service_role, bypasses RLS) could otherwise be handed a
 -- cross-tenant copy_id/book_id by a caller bug and silently create a
 -- cross-tenant row.
+-- security definer: this check must answer truthfully regardless of what the
+-- inserting/updating user's own RLS lets them see on library_book_copies/
+-- students -- a librarian (who cannot read every student's row directly,
+-- only through the service-role Edge Function) would otherwise make this
+-- guard's internal SELECTs come back empty and raise a false "does not
+-- belong to tenant" for a perfectly valid cross-reference.
 create or replace function public.library_checkout_tenant_guard()
-returns trigger language plpgsql as $$
+returns trigger language plpgsql security definer set search_path = public as $$
 begin
   if not exists (select 1 from public.library_book_copies c
                  where c.id = new.copy_id and c.tenant_id = new.tenant_id) then
@@ -231,7 +237,7 @@ create trigger library_checkouts_tenant_guard before insert or update on public.
 for each row execute function public.library_checkout_tenant_guard();
 
 create or replace function public.library_hold_tenant_guard()
-returns trigger language plpgsql as $$
+returns trigger language plpgsql security definer set search_path = public as $$
 begin
   if not exists (select 1 from public.library_books b
                  where b.id = new.book_id and b.tenant_id = new.tenant_id) then

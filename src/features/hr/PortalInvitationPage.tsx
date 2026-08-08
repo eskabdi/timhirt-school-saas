@@ -22,7 +22,7 @@ import { Field } from "@/components/ui/Field";
 import { Badge } from "@/components/ui/Badge";
 import { inviteAndLink } from "./staffApi";
 
-const PORTAL_ROLES = ["teacher", "registrar", "hr_officer", "accountant"] as const;
+const PORTAL_ROLES = ["teacher", "registrar", "hr_officer", "accountant", "librarian"] as const;
 type PortalRole = (typeof PORTAL_ROLES)[number];
 // Mirrors invite-staff's own HR_OFFICER_ASSIGNABLE_ROLES: an hr_officer
 // caller is rejected server-side for any role outside this set.
@@ -39,6 +39,7 @@ const ROLE_ACCESS: Record<PortalRole, string[]> = {
   registrar: ["nav.students", "nav.admissions", "nav.idCards"],
   hr_officer: ["nav.employees", "hr.payrollRuns", "nav.leave"],
   accountant: ["hr.payrollRuns", "nav.invoices"],
+  librarian: ["nav.library", "nav.libraryCirculation", "nav.librarySettings"],
 };
 
 export function PortalInvitationPage() {

@@ -44,7 +44,7 @@ const QUALIFICATIONS = ["below_grade_12", "high_school", "certificate", "diploma
 const LANGUAGES = ["amharic", "english", "oromo", "tigrinya", "somali", "arabic", "french"] as const;
 const EMPLOYEE_TYPES = ["teacher", "admin_staff", "support"] as const;
 const CONTRACT_TYPES = ["permanent", "contract", "part_time"] as const;
-const PORTAL_ROLES = ["teacher", "registrar", "hr_officer", "accountant"] as const;
+const PORTAL_ROLES = ["teacher", "registrar", "hr_officer", "accountant", "librarian"] as const;
 type PortalRole = (typeof PORTAL_ROLES)[number];
 // Mirrors invite-staff's own HR_OFFICER_ASSIGNABLE_ROLES: an hr_officer caller
 // is rejected server-side for any role outside this set, so offering the rest

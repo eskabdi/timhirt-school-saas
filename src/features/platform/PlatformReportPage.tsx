@@ -16,7 +16,7 @@ const TENANT_STATUS_TONE = { active: "ok", trial: "navy", suspended: "danger" } 
 const ACTION_TONE = { insert: "ok", update: "navy", delete: "danger" } as const;
 const ROLE_LABEL: Record<string, string> = {
   super_admin: "Super Admin", school_admin: "School Admin", teacher: "Teacher",
-  hr_officer: "HR Officer", accountant: "Accountant", registrar: "Registrar",
+  hr_officer: "HR Officer", accountant: "Accountant", registrar: "Registrar", librarian: "Librarian",
   student: "Student", parent: "Parent",
 };
 

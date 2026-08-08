@@ -12,7 +12,7 @@ import { ReportStat, ReportSection } from "./ReportComponents";
 const ACTION_TONE = { insert: "ok", update: "navy", delete: "danger" } as const;
 const ROLE_LABEL: Record<string, string> = {
   school_admin: "School Admin", teacher: "Teacher", hr_officer: "HR Officer",
-  accountant: "Accountant", registrar: "Registrar", student: "Student", parent: "Parent",
+  accountant: "Accountant", registrar: "Registrar", librarian: "Librarian", student: "Student", parent: "Parent",
 };
 
 interface UserRow { id: string; role: string; created_at: string; }

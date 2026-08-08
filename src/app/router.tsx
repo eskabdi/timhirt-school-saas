@@ -46,7 +46,10 @@ import { HostelPage } from "@/features/hostel/HostelPage";
 import { InventoryPage } from "@/features/inventory/InventoryPage";
 import { DisciplineIncidentsPage } from "@/features/discipline/DisciplineIncidentsPage";
 import { ClinicPage } from "@/features/clinic/ClinicPage";
-import { LibraryPage } from "@/features/library/LibraryPage";
+import { LibraryCatalogPage } from "@/features/library/LibraryCatalogPage";
+import { LibraryCirculationPage } from "@/features/library/LibraryCirculationPage";
+import { LibrarySettingsPage } from "@/features/library/LibrarySettingsPage";
+import { StudentLibraryPage } from "@/features/portal/StudentLibraryPage";
 import { TransportPage } from "@/features/transport/TransportPage";
 import { EventsCalendarPage } from "@/features/events/EventsCalendarPage";
 import { ReportsPage } from "@/features/reports/ReportsPage";
@@ -115,6 +118,7 @@ const HR = ["school_admin", "hr_officer"];
 const HR_FINANCE = ["school_admin", "hr_officer", "accountant"];
 const TEACH = ["school_admin", "teacher"];
 const ADMIN_REG = ["school_admin", "registrar"];
+const LIBRARY = ["school_admin", "librarian"];
 
 export const router = createBrowserRouter([
   // ---------- Public (no session) ----------
@@ -198,10 +202,6 @@ export const router = createBrowserRouter([
                 children: [{ path: "clinic", element: <ClinicPage /> }],
               },
               {
-                element: <RequireModule module="library" />,
-                children: [{ path: "library", element: <LibraryPage /> }],
-              },
-              {
                 element: <RequireModule module="transport" />,
                 children: [{ path: "transport", element: <TransportPage /> }],
               },
@@ -248,6 +248,23 @@ export const router = createBrowserRouter([
                   { path: "reports", element: <ReportsPage /> },
                   { path: "reports/financial", element: <FinancialReportPage /> },
                   { path: "reports/fees", element: <FeesReportPage /> },
+                ],
+              },
+            ],
+          },
+
+          // Library (school_admin + librarian): catalog/copies, circulation
+          // desk, and settings each their own path but all module-gated
+          // together, mirroring the Admin+Accountant FINANCE block above.
+          {
+            element: <RequireRole roles={LIBRARY} />,
+            children: [
+              {
+                element: <RequireModule module="library" />,
+                children: [
+                  { path: "library", element: <LibraryCatalogPage /> },
+                  { path: "library/circulation", element: <LibraryCirculationPage /> },
+                  { path: "settings/library", element: <LibrarySettingsPage /> },
                 ],
               },
             ],
@@ -340,6 +357,10 @@ export const router = createBrowserRouter([
             element: <RequireRole roles={["student", "parent"]} />,
             children: [
               { path: "portal", element: <PortalHomePage /> },
+              {
+                element: <RequireModule module="library" />,
+                children: [{ path: "portal/library", element: <StudentLibraryPage /> }],
+              },
             ],
           },
 

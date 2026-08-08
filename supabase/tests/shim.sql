@@ -26,6 +26,14 @@ begin
   if not exists (select 1 from pg_roles where rolname = 'service_role')  then create role service_role;  end if;
 end $$;
 
+-- Real Supabase's service_role has BYPASSRLS -- that is the entire point of
+-- the service-role key, and every Edge Function in this repo relies on it.
+-- Without it here, `set local role service_role` in a pgTAP suite still gets
+-- filtered by each table's RLS policies (which only grant `to authenticated`),
+-- so a suite exercising a service_role-only RPC sees rows silently vanish
+-- and misreports a real bug as a test failure.
+alter role service_role bypassrls;
+
 -- Column set mirrors GoTrue's: the suites insert real-looking rows (aud,
 -- encrypted_password, confirmation_token …), and a narrower table would fail
 -- on the insert rather than on the policy being tested.

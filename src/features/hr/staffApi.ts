@@ -163,7 +163,7 @@ export async function callInviteStaff(body: unknown): Promise<{ user_id: string 
  */
 export async function inviteAndLink(params: {
   tenantId: string; employeeId: string; email: string; fullName: string;
-  role: "teacher" | "registrar" | "hr_officer" | "accountant";
+  role: "teacher" | "registrar" | "hr_officer" | "accountant" | "librarian";
   staffNo: string; locale: "en" | "am" | "om";
 }) {
   const { employeeId, email, fullName, role, staffNo, locale } = params;
