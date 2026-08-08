@@ -7,7 +7,7 @@ import { Card } from "@/components/ui/Card";
 
 export function ReportCardBatchPage() {
   const { t } = useTranslation();
-  const { data: classes } = useQuery({ queryKey: ["classes"], queryFn: async () => (await supabase.from("classes").select("id,name,section")).data ?? [] });
+  const { data: classes } = useQuery({ queryKey: ["classes"], queryFn: async () => (await supabase.from("classes").select("id,name,section").order("grade_level").order("section")).data ?? [] });
   const [selected, setSelected] = useState<string[]>([]);
   const toggle = (id: string) => setSelected((s) => s.includes(id) ? s.filter((x) => x !== id) : [...s, id]);
   return (

@@ -87,7 +87,7 @@ export function AssignmentFormPage() {
 
   const { data: classes } = useQuery({
     queryKey: ["classes"],
-    queryFn: async () => ((await supabase.from("classes").select("id,name,section").order("name")).data ?? []) as ClassRow[],
+    queryFn: async () => ((await supabase.from("classes").select("id,name,section").order("grade_level").order("section")).data ?? []) as ClassRow[],
   });
   const { data: subjects } = useQuery({
     queryKey: ["subjects"],

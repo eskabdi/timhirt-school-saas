@@ -7,7 +7,7 @@ export function AttendanceOverviewPage() {
   const { t } = useTranslation();
   const { data: classes } = useQuery({
     queryKey: ["classes"],
-    queryFn: async () => (await supabase.from("classes").select("id,name,section")).data ?? [],
+    queryFn: async () => (await supabase.from("classes").select("id,name,section").order("grade_level").order("section")).data ?? [],
   });
   const { data: summary } = useQuery({
     queryKey: ["attendance-summary"],

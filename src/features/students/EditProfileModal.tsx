@@ -71,7 +71,7 @@ export function EditProfileModal({ student, guardian, open, onClose }: {
     queryKey: ["edit-profile-classes"],
     enabled: open,
     queryFn: async () =>
-      (await supabase.from("classes").select("id, name, section").order("name")).data ?? [],
+      (await supabase.from("classes").select("id, name, section").order("grade_level").order("section")).data ?? [],
   });
 
   useEffect(() => {

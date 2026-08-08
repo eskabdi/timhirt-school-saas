@@ -77,7 +77,7 @@ export function TeachersPage() {
   const teachers = teachersData?.rows;
   const { data: classes } = useQuery({
     queryKey: ["classes-brief"],
-    queryFn: async () => (await supabase.from("classes").select("id, name, section").order("name")).data ?? [],
+    queryFn: async () => (await supabase.from("classes").select("id, name, section").order("grade_level").order("section")).data ?? [],
   });
   const { data: subjects } = useQuery({
     queryKey: ["subjects-brief"],

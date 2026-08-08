@@ -26,7 +26,7 @@ export function AttendanceMarkingPage() {
 
   const { data: classes } = useQuery({
     queryKey: ["classes"],
-    queryFn: async () => (await supabase.from("classes").select("id, name, section")).data ?? [],
+    queryFn: async () => (await supabase.from("classes").select("id, name, section").order("grade_level").order("section")).data ?? [],
   });
 
   const { data: students } = useQuery({

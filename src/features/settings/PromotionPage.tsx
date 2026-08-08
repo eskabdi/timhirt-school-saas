@@ -23,7 +23,8 @@ interface YearRow { id: string; ec_year: number; status: string }
 
 async function classesWithCounts(yearId: string) {
   const { data: classes } = await supabase.from("classes")
-    .select("id, name, section, grade_level, capacity").eq("academic_year_id", yearId);
+    .select("id, name, section, grade_level, capacity").eq("academic_year_id", yearId)
+    .order("grade_level").order("section");
   const ids = (classes ?? []).map((c) => c.id);
   const { data: active } = ids.length
     ? await supabase.from("students").select("class_id").eq("status", "active").in("class_id", ids)
