@@ -61,4 +61,22 @@ describe("AttendanceOverviewPage rangeFor", () => {
     const endOfMonth = new Date("2026-08-31T12:00:00Z"); // a Monday
     expect(rangeFor("week", endOfMonth, TERMS, ACTIVE_YEAR)).toEqual(["2026-08-31", "2026-09-06"]);
   });
+
+  it("passing terms from multiple academic years (unscoped) corrupts semester grouping -- callers MUST pre-scope terms to one academic year", () => {
+    // academic_terms.term_no only repeats 1-4 WITHIN a year
+    // (unique(tenant_id, academic_year_id, term_no)) -- rangeFor's semester
+    // grouping keys purely on term_no, so handing it terms from two years
+    // silently merges a prior year's same-numbered terms into the range.
+    // This is exactly the bug AttendanceOverviewPage's query used to have
+    // before it started filtering academic_terms by academic_year_id.
+    const priorYearTerms3And4: TermRow[] = [
+      { term_no: 3, starts_on: "2024-02-01", ends_on: "2024-04-20" },
+      { term_no: 4, starts_on: "2024-04-23", ends_on: "2024-06-28" },
+    ];
+    const unscopedTerms = [...priorYearTerms3And4, ...TERMS];
+    const inTerm3 = new Date("2026-03-01T00:00:00Z");
+    // Correctly-scoped (current-year-only) terms give ["2026-02-02", "2026-07-02"]
+    // -- see "semester combines both terms of the pair" above.
+    expect(rangeFor("semester", inTerm3, unscopedTerms, ACTIVE_YEAR)).toEqual(["2024-02-01", "2026-07-02"]);
+  });
 });

@@ -177,13 +177,14 @@ export async function callInviteStaff(body: unknown): Promise<{ user_id: string 
 export async function inviteAndLink(params: {
   tenantId: string; employeeId: string; email: string; fullName: string;
   role: "teacher" | "registrar" | "hr_officer" | "accountant" | "librarian";
-  staffNo: string; locale: "en" | "am" | "om";
+  staffNo: string; locale: "en" | "am" | "om"; teachingCycleKey?: string;
 }) {
-  const { employeeId, email, fullName, role, staffNo, locale } = params;
+  const { employeeId, email, fullName, role, staffNo, locale, teachingCycleKey } = params;
   const { user_id } = await callInviteStaff({
     email, full_name: fullName, role,
     staff_no: role === "teacher" ? staffNo : undefined,
     default_locale: locale,
+    teaching_cycle_key: role === "teacher" ? teachingCycleKey || undefined : undefined,
   });
   const { error } = await supabase.from("employees").update({ user_id }).eq("id", employeeId);
   if (error) throw error;

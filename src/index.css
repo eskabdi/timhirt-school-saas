@@ -59,5 +59,9 @@
   #print-scope { position: absolute !important; left: 0; top: 0; width: 100%; padding: 0 !important; }
   .no-print { display: none !important; }
   .print-only { display: block !important; }
+  /* Collapsed cycle groups (ClassesPage/TeachersPage) use Tailwind's
+     `hidden` to stay in the DOM for window.print() -- force them back to
+     visible so a collapsed group isn't silently missing from the printout. */
+  #print-scope table.hidden { display: table !important; }
 }
 .print-only { display: none; }

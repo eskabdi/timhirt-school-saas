@@ -17,11 +17,18 @@ export function AttendanceOverviewPage() {
   });
   const { data: activeYear } = useQuery({
     queryKey: ["attendance-active-year"],
-    queryFn: async () => (await supabase.from("academic_years").select("starts_on,ends_on").eq("status", "active").maybeSingle()).data,
+    queryFn: async () => (await supabase.from("academic_years").select("id,starts_on,ends_on").eq("status", "active").maybeSingle()).data,
   });
+  // Scoped to the active academic year -- term_no only repeats 1-4 WITHIN a
+  // year (unique(tenant_id, academic_year_id, term_no)), so an unscoped fetch
+  // once a tenant has 2+ academic years lets the Semester view's term_no-only
+  // grouping in rangeFor() silently merge same-numbered terms from different
+  // years into one date range.
   const { data: terms } = useQuery({
-    queryKey: ["attendance-terms"],
-    queryFn: async () => (await supabase.from("academic_terms").select("term_no,starts_on,ends_on").order("term_no")).data as TermRow[] ?? [],
+    queryKey: ["attendance-terms", activeYear?.id],
+    enabled: !!activeYear?.id,
+    queryFn: async () => (await supabase.from("academic_terms")
+      .select("term_no,starts_on,ends_on").eq("academic_year_id", activeYear!.id).order("term_no")).data as TermRow[] ?? [],
   });
 
   const range = useMemo(() => rangeFor(view, new Date(), terms ?? [], activeYear), [view, terms, activeYear]);

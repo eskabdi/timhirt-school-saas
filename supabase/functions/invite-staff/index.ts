@@ -44,6 +44,9 @@ const Payload = z.object({
   role: z.enum(["teacher", "registrar", "hr_officer", "accountant", "librarian"]),
   staff_no: z.string().regex(STAFF_NO_REGEX).optional(),
   default_locale: z.enum(["en", "am", "om"]).default("am"),
+  // grade_cycles.key (20260814000001) -- optional; a teacher with none set
+  // stays unrestricted by enforce_teacher_cycle() (20260819000001).
+  teaching_cycle_key: z.enum(["first_cycle", "second_cycle", "lower_secondary", "upper_secondary"]).optional(),
 }).refine((p) => p.role !== "teacher" || !!p.staff_no, { message: "staff_no required for teachers" });
 
 // An hr_officer may onboard the staff they directly manage; only school_admin
@@ -98,6 +101,7 @@ Deno.serve(async (req) => {
     if (p.role === "teacher") {
       const { error: teacherErr } = await db.from("teachers").insert({
         tenant_id: ctx.tenantId, user_id: invitedUserId, staff_no: p.staff_no,
+        teaching_cycle_key: p.teaching_cycle_key ?? null,
       });
       if (teacherErr) throw teacherErr;
     }
