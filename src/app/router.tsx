@@ -11,6 +11,7 @@ import { RequireRole } from "@/features/auth/RequireRole";
 import { RequireModule } from "@/features/auth/RequireModule";
 import { LoginPage } from "@/features/auth/LoginPage";
 import { AcceptInvitePage } from "@/features/auth/AcceptInvitePage";
+import { SsoCallbackPage } from "@/features/auth/SsoCallbackPage";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { PlatformShell } from "@/components/layout/PlatformShell";
 
@@ -123,6 +124,7 @@ export const router = createBrowserRouter([
   // ---------- Public (no session) ----------
   { path: "/login", element: <LoginPage /> },
   { path: "/accept-invite", element: <AcceptInvitePage /> },
+  { path: "/auth/sso-callback", element: <SsoCallbackPage /> },
   { path: "/apply/:tenantSlug", element: <PublicAdmissionFormPage /> },
   { path: "/apply/:tenantSlug/status", element: <AdmissionStatusPage /> },
   { path: "/verify/:code?", element: <IDVerificationPage /> },

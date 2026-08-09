@@ -7,8 +7,9 @@ import { useTranslation } from "react-i18next";
 import { UsersTab } from "./UsersTab";
 import { RolesTab } from "./RolesTab";
 import { PermissionsMatrixTab } from "./PermissionsMatrixTab";
+import { SsoTab } from "./SsoTab";
 
-const TABS = ["users", "roles", "permissionsMatrix"] as const;
+const TABS = ["users", "roles", "permissionsMatrix", "sso"] as const;
 type Tab = (typeof TABS)[number];
 
 export function AccessManagementPage() {
@@ -19,6 +20,7 @@ export function AccessManagementPage() {
     users: t("nav.users"),
     roles: t("nav.roles"),
     permissionsMatrix: t("nav.permissionsMatrix"),
+    sso: t("nav.sso"),
   };
 
   return (
@@ -46,6 +48,7 @@ export function AccessManagementPage() {
       {tab === "users" && <UsersTab />}
       {tab === "roles" && <RolesTab />}
       {tab === "permissionsMatrix" && <PermissionsMatrixTab />}
+      {tab === "sso" && <SsoTab />}
     </div>
   );
 }
