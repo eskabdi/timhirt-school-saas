@@ -31,7 +31,10 @@ export function AssignmentsTeacherPage() {
         <Link to="/assignments/new"><Button>{t("assignments.new")}</Button></Link>
       </div>
       <div className="space-y-2">
-        {assignments?.rows.map((a) => (
+        {assignments?.rows.map((a) => {
+          const cls = a.classes as unknown as { name: string; section: string } | null;
+          const subject = a.subjects as unknown as { name_i18n: Record<string, string> } | null;
+          return (
           <Card key={a.id} className="flex items-center justify-between">
             <div>
               <Link to={`/assignments/${a.id}`} className="font-medium text-ink hover:text-navy hover:underline">
@@ -42,11 +45,12 @@ export function AssignmentsTeacherPage() {
                   {t("assignments.draft")}
                 </span>
               )}
-              <p className="text-sm text-ink-faint">{(a.classes as any)?.name} {(a.classes as any)?.section} · {tField((a.subjects as any)?.name_i18n, i18n.resolvedLanguage!)}</p>
+              <p className="text-sm text-ink-faint">{cls?.name} {cls?.section} · {tField(subject?.name_i18n, i18n.resolvedLanguage!)}</p>
             </div>
             <p className="text-sm text-ink-faint">{t("assignments.due")} <EthDate value={a.due_date} /></p>
           </Card>
-        ))}
+          );
+        })}
       </div>
       <Pagination page={page} totalCount={assignments?.count ?? 0} onPageChange={setPage} />
     </div>

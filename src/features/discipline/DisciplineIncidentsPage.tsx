@@ -82,10 +82,12 @@ export function DisciplineIncidentsPage() {
       )}
 
       <div className="space-y-2">
-        {incidents?.rows.map((i) => (
+        {incidents?.rows.map((i) => {
+          const student = i.students as unknown as { first_name: string; last_name: string } | null;
+          return (
           <Card key={i.id} className="flex items-center justify-between">
             <div>
-              <p className="font-medium text-ink">{(i.students as any)?.first_name} {(i.students as any)?.last_name}</p>
+              <p className="font-medium text-ink">{student?.first_name} {student?.last_name}</p>
               <p className="text-sm text-ink-faint">{i.description.slice(0, 80)}</p>
             </div>
             <div className="text-right text-sm">
@@ -93,7 +95,8 @@ export function DisciplineIncidentsPage() {
               <p className="text-ink-faint"><EthDate value={i.incident_date} /></p>
             </div>
           </Card>
-        ))}
+          );
+        })}
       </div>
       <Pagination page={page} totalCount={incidents?.count ?? 0} onPageChange={setPage} />
     </div>

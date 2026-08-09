@@ -26,6 +26,11 @@ interface ClassAssignment {
   subject: { name_i18n: Record<string, string>; code: string } | null;
 }
 
+interface HomeroomStudent {
+  id: string;
+  users: { full_name: string } | null;
+}
+
 export function MyClassesPage() {
   const { t, i18n } = useTranslation();
   const { profile } = useSession();
@@ -85,11 +90,11 @@ export function MyClassesPage() {
         .eq("class_id", homeroom!.id)
         .order("users.full_name")
         .limit(10);
-      return data ?? [];
+      return (data as unknown as HomeroomStudent[]) ?? [];
     },
   });
 
-  const classesMap = new Map<string, { slot: ClassSlot | null; assignment: ClassAssignment }>();
+  const classesMap = new Map<string, { slot: ClassSlot | null; assignment: ClassAssignment | null }>();
   assignments?.forEach((a) => {
     const key = a.class_id + ":" + a.subject_id;
     classesMap.set(key, { slot: null, assignment: a });
@@ -98,10 +103,11 @@ export function MyClassesPage() {
     const key = s.class_id + ":" + s.subject_id;
     const entry = classesMap.get(key);
     if (entry) entry.slot = s;
-    else classesMap.set(key, { slot: s, assignment: null as any });
+    else classesMap.set(key, { slot: s, assignment: null });
   });
 
-  const classCards = Array.from(classesMap.values()).filter((c) => c.assignment);
+  const classCards = Array.from(classesMap.values())
+    .filter((c): c is { slot: ClassSlot | null; assignment: ClassAssignment } => !!c.assignment);
 
   return (
     <div className="space-y-4">
@@ -117,7 +123,7 @@ export function MyClassesPage() {
                   {s.starts_at?.slice(0, 5)}–{s.ends_at?.slice(0, 5)}
                 </span>
                 <span className="text-ink-soft">
-                  {(s.class as any)?.name} {(s.class as any)?.section}
+                  {s.class?.name} {s.class?.section}
                   {s.room && ` · ${t("timetable.room", { room: s.room })}`}
                 </span>
               </div>
@@ -178,7 +184,7 @@ export function MyClassesPage() {
             <ul className="space-y-2 text-sm">
               {homeroomStudents.map((s) => (
                 <li key={s.id} className="flex items-center text-ink-soft">
-                  {(s.users as any)?.full_name || "—"}
+                  {s.users?.full_name || "—"}
                 </li>
               ))}
             </ul>

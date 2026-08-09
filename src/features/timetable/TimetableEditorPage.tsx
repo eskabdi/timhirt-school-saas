@@ -87,7 +87,10 @@ export function TimetableEditorPage() {
   });
   const { data: teachers } = useQuery({
     queryKey: ["tt-teachers", tenantId], enabled: !!tenantId,
-    queryFn: async () => (await supabase.from("teachers").select("id,staff_no,users(full_name)").order("staff_no")).data ?? [],
+    queryFn: async () => {
+      const { data } = await supabase.from("teachers").select("id,staff_no,users(full_name)").order("staff_no");
+      return (data as unknown as { id: string; staff_no: string; users: { full_name: string } | null }[] | null) ?? [];
+    },
   });
   const { data: periods } = useQuery({
     queryKey: ["periods", tenantId], enabled: !!tenantId,
@@ -113,7 +116,10 @@ export function TimetableEditorPage() {
       const { data, error } = await supabase.from("class_subject_teachers")
         .select("id, subject_id, periods_per_week, subjects(name_i18n, code)").eq("class_id", classId);
       if (error) throw error;
-      return data ?? [];
+      return (data as unknown as {
+        id: string; subject_id: string; periods_per_week: number | null;
+        subjects: { name_i18n: Record<string, string>; code: string } | null;
+      }[] | null) ?? [];
     },
   });
   const { data: tenantConfig } = useQuery({
@@ -256,7 +262,7 @@ export function TimetableEditorPage() {
     return assignments
       .filter((a) => a.periods_per_week != null)
       .map((a) => ({
-        label: tField((a.subjects as any)?.name_i18n, i18n.resolvedLanguage!) || (a.subjects as any)?.code,
+        label: tField(a.subjects?.name_i18n, i18n.resolvedLanguage!) || a.subjects?.code,
         placed: placed.get(a.subject_id) ?? 0,
         target: a.periods_per_week!,
       }));
@@ -369,7 +375,7 @@ export function TimetableEditorPage() {
                   <span>{s.room ?? ""}</span>
                 </p>
                 {view !== "Weekly" && (
-                  <p className="mt-0.5 text-[11px] text-ink-faint">{(s.classes as any)?.name} {(s.classes as any)?.section}</p>
+                  <p className="mt-0.5 text-[11px] text-ink-faint">{s.classes?.name} {s.classes?.section}</p>
                 )}
               </div>
             ) : <div className="py-3 text-center text-xs text-ink-faint">{t("crud.noSession")}</div>}
@@ -456,7 +462,7 @@ export function TimetableEditorPage() {
             <span className="text-sm text-ink-soft">{t("timetable.teacher")}</span>
             <select value={teacherId} onChange={(e) => setTeacherId(e.target.value)} className="rounded-control border border-line bg-card px-3 py-1.5 text-sm text-ink">
               <option value="">{t("timetable.selectTeacher")}</option>
-              {teachers?.map((tc) => <option key={tc.id} value={tc.id}>{(tc.users as any)?.full_name ?? tc.staff_no}</option>)}
+              {teachers?.map((tc) => <option key={tc.id} value={tc.id}>{tc.users?.full_name ?? tc.staff_no}</option>)}
             </select>
           </>
         )}

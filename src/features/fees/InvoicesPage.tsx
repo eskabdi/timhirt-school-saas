@@ -143,10 +143,12 @@ export function InvoicesPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-line">
-            {invoices?.map((inv) => (
+            {invoices?.map((inv) => {
+              const student = inv.students as unknown as { first_name: string; last_name: string } | null;
+              return (
               <tr key={inv.id} className="cursor-pointer hover:bg-sidebar" onDoubleClick={onRowDoubleClick(navigate, inv.id)}>
                 <td className="px-4 py-2 font-medium text-ink">
-                  <Link to={inv.id} className="hover:underline">{(inv.students as any)?.first_name} {(inv.students as any)?.last_name}</Link>
+                  <Link to={inv.id} className="hover:underline">{student?.first_name} {student?.last_name}</Link>
                 </td>
                 <td className="px-4 py-2 text-ink-faint"><EthDate value={inv.due_date} /></td>
                 <td className="px-4 py-2 text-ink-faint">{formatETB(Number(inv.amount_due), i18n.resolvedLanguage!)}</td>
@@ -164,7 +166,8 @@ export function InvoicesPage() {
                   </div>
                 </td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
         <Pagination page={page} totalCount={data?.count ?? 0} onPageChange={setPage} className="px-4" />

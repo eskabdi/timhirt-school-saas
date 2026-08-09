@@ -42,7 +42,11 @@ export function TimetableSlotModal({ open, onClose, tenantId, classId, className
         .select("id, subject_id, teacher_id, subjects(name_i18n, code), teachers(staff_no, users(full_name))")
         .eq("class_id", classId);
       if (err) throw err;
-      return data ?? [];
+      return (data as unknown as {
+        id: string; subject_id: string; teacher_id: string;
+        subjects: { name_i18n: Record<string, string>; code: string } | null;
+        teachers: { staff_no: string; users: { full_name: string } | null } | null;
+      }[] | null) ?? [];
     },
   });
 
@@ -94,9 +98,9 @@ export function TimetableSlotModal({ open, onClose, tenantId, classId, className
             <option value="">{t("timetable.selectSubjectTeacher")}</option>
             {assignments?.map((a) => (
               <option key={a.id} value={a.id}>
-                {tField((a.subjects as any)?.name_i18n, i18n.resolvedLanguage!) || (a.subjects as any)?.code}
+                {tField(a.subjects?.name_i18n, i18n.resolvedLanguage!) || a.subjects?.code}
                 {" — "}
-                {(a.teachers as any)?.users?.full_name ?? (a.teachers as any)?.staff_no}
+                {a.teachers?.users?.full_name ?? a.teachers?.staff_no}
               </option>
             ))}
           </select>

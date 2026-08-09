@@ -13,6 +13,13 @@ import { generateTimetable, type GenUnplaced } from "./generateTimetable";
 
 const DAYS = [2, 3, 4, 5, 6];
 
+interface AssignmentRow {
+  class_id: string; subject_id: string; teacher_id: string; periods_per_week: number | null;
+  subjects: { name_i18n: Record<string, string>; code: string } | null;
+  classes: { name: string; section: string | null; shift: string | null } | null;
+  teachers: { staff_no: string; users: { full_name: string } | null } | null;
+}
+
 export function GenerateTimetableModal({ open, onClose, tenantId, classId }: {
   open: boolean; onClose: () => void; tenantId: string; classId: string;
 }) {
@@ -26,8 +33,9 @@ export function GenerateTimetableModal({ open, onClose, tenantId, classId }: {
       const assignmentsQuery = supabase.from("class_subject_teachers")
         .select("class_id, subject_id, teacher_id, periods_per_week, subjects(name_i18n, code), classes(name, section, shift), teachers(staff_no, users(full_name))")
         .not("periods_per_week", "is", null);
-      const { data: assignments, error: aErr } = classId ? await assignmentsQuery.eq("class_id", classId) : await assignmentsQuery;
+      const { data: rawAssignments, error: aErr } = classId ? await assignmentsQuery.eq("class_id", classId) : await assignmentsQuery;
       if (aErr) throw aErr;
+      const assignments = rawAssignments as unknown as AssignmentRow[] | null;
       if (!assignments?.length) throw new Error(t("timetable.noTargetsToGenerate"));
 
       // shift travels with each period so a double-shift class only ever
@@ -45,7 +53,7 @@ export function GenerateTimetableModal({ open, onClose, tenantId, classId }: {
       const { placements, unplaced } = generateTimetable({
         requirements: assignments.map((a) => ({
           classId: a.class_id, subjectId: a.subject_id, teacherId: a.teacher_id, periodsPerWeek: a.periods_per_week!,
-          shift: (a.classes as any)?.shift ?? null,
+          shift: a.classes?.shift ?? null,
         })),
         periods: periods.map((p) => ({ id: p.id, shift: p.shift })),
         days: DAYS,
@@ -66,11 +74,11 @@ export function GenerateTimetableModal({ open, onClose, tenantId, classId }: {
 
       const labelFor = (classId2: string, subjectId: string, teacherId: string) => {
         const a = assignments.find((x) => x.class_id === classId2 && x.subject_id === subjectId && x.teacher_id === teacherId);
-        const cls = a?.classes as any;
+        const cls = a?.classes;
         return {
           classLabel: cls ? `${cls.name} ${cls.section ?? ""}`.trim() : "",
-          subjectLabel: tField((a?.subjects as any)?.name_i18n, i18n.resolvedLanguage!) || (a?.subjects as any)?.code || "",
-          teacherLabel: (a?.teachers as any)?.users?.full_name ?? (a?.teachers as any)?.staff_no ?? "",
+          subjectLabel: tField(a?.subjects?.name_i18n, i18n.resolvedLanguage!) || a?.subjects?.code || "",
+          teacherLabel: a?.teachers?.users?.full_name ?? a?.teachers?.staff_no ?? "",
         };
       };
 

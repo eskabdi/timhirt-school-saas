@@ -166,8 +166,13 @@ export function InvoiceDetailPage() {
   if (isLoading) return <p className="text-ink-faint">…</p>;
   if (error || !invoice) return <p role="alert" className="text-danger">{t("errors.generic")}</p>;
 
-  const student = invoice.student as any;
-  const feeStructure = invoice.fee_structure as any;
+  const student = invoice.student as unknown as {
+    id: string; first_name: string; last_name: string; admission_no: string;
+    class: { name: string; section: string } | null;
+  };
+  const feeStructure = invoice.fee_structure as unknown as {
+    name_i18n: Record<string, string>; billing_cycle: string;
+  };
   const canPay = invoice.status !== "paid" && (profile?.role === "parent" || canManage);
 
   return (

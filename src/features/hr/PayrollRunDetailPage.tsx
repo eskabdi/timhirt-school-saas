@@ -84,16 +84,19 @@ export function PayrollRunDetailPage() {
             <tr><th className="px-5 py-3">{t("hr.employee")}</th><th className="px-5 py-3">{t("hr.gross")}</th><th className="px-5 py-3">{t("hr.tax")}</th><th className="px-5 py-3">{t("hr.pensionCol")}</th><th className="px-5 py-3">{t("hr.netPay")}</th><th></th></tr>
           </thead>
           <tbody className="divide-y divide-line">
-            {payslips?.map((p) => (
+            {payslips?.map((p) => {
+              const employee = p.employees as unknown as { full_name: string } | null;
+              return (
               <tr key={p.id}>
-                <td className="px-5 py-3 font-medium text-ink">{(p.employees as any)?.full_name}</td>
+                <td className="px-5 py-3 font-medium text-ink">{employee?.full_name}</td>
                 <td className="px-5 py-3 tabular-nums text-ink">{formatETB(Number(p.gross), i18n.resolvedLanguage!)}</td>
                 <td className="px-5 py-3 tabular-nums text-ink-faint">{formatETB(Number(p.income_tax), i18n.resolvedLanguage!)}</td>
                 <td className="px-5 py-3 tabular-nums text-ink-faint">{formatETB(Number(p.pension_employee), i18n.resolvedLanguage!)}</td>
                 <td className="px-5 py-3 tabular-nums font-semibold text-ink">{formatETB(Number(p.net_pay), i18n.resolvedLanguage!)}</td>
                 <td className="px-5 py-3"><PayslipLink payslipId={p.id} /></td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       </Panel>
