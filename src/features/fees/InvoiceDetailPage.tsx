@@ -11,7 +11,7 @@
 // accountant insert a manual 'succeeded' cash/bank payment, and a trigger
 // (apply_payment_to_invoice) already credits the invoice automatically —
 // but no page anywhere ever exposed that path. For a school where most fee
-// payment happens in person rather than through Chapa, that's not an edge
+// payment happens in person rather than through the online gateway, that's not an edge
 // case, it's the common case — the module was incomplete without it.
 // ============================================================================
 import { useState } from "react";
@@ -98,12 +98,29 @@ export function InvoiceDetailPage() {
       const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/process-fee-payment`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token}` },
-        body: JSON.stringify({ invoice_id: id, provider: "chapa" }),
+        body: JSON.stringify({ invoice_id: id }),
       });
       if (!res.ok) throw new Error("failed");
       return res.json() as Promise<{ checkout_url: string }>;
     },
     onSuccess: (data) => { window.location.href = data.checkout_url; },
+  });
+
+  const refreshStatus = useMutation({
+    mutationFn: async (paymentId: string) => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/telebirr-query-order`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token}` },
+        body: JSON.stringify({ payment_id: paymentId }),
+      });
+      if (!res.ok) throw new Error("failed");
+      return res.json();
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["invoice-payments", id] });
+      qc.invalidateQueries({ queryKey: ["invoice", id] });
+    },
   });
 
   const [amount, setAmount] = useState("");
@@ -182,7 +199,7 @@ export function InvoiceDetailPage() {
         <div className="mt-4 flex flex-wrap gap-2">
           {canPay && (
             <Button onClick={() => pay.mutate()} disabled={pay.isPending}>
-              {t("fees.payViaChapa")}
+              {t("fees.payViaTelebirr")}
             </Button>
           )}
           <Button variant="ghost" onClick={() => downloadInvoice.mutate()} disabled={downloadInvoice.isPending}>
@@ -232,6 +249,11 @@ export function InvoiceDetailPage() {
                       {bankVerifications?.has(p.id) && (
                         <button type="button" className="text-navy hover:underline" onClick={() => setPreviewPaymentId(p.id)}>
                           {t("fees.bankVerification.view")}
+                        </button>
+                      )}
+                      {p.status === "pending" && p.provider === "telebirr" && (
+                        <button type="button" className="text-navy hover:underline" onClick={() => refreshStatus.mutate(p.id)} disabled={refreshStatus.isPending}>
+                          {t("fees.refreshStatus")}
                         </button>
                       )}
                     </div>

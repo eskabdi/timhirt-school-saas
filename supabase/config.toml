@@ -30,6 +30,12 @@ verify_jwt = true
 verify_jwt = true
 [functions.manage-integration-credentials]
 verify_jwt = true                      # super_admin only, checked in-code
+[functions.telebirr-generate-keypair]
+verify_jwt = true                      # super_admin only, checked in-code
+[functions.telebirr-notify]
+verify_jwt = false                     # public webhook, no inbound sig verification yet -- see _shared/telebirr.ts
+[functions.telebirr-query-order]
+verify_jwt = true                      # school_admin/accountant, checked in-code
 
 [functions.onboard-tenant]
 verify_jwt = true
@@ -49,9 +55,6 @@ verify_jwt = false                     # public form; rate-limited + tenant-scop
 
 [functions.check-admission-status]
 verify_jwt = false                     # public status lookup; rate-limited in-code
-
-[functions.chapa-webhook]
-verify_jwt = false                     # HMAC signature verified in-code instead
 
 [functions.check-login-attempt]
 verify_jwt = false                     # public pre-auth gate; rate-limited in-code

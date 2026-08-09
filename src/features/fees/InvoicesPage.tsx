@@ -100,7 +100,7 @@ export function InvoicesPage() {
       const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/process-fee-payment`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token}` },
-        body: JSON.stringify({ invoice_id: invoiceId, provider: "chapa" }),
+        body: JSON.stringify({ invoice_id: invoiceId }),
       });
       if (!res.ok) throw new Error("failed");
       return res.json() as Promise<{ checkout_url: string }>;
@@ -159,7 +159,7 @@ export function InvoicesPage() {
                       {t("fees.downloadInvoice")}
                     </button>
                     {inv.status !== "paid" && (
-                      <Button variant="ghost" onClick={() => pay.mutate(inv.id)} disabled={pay.isPending}>{t("fees.payViaChapa")}</Button>
+                      <Button variant="ghost" onClick={() => pay.mutate(inv.id)} disabled={pay.isPending}>{t("fees.payViaTelebirr")}</Button>
                     )}
                   </div>
                 </td>

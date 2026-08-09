@@ -12,7 +12,7 @@
 -- future regression that would silently stop crediting).
 -- ============================================================================
 begin;
-select plan(11);
+select plan(12);
 
 insert into auth.users (instance_id, id, aud, role, email, encrypted_password,
   email_confirmed_at, created_at, updated_at, confirmation_token, email_change,
@@ -49,6 +49,11 @@ select throws_ok(
   $stmt$ insert into public.payments (tenant_id, invoice_id, amount, provider, provider_ref, status)
          values ('aeb00000-0000-0000-0000-00000000000a', 'aeb50000-0000-0000-0000-000000000001', 500.00, 'chapa', 'fp-chapa-1', 'succeeded') $stmt$,
   '42501', null, 'an accountant cannot forge a gateway (chapa) payment');
+
+select throws_ok(
+  $stmt$ insert into public.payments (tenant_id, invoice_id, amount, provider, provider_ref, status)
+         values ('aeb00000-0000-0000-0000-00000000000a', 'aeb50000-0000-0000-0000-000000000001', 500.00, 'telebirr', 'fp-telebirr-1', 'succeeded') $stmt$,
+  '42501', null, 'an accountant cannot forge a telebirr gateway payment either -- payments_manual_insert stays cash|bank only post-migration');
 
 select throws_ok(
   $stmt$ insert into public.payments (tenant_id, invoice_id, amount, provider, status)
