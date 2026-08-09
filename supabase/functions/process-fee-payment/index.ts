@@ -55,6 +55,25 @@ Deno.serve(async (req) => {
     const remainingCents = Math.round(remaining * 100);
     const merchOrderId = `t${invoice.id.replace(/-/g, "")}${remainingCents}`;
 
+    // Guard: at most one live 'pending' Telebirr order per invoice. Without
+    // this, a balance change between two payment attempts (e.g. a manual
+    // cash payment posted in between) produces two DIFFERENT merch_order_ids
+    // for the same invoice -- settle_gateway_payment's replay guard only
+    // stops the SAME order settling twice, not two distinct orders both
+    // completing and each crediting the invoice. Voiding the stale order(s)
+    // here means only the row still 'pending' can ever be found and settled;
+    // if a superseded order gets paid anyway, telebirr-notify's lookup finds
+    // no matching pending row and safely no-ops instead of double-crediting.
+    const { data: existingPending } = await ctx.adminClient
+      .from("payments")
+      .select("id, provider_ref")
+      .eq("invoice_id", invoice.id).eq("provider", "telebirr").eq("status", "pending");
+    const samePending = existingPending?.find((p) => p.provider_ref === merchOrderId);
+    if (existingPending?.length && !samePending) {
+      await ctx.adminClient.from("payments").update({ status: "failed" })
+        .in("id", existingPending.map((p) => p.id));
+    }
+
     const { prepayId } = await preOrder(ctx.adminClient, telebirrCfg, {
       merchOrderId,
       amountEtb,
@@ -64,11 +83,17 @@ Deno.serve(async (req) => {
     });
     const checkoutUrl = await buildCheckoutUrl(telebirrCfg, { prepayId });
 
-    // Record pending payment (service_role — clients cannot insert gateway rows)
-    await ctx.adminClient.from("payments").insert({
-      tenant_id: invoice.tenant_id, invoice_id: invoice.id,
-      amount: amountEtb, provider: "telebirr", provider_ref: merchOrderId, status: "pending",
-    });
+    if (!samePending) {
+      // Record pending payment (service_role — clients cannot insert gateway rows)
+      const { error: insertErr } = await ctx.adminClient.from("payments").insert({
+        tenant_id: invoice.tenant_id, invoice_id: invoice.id,
+        amount: amountEtb, provider: "telebirr", provider_ref: merchOrderId, status: "pending",
+      });
+      if (insertErr) {
+        console.error("process-fee-payment: failed to record pending payment", { message: insertErr.message });
+        return errors.internal();
+      }
+    }
 
     return json({ checkout_url: checkoutUrl, merch_order_id: merchOrderId }, 200);
   } catch (err) {

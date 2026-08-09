@@ -21,7 +21,7 @@
 --     readable.
 -- ============================================================================
 begin;
-select plan(18);
+select plan(20);
 
 insert into auth.users (instance_id, id, aud, role, email, encrypted_password,
   email_confirmed_at, created_at, updated_at, confirmation_token, email_change,
@@ -83,6 +83,26 @@ select is(
 select is(
   public.settle_gateway_payment('tb-ref-mismatch', 'telebirr', 999.00),
   'amount_mismatch', 'Gateway-reported amount mismatch is rejected for telebirr too, not credited');
+
+-- ---------- (1b) a voided (superseded) order can never later settle ----------
+-- process-fee-payment marks a stale pending order 'failed' when a balance
+-- change produces a new merch_order_id for the same invoice, so at most one
+-- order per invoice is ever 'pending' -- this proves that invariant actually
+-- protects settle_gateway_payment: a 'failed' row is permanently
+-- unreachable by tx_ref, even with the exact right amount, because the
+-- function's lookup filters on status = 'pending'. Uses a never-before-seen
+-- tx_ref -- 'tb-ref-mismatch' was already consumed by webhook_events above,
+-- so reusing it here would report 'duplicate' regardless of payment status.
+insert into public.payments (id, tenant_id, invoice_id, amount, provider, provider_ref, status) values
+  ('fb008888-0000-0000-0000-000000000003', 'fb000000-0000-0000-0000-00000000000a', 'fb005555-0000-0000-0000-000000000001', 250.00, 'telebirr', 'tb-ref-superseded', 'failed');
+
+select is(
+  public.settle_gateway_payment('tb-ref-superseded', 'telebirr', 250.00),
+  'not_found', 'A voided (failed) telebirr order can never settle later, even reporting its exact original amount');
+
+select is(
+  (select amount_paid from public.fee_invoices where id = 'fb005555-0000-0000-0000-000000000001'),
+  500.00::numeric, 'Attempting to settle the voided order does not credit the invoice a second time');
 
 -- ---------- (2) platform_integrations.config gating ----------
 set local role authenticated;
