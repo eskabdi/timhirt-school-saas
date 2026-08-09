@@ -73,3 +73,12 @@ verify_jwt = true
 verify_jwt = true
 [functions.generate-fee-invoices]
 verify_jwt = true
+
+[functions.sso-domain-lookup]
+verify_jwt = false                     # public pre-auth gate; rate-limited in-code
+[functions.manage-sso-provider]
+verify_jwt = true
+[functions.complete-sso-login]
+verify_jwt = true
+[functions.activate-sso-user]
+verify_jwt = true
