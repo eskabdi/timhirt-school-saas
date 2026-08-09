@@ -40,6 +40,7 @@
 // remains available alongside the URL option by design.
 // ============================================================================
 import type { AuthContext } from "./security.ts";
+import { readBodyWithCap } from "./stream-read.ts";
 
 type AdminClient = AuthContext["adminClient"];
 
@@ -104,32 +105,14 @@ export async function verifyBankUrl(admin: AdminClient, input: VerifyBankUrlInpu
   if (!res.ok) {
     return { status: "failed", failureReason: `http_${res.status}` };
   }
-  if (!res.body) {
-    return { status: "failed", failureReason: "empty_body" };
-  }
-
-  const reader = res.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let total = 0;
-  try {
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      total += value.byteLength;
-      if (total > MAX_BYTES) {
-        await reader.cancel();
-        return { status: "failed", failureReason: "too_large" };
-      }
-      chunks.push(value);
+  const read = await readBodyWithCap(res, MAX_BYTES);
+  if (!read.ok) {
+    if (read.reason === "read_failed") {
+      console.error("verifyBankUrl: stream read failed");
     }
-  } catch (err) {
-    console.error("verifyBankUrl: stream read failed", { message: (err as Error).message });
-    return { status: "failed", failureReason: "fetch_failed" };
+    return { status: "failed", failureReason: read.reason === "read_failed" ? "fetch_failed" : read.reason };
   }
-
-  const bytes = new Uint8Array(total);
-  let offset = 0;
-  for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
+  const bytes = read.bytes;
 
   if (!bytesStartWith(bytes, PDF_MAGIC)) {
     return { status: "failed", failureReason: "not_a_pdf" };

@@ -36,13 +36,13 @@
 // another school.
 // ============================================================================
 import { z } from "npm:zod@3";
-import { requireRole, errors, json, rateLimit, corsHeaders } from "../_shared/security.ts";
+import { requireRole, errors, json, rateLimit, corsHeaders, STAFF_NO_REGEX } from "../_shared/security.ts";
 
 const Payload = z.object({
   email: z.string().email().max(254),
   full_name: z.string().trim().min(1).max(120),
   role: z.enum(["teacher", "registrar", "hr_officer", "accountant", "librarian"]),
-  staff_no: z.string().regex(/^[A-Z0-9\-/]{2,20}$/).optional(),
+  staff_no: z.string().regex(STAFF_NO_REGEX).optional(),
   default_locale: z.enum(["en", "am", "om"]).default("am"),
 }).refine((p) => p.role !== "teacher" || !!p.staff_no, { message: "staff_no required for teachers" });
 

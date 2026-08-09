@@ -22,14 +22,14 @@
 // can't become a lower-friction path to admin than the existing invite flow.
 // ============================================================================
 import { z } from "npm:zod@3";
-import { requireRole, errors, json, rateLimit, corsHeaders } from "../_shared/security.ts";
+import { requireRole, errors, json, rateLimit, corsHeaders, STAFF_NO_REGEX } from "../_shared/security.ts";
 
 const ACTIVATABLE_ROLES = ["teacher", "registrar", "hr_officer", "accountant", "librarian"] as const;
 
 const Payload = z.object({
   user_id: z.string().uuid(),
   role: z.enum(ACTIVATABLE_ROLES),
-  staff_no: z.string().regex(/^[A-Z0-9\-/]{2,20}$/).optional(),
+  staff_no: z.string().regex(STAFF_NO_REGEX).optional(),
 }).refine((p) => p.role !== "teacher" || !!p.staff_no, { message: "staff_no required for teachers" });
 
 Deno.serve(async (req) => {

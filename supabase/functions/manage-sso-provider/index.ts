@@ -34,6 +34,7 @@
 // ============================================================================
 import { z } from "npm:zod@3";
 import { requireRole, errors, json, rateLimit, corsHeaders } from "../_shared/security.ts";
+import { readBodyWithCap } from "../_shared/stream-read.ts";
 
 const DOMAIN_RE = /^[a-z0-9.-]+\.[a-z]{2,}$/;
 const MAX_METADATA_BYTES = 1024 * 1024; // 1MB -- real IdP metadata is a few KB
@@ -123,30 +124,15 @@ async function fetchMetadataXml(url: string): Promise<FetchMetadataResult | Fetc
   }
   if (res.status >= 300 && res.status < 400) return { ok: false, reason: "redirect_blocked" };
   if (!res.ok) return { ok: false, reason: `http_${res.status}` };
-  if (!res.body) return { ok: false, reason: "empty_body" };
 
-  const reader = res.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let total = 0;
-  try {
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      total += value.byteLength;
-      if (total > MAX_METADATA_BYTES) {
-        await reader.cancel();
-        return { ok: false, reason: "too_large" };
-      }
-      chunks.push(value);
+  const read = await readBodyWithCap(res, MAX_METADATA_BYTES);
+  if (!read.ok) {
+    if (read.reason === "read_failed") {
+      console.error("manage-sso-provider: metadata stream read failed");
     }
-  } catch (err) {
-    console.error("manage-sso-provider: metadata stream read failed", { message: (err as Error).message });
-    return { ok: false, reason: "fetch_failed" };
+    return { ok: false, reason: read.reason === "read_failed" ? "fetch_failed" : read.reason };
   }
-  const bytes = new Uint8Array(total);
-  let offset = 0;
-  for (const c of chunks) { bytes.set(c, offset); offset += c.byteLength; }
-  const xml = new TextDecoder().decode(bytes);
+  const xml = new TextDecoder().decode(read.bytes);
   if (!xml.includes("EntityDescriptor")) return { ok: false, reason: "not_saml_metadata" };
   return { ok: true, xml };
 }
@@ -261,14 +247,20 @@ Deno.serve(async (req) => {
     const { error: updErr } = await db.from("tenant_sso_providers")
       .update({ metadata_url: p.metadata_url, enabled: p.enabled }).eq("id", existing!.id);
     if (updErr) {
-      // GoTrue already has the new metadata at this point and our local
-      // row doesn't -- no compensating rollback (there's no old metadata_xml
-      // retained to restore GoTrue to). Logged distinctly so this divergence
-      // is discoverable rather than silent; safe to just retry the same
-      // request, since both the GoTrue PUT and this update are idempotent
-      // and converge to the same target state either way.
+      // GoTrue already has the new metadata at this point and our local row
+      // doesn't -- no compensating rollback (there's no old metadata_xml
+      // retained to restore GoTrue to). A generic 500 here would tell the
+      // admin nothing about whether it's safe to just try again, so this
+      // returns a distinct, retry-safe response instead of throwing into
+      // the catch-all errors.internal() -- the caller can show something
+      // more useful than "an unexpected error occurred" for a state that
+      // self-heals on the next identical request (both the GoTrue PUT and
+      // this update are idempotent and converge to the same target state).
       console.error("manage-sso-provider: local update failed after GoTrue update succeeded -- retry is safe", { message: updErr.message });
-      throw updErr;
+      return json({
+        error: "Settings partially updated -- please try again.",
+        code: "update_partial_retry_safe",
+      }, 409);
     }
     return json({ configured: true, enabled: p.enabled }, 200);
   } catch (err) {
