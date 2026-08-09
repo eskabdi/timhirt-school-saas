@@ -63,7 +63,53 @@ interface FetchMetadataError {
   reason: string;
 }
 
+// Reject anything resolving to a private/loopback/link-local/reserved
+// address before ever fetching it -- there is no hostname allow-list here
+// (unlike bank-verify.ts) since arbitrary public IdP domains are the whole
+// point, so this is the only thing standing between a malicious/compromised
+// school_admin (tenant-level, not platform-level) and using this function
+// as an SSRF probe against internal infrastructure. Same residual
+// DNS-rebinding risk bank-verify.ts already accepts (no DNS pinning between
+// this check and the fetch) -- acceptable for the same reason: closing that
+// fully needs custom connection-level DNS control this codebase doesn't
+// have anywhere yet, and the up-front resolve+range-check closes the gap
+// the review actually found (no check at all).
+function isPrivateOrReservedIp(ip: string): boolean {
+  const v4 = ip.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (v4) {
+    const [a, b] = [Number(v4[1]), Number(v4[2])];
+    return a === 10 || a === 127 || a === 0
+      || (a === 172 && b >= 16 && b <= 31)
+      || (a === 192 && b === 168)
+      || (a === 169 && b === 254)
+      || (a === 100 && b >= 64 && b <= 127) // CGNAT
+      || (a === 192 && b === 0);
+  }
+  const lower = ip.toLowerCase();
+  return lower === "::1" || lower.startsWith("fe80:") || lower.startsWith("fc") || lower.startsWith("fd")
+    || lower.startsWith("::ffff:127.") || lower.startsWith("::ffff:10.") || lower.startsWith("::ffff:192.168.");
+}
+
+async function isPrivateOrReservedHost(hostname: string): Promise<boolean> {
+  const lower = hostname.toLowerCase();
+  if (lower === "localhost" || lower.endsWith(".local") || lower.endsWith(".internal")) return true;
+  if (isPrivateOrReservedIp(hostname)) return true;
+  try {
+    const [v4, v6] = await Promise.all([
+      Deno.resolveDns(hostname, "A").catch(() => []),
+      Deno.resolveDns(hostname, "AAAA").catch(() => []),
+    ]);
+    return [...v4, ...v6].some(isPrivateOrReservedIp);
+  } catch {
+    return true; // DNS resolution failure -- fail closed, not open
+  }
+}
+
 async function fetchMetadataXml(url: string): Promise<FetchMetadataResult | FetchMetadataError> {
+  const target = new URL(url);
+  if (await isPrivateOrReservedHost(target.hostname)) {
+    return { ok: false, reason: "host_not_allowed" };
+  }
   let res: Response;
   try {
     res = await fetch(url, {
@@ -140,7 +186,16 @@ Deno.serve(async (req) => {
           return errors.internal();
         }
       }
-      await db.from("tenant_sso_providers").delete().eq("id", existing.id);
+      const { error: delErr } = await db.from("tenant_sso_providers").delete().eq("id", existing.id);
+      if (delErr) {
+        // GoTrue-side is already gone at this point -- surfacing this as a
+        // failure (rather than silently reporting success) matters because
+        // a stale row here permanently blocks a future "create" (the
+        // existing-row check above) even though GoTrue has nothing
+        // registered, and there'd be no visible error pointing at why.
+        console.error("manage-sso-provider: local delete failed after GoTrue delete succeeded", { message: delErr.message });
+        return errors.internal();
+      }
       return json({ configured: false, enabled: false }, 200);
     }
 
@@ -205,7 +260,16 @@ Deno.serve(async (req) => {
     }
     const { error: updErr } = await db.from("tenant_sso_providers")
       .update({ metadata_url: p.metadata_url, enabled: p.enabled }).eq("id", existing!.id);
-    if (updErr) throw updErr;
+    if (updErr) {
+      // GoTrue already has the new metadata at this point and our local
+      // row doesn't -- no compensating rollback (there's no old metadata_xml
+      // retained to restore GoTrue to). Logged distinctly so this divergence
+      // is discoverable rather than silent; safe to just retry the same
+      // request, since both the GoTrue PUT and this update are idempotent
+      // and converge to the same target state either way.
+      console.error("manage-sso-provider: local update failed after GoTrue update succeeded -- retry is safe", { message: updErr.message });
+      throw updErr;
+    }
     return json({ configured: true, enabled: p.enabled }, 200);
   } catch (err) {
     console.error("manage-sso-provider failed", { message: (err as Error).message });

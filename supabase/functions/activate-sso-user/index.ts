@@ -61,13 +61,27 @@ Deno.serve(async (req) => {
       if (dupStaffNo) return json({ error: "This staff number is already in use." }, 400);
     }
 
-    const { error: updErr } = await db.from("users").update({ role: p.role }).eq("id", p.user_id);
-    if (updErr) throw updErr;
-
+    // teachers insert happens BEFORE the role flip, not after: if this
+    // fails (e.g. a concurrent activation raced the staff_no check above),
+    // role is still 'pending' and the whole request is safely retryable.
+    // Doing it in the other order would leave role='teacher' with no
+    // teachers row and no way back -- a second call would 404 immediately
+    // since the target is no longer 'pending'.
     if (p.role === "teacher") {
       const { error: teacherErr } = await db.from("teachers")
         .insert({ tenant_id: ctx.tenantId, user_id: p.user_id, staff_no: p.staff_no });
       if (teacherErr) throw teacherErr;
+    }
+
+    const { error: updErr } = await db.from("users").update({ role: p.role }).eq("id", p.user_id);
+    if (updErr) {
+      // Roll back the just-inserted teachers row so the target stays fully
+      // retryable at role='pending' instead of ending up with a teacher
+      // profile row but no matching role.
+      if (p.role === "teacher") {
+        await db.from("teachers").delete().eq("tenant_id", ctx.tenantId).eq("user_id", p.user_id).catch(() => {});
+      }
+      throw updErr;
     }
 
     return json({ user_id: p.user_id, role: p.role }, 200);

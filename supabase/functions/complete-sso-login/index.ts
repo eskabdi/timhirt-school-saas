@@ -87,7 +87,16 @@ Deno.serve(async (req) => {
       id: user.id, tenant_id: provider.tenant_id, role: "pending",
       full_name: fullName, email, locale: "en",
     });
-    if (insErr) throw insErr;
+    if (insErr) {
+      // The check-then-insert above isn't atomic -- a duplicate tab, a
+      // reload racing the original request, or a client retry can send two
+      // calls before either has inserted. The loser hits a primary-key
+      // violation on `id` (23505), which is the expected shape of that
+      // race, not a real failure -- report it the same as the check above
+      // would have, instead of a raw 500.
+      if (insErr.code === "23505") return json({ status: "already_provisioned" }, 200);
+      throw insErr;
+    }
 
     return json({ status: "provisioned" }, 200);
   } catch (err) {

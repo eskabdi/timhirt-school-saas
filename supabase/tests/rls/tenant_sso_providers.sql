@@ -106,10 +106,24 @@ select is(
   'the row still exists -- the non-admin''s delete matched zero rows');
 
 -- ---------- 8. domain is globally unique across tenants ---------------------
+-- Must be attempted as tenant B against tenant B's own tenant_id -- inserting
+-- a second row under tenant A's own tenant_id (as the earlier version of
+-- this test did) only proves the `unique (tenant_id)` constraint, not that
+-- the domain itself is globally exclusive, which is the actual guarantee
+-- this migration's comment claims (two tenants cannot register the same
+-- email domain).
+reset role;
+set local role authenticated;
+set local request.jwt.claim.sub = '9d000003-0000-0000-0000-000000000003'; -- school_admin, tenant B
+
 select throws_ok(
   $stmt$ insert into public.tenant_sso_providers (tenant_id, domain, metadata_url)
-         values ('9d000000-0000-0000-0000-00000000000a', 'sso-tenant-a.example.edu.et', 'https://idp3.example.edu.et/metadata') $stmt$,
-  '23505', null, 'a second row cannot claim a domain already registered to another provider');
+         values ('9d000000-0000-0000-0000-00000000000b', 'sso-tenant-a.example.edu.et', 'https://idp3.example.edu.et/metadata') $stmt$,
+  '23505', null, 'tenant B cannot claim a domain already registered to tenant A -- a genuine cross-tenant collision, not a same-tenant retry');
+reset role;
+
+set local role authenticated;
+set local request.jwt.claim.sub = '9d000001-0000-0000-0000-000000000001'; -- school_admin, tenant A
 
 -- ---------- 9. domain/metadata_url format constraints are enforced ---------
 select throws_ok(
