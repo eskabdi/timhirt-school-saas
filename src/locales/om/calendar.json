@@ -1,0 +1,8 @@
+{
+  "months": ["Fulbaana", "Onkololeessa", "Sadaasa", "Muddee", "Amajjii", "Guraandhala", "Bitootessa", "Ebla", "Caamsaa", "Waxabajjii", "Adoolessa", "Hagayya", "Qaammee"],
+  "eraSuffix": "ALI",
+  "gregorianEquivalent": "= {date} ALA",
+  "today": "Har'a",
+  "pickDate": "Guyyaa filadhu",
+  "placeholder": "Guyyaa filadhu (ALI)"
+}

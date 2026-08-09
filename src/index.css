@@ -1,0 +1,63 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ID card / Ethiopic display fonts (uploaded, served from /public/fonts).
+   Used by the ID Card Template Designer preview and text-field font picker. */
+@font-face {
+  font-family: "NotoSerifEthiopic";
+  src: url("/fonts/NotoSerifEthiopic-Regular.ttf") format("truetype");
+  font-weight: normal; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: "Tayitu";
+  src: url("/fonts/Tayitu.ttf") format("truetype");
+  font-weight: normal; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: "Jiret";
+  src: url("/fonts/Jiret.ttf") format("truetype");
+  font-weight: normal; font-style: normal; font-display: swap;
+}
+
+/* Design-system palette defaults, as space-separated RGB channels so Tailwind
+   opacity modifiers work (see tailwind.config.ts). A tenant's Branding page
+   palette overrides --brand-primary/-secondary/-accent on :root at runtime via
+   lib/brand-theme.ts; with nothing saved, these values are the shipped
+   "Academic Atelier" theme (docs/uploads DESIGN.md — Deep Navy + Burnished
+   Gold). --brand-gold* is deliberately NOT part of the tenant-overridable set:
+   it is the platform's own chrome signature (top bar, active-nav indicator),
+   not one of the tenant's three configurable brand colours. */
+:root {
+  --brand-primary: 4 22 53;          /* #041635 Deep Navy         */
+  --brand-primary-deep: 2 10 24;     /* #020A18 navy-deep (hover) */
+  --brand-primary-wash: 226 230 237; /* #E2E6ED navy-wash (tint)  */
+  --brand-primary-container: 27 43 75; /* #1B2B4B gradient/focus  */
+  --brand-secondary: 30 138 95;      /* #1E8A5F ok (success, unchanged) */
+  --brand-secondary-tint: 228 245 236; /* #E4F5EC ok-tint         */
+  --brand-accent: 168 92 36;         /* #A85C24 late (warning, unchanged) */
+  --brand-accent-tint: 251 234 221;  /* #FBEADD late-tint        */
+  --gold: 125 88 0;                  /* #7D5800 Burnished Gold   */
+  --gold-bright: 246 189 80;         /* #F6BD50 gold highlight   */
+}
+
+@layer base {
+  body { @apply bg-page text-ink font-sans antialiased; }
+  :focus-visible { @apply outline-none ring-2 ring-navy ring-offset-2 ring-offset-page; }
+  h1, h2, h3, h4 { @apply font-display font-bold; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+
+/* Print Report: only the active print target is sent to the printer/PDF —
+   the app chrome (sidebar nav, header buttons, tab bar) is excluded. Toggled
+   by adding .print-scope to the target and .print-only for print headers. */
+@media print {
+  body * { visibility: hidden !important; }
+  #print-scope, #print-scope * { visibility: visible !important; }
+  #print-scope { position: absolute !important; left: 0; top: 0; width: 100%; padding: 0 !important; }
+  .no-print { display: none !important; }
+  .print-only { display: block !important; }
+}
+.print-only { display: none; }

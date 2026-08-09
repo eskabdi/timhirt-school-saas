@@ -1,0 +1,8 @@
+{
+  "months": ["Meskerem", "Tikimt", "Hidar", "Tahsas", "Tir", "Yekatit", "Megabit", "Miyazya", "Ginbot", "Sene", "Hamle", "Nehase", "Pagume"],
+  "eraSuffix": "E.C.",
+  "gregorianEquivalent": "= {date} G.C.",
+  "today": "Today",
+  "pickDate": "Pick a date",
+  "placeholder": "Select date (EC)"
+}

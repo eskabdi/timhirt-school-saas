@@ -1,0 +1,152 @@
+# Timhirt — Ethiopian School Management SaaS
+
+A production-ready, multi-tenant School Management System for Ethiopian
+educational institutions. Built to the project's v1.0/v2.0 architecture
+blueprint: React 18 + TypeScript + Vite + Tailwind + shadcn-style primitives +
+TanStack Query on the frontend; Supabase (Postgres + PostgREST + Auth + Edge
+Functions + Storage) on the backend, with **no custom API server** — Row Level
+Security is the sole authorization layer. Security controls are built into
+every migration, policy, and Edge Function to satisfy Ethiopia's Personal
+Data Protection Proclamation No. 1321/2024 (the actual binding law for a
+system processing student/guardian/staff PII) and general OWASP/NIST/ISO
+27001 practice; alignment with INSA's Web Application Security Testing
+Requirements is carried as an optional, not asserted-mandatory, extra —
+see blueprint §21.9 for the reasoning.
+
+## What's inside
+
+| Area | Highlights |
+|---|---|
+| **Multi-tenancy** | Shared schema + fail-closed RLS; every table `tenant_id`-scoped; `FORCE ROW LEVEL SECURITY`; explicit super_admin policy clause |
+| **Ethiopian calendar** | `lib/ethiopian-date.ts` — pure Beyene–Kudlek EC↔GC facade (zero runtime deps), `<EthDatePicker/>` 13-month grid, Geez numerals, holiday-aware attendance blocking. **Gregorian is canonical storage; EC is presentation-only.** |
+| **Trilingual i18n** | `react-i18next` + ICU; English / Amharic (አማርኛ) / Afaan Oromoo, 1104 keys at full parity across all three; `jsonb` i18n columns for tenant-authored labels; `t_field()` SQL helper. `scripts/i18n-audit.mjs` fails the build on untranslated user-facing copy |
+| **HR & Payroll** | Effective-dated tax brackets (Proclamation No. 1395/2025) & pension rates (Proc. 715/2011, basic-salary-only base); `run-payroll` Edge Function computes gross→tax→pension→net; segregation of duties enforced by a DB state-machine trigger (`approved_by <> prepared_by`, forward-only transitions, immutable once `paid`) |
+| **Payments** | Chapa (aggregates Telebirr/CBE Birr/cards) + Stripe; server-derived amounts; atomic settlement RPC — HMAC-verified, amount-checked, and replay-protected in a single transaction; **credentials configurable by super_admin through the UI** (`/platform/integrations`, Supabase Vault-backed) — no CLI/infra access required, though `supabase secrets set` still works as a fallback |
+| **18 modules** | SIS, Attendance, Timetable, Gradebook, Fees, Communication, Reporting, Library, Transport, HR & Payroll, Admissions, Assignments, Hostel, Inventory, Discipline, Clinic, ID Cards/Certificates, Events, MoE Reporting |
+| **80 routes** | Admin, Teacher, Student, Parent, Public (`/apply`, rate-limited `/verify`), and Platform (`super_admin`, including self-service `/platform/integrations`) surfaces |
+| **Security** | Column-level grants on 🔒 fields with HR/clinic re-exposing views for authorized roles, immutable user identity fields (`tenant_id`/`role`/`email` locked by policy + trigger), append-only redacted audit log, CSP/HSTS headers, staging test-account scaffold |
+
+## Project layout
+
+```
+supabase/
+  migrations/     37 migrations: core → academic → attendance/fees → HR/payroll
+                  → RLS → storage → extended modules → extended RLS
+                  → security hardening → base table grants → RLS recursion fix
+                  → column-level grants → integration credentials (Vault)
+                  → settlement enum-cast fix → module permission matrix
+                  → registration stepper fields → ID card templates + photo
+                  buckets → discipline/merits → events, notices & admission
+                  review → durable rate limits → staff linkage check
+                  → student photo lifecycle
+  functions/      run-payroll · process-fee-payment · chapa-webhook
+                  onboard-tenant · invite-tenant-admin · invite-staff
+                  generate-payslip-pdf · submit-admission · verify-id
+                  upload-admission-document · check-admission-status
+                  issue-id-card · provision-portal-accounts
+                  manage-integration-credentials
+                  _shared/  (security middleware + Ethiopian date engine)
+  tests/          shim.sql + run.sh (plain-Postgres harness) and rls/*.sql —
+                  cross-tenant matrix, HR/clinic views, payroll SoD, webhook
+                  settlement, student photo lifecycle
+  seed.sql        staging test-account scaffold (refuses to run in prod)
+src/
+  app/            router (80 routes), providers, root component
+  components/     EthDatePicker, EthDate, DashboardShell, PlatformShell, ui primitives
+  features/       one folder per module (students, hr, fees, admissions, …)
+  lib/            ethiopian-date.ts facade, i18n.ts, supabase.ts, queryKeys.ts
+  locales/        en / am / om — common.json + calendar.json + apply.json
+  __tests__/      Ethiopian calendar edge-case unit tests (§17.8 checklist)
+docs/
+  DEPLOYMENT.md   Step-by-step deploy guide
+```
+
+## Quick start (local)
+
+```bash
+npm install
+cp .env.example .env          # fill in your Supabase project URL/anon key
+supabase start                # local Postgres + Auth + Storage (Docker)
+supabase db push               # apply all 37 migrations
+npm run dev                    # http://localhost:5173
+```
+
+Run the Ethiopian calendar test suite:
+
+```bash
+npm run test
+```
+
+Run the RLS / payroll / storage pgTAP suites against any Postgres — no Docker
+and no Supabase CLI needed, which is also how CI runs them:
+
+```bash
+PGHOST=localhost PGPORT=5432 PGUSER=postgres PGPASSWORD=postgres \
+  ./supabase/tests/run.sh
+```
+
+It resets the schema, installs `supabase/tests/shim.sql` (stand-ins for the
+Supabase-managed `auth` / `storage` / `vault` objects), applies every migration,
+then runs each suite and checks the assertion count against its declared plan.
+
+Type-check and build:
+
+```bash
+npx tsc --noEmit
+npm run build
+```
+
+## Deploying to production
+
+See [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) for the full runbook —
+migrations, Edge Function secrets, tenant onboarding, and the `vercel.json`
+security headers. **If you've deployed and a logged-in user sees "—" on
+every stat and no name in the header, you've hit the first-super_admin
+chicken-and-egg gap — see DEPLOYMENT.md §3, "Bootstrap the first
+super_admin," for the one-time SQL fix.**
+
+## Security review status (v2.1)
+
+This build closes every finding from the staff-level pre-production security
+review: **C1** (cross-tenant takeover via self-service `tenant_id` update),
+**C2/C3** (payroll segregation-of-duties bypass + paid-run reversal), **H1**
+(migration `008` wouldn't deploy — `notification_templates` had no
+`tenant_id`), **H2** (unrate-limited, enumerable public ID verification),
+**H3/H4** (non-atomic webhook settlement, no amount check), **M1** (column
+grants with no re-exposing view broke legitimate HR/clinic reads), **M2**
+(clinic PII leaking into the audit log), **M3** (submission storage let any
+tenant user read/overwrite peers' files), **M4** (manual payments could skip
+invoice sync), **M5** (three divergent EC-year computations), plus the LOW
+batch (pension base, rate-limiter durability note, EC-facade lint rule,
+`payslip_lines` RLS, payslip audit trigger). See
+`supabase/migrations/20260713000010_security_hardening.sql` for the
+consolidated fix and `supabase/tests/` for the regression tests that guard
+each one.
+
+## Pre-go-live checklist
+
+- [x] ~~Confirm the exact gazetted commencement date for Proclamation No. 1395/2025~~ **Verified 2026-07-15** against the official gazette (Federal Negarit Gazette, Proclamation No. 1395/2017 E.C., via mofed.gov.et) — all bracket rates and deduction amounts match exactly, independently re-derived and cross-checked. `effective_from` updated to `2025-07-08` in migration `004`, the date confirmed for the Alternative Minimum Tax clause; Article 11 (Employment Income Tax Rates) falls under the same amendment's general "all other provisions" effective-date clause, whose exact date was OCR-corrupted in the fetched PDF — **recommend one final visual (non-OCR) check of that specific clause** before go-live, everything else about this schedule is fully verified. See the citation in migration `004`'s comment block and the worksheet in `docs/DEPLOYMENT.md`.
+- [ ] Confirm pension rates (7% employee / 11% employer on **basic salary only**, Proc. 715/2011)
+- [x] ~~Self-host Noto Sans Ethiopic (don't depend on a font CDN in production)~~ **Done** — Noto Serif Ethiopic, Jiret and Tayitu ship from `public/fonts/`. Both loaders now validate the sfnt magic before embedding: a missing asset returns the SPA's `index.html` with a 200, which `embedFont` rejects and both callers used to swallow, silently rendering Ethiopic in Helvetica.
+- [x] ~~Verify the Chapa webhook signature scheme~~ **Done** — `x-chapa-signature` signs the payload; `chapa-signature` signs the secret itself. The old code preferred the latter and checked it against the payload, so every legitimate delivery was rejected 401. We now require the payload-bound header: Chapa's docs say either is sufficient, but the constant one is replayable against any body once observed. **Still needs one sandbox round-trip against a live Chapa account.**
+- [ ] Shadow at least one payroll run against the worksheet in `docs/DEPLOYMENT.md`
+- [ ] **Have Amharic/Afaan Oromoo strings reviewed by an education-domain speaker.** 1104 keys are at full parity and none are English placeholders, but parity is not correctness — no automated check can tell you whether the Amharic for "provisionally accepted" reads right to an Ethiopian registrar. Export with `node scripts/i18n-review-export.mjs`.
+- [x] ~~Confirm every staff `auth.users` row has a linked `employees.user_id`~~ **Automated** — Settings → Health Monitoring lists unlinked staff accounts (`check_staff_employee_linkage()`). Payslip and leave policies join through `employees.user_id`, so an unlinked account sees an empty list rather than an error.
+- [x] ~~Run the RLS cross-tenant matrix~~ **Automated in CI** — the `rls-tests` job runs all five suites (42 assertions) on every push. Tenant A vs Tenant B returns zero rows for `students`, `payslips`, `fee_invoices`, `employees` including via embedded relations, and for `student-photos` storage objects.
+- [ ] Run the bracket-boundary property test (`npm run test`) against the final gazetted rates — the payroll SoD suite itself is now automated in CI
+- [x] ~~Back the in-memory rate limiter with a shared store~~ **Done** — `public.rate_limits` plus the atomic `consume_rate_limit()` RPC. Verified with 60 concurrent callers against one key at limit 10: exactly 10 allowed. Fails closed.
+- [ ] Configure Chapa/Telebirr/SMS-gateway credentials — either through `/platform/integrations` as super_admin (Vault-backed, no CLI access needed) or via `supabase secrets set` for infra-managed deployments; both are read by the Edge Functions, Vault first
+- [ ] Rotate all Edge Function secrets before go-live, **and the Supabase/Vercel deploy tokens**; confirm `service_role` key is never in `.env` files committed to git
+
+## Architecture reference
+
+[`docs/school-saas-architecture-blueprint.md`](docs/school-saas-architecture-blueprint.md)
+is the consolidated source blueprint — sections 1–15 plus Appendices A–E from
+v1.0, and sections 16–20 from the v2.0 extension (Internationalization,
+Ethiopian Calendar Architecture, HR & Payroll, Extended Module & Page
+Inventory, Data Models & Migrations). Code comments cite it by section
+(§6.2 route guards, §17.2 canonical date storage, §10.4 injection/XSS, …).
+
+One caveat: a few comments and the note at the top of this README cite **§21.9**
+for the INSA-alignment reasoning. The blueprint ends at §20 — that section is
+not in this document, so those particular references still do not resolve.

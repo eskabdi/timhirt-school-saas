@@ -1,0 +1,51 @@
+{
+  "name": "school-saas",
+  "private": true,
+  "version": "2.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "lint": "eslint src --ext .ts,.tsx",
+    "check:locales": "node scripts/check-locales.mjs",
+    "check:i18n": "node scripts/i18n-audit.mjs",
+    "gen:types": "supabase gen types typescript --local > src/lib/database.types.ts",
+    "predeploy": "rm -rf .vercel/output",
+    "deploy": "npm run predeploy && npx vercel deploy --prod"
+  },
+  "dependencies": {
+    "@hookform/resolvers": "^3.9.0",
+    "@pdf-lib/fontkit": "^1.1.1",
+    "@supabase/supabase-js": "^2.45.0",
+    "@tanstack/react-query": "^5.51.0",
+    "clsx": "^2.1.1",
+    "i18next": "^23.12.0",
+    "i18next-browser-languagedetector": "^8.0.0",
+    "i18next-icu": "^2.3.0",
+    "intl-messageformat": "^10.5.0",
+    "pdf-lib": "^1.17.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-hook-form": "^7.52.0",
+    "react-i18next": "^15.0.0",
+    "react-router-dom": "^6.24.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.6.0",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "autoprefixer": "^10.4.19",
+    "eslint": "^9.6.0",
+    "eslint-plugin-react": "^7.34.3",
+    "postcss": "^8.4.39",
+    "tailwindcss": "^3.4.4",
+    "typescript": "^5.5.3",
+    "typescript-eslint": "^8.0.0",
+    "vite": "^5.3.3",
+    "vitest": "^2.0.0"
+  }
+}
