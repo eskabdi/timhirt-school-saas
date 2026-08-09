@@ -1,3 +1,8 @@
+// Custom-role CRUD. Was PermissionsMatrixPage's sibling RolesPage.tsx --
+// relocated as a tab, logic unchanged. Since 20260817000006, a role's
+// permissions here take real effect via has_resource_permission() once a
+// user is assigned to it (Users tab), on the same resources the Permissions
+// Matrix tab covers.
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -35,7 +40,7 @@ const RoleFormSchema = z.object({
 
 type RoleFormData = z.infer<typeof RoleFormSchema>;
 
-export function RolesPage() {
+export function RolesTab() {
   const { t } = useTranslation();
   const { profile } = useSession();
   const queryClient = useQueryClient();
@@ -174,7 +179,7 @@ export function RolesPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-ink">{t("rolesPage.title")}</h1>
+        <p className="text-sm text-ink-faint">{t("rolesPage.effectNote")}</p>
         <Button variant="primary" onClick={() => setShowCreateDialog(true)}>
           {t("rolesPage.createRole")}
         </Button>

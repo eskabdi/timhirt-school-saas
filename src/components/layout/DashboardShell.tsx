@@ -121,9 +121,7 @@ const NAV: NavSection[] = [
       {
         key: "nav.section.settingsSystemAdmin",
         items: [
-          { to: "/settings/users", key: "nav.users", roles: ["school_admin"] },
-          { to: "/settings/roles", key: "nav.roles", roles: ["school_admin"] },
-          { to: "/settings/permissions-matrix", key: "nav.permissionsMatrix", roles: ["school_admin"] },
+          { to: "/settings/access", key: "nav.accessManagement", roles: ["school_admin"] },
           { to: "/settings/configuration", key: "nav.configuration", roles: ["school_admin"] },
           { to: "/settings/health-monitoring", key: "nav.healthMonitoring", roles: ["school_admin"] },
           { to: "/settings/audit-logs", key: "nav.auditLogs", roles: ["school_admin"] },
