@@ -15,7 +15,7 @@
 --      the resolution function's own independent tenant re-check.
 -- ============================================================================
 begin;
-select plan(9);
+select plan(12);
 
 insert into auth.users (instance_id, id, aud, role, email, encrypted_password,
   email_confirmed_at, created_at, updated_at, confirmation_token, email_change,
@@ -157,6 +157,42 @@ select is(
   coalesce(public.has_resource_permission('c1000002-0000-0000-0000-000000000002', 'employees', 'read'), false), false,
   'defense in depth: a user_roles row whose role_id belongs to a different tenant is not honored, even though the row itself passed the write policy previously (bypass simulation)'
 );
+
+-- ---------- 8. regression test for 20260817000007: role_permissions writes --
+-- were `for all` with only a tenant check, no admin check -- any tenant
+-- member holding a custom role could add/remove permissions on that same
+-- role_id (self-escalation) or any other role_id in their tenant. Proves a
+-- non-admin can neither grant nor revoke permissions, even for a role they
+-- themselves are assigned to, while read access is unaffected.
+set local role authenticated;
+set local request.jwt.claim.sub = 'c1000002-0000-0000-0000-000000000002'; -- teacher, assigned to role f0001
+
+select throws_ok(
+  $stmt$ insert into public.role_permissions (role_id, permission_id)
+         select 'c1000000-0000-0000-0000-0000000f0001', id from public.permissions where resource = 'payroll_runs' and action = 'update' $stmt$,
+  '42501', null, 'a non-admin cannot self-escalate by inserting into role_permissions for a role assigned to them');
+
+-- A DELETE blocked by RLS USING filters silently (0 rows matched), it does
+-- not raise -- same lesson hit repeatedly elsewhere in this suite.
+delete from public.role_permissions where role_id = 'c1000000-0000-0000-0000-0000000f0001';
+
+-- employees:read still has the known duplicate permissions-catalog rows
+-- (an old, unrelated catalog seed colliding with this feature's own row on
+-- the same resource+action) -- section 2's grant inserted one row per
+-- duplicate, so the role starts with 2 rows, not 1.
+select is(
+  (select count(*)::int from public.role_permissions where role_id = 'c1000000-0000-0000-0000-0000000f0001'), 2,
+  'a non-admin''s delete attempt is silently filtered to zero rows -- the role''s existing grants are untouched, and remain readable');
+reset role;
+
+set local role authenticated;
+set local request.jwt.claim.sub = 'c1000001-0000-0000-0000-000000000001'; -- school_admin, tenant A
+insert into public.role_permissions (role_id, permission_id)
+select 'c1000000-0000-0000-0000-0000000f0001', id from public.permissions where resource = 'payroll_runs' and action = 'update';
+reset role;
+select is(
+  (select count(*)::int from public.role_permissions where role_id = 'c1000000-0000-0000-0000-0000000f0001'), 3,
+  'a school_admin can still manage role_permissions -- the legitimate path is unaffected by the fix');
 
 select * from finish();
 rollback;
