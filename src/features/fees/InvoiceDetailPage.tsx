@@ -100,8 +100,12 @@ export function InvoiceDetailPage() {
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token}` },
         body: JSON.stringify({ invoice_id: id }),
       });
-      if (!res.ok) throw new Error("failed");
-      return res.json() as Promise<{ checkout_url: string }>;
+      // Read the body even on failure -- process-fee-payment returns a real
+      // reason (e.g. "Payment gateway is not configured yet") as JSON, which
+      // a bare `if (!res.ok) throw new Error("failed")` used to discard.
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body?.error || t("fees.payFailed"));
+      return body as { checkout_url: string };
     },
     onSuccess: (data) => { window.location.href = data.checkout_url; },
   });
@@ -212,6 +216,7 @@ export function InvoiceDetailPage() {
           </Button>
         </div>
         {downloadInvoice.isError && <p role="alert" className="mt-2 text-sm text-danger">{t("fees.errors.documentFailed")}</p>}
+        {pay.isError && <p role="alert" className="mt-2 text-sm text-danger">{pay.error instanceof Error ? pay.error.message : t("fees.payFailed")}</p>}
       </Card>
 
       {lastReceiptUrl && (

@@ -94,6 +94,7 @@ export function InvoicesPage() {
     },
   });
 
+  const [payError, setPayError] = useState<Record<string, string | null>>({});
   const pay = useMutation({
     mutationFn: async (invoiceId: string) => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -102,10 +103,16 @@ export function InvoicesPage() {
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token}` },
         body: JSON.stringify({ invoice_id: invoiceId }),
       });
-      if (!res.ok) throw new Error("failed");
-      return res.json() as Promise<{ checkout_url: string }>;
+      // Read the body even on failure -- process-fee-payment returns a real
+      // reason (e.g. "Payment gateway is not configured yet") as JSON, which
+      // a bare `if (!res.ok) throw new Error("failed")` used to discard.
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body?.error || t("fees.payFailed"));
+      return body as { checkout_url: string };
     },
+    onMutate: (invoiceId) => setPayError((m) => ({ ...m, [invoiceId]: null })),
     onSuccess: (data) => { window.location.href = data.checkout_url; },
+    onError: (e: unknown, invoiceId) => setPayError((m) => ({ ...m, [invoiceId]: e instanceof Error ? e.message : t("fees.payFailed") })),
   });
 
   const downloadInvoice = useMutation({
@@ -164,6 +171,7 @@ export function InvoicesPage() {
                       <Button variant="ghost" onClick={() => pay.mutate(inv.id)} disabled={pay.isPending}>{t("fees.payViaTelebirr")}</Button>
                     )}
                   </div>
+                  {payError[inv.id] && <p role="alert" className="mt-1 text-xs text-danger">{payError[inv.id]}</p>}
                 </td>
               </tr>
               );

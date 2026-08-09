@@ -136,7 +136,16 @@ export function FeeStructuresPage() {
   const remove = useMutation({
     mutationFn: async () => { const { error } = await supabase.from("fee_structures").delete().eq("id", deleting!.id); if (error) throw error; },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["fee-structures"] }); setDeleting(null); setError(null); },
-    onError: (e: unknown) => setError(e instanceof Error ? e.message : "Failed"),
+    // fee_invoices.fee_structure_id has no ON DELETE clause (defaults to
+    // RESTRICT) -- deleting a structure that already has invoices (the
+    // common case, since create auto-generates them) fails with 23503.
+    // Surface that as the specific reason rather than a raw Postgres
+    // message the admin has to decode, and keep the confirm modal open so
+    // it's actually visible instead of a banner hidden behind it.
+    onError: (e: unknown) => {
+      const code = e && typeof e === "object" && "code" in e ? (e as { code?: string }).code : undefined;
+      setError(code === "23503" ? t("crud.feeStructureInUse") : e instanceof Error ? e.message : "Failed");
+    },
   });
   const generate = useMutation({
     mutationFn: (feeStructureId: string) => generateFeeInvoices(feeStructureId),
@@ -256,10 +265,11 @@ export function FeeStructuresPage() {
         </div>
       </Modal>
 
-      <Modal open={!!deleting} onClose={() => setDeleting(null)} title={t("crud.deleteFeeStructure")}>
+      <Modal open={!!deleting} onClose={() => { setDeleting(null); setError(null); }} title={t("crud.deleteFeeStructure")}>
         <p className="text-sm text-ink-soft">{t("crud.delete")} <span className="font-medium text-ink">{deleting && tField(deleting.name_i18n, i18n.resolvedLanguage!)}</span>?</p>
+        {error && <p role="alert" className="mt-2 text-sm text-danger">{error}</p>}
         <div className="mt-4 flex justify-end gap-2 border-t border-line pt-3">
-          <Button variant="ghost" onClick={() => setDeleting(null)}>{t("common.cancel")}</Button>
+          <Button variant="ghost" onClick={() => { setDeleting(null); setError(null); }}>{t("common.cancel")}</Button>
           <Button variant="danger" onClick={() => remove.mutate()} disabled={remove.isPending}>{t("crud.delete")}</Button>
         </div>
       </Modal>
