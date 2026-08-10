@@ -434,4 +434,32 @@ under a real librarian login, not just `school_admin`).
 
 ---
 
+## Parent / Student Portals
+
+Isolation is genuinely correct — every cross-child, cross-student, and
+audience-targeting attempt made in this audit was blocked — and the one
+real gap (SMS) was already known and explicitly out of scope for this
+phase of the product, not a surprise.
+
+| Severity | What's wrong | Evidence (file:line or response) | Fix |
+|---|---|---|---|
+| Medium (known, not new) | **SMS delivery is not wired to anything.** `_shared/sms.ts`'s adapters (SMSala/AfroMessage/GeezSMS) exist with real request shapes, but grep across every Edge Function for a caller of any of them returns zero matches — nothing in this codebase ever sends an SMS today, Amharic or otherwise, so "announcements/SMS with Amharic encoding" only has an in-app half (which works — see below) and no SMS half. In-app Amharic content itself renders correctly (see Works). | Grep for `sms.ts`/`getActiveSmsProvider`/`smsalaAdapter` outside `_shared/sms.ts`: zero call sites. | Wire a real trigger (e.g. into `notifyBilling`/`notifyLibrary`) once an SMS provider account exists to test against — the adapter code is otherwise ready. |
+
+**Works:** Every isolation boundary tested held. A guardian's own child's
+record is visible (`students` by id → returns Abebe); the **same
+guardian querying a different, unrelated student directly by ID gets an
+empty result**, both for the student record itself and for that other
+student's `grades`. A **student** account gets an empty result querying
+another student's `attendance`, and correctly sees only their own `grades`
+row. Announcement audience-targeting is genuinely enforced, not
+cosmetic — live-verified with three real accounts: a `staff`-audience
+announcement was invisible to both the student and the guardian; a
+`parents`-audience announcement (with real Amharic title/body:
+"እባክዎ በሚቀጥለው ሳምንት የወላጆች ስብሰባ ላይ ይገኙ።") was correctly visible to the
+guardian with the Amharic text intact, and correctly invisible to the
+student account. `invoice_summary` (fee balance) correctly scopes to only
+the guardian's own child's invoice.
+
+---
+
 *(Audit in progress — remaining modules appended below as they are tested.)*
