@@ -462,4 +462,32 @@ the guardian's own child's invoice.
 
 ---
 
+## Super-Admin Console
+
+This module contains the single most important finding of the audit:
+**neither of the platform's two access-control levers — tenant suspension
+and per-tenant module/plan gating — actually restricts anything.** Both
+are real, clickable, confirmation-free actions in the console that update
+a database row and change nothing else. Everything else in this module
+(school list, cross-tenant usage/billing metrics, audit log search) is
+genuinely built and working.
+
+| Severity | What's wrong | Evidence (file:line or response) | Fix |
+|---|---|---|---|
+| **Critical** | **Suspending a tenant does not lock it out.** `tenants.status` has a `suspended` value and the console has a real "Suspend" button, but no RLS policy anywhere in the schema checks `tenants.status` — every policy scopes purely by `tenant_id` match. Live-verified end to end: set the QA tenant to `status: 'suspended'` as `super_admin`, then, with no other change, `school_admin` **logged in fresh** (200, real session), **read students** (200, full roster), and **created a new subject** (201) — all while the tenant showed as suspended. Grep for the word "suspended" outside the enum definition itself: zero matches anywhere in RLS or Edge Function code. A school that stops paying, or is suspended for a policy violation, keeps operating with zero technical restriction — the console's suspend button is a label change, not a control. | Live: `PATCH /rest/v1/tenants {status:"suspended"}` → `200`, followed by school_admin `POST /auth/v1/token` → `200`, `GET /rest/v1/students` → full roster `200`, `POST /rest/v1/subjects` → `201`. Grep for `suspended` across `supabase/migrations`: only the enum declaration (`20260713000001_core.sql`). Reverted to `active` immediately after the test. | Every RLS policy (or a single shared helper `get_tenant_id_for_user`/equivalent gate) needs to check the caller's tenant status and deny non-super_admin access when `suspended`. This is the highest-priority fix in the entire audit. |
+| **Critical** | **Module/plan gating is enforced nowhere except the sidebar.** Confirmed first by the code's own comment (`RequireModule.tsx:1-4`: *"UX-only gate... RLS/DB enforcement of module gating is a deliberate follow-up, not done here"*), then live-verified: disabled the `library` module for the QA tenant via `tenant_module_overrides` (the exact mechanism the console's plan/module toggle writes to), and `school_admin` **still read** `library_books` (200, full catalog) and **still created** a new book (201) directly against the table — completely bypassing the now-hidden nav link. A school on the cheapest plan has full API-level access to every module regardless of what they're paying for; only the sidebar link disappears. | `src/features/auth/RequireModule.tsx:1-18` (the comment + the actual gate, which only ever redirects a React Router route — never touches a query). Live: `POST /rest/v1/tenant_module_overrides {module_key:"library", enabled:false}` → `201`, then `GET /rest/v1/library_books` as school_admin → full list `200`, `POST /rest/v1/library_books` → `201`. Reverted immediately after. | Same shape of fix as suspension: module entitlement needs to be checked inside RLS (or a `has_module` security-definer helper called from each module's policies), not only in the React route guard. |
+| Medium | **The platform's own most powerful actions are completely unaudited.** Neither `tenants` nor `tenant_module_overrides` has an `audit_trigger` attached (every other governance-sensitive table in this codebase — `students`, `grades`, `employees`, `payments` — does). Suspending a school or toggling its paid modules leaves **zero** row in `audit_logs`, even though the platform's own Audit Log search (in `PlatformReportPage.tsx`) is a real, working feature for everything that *does* get logged. Live-confirmed: querying `audit_logs` for `table_name=tenants` on the QA tenant, immediately after the suspend/reactivate test above, returned an empty list. | Grep for `create trigger.*tenants` / `tenant_module_overrides` audit triggers across all migrations: no matches for either table. Live: `GET /rest/v1/audit_logs?table_name=eq.tenants` → `[]`, right after a real suspend + reactivate had just happened. | Attach `audit_trigger` to both tables — this is a small, contained fix and closes a real compliance gap on the platform's most sensitive actions. |
+| Medium | **Impersonation does not exist.** Grep for "impersonat" (any case) across the entire repository: zero matches, in either migrations or `src/`. A super_admin cannot "log in as" a tenant's admin for support purposes through any built mechanism — only the credential-level workaround this audit itself has been using (real invite links / temp passwords) would let anyone act as a tenant's user, and that's not a support tool, it's the onboarding mechanism. | Grep for `impersonat` (case-insensitive) repo-wide: no matches. | Never built — flagging for completeness, not implying urgency relative to the two Critical findings above. |
+
+**Works:** Tenant creation (see Onboarding), the platform-wide tenant list
+with plan/tier display, and **cross-tenant usage & billing metrics**
+(`PlatformReportPage.tsx` — student counts, invoice totals aggregated in
+real ETB across every tenant, using the super_admin's unscoped RLS branch
+deliberately, not a workaround) are all genuinely built and functioning,
+not stubs. **Audit log search itself works correctly** — the gap is not
+in the search feature, it's that two specific tables were never wired to
+produce log rows in the first place (see above).
+
+---
+
 *(Audit in progress — remaining modules appended below as they are tested.)*
