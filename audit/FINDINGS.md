@@ -517,4 +517,42 @@ against either pre-existing tenant succeeded at any point in this audit.
 
 ---
 
+## Domain-Conformance Sweep (ETB, calendar, timezone, fonts, i18n, address)
+
+The two actual CI gates for this concern both pass cleanly against the
+real codebase, and every live-rendered document/date checked throughout
+this audit was correct; the one gap found is a calendar preference that
+saves successfully but is never read back by anything.
+
+| Severity | What's wrong | Evidence (file:line or response) | Fix |
+|---|---|---|---|
+| Medium | **The "Show Ge'ez numerals" calendar preference is a dead setting.** `CalendarPreferencesPage.tsx` saves `tenant_configs.settings.calendar.geezNumerals` correctly (confirmed: the QA tenant's row round-trips it), but nothing anywhere else in the app ever reads it back. `<EthDate/>`'s `geez` prop defaults to `false` and grep confirms **zero** call sites anywhere in `src/` pass `geez={...}` at all — the toggle a school_admin flips in Settings has no effect on a single date displayed anywhere in the product. (The `toGeez()` conversion function itself is correct — proper ፩–፱/፲–፺/፻ numeral construction, verified by reading it — it's simply never invoked with the tenant's actual preference.) | `src/features/settings/CalendarPreferencesPage.tsx:14,24,30` (save-only). `src/components/EthDate.tsx:32,34` (`geez = false` default). Grep for `geez={` across `src/`: zero matches anywhere outside that one settings page. | Wire the tenant's `calendar.geezNumerals` setting into whatever renders `<EthDate/>` app-wide (most naturally via a context/hook alongside the existing locale context), or remove the toggle until it does something. |
+
+**Works:** Both of this repo's actual automated gates for this concern
+pass cleanly against the real codebase, run live in this audit (not
+assumed): `npm run check:locales` → `2057/135/18` keys with full
+en/am/om parity across the `common`/`apply`/`calendar` namespaces, zero
+drift; `npm run check:i18n` → `0` hardcoded strings detected. Grep for
+`toLocaleDateString` across `src/` found zero live usages (the only match
+is a comment explaining why the code deliberately avoids it). ETB
+formatting was correct on every real document generated in this audit —
+invoices, receipts, payslips (`ETB 1500.00`-style, no `$`, correct
+rounding) — see Fees and Payroll. Ethiopian-calendar correctness held
+throughout: `academic_years`/`academic_terms` EC↔GC conversion, term
+boundary math, and `<EthDate/>`/`formatEth` rendering were all correct
+wherever exercised across the audit. Arabic numerals are used everywhere
+by default (`geezNumerals: false`), and — as a side effect of the dead
+setting above — can never leak in accidentally even if a school enables
+the toggle, which is a safe failure mode even though the feature itself
+doesn't work. `Africa/Addis_Ababa` (fixed UTC+3, no DST) is handled
+correctly and explicitly where a same-day local-date decision actually
+matters (`process-library-circulation/index.ts`'s `todayLocal()`).
+Ethiopic (Noto Serif Ethiopic) genuinely renders correctly in generated
+PDFs, not just in-app — see the Admissions module's live ID-card test.
+Region/Zone/Woreda/Kebele address cascading does not exist (plain
+free-text fields) — already documented in the Admissions module, not
+repeated here.
+
+---
+
 *(Audit in progress — remaining modules appended below as they are tested.)*
