@@ -305,4 +305,36 @@ student in a source class to its target in one call, or flips them to
 
 ---
 
+## Fees
+
+This is the most solid money-handling module in the audit: fee structures,
+bulk invoice generation with real dedup and header consolidation, partial
+payment allocation, over-payment rejection, and receipt generation all
+work correctly and were live-verified end-to-end in ETB.
+
+| Severity | What's wrong | Evidence (file:line or response) | Fix |
+|---|---|---|---|
+| Low | Invoice/receipt document numbers (`INV-2026-920A6587`, `RCP-2026-DA67A4B4`) are `{PREFIX}-{year}-{random hex}`, not sequential/gapless. Some school accounting practices expect strictly sequential numbering for audit purposes; this scheme is unguessable (a real security plus — prevents enumeration) but not sequential. Flagging for the school to weigh, not asserting it's wrong. | Live: `abebe_invoice.pdf` (`INV-2026-920A6587`), `receipt2.pdf` (`RCP-2026-DA67A4B4`). | If sequential numbering is required, add a per-tenant sequence and keep the random verify-code separately for the QR/anti-enumeration purpose — the two don't have to be the same string. |
+| — (not a defect, noted for completeness) | The gateway-payment replay/out-of-order-idempotency guard (`settle_gateway_payment`) could not be exercised **live end-to-end through a real webhook** in this audit — it's only reachable through `telebirr-notify`/`telebirr-query-order`, and this session has no live Telebirr testbed credentials (the same "genuinely blocked on live testbed credentials" limitation the Telebirr build itself documents). What *was* verified: the function is revoked from `anon`/`authenticated` (service_role only, confirmed via migration), its replay guard is a `webhook_events` insert with `id text primary key` keyed to the provider's tx_ref — so a replayed tx_ref hits a real Postgres unique-violation and returns `'duplicate'` before any credit logic runs — and the entire credit/mark-paid sequence executes inside one PL/pgSQL function body, which Postgres runs as a single implicit transaction, so a mid-function error cannot leave a half-credited invoice. This was also pgTAP-verified earlier in this project's history. Flagging the live-webhook gap honestly rather than fabricating a test that wasn't actually run. | `supabase/migrations/20260820000001_invoice_consolidation.sql:217-254` (function body), `:255` (`revoke all ... from public, anon, authenticated`). `supabase/migrations/20260713000003_attendance_grades_fees.sql:113-117` (`webhook_events.id text primary key`). | When live Telebirr testbed credentials become available, run a real notify → replay → out-of-order sequence against them, matching the plan this repo already wrote for that gap. |
+
+**Works — all live-verified end to end, real ETB amounts, real PDFs:**
+Fee structures scope correctly (whole-school tested here; grade/class/cycle
+scoping columns confirmed via schema). `generate-fee-invoices` correctly
+deduplicates (4 matched, 1 already-invoiced student correctly skipped, 3
+new invoices created) and correctly consolidates onto one open
+`invoice_headers` row per student/due-date rather than creating duplicates.
+`record-fee-payment` correctly allocates a **partial** payment (500 of
+1500 ETB → `status:"partial"`), correctly **rejects** an over-payment
+attempt (2000 ETB against a 1000 ETB remaining balance →
+`amount_exceeds_balance`, 400 — over-payment is actively prevented, not
+mishandled), and correctly closes an invoice to `status:"paid"` exactly
+when the final payment brings `amount_paid` to `amount_due` (1500/1500).
+Receipt PDFs render correctly in ETB (`ETB 1500.00`, no `$`), show the
+correct running balance (`Balance after this payment: ETB 0.00`), and
+include a working QR verify code. `invoice_summary` (the view backing the
+Invoices ledger and its outstanding-balance reporting) correctly reflects
+real per-student status after all of the above.
+
+---
+
 *(Audit in progress — remaining modules appended below as they are tested.)*
