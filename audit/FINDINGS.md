@@ -337,4 +337,31 @@ real per-student status after all of the above.
 
 ---
 
+## HR / Staff
+
+Employee records, contracts, self-service leave, and document storage all
+work correctly and are properly audited; the one real gap is that leave
+can only ever be filed by the employee's own portal login, with no path
+for HR to record leave on behalf of staff who don't have one.
+
+| Severity | What's wrong | Evidence (file:line or response) | Fix |
+|---|---|---|---|
+| Medium | **Leave requests can only be self-filed — no HR/admin-on-behalf-of path.** `leave_file_own` (the only INSERT policy on `leave_requests`, unchanged by the later permissions-matrix rewrite) requires the caller to be the employee themselves. Live-verified: `school_admin` attempting to insert a leave request for an employee got `403 new row violates row-level security policy`; the same insert succeeded once made by the employee's own logged-in account. A school with support staff who have no portal login (common — not everyone gets an account) has no way to record their leave at all. | Live: `POST /rest/v1/leave_requests` as `school_admin` on behalf of another employee → `403`. Same payload as the employee's own session → `201`. `supabase/migrations/20260713000005_rls_policies.sql:299` (`leave_file_own`, insert restricted to the filer's own `employees.user_id`). | Add an HR-officer/school_admin insert path (mirroring how `enroll-finalize-billing` lets a registrar do something RLS alone wouldn't) for staff without portal accounts. |
+
+**Works:** Employee records (`employees`) create correctly with PII column
+grants properly enforced — `tin_number`/`pension_no`/`bank_account` are
+revoked from the generic `authenticated` role at the column level, exactly
+as documented. Employment contracts (`employment_contracts`) record real
+ETB basic salary, contract type, and start date correctly. Leave types are
+configurable per tenant. Self-service leave submission is correctly
+RLS-gated to the filing employee, defaults to `pending`, and a
+`school_admin` approval correctly transitions it to `approved` with
+`decided_by`/`decided_at` stamped. Employee documents use a real private
+Storage bucket (`documents`) with signed URLs, not a stub. `employees`,
+`employment_contracts`, and `leave_requests` all carry a real
+`audit_trigger`, consistent with this module's overall good governance
+posture (a notable contrast to Attendance's missing audit trail).
+
+---
+
 *(Audit in progress — remaining modules appended below as they are tested.)*
