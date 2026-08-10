@@ -29,7 +29,7 @@ period auto-seed silently produces zero rows.
 
 | Severity | What's wrong | Evidence (file:line or response) | Fix |
 |---|---|---|---|
-| Medium | `onboard-tenant` unconditionally inserts 9 `periods` rows (Period 1-8 + Break) for the new tenant, but production has **zero** period rows for the new tenant after a successful 201 response — confirmed still zero hours later, unrelated to any race condition. A school_admin logging into a brand-new tenant finds the Timetable Editor with no periods to place anything into. Not a dead end, though: `TimetableEditorPage.tsx` has a self-service "seed standard shift" one-click action offered exactly when a shift has no periods yet, so the gap is recoverable without support intervention — downgraded from an initial High assessment once that workaround was found. | `supabase/functions/onboard-tenant/index.ts:99-109` (insert code, silently produces 0 rows) vs. live `GET /rest/v1/periods?tenant_id=eq.ea037a5b-963f-499c-91a8-5d507a2b123b` → `content-range: */0`, both immediately after onboarding and again after unrelated work. Function returned 201 with `{tenant_id, ec_year}`, no error surfaced. Workaround: `TimetableEditorPage.tsx:187-199` `seedShiftPeriods` mutation, live-tested working (see Scheduling module). | Root-cause the silent failure (no Edge Function log access via REST here; reproduce the insert directly against the same shape to surface the real Postgres error — likely worth checking for an RLS/service-role mismatch specific to this one insert in the function). Low urgency given the in-app recovery path exists and is one click. |
+| Medium | `onboard-tenant` unconditionally inserts 9 `periods` rows (Period 1-8 + Break) for the new tenant, but production has **zero** period rows for the new tenant after a successful 201 response — confirmed still zero hours later, unrelated to any race condition. A school_admin logging into a brand-new tenant finds the Timetable Editor with no periods to place anything into. Not a dead end, though: `TimetableEditorPage.tsx` has a self-service "seed standard shift" one-click action offered exactly when a shift has no periods yet, so the gap is recoverable without support intervention — downgraded from an initial High assessment once that workaround was found. **This turns out to be one of two confirmed instances of the same class of gap — onboarding not keeping pace with new tenant-scoped default-settings tables — see `library_settings` in the Library module below (a different mechanism: that insert is never attempted at all, rather than attempted and silently failing, but the practical effect on a new school is the same shape of gap).** | `supabase/functions/onboard-tenant/index.ts:99-109` (insert code, silently produces 0 rows) vs. live `GET /rest/v1/periods?tenant_id=eq.ea037a5b-963f-499c-91a8-5d507a2b123b` → `content-range: */0`, both immediately after onboarding and again after unrelated work. Function returned 201 with `{tenant_id, ec_year}`, no error surfaced. Workaround: `TimetableEditorPage.tsx:187-199` `seedShiftPeriods` mutation, live-tested working (see Scheduling module). | Root-cause the silent failure (no Edge Function log access via REST here; reproduce the insert directly against the same shape to surface the real Postgres error — likely worth checking for an RLS/service-role mismatch specific to this one insert in the function). Low urgency given the in-app recovery path exists and is one click; see the Library module for the systemic fix recommendation. |
 
 **Works:** tenant row created (`status='trial'`), `public.users` row created
 with correct `role='school_admin'` + `tenant_id`, invite email sent and its
@@ -399,6 +399,38 @@ excluded from the run (reported in `skipped_no_salary`) rather than
 silently minting a real ETB 0 "paid" payslip for them. No salary figures
 are ever written to server logs, matching the file's own stated INSA
 intent.
+
+---
+
+## Library
+
+Circulation is atomic and race-safe, holds and duplicate-hold rejection
+work, and librarian scope is correctly enforced; the one defect is the
+same onboarding-drift pattern already found in Scheduling, now confirmed
+in a second table.
+
+| Severity | What's wrong | Evidence (file:line or response) | Fix |
+|---|---|---|---|
+| Medium | **`library_settings` has the same class of onboarding-drift gap already found for `periods` (Scheduling module) — a second confirmed instance, though a different mechanism (never attempted, vs. attempted-and-silently-failed for `periods`).** The row is seeded by a one-time backfill (`insert into library_settings select id from tenants on conflict do nothing`, run once when that migration shipped) that `onboard-tenant` never mirrors for tenants created afterward. Live-confirmed: the QA tenant had **zero** `library_settings` rows. Unlike `periods`, this doesn't block the feature — both `library_checkout()` and `library_return()` defensively `coalesce()` every setting they read (`max_active_checkouts` → 3, `fine_per_day` → 0) — but the practical effect is a new school's fine rate is silently **0 ETB/day** (no fines ever charged) until someone happens to visit Library Settings and save a real value, with nothing prompting them to. | Live: `GET /rest/v1/library_settings?tenant_id=eq.<QA tenant>` → `[]`. `supabase/migrations/20260813000002_library_rebuild.sql:207-210` (one-time backfill) vs. `supabase/functions/onboard-tenant/index.ts` (no `library_settings` insert anywhere in the function). Coalesce confirmed at `:408` (`coalesce(v_max, 3)`) and `:459,461` (`coalesce(fine_per_day, 0)`, `coalesce(v_fine, 0)`). | Since this is now a confirmed two-instance pattern (see Scheduling module too), fix it once at the root: have `onboard-tenant` seed every tenant-scoped settings table a fresh school needs (`periods`, `library_settings`, and audit for any others following the same shape) instead of relying on each migration's one-time backfill to somehow stay current. |
+
+**Works:** Checkout is genuinely atomic — `library_checkout()` takes a
+per-(tenant, student) advisory lock and re-checks copy availability
+`for update` inside the transaction, live-verified end to end (checked out
+a real copy to a real student, correct 14-day-out due date computed with
+the Africa/Addis_Ababa-aware `+3h` local-date logic, not a raw UTC date).
+Returns correctly flip the copy back to `available` and correctly computed
+a genuine `fine_amount: 0` for an on-time return — the overdue/nonzero-fine
+arithmetic itself (`days_late × fine_per_day`, no cap) was verified by
+reading `library_return()`'s SQL rather than forced live, because
+`library_checkouts` turns out to be properly write-protected: a direct
+`PATCH` attempting to backdate a checkout's `due_on` silently matched zero
+rows (confirmed by re-reading the row afterward) — the table has no direct
+authenticated write path at all, only the vetted, atomic RPC can touch it,
+which is itself a good integrity property worth recording. Holds work
+correctly, including genuine duplicate-hold rejection via a partial unique
+index (`already_on_hold`, live-verified). The librarian role is correctly
+authorized for circulation end to end (checkout/return/hold all succeeded
+under a real librarian login, not just `school_admin`).
 
 ---
 
