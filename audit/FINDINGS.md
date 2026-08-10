@@ -279,4 +279,30 @@ codebase — it's only the separate, always-"—" "Current GPA" stat card
 
 ---
 
+## Promotion / Graduation
+
+A real, working bulk promotion feature exists — but it has no atomicity
+across the classes in one run, its own capacity warning is purely visual
+and doesn't stop the operation, there's no undo, and the two document
+outputs a real school expects at this workflow stage (a graduating cohort
+report, a leaving certificate) don't exist.
+
+| Severity | What's wrong | Evidence (file:line or response) | Fix |
+|---|---|---|---|
+| High | **Promotion silently bypasses class capacity.** `PromotionPage.tsx` computes `overCapacity` and renders a red warning line under the target-class dropdown, but never uses it to disable the "Run promotion" button or block the mutation — it's decoration, not a guard. Live-verified: promoted 2 students (Fasika, Yonas) into a freshly-created Grade 10-A section with `capacity: 1`; both landed in it with no error. Contrast with Admissions, where `enroll_admission_application()` genuinely enforces the same capacity concept server-side — promotion goes through a bare `students` table `UPDATE` with no equivalent guard at any layer. | `src/features/settings/PromotionPage.tsx:149` (`overCapacity` computed) vs. `:177-179` (`Button` never reads it, `disabled` only checks `!sourceClasses?.length`). Live: `PATCH /rest/v1/students?class_id=eq.<Grade9>&status=eq.active {class_id:<Grade10, capacity 1>}` → `204`, both students landed there. | Move the capacity check server-side (a trigger on `students`, or route the update through a checked RPC the same way enrollment already does) rather than leaving it as a client-only cosmetic warning. |
+| Medium | **The whole promotion run is not atomic.** `promote.mutate()` loops over source classes and issues one separate `await supabase.from("students").update(...)` per class, sequentially, with no transaction and no RPC wrapping them together. If the browser closes, the network drops, or any later class's update throws, the classes already processed stay promoted and the rest don't — with no way to tell, after the fact, which run partially completed short of manually diffing every class roster. | `src/features/settings/PromotionPage.tsx:81-101` (the `for` loop, one `await` per class, no transaction/RPC). | Wrap the whole batch in a single `SECURITY DEFINER` Postgres function (same pattern already used for `enroll_admission_application`) so a partial failure genuinely rolls back everything, not just the one class it was on. |
+| Medium | **No undo.** Once run, there's no "reverse this promotion" action anywhere in the product. `students` does have `audit_trigger` attached (so `audit_logs` technically holds the prior `class_id` for anyone willing to reconstruct it by hand from raw JSON), but there's no UI or function that uses that to actually revert a run. | Grep for "undo"/"revert" near promotion: no matches. `audit_students` trigger confirmed present (`supabase/migrations/20260713000002_academic.sql:89`) as the only thing preserving the "before" state. | A dedicated revert action reading the relevant `audit_logs` rows for a given promotion batch would close this — the raw data to do it already exists. |
+| Medium | **No leaving certificate and no graduating-cohort report exist.** Setting a section to "Graduate" just flips `students.status` to `'graduated'` — no PDF, no document, no batch report of "everyone who graduated in EC year X" (there's no graduation-year/cohort column on `students` at all, so even a manual report couldn't reconstruct "who graduated when" once the moment passes). This repo's only document generators are ID cards, transcripts, and fee invoices/receipts — none of them cover a leaving/graduation certificate. | `src/features/settings/PromotionPage.tsx:88-92` (bare `status: "graduated"` update, no document call). Grep for "leaving certificate"/cohort tracking across the repo: no matches; `students` schema (`supabase/migrations/20260713000002_academic.sql:65-84`) has no graduation-year column. | Add a `graduated_ec_year` (or similar) column stamped at promotion time, and a document generator reusing the existing transcript/ID-card PDF infrastructure for a leaving certificate. |
+| Low | Requesting `return=representation` on a `students` `UPDATE` (a one-line, easy-to-reach-for change for a future developer chaining `.select()` after `.update()`) fails outright for every `authenticated` caller with a confusing `permission denied for table students` — caused by `revoke select (medical_notes) on public.students from authenticated` (§10.4/PII hardening) combined with PostgREST's implicit `select *` for the returned row. Not a live bug today (the current code never requests it), but a landmine for the next person who does. | Live: identical `PATCH` with `Prefer: return=representation` added → `403 permission denied for table students`; the same call without it → `204`. `supabase/migrations/20260713000002_academic.sql:93` (the revoke). | Worth a one-line comment on the `students` table or the revoke itself warning that `return=representation` breaks for this specific table. |
+
+**Works:** The core promote-or-graduate mechanism itself is real:
+`PromotionPage.tsx` correctly lists source/target academic years, pre-fills
+an unambiguous grade+1 class mapping when exactly one candidate exists,
+lets an admin override any mapping or mark a class "Graduate" instead, and
+the underlying `UPDATE` (capacity aside) genuinely moves every active
+student in a source class to its target in one call, or flips them to
+`status='graduated'` when that's the choice.
+
+---
+
 *(Audit in progress — remaining modules appended below as they are tested.)*
