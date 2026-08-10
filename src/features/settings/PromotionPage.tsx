@@ -78,32 +78,56 @@ export function PromotionPage() {
     });
   }, [sourceClasses, targetClasses]);
 
+  const [promoteError, setPromoteError] = useState<string | null>(null);
+
+  // A move is over capacity if its mapped target's current enrollment plus
+  // every OTHER source class also mapped to that same target in this batch
+  // would exceed capacity -- mirrors the server-side check in
+  // promote_students_batch so the button disables correctly even when two
+  // source classes only overflow a shared target in combination.
+  const overCapacityClassIds = new Set(
+    (sourceClasses ?? [])
+      .filter((s) => {
+        const choice = mapping[s.id];
+        if (!choice || choice === GRADUATE) return false;
+        const target = targetClasses?.find((t) => t.id === choice);
+        if (!target || target.capacity == null) return false;
+        const incoming = (sourceClasses ?? [])
+          .filter((other) => mapping[other.id] === choice)
+          .reduce((a, other) => a + other.enrolled, 0);
+        return target.enrolled + incoming > target.capacity;
+      })
+      .map((s) => s.id),
+  );
+  const hasCapacityConflict = overCapacityClassIds.size > 0;
+
   const promote = useMutation({
     mutationFn: async () => {
       if (!sourceClasses) return;
-      let promoted = 0, graduated = 0;
-      for (const s of sourceClasses) {
-        const choice = mapping[s.id];
-        if (!choice || s.enrolled === 0) continue;
-        if (choice === GRADUATE) {
-          const { error } = await supabase.from("students")
-            .update({ status: "graduated" }).eq("class_id", s.id).eq("status", "active");
-          if (error) throw error;
-          graduated += s.enrolled;
-        } else {
-          const { error } = await supabase.from("students")
-            .update({ class_id: choice }).eq("class_id", s.id).eq("status", "active");
-          if (error) throw error;
-          promoted += s.enrolled;
-        }
-      }
-      return { promoted, graduated };
+      const moves = sourceClasses
+        .filter((s) => mapping[s.id] && s.enrolled > 0)
+        .map((s) => {
+          const choice = mapping[s.id]!;
+          return choice === GRADUATE
+            ? { source_class_id: s.id, graduate: true }
+            : { source_class_id: s.id, target_class_id: choice };
+        });
+      if (!moves.length) return null;
+      const { data, error } = await supabase.rpc("promote_students_batch", { p_moves: moves });
+      if (error) throw error;
+      const row = Array.isArray(data) ? data[0] : data;
+      return { promoted: row?.promoted_count ?? 0, graduated: row?.graduated_count ?? 0 };
     },
     onSuccess: (r) => {
+      setPromoteError(null);
       if (!r) return;
       setResult(`${r.promoted} student(s) promoted, ${r.graduated} graduated.`);
       qc.invalidateQueries({ queryKey: ["promotion-source-classes"] });
       qc.invalidateQueries({ queryKey: ["promotion-target-classes"] });
+    },
+    onError: (e) => {
+      setResult(null);
+      setPromoteError(e instanceof Error ? e.message : String(e));
     },
   });
 
@@ -145,8 +169,7 @@ export function PromotionPage() {
             </thead>
             <tbody>
               {sourceClasses?.map((s) => {
-                const target = targetClasses?.find((t) => t.id === mapping[s.id]);
-                const overCapacity = target?.capacity != null && target.enrolled + s.enrolled > target.capacity;
+                const overCapacity = overCapacityClassIds.has(s.id);
                 return (
                   <tr key={s.id} className="border-b border-line last:border-0">
                     <td className="p-3">{s.name} {s.section}{s.grade_level != null ? ` (grade ${s.grade_level})` : ""}</td>
@@ -173,9 +196,10 @@ export function PromotionPage() {
       )}
 
       {result && <p className="text-sm text-ok">{result}</p>}
+      {promoteError && <p className="text-sm text-danger">{promoteError}</p>}
 
-      <Button onClick={() => promote.mutate()} disabled={!sourceClasses?.length || promote.isPending}>
-        {promote.isPending ? "Promoting…" : "Run promotion"}
+      <Button onClick={() => promote.mutate()} disabled={!sourceClasses?.length || promote.isPending || hasCapacityConflict}>
+        {promote.isPending ? t("promotion.promoting") : t("promotion.runPromotion")}
       </Button>
     </div>
   );
