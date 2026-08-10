@@ -555,4 +555,43 @@ repeated here.
 
 ---
 
-*(Audit in progress — remaining modules appended below as they are tested.)*
+## Five Things to Fix First
+
+Ranked by actual impact, not by where they happened to surface:
+
+1. **Enable RLS on `resource_open_actions` and `resource_default_role_grants`.** Any authenticated user of any role, in any single tenant, can currently rewrite these two global tables and change authorization behavior for every tenant on the platform at once — live-verified by granting a `student` role platform-wide `payroll_runs:create` access with a single unauthenticated-in-spirit `POST`. Nothing else in this list matters if this one isn't fixed, because a bad actor could use it to undo any of the other four fixes' effects. *(Cross-Tenant Isolation)*
+2. **Make tenant suspension actually restrict access.** `status: 'suspended'` is checked by zero RLS policies anywhere — a suspended school's `school_admin` logged in, read the full student roster, and created new records with no restriction whatsoever, live-verified end to end. *(Super-Admin Console)*
+3. **Make module/plan gating enforce server-side, not just hide a sidebar link.** The code's own comment already admits this is "a deliberate follow-up, not done here" — live-verified by disabling the `library` module for a tenant and then reading and writing `library_books` anyway, directly against the table. A school on the cheapest plan has full API access to every feature. *(Super-Admin Console)*
+4. **Add class scoping to Grading.** `exams`/`grades` have no `class_id` at all, so every score-entry screen shows the entire school's roster in one flat list with no way to narrow it — unusable at any real school size, and nothing stops a score landing against the wrong student's record. *(Grading)*
+5. **Give Attendance a real audit trail and gate retroactive edits.** `attendance` is the one governance-sensitive table in this schema with no `audit_trigger` — a teacher or admin can silently rewrite any past date's record, live-verified, with zero trace left anywhere, in a workflow (daily attendance) that directly feeds into a family-facing statistic. *(Attendance)*
+
+## Features Never Built
+
+Grouped by the module that surfaced them; each was checked by grep across
+the whole repository, not assumed absent from a single page not being
+found.
+
+- **Duplicate-applicant detection** (Admissions) — the same person can apply twice with no warning to the reviewer.
+- **Transfer in/out** (Admissions) — `student_status` has a `transferred` value and a list filter for it, but nothing ever sets it.
+- **Region/Zone/Woreda/Kebele address cascading** (Admissions) — plain free-text fields, no administrative-division list.
+- **Per-period attendance** (Attendance) — only whole-day marking exists; no schema or UI path to mark attendance separately each class period.
+- **Guardian notification on attendance events** (Attendance) — marking a student absent/late triggers nothing.
+- **Class rank** (Grading) — no calculation anywhere, in the UI or any generated document.
+- **The configured grading scale actually being applied to a score** (Grading / Report Cards) — the settings page to define A/B/C/D/F bands exists and is never read by anything; the one place that does show letter grades (the transcript PDF) uses a different, hardcoded scale instead.
+- **Exam scheduling** (Exams) — no date, time, or room on an "exam" record; it's purely an assessment-type definition.
+- **Seating charts** (Exams) — zero references anywhere in the repository.
+- **Result publication / release gate** (Exams) — a score is visible to the student and guardian the instant it's saved, with no draft/hold state.
+- **Unpaid-balance blocking on exam results or report cards** (Exams) — no fee-balance check gates grade visibility anywhere.
+- **Class-level batch report card generation** (Report Cards) — the page and button exist; the button has no click handler at all.
+- **Conduct / homeroom-teacher remarks on the transcript** (Report Cards) — the underlying Behavioral-tab data exists; the transcript generator never reads it.
+- **Promotion undo/reversal** (Promotion) — no way to revert a completed promotion run through the product.
+- **Leaving certificates and a graduating-cohort report** (Promotion) — graduating a student just flips a status flag; no document, no cohort-year tracking.
+- **Bank-transfer/disbursement file export** (Payroll) — a payroll run offers only individual payslip PDFs, no batch file for a bank upload.
+- **HR/admin-on-behalf-of leave filing** (HR) — leave can only be self-filed by an employee's own portal login; no path for staff without one.
+- **SMS delivery** (Parent/Student Portals) — the provider adapters exist in code; nothing anywhere calls them.
+- **Impersonation** (Super-Admin Console) — no "log in as a tenant's admin" support tool exists.
+- **The "Show Ge'ez numerals" preference actually affecting any displayed date** (Domain Conformance) — the setting saves correctly and is never read back by the date-rendering component.
+
+---
+
+*Audit complete. All test data is confined to the `QA - Harar Model Secondary School` tenant (`qa-harar-model`) and is removed by `audit/cleanup_qa_school.sql`. No pre-existing tenant was modified at any point.*
