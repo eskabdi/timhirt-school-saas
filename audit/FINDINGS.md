@@ -166,4 +166,37 @@ classes and teachers. This is a solid, well-designed piece of the product.
 
 ---
 
+## Attendance
+
+Daily roster marking works correctly, including a genuinely-enforced
+holiday block and server-stamped `recorded_by`; but the module only ever
+existed at day-granularity, one status value is wired into the data model
+and dashboard yet unreachable from any marking UI, and retroactive edits
+are both unrestricted and completely invisible.
+
+| Severity | What's wrong | Evidence (file:line or response) | Fix |
+|---|---|---|---|
+| High | **Retroactive attendance edits are unrestricted and leave zero trail.** Any actor who can mark attendance at all (a teacher of that class, or `school_admin`/anyone `has_resource_permission(attendance, update)`) can silently rewrite any past date's record with no separate approval, no date-window limit, and — critically — `public.attendance` has no `audit_trigger` attached (unlike `students`/`guardians`, which do). Live-verified: flipped an already-saved "present" record to "absent" for a prior date; `audit_logs` showed `content-range: */0` both immediately before and immediately after, for `table_name=attendance` in this tenant. `recorded_at` also doesn't refresh on `UPDATE` (no `set_updated_at`-style trigger), so a retroactively-edited row is byte-for-byte indistinguishable from one marked correctly on the day. | Live: two `GET /rest/v1/audit_logs?...table_name=eq.attendance` calls (before/after) both `content-range: */0`. `supabase/migrations/20260713000003_attendance_grades_fees.sql:36` (only trigger on the table is `attendance_guard`, holiday-block + `recorded_by` stamp — no audit). | Attach an audit trigger to `attendance` (or a purpose-built one that also captures "changed N days after the fact"); consider gating an edit older than some threshold behind a stricter permission than the one used for same-day marking. |
+| Medium | **No per-period attendance exists** — only whole-day. `public.attendance`'s unique key is `(tenant_id, student_id, attendance_date, class_id)`; there is no `period_id` column and no marking UI that offers one. A secondary school that wants attendance taken separately each class period (not just once a day) has no path to that at all. | `supabase/migrations/20260713000003_attendance_grades_fees.sql:10-20` (schema). `src/features/attendance/AttendanceMarkingPage.tsx` — one roster, one date, one status per student, no period selector anywhere. | Would need a schema change (add `period_id`, widen the unique key) plus a marking-UI rework — a real feature, not a quick fix; flagging as a gap for the school to weigh, since many Ethiopian primary/lower-secondary schools genuinely only need daily marking. |
+| Medium | **`half_day` is a dead status** — added to the `attendance_status` enum and aggregated by the dashboard RPC, but no marking UI ever offers it. `AttendanceMarkingPage.tsx`'s `STATUSES` constant is hardcoded to `["present","absent","late","excused"]`; there is no fifth button/segment for it anywhere. A record can only ever become `half_day` via a direct database write. | `supabase/migrations/20260729000001_attendance_half_day.sql:18` (enum value added) + `supabase/migrations/20260729000002_dashboard.sql:155,164` (dashboard RPC counts it) vs. `src/features/attendance/AttendanceMarkingPage.tsx:13-14` (`STATUSES` missing it entirely). | Add `half_day` to `STATUSES`/`TONE` in the marking page (small, contained change) — the backend and reporting side are already built and waiting for it. |
+| Medium | **No guardian notification exists for attendance at all** — marking a student absent/late triggers nothing: no `portal_notifications` row, no SMS (the SMS interface exists but has zero callers anywhere per this repo's own design — see Fees module), no email. A parent only ever finds out by checking the portal themselves. | Grep across the whole repo for any attendance→notification link: zero matches. Compare to Fees, where `notifyBilling()` genuinely fires on invoice/payment events (`enroll-finalize-billing/index.ts:156,178`). | Out of scope for a quick fix (no SMS provider is actually wired yet either — see Fees/Integrations), but worth listing explicitly as never built, since it's one of the more commonly expected features of a school attendance system. |
+
+**Works:** Roster-based daily marking (pick a class + date, mark every
+student with a segmented present/absent/late/excused control, save as one
+batch) writes correctly via `upsert` on the natural key, so re-saving the
+same day never duplicates. The holiday-block trigger is **genuinely
+enforced**, not decorative — live-verified by creating a real
+`calendar_events` "national" holiday row and then attempting to mark
+attendance on that exact date: rejected with `attendance_blocked_holiday`
+(400), exactly matching what the marking page's `holidayBlocked` banner is
+built to surface. `recorded_by` is stamped server-side by the trigger
+(`new.recorded_by := auth.uid()`), never trusted from the client, so a
+forged "recorded by" value isn't possible via a direct API call either.
+RLS correctly scopes writes to either a teacher of that specific class
+(`is_teacher_of_class(class_id)`) or the permission-matrix-governed
+admin/registrar role — a normal school day (2026-08-09, non-holiday) was
+marked successfully as `school_admin`.
+
+---
+
 *(Audit in progress — remaining modules appended below as they are tested.)*
