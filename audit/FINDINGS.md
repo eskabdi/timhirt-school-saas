@@ -490,4 +490,31 @@ produce log rows in the first place (see above).
 
 ---
 
+## Cross-Tenant Isolation
+
+Every ordinary tenant-scoped table held up under direct attack — but the
+two platform-wide permission tables flagged as a preliminary risk in this
+project's earlier static-analysis pass turned out, live, to be worse than
+suspected: **any authenticated user of any role, from any single tenant,
+can write directly into them and change authorization behavior for every
+tenant on the platform at once.**
+
+| Severity | What's wrong | Evidence (file:line or response) | Fix |
+|---|---|---|---|
+| **Critical** | **`resource_open_actions` and `resource_default_role_grants` have no RLS at all, are global (no `tenant_id` column), and directly drive `has_resource_permission()` — the function every "resource-aware" RLS policy in this schema (`grades`, `attendance`, `announcements`, and more) falls back to.** Live-verified as the QA tenant's `school_admin` (an ordinary tenant-scoped role, no elevated platform access): `POST /rest/v1/resource_open_actions {resource:"payroll_runs", action:"read"}` → **`201`**, and `POST /rest/v1/resource_default_role_grants {resource:"payroll_runs", action:"create", role:"student"}` → **`201`**. Both rows, had they been left in place, would have applied platform-wide the instant they were written — the first making every tenant's payroll data world-readable to any authenticated user regardless of role; the second letting a **student** role create payroll runs everywhere. Both were deleted immediately after confirming the write succeeded (verified via a super_admin read showing only the legitimate pre-existing rows remained). | Live: two `201` responses from a `school_admin` session, confirmed removed afterward via `GET` as `super_admin`. `supabase/migrations/20260817000001_resource_permissions_core_v2.sql:49-60` (`create table resource_open_actions`/`resource_default_role_grants`, no `enable row level security` anywhere in the file, no `tenant_id` column on either table). | This is the single highest-priority fix in the entire audit — enable RLS on both tables with `super_admin`-only write access (matching `modules`/`subscription_tiers`'s existing pattern in the same schema), before anything else. |
+
+**Works:** Every ordinary tenant-scoped table tested resisted direct
+cross-tenant attack, both via unfiltered queries (RLS auto-scoped
+correctly to the caller's own tenant every time) and via explicit
+attempts naming another real tenant's ID directly in the request —
+`students`, `invoice_summary`, `employees` (PII fields), `id_cards`, and
+`admission_applications` against both **Aw Abdal Secondary School** and
+**Abadir Elementary School** (the two pre-existing production tenants)
+all correctly returned empty results with no error message leaking
+whether the target row existed. A direct storage-object fetch using a
+guessed cross-tenant path was also correctly denied. No read or write
+against either pre-existing tenant succeeded at any point in this audit.
+
+---
+
 *(Audit in progress — remaining modules appended below as they are tested.)*
