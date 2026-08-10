@@ -364,4 +364,42 @@ posture (a notable contrast to Attendance's missing audit trail).
 
 ---
 
+## Payroll
+
+The statutory engine itself is the best-verified piece of code in this
+whole audit — real Ethiopian tax law, correctly applied, with genuine
+segregation-of-duties and closed-period protections enforced at the
+database level. The gaps are a self-flagged, still-unresolved source-data
+uncertainty in the code's own comments, and a genuinely missing bank
+disbursement export.
+
+| Severity | What's wrong | Evidence (file:line or response) | Fix |
+|---|---|---|---|
+| Medium | **No bank-transfer/disbursement file export exists.** A payroll run only offers per-employee individual payslip PDFs (`generate-payslip-pdf`) and an "Approve" action — there is no batch CSV/text export listing account numbers and net pay for a bank upload. `PayrollRunDetailPage.tsx`'s only per-row action is a single payslip link; grep for any CSV/bank-file export tied to a payroll run: no matches. | `src/features/hr/PayrollRunDetailPage.tsx` (full file read — table + per-row payslip link only, no batch export). Grep `downloadCsv`/`bank.?transfer`/`disbursement` across `src/features/hr/`: only a per-employee bank-account-number *display/edit* field (`PayrollTab.tsx:202`, "Disbursement Details"), not a payroll-run export. | Add a "Download bank file" action on an approved run, reusing the account numbers already captured per employee. |
+| Low (self-flagged in the code, still open) | The tax bracket schedule's `effective_from` date was reconstructed from **OCR-corrupted source text** — the code's own comment says the true commencement date for "all other provisions" (which Article 11's rate table falls under) couldn't be read cleanly from the fetched gazette PDF, so `2025-07-08` was used as a best guess (matching the date set for a different provision, Alternative Minimum Tax) and the comment explicitly says: *"STILL RECOMMEND a final visual (non-OCR) confirmation of that specific clause against the gazette PDF before go-live."* That confirmation does not appear to have happened — the same uncertain date is still the only row in production. Every rate/bracket-boundary figure itself is separately verified and correct; it's specifically this one date that's unconfirmed. | `supabase/migrations/20260713000004_hr_payroll.sql:118-130` (the comment) vs. `:132` (`insert into tax_brackets ... values ('2025-07-08', ...)` — the one row using that date, unchanged). | Do the recommended visual confirmation against the actual gazette PDF before this schedule is relied on for a real payroll run at a live school. |
+
+**Works — extensively live-verified with real ETB figures:** PAYE
+calculation is correct: an 8,000 ETB basic salary produced exactly
+1,150.00 ETB income tax, matching the documented bracket
+(7,000.01–10,000: 25% − 850 deduction → `8000×0.25−850=1150`) by hand.
+**Pension correctly has no ceiling/cap** — 7%/11% applied to the full
+basic salary with no artificial cap anywhere in the code, which is the
+statutorily-correct behavior under Ethiopian Pension Proclamation 715/2011
+(the task brief's explicit "flag any ceiling cap as defect" concern: there
+is no cap here, which is correct, not a defect). **Segregation of duties
+is genuinely enforced at the database level**, not just the UI —
+live-verified: the same user who prepared a run was rejected from
+approving it (`sod_preparer_cannot_approve`, 400) via a real DB check
+constraint, and approval by a different role (accountant) succeeded.
+**Closed-period re-run is correctly refused** — live-verified: re-running
+`run-payroll` for an already-`approved` period was rejected outright,
+protecting a closed run from being silently recalculated. An employee
+whose contract still has the placeholder `basic_salary: 0` is correctly
+excluded from the run (reported in `skipped_no_salary`) rather than
+silently minting a real ETB 0 "paid" payslip for them. No salary figures
+are ever written to server logs, matching the file's own stated INSA
+intent.
+
+---
+
 *(Audit in progress — remaining modules appended below as they are tested.)*
