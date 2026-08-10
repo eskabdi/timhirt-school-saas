@@ -43,17 +43,43 @@ export function InvoiceDetailPage() {
   const qc = useQueryClient();
   const canManage = profile?.role === "school_admin" || profile?.role === "accountant";
 
-  const { data: invoice, isLoading, error } = useQuery({
+  // invoice_headers (20260820000001) -- id is a header id, not a single
+  // fee_invoices row. A consolidated invoice bills several fee structures at
+  // once, so the line items are fetched separately and rolled up client-side
+  // into amount_due/amount_paid/status the same way invoice_summary does in
+  // SQL, rather than relying on FK-embedding through a grouped view.
+  const { data: header, isLoading: headerLoading, error: headerError } = useQuery({
     queryKey: ["invoice", id],
     queryFn: async () => {
-      const { data, error } = await supabase.from("fee_invoices")
-        .select("id, tenant_id, amount_due, amount_paid, due_date, status, student:students(id, first_name, last_name, admission_no, class:classes(name, section)), fee_structure:fee_structures(name_i18n, billing_cycle)")
+      const { data, error } = await supabase.from("invoice_headers")
+        .select("id, tenant_id, due_date, student:students(id, first_name, last_name, admission_no, class:classes(name, section))")
         .eq("id", id).single();
       if (error) throw error;
       return data;
     },
     enabled: !!id,
   });
+
+  const { data: lines, isLoading: linesLoading, error: linesError } = useQuery({
+    queryKey: ["invoice-lines", id],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("fee_invoices")
+        .select("id, amount_due, amount_paid, status, fee_structure:fee_structures(name_i18n, billing_cycle)")
+        .eq("invoice_header_id", id).order("created_at");
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!id,
+  });
+
+  const isLoading = headerLoading || linesLoading;
+  const error = headerError || linesError;
+  const invoice = header && lines ? {
+    ...header,
+    amount_due: lines.reduce((s, l) => s + Number(l.amount_due), 0),
+    amount_paid: lines.reduce((s, l) => s + Number(l.amount_paid), 0),
+    status: lines.every((l) => l.status === "paid") ? "paid" : lines.some((l) => Number(l.amount_paid) > 0) ? "partial" : "pending",
+  } : undefined;
 
   const { data: payments } = useQuery({
     queryKey: ["invoice-payments", id],
@@ -124,6 +150,7 @@ export function InvoiceDetailPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["invoice-payments", id] });
       qc.invalidateQueries({ queryKey: ["invoice", id] });
+      qc.invalidateQueries({ queryKey: ["invoice-lines", id] });
     },
   });
 
@@ -152,6 +179,7 @@ export function InvoiceDetailPage() {
       setAmount(""); setReference(""); setBankUrl(""); setManualError(null);
       setLastReceiptUrl(res.receipt_url);
       qc.invalidateQueries({ queryKey: ["invoice", id] });
+      qc.invalidateQueries({ queryKey: ["invoice-lines", id] });
       qc.invalidateQueries({ queryKey: ["invoice-payments", id] });
     },
     onError: (err: unknown) => setManualError(err instanceof Error ? err.message : String(err)),
@@ -174,9 +202,6 @@ export function InvoiceDetailPage() {
     id: string; first_name: string; last_name: string; admission_no: string;
     class: { name: string; section: string } | null;
   };
-  const feeStructure = invoice.fee_structure as unknown as {
-    name_i18n: Record<string, string>; billing_cycle: string;
-  };
   const canPay = invoice.status !== "paid" && (profile?.role === "parent" || canManage);
 
   return (
@@ -198,12 +223,36 @@ export function InvoiceDetailPage() {
         </div>
 
         <dl className="mt-4 grid grid-cols-2 gap-4 text-sm">
-          <div><dt className="text-ink-faint">{t("fees.feeStructure")}</dt><dd className="text-ink">{tField(feeStructure?.name_i18n, i18n.resolvedLanguage!)} ({t(`fees.cycle.${feeStructure?.billing_cycle}`)})</dd></div>
           <div><dt className="text-ink-faint">{t("fees.due")}</dt><dd className="text-ink"><EthDate value={invoice.due_date} /></dd></div>
           <div><dt className="text-ink-faint">{t("fees.amountDue")}</dt><dd className="text-ink">{formatETB(Number(invoice.amount_due), i18n.resolvedLanguage!)}</dd></div>
           <div><dt className="text-ink-faint">{t("fees.amountPaid")}</dt><dd className="text-ink">{formatETB(Number(invoice.amount_paid), i18n.resolvedLanguage!)}</dd></div>
           <div><dt className="text-ink-faint">{t("fees.remaining")}</dt><dd className="font-semibold text-ink">{formatETB(remaining, i18n.resolvedLanguage!)}</dd></div>
         </dl>
+
+        {/* Fee structure breakdown, one row per line item -- matches the invoice/receipt PDF table (_shared/fee-pdf.ts). */}
+        <div className="mt-4 overflow-hidden rounded-control border border-line">
+          <table className="w-full text-sm">
+            <thead className="bg-sidebar text-left text-xs uppercase text-ink-faint">
+              <tr>
+                <th className="px-3 py-2">{t("fees.feeStructure")}</th>
+                <th className="px-3 py-2">{t("fees.status")}</th>
+                <th className="px-3 py-2 text-right">{t("fees.amount")}</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-line">
+              {lines?.map((line) => {
+                const fs = line.fee_structure as unknown as { name_i18n: Record<string, string>; billing_cycle: string } | null;
+                return (
+                  <tr key={line.id}>
+                    <td className="px-3 py-2 text-ink">{tField(fs?.name_i18n, i18n.resolvedLanguage!)} ({t(`fees.cycle.${fs?.billing_cycle}`)})</td>
+                    <td className="px-3 py-2"><Badge tone={STATUS_TONE[line.status as keyof typeof STATUS_TONE] ?? "neutral"}>{t(`fees.invoiceStatus.${line.status}`)}</Badge></td>
+                    <td className="px-3 py-2 text-right text-ink">{formatETB(Number(line.amount_due), i18n.resolvedLanguage!)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
 
         <div className="mt-4 flex flex-wrap gap-2">
           {canPay && (

@@ -62,7 +62,7 @@
     "paymentProvider": { "cash": "ጥሬ ገንዘብ", "bank": "የባንክ ዝውውር", "chapa": "ቻፓ", "telebirr": "ቴሌብር", "stripe": "ካርድ" },
     "paymentStatus": { "succeeded": "ተሳክቷል", "pending": "በመጠባበቅ ላይ", "failed": "አልተሳካም", "refunded": "ተመላሽ ተደርጓል" },
     "errors": { "invalidAmount": "ትክክለኛ መጠን ያስገቡ", "overpayment": "መጠኑ ካልተከፈለው ቀሪ በላይ ነው", "documentFailed": "ሰነዱን ማመንጨት አልተቻለም። እንደገና ይሞክሩ።" },
-    "balance": "ቀሪ ሂሳብ", "totalBilled": "ጠቅላላ የተጠየቀ", "totalPaid": "ጠቅላላ የተከፈለ", "outstanding": "ያልተከፈለ",
+    "balance": "ቀሪ ሂሳብ", "totalBilled": "ጠቅላላ የተጠየቀ", "totalPaid": "ጠቅላላ የተከፈለ", "outstanding": "ያልተከፈለ", "lineCount": "{count, plural, one {# የክፍያ ዓይነት} other {# የክፍያ ዓይነቶች}}",
     "downloadInvoice": "ደረሰኝ (PDF)", "downloadReceipt": "የክፍያ ማረጋገጫ (PDF)", "receipt": "የክፍያ ማረጋገጫ", "generating": "በማመንጨት ላይ…", "refreshStatus": "ሁኔታን አድስ",
     "notifications": { "title": "የክፍያ ማሳወቂያዎች", "markRead": "እንደተነበበ ምልክት አድርግ", "markAllRead": "ሁሉንም እንደተነበበ ምልክት አድርግ",
       "invoice_issued": "ለ{student} አዲስ ደረሰኝ ወጥቷል፦ {amount}",

@@ -44,12 +44,14 @@ insert into public.guardians (id, tenant_id, student_id, user_id, relationship) 
 
 insert into public.fee_structures (id, tenant_id, name_i18n, amount, billing_cycle) values
   ('a0000000-0000-0000-0000-0000000f0001', 'a0000000-0000-0000-0000-00000000000a', '{"en":"Tuition"}'::jsonb, 5000, 'term');
-insert into public.fee_invoices (id, tenant_id, student_id, fee_structure_id, amount_due, due_date) values
-  ('a0000000-0000-0000-0000-0000000f0101', 'a0000000-0000-0000-0000-00000000000a', 'a0000000-0000-0000-0000-0000000d0001', 'a0000000-0000-0000-0000-0000000f0001', 5000, '2026-01-01');
+insert into public.invoice_headers (id, tenant_id, student_id, due_date) values
+  ('a0000000-0000-0000-0000-0000000f0099', 'a0000000-0000-0000-0000-00000000000a', 'a0000000-0000-0000-0000-0000000d0001', '2026-01-01');
+insert into public.fee_invoices (id, tenant_id, student_id, fee_structure_id, amount_due, due_date, invoice_header_id) values
+  ('a0000000-0000-0000-0000-0000000f0101', 'a0000000-0000-0000-0000-00000000000a', 'a0000000-0000-0000-0000-0000000d0001', 'a0000000-0000-0000-0000-0000000f0001', 5000, '2026-01-01', 'a0000000-0000-0000-0000-0000000f0099');
 insert into public.payments (id, tenant_id, invoice_id, amount, provider, status) values
-  ('a0000000-0000-0000-0000-0000000f0201', 'a0000000-0000-0000-0000-00000000000a', 'a0000000-0000-0000-0000-0000000f0101', 5000, 'cash', 'succeeded');
+  ('a0000000-0000-0000-0000-0000000f0201', 'a0000000-0000-0000-0000-00000000000a', 'a0000000-0000-0000-0000-0000000f0099', 5000, 'cash', 'succeeded');
 insert into public.fee_documents (id, tenant_id, kind, invoice_id, payment_id, doc_no, verify_code, amount, pdf_path) values
-  ('a0000000-0000-0000-0000-0000000f0301', 'a0000000-0000-0000-0000-00000000000a', 'receipt', 'a0000000-0000-0000-0000-0000000f0101', 'a0000000-0000-0000-0000-0000000f0201', 'RCP-2018-0001', 'abcdef0123456789abcdef01', 5000, 'a0000000-0000-0000-0000-00000000000a/receipt.pdf');
+  ('a0000000-0000-0000-0000-0000000f0301', 'a0000000-0000-0000-0000-00000000000a', 'receipt', 'a0000000-0000-0000-0000-0000000f0099', 'a0000000-0000-0000-0000-0000000f0201', 'RCP-2018-0001', 'abcdef0123456789abcdef01', 5000, 'a0000000-0000-0000-0000-00000000000a/receipt.pdf');
 insert into public.bank_payment_verifications (id, tenant_id, payment_id, payment_method, verification_url, status) values
   ('a0000000-0000-0000-0000-0000000f0401', 'a0000000-0000-0000-0000-00000000000a', 'a0000000-0000-0000-0000-0000000f0201', 'cbe', 'https://cbe.example/tx/1', 'pending');
 
@@ -127,11 +129,11 @@ set local role authenticated;
 set local request.jwt.claim.sub = 'a0000002-0000-0000-0000-000000000002'; -- accountant, default create population
 select lives_ok(
   $stmt$ insert into public.payments (tenant_id, invoice_id, amount, provider, status)
-         values ('a0000000-0000-0000-0000-00000000000a', 'a0000000-0000-0000-0000-0000000f0101', 100, 'bank', 'succeeded') $stmt$,
+         values ('a0000000-0000-0000-0000-00000000000a', 'a0000000-0000-0000-0000-0000000f0099', 100, 'bank', 'succeeded') $stmt$,
   'unconfigured: accountant can record a manual payment with zero grants configured');
 select throws_ok(
   $stmt$ insert into public.payments (tenant_id, invoice_id, amount, provider, status)
-         values ('a0000000-0000-0000-0000-00000000000a', 'a0000000-0000-0000-0000-0000000f0101', 100, 'stripe', 'succeeded') $stmt$,
+         values ('a0000000-0000-0000-0000-00000000000a', 'a0000000-0000-0000-0000-0000000f0099', 100, 'stripe', 'succeeded') $stmt$,
   '42501', null, 'structural check preserved: accountant still cannot record a non-cash/bank payment, even though the role gate passes');
 reset role;
 

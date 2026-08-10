@@ -26,7 +26,7 @@
 // ============================================================================
 import { z } from "npm:zod@3";
 import { requireRole, errors, json, rateLimit, corsHeaders } from "../_shared/security.ts";
-import { issueFeeDocument, notifyBilling, renderInvoicePdf, renderReceiptPdf } from "../_shared/fee-pdf.ts";
+import { issueFeeDocument, notifyBilling, renderInvoicePdf, renderReceiptPdf, type FeeLineItem } from "../_shared/fee-pdf.ts";
 
 const Payload = z.object({
   application_id: z.string().uuid(),
@@ -78,19 +78,34 @@ Deno.serve(async (req) => {
         // Idempotency: reuse an existing invoice for this student+structure
         // rather than duplicating it on a retry/double-click.
         const { data: existingInvoice } = await ctx.adminClient.from("fee_invoices")
-          .select("id, amount_due, amount_paid, status")
+          .select("id, amount_due, amount_paid, status, invoice_header_id")
           .eq("student_id", p.student_id).eq("fee_structure_id", structure.id).maybeSingle();
 
         let invoice = existingInvoice;
+        let headerId: string;
         if (!invoice) {
+          // Enrollment always produces exactly one fee item at this stage --
+          // no consolidation candidate exists yet, so this fee_invoices row
+          // gets its own 1:1 header (20260820000001), same as every legacy
+          // pre-consolidation invoice.
+          const { data: header, error: headerErr } = await ctx.adminClient.from("invoice_headers").insert({
+            tenant_id: application.tenant_id, student_id: p.student_id,
+            due_date: new Date().toISOString().slice(0, 10),
+          }).select("id").single();
+          if (headerErr) throw headerErr;
+          headerId = header.id;
+
           const { data: created, error: invErr } = await ctx.adminClient.from("fee_invoices").insert({
             tenant_id: application.tenant_id, student_id: p.student_id, fee_structure_id: structure.id,
             amount_due: structure.amount, due_date: new Date().toISOString().slice(0, 10),
-          }).select("id, amount_due, amount_paid, status").single();
+            invoice_header_id: headerId,
+          }).select("id, amount_due, amount_paid, status, invoice_header_id").single();
           if (invErr) throw invErr;
           invoice = created;
+        } else {
+          headerId = invoice.invoice_header_id;
         }
-        invoiceId = invoice.id;
+        invoiceId = headerId;
 
         // Registration payment evidence declared on the application -> a
         // real payments row, mapped to provider:'bank' for every admission
@@ -114,18 +129,25 @@ Deno.serve(async (req) => {
           }
           // Re-read the invoice: apply_manual_payment_trg may have just credited it.
           const { data: refreshed } = await ctx.adminClient.from("fee_invoices")
-            .select("id, amount_due, amount_paid, status").eq("id", invoice.id).maybeSingle();
+            .select("id, amount_due, amount_paid, status, invoice_header_id").eq("id", invoice.id).maybeSingle();
           if (refreshed) invoice = refreshed;
         }
 
+        // Enrollment always produces exactly one fee item at this stage, so
+        // the header's line-item table is this single invoice repeated as a
+        // one-element array -- same shape every other issuer uses.
+        const lineItems: FeeLineItem[] = [{
+          feeStructureName: (structure.name_i18n as Record<string, string>)?.en ?? "Fee",
+          billingCycle: structure.billing_cycle,
+          amountDue: Number(invoice.amount_due), amountPaid: Number(invoice.amount_paid), status: invoice.status,
+        }];
         const invoiceDoc = await issueFeeDocument(ctx.adminClient, {
-          kind: "invoice", tenantId: application.tenant_id, invoiceId: invoice.id,
+          kind: "invoice", tenantId: application.tenant_id, invoiceId: headerId,
           amount: invoice.amount_due,
           render: ({ docNo, verifyCode }) => renderInvoicePdf({
             tenantName, docNo, verifyCode, issuedOn: new Date().toISOString().slice(0, 10),
             studentName, admissionNo: student.admission_no, classLabel,
-            feeStructureName: (structure.name_i18n as Record<string, string>)?.en ?? "Fee",
-            billingCycle: structure.billing_cycle,
+            lineItems,
             amountDue: Number(invoice.amount_due), amountPaid: Number(invoice.amount_paid), status: invoice.status,
             dueDate: new Date().toISOString().slice(0, 10),
           }),
@@ -133,7 +155,7 @@ Deno.serve(async (req) => {
         invoiceUrl = invoiceDoc?.url ?? null;
         await notifyBilling(ctx.adminClient, {
           tenantId: application.tenant_id, studentId: p.student_id,
-          kind: "invoice_issued", invoiceId: invoice.id, amount: invoice.amount_due,
+          kind: "invoice_issued", invoiceId: headerId, amount: invoice.amount_due,
         });
 
         if (paymentId) {
@@ -141,11 +163,12 @@ Deno.serve(async (req) => {
             .select("id, amount, provider_ref, paid_at").eq("id", paymentId).maybeSingle();
           if (payment) {
             const receiptDoc = await issueFeeDocument(ctx.adminClient, {
-              kind: "receipt", tenantId: application.tenant_id, invoiceId: invoice.id,
+              kind: "receipt", tenantId: application.tenant_id, invoiceId: headerId,
               paymentId: payment.id, amount: payment.amount,
               render: ({ docNo, verifyCode }) => renderReceiptPdf({
                 tenantName, docNo, verifyCode, issuedOn: new Date().toISOString().slice(0, 10),
                 studentName, admissionNo: student.admission_no, receivedFrom: studentName,
+                lineItems,
                 amount: Number(payment.amount), provider: "bank", providerRef: payment.provider_ref,
                 paidAt: (payment.paid_at ?? new Date().toISOString()).slice(0, 10),
                 invoiceBalanceAfter: Math.max(0, Number(invoice.amount_due) - Number(invoice.amount_paid)),
@@ -154,7 +177,7 @@ Deno.serve(async (req) => {
             receiptUrl = receiptDoc?.url ?? null;
             await notifyBilling(ctx.adminClient, {
               tenantId: application.tenant_id, studentId: p.student_id,
-              kind: "payment_received", invoiceId: invoice.id, paymentId: payment.id, amount: payment.amount,
+              kind: "payment_received", invoiceId: headerId, paymentId: payment.id, amount: payment.amount,
             });
           }
         }

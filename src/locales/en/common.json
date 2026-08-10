@@ -62,7 +62,7 @@
     "paymentProvider": { "cash": "Cash", "bank": "Bank transfer", "chapa": "Chapa", "telebirr": "Telebirr", "stripe": "Card" },
     "paymentStatus": { "succeeded": "Succeeded", "pending": "Pending", "failed": "Failed", "refunded": "Refunded" },
     "errors": { "invalidAmount": "Enter a valid amount", "overpayment": "Amount exceeds the outstanding balance", "documentFailed": "Could not generate the document. Try again." },
-    "balance": "Balance", "totalBilled": "Total billed", "totalPaid": "Total paid", "outstanding": "Outstanding",
+    "balance": "Balance", "totalBilled": "Total billed", "totalPaid": "Total paid", "outstanding": "Outstanding", "lineCount": "{count, plural, one {# fee item} other {# fee items}}",
     "downloadInvoice": "Invoice (PDF)", "downloadReceipt": "Receipt (PDF)", "receipt": "Receipt", "generating": "Generating…", "refreshStatus": "Refresh status",
     "notifications": { "title": "Billing updates", "markRead": "Mark read", "markAllRead": "Mark all read",
       "invoice_issued": "A new invoice was issued for {student}: {amount}",

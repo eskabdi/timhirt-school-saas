@@ -2,11 +2,11 @@
 // [INSA category: PRIVATE] issue-fee-document
 // AuthZ: school_admin / accountant / parent / student. On-demand invoice or
 // receipt PDF, downloadable from InvoicesPage/InvoiceDetailPage and the
-// parent/student portal. Reads the invoice (and, for a receipt, the
-// payment) via ctx.userClient -- the existing invoices_select/
-// payments_select RLS policies already scope a parent to their own
-// children's invoices, so requesting another family's invoice_id yields
-// null -> 400 with no extra role logic needed here.
+// parent/student portal. Reads the header (and, for a receipt, the payment)
+// via ctx.userClient -- the existing invoice_headers_select/payments_select
+// RLS policies already scope a parent to their own children's invoices, so
+// requesting another family's invoice_id (a header id, since 20260820000001
+// consolidation) yields null -> 400 with no extra role logic needed here.
 //
 // Invoices are ALWAYS regenerated fresh, never cached: fee_invoices has no
 // updated_at column, so staleness can't even be cheaply detected, and
@@ -24,11 +24,11 @@
 // ============================================================================
 import { z } from "npm:zod@3";
 import { requireRole, errors, json, rateLimit, corsHeaders } from "../_shared/security.ts";
-import { issueFeeDocument, renderInvoicePdf, renderReceiptPdf } from "../_shared/fee-pdf.ts";
+import { issueFeeDocument, renderInvoicePdf, renderReceiptPdf, type FeeLineItem } from "../_shared/fee-pdf.ts";
 
 const Payload = z.object({
   kind: z.enum(["invoice", "receipt"]),
-  invoice_id: z.string().uuid(),
+  invoice_id: z.string().uuid(), // an invoice_headers id
   payment_id: z.string().uuid().optional(),
 });
 
@@ -46,28 +46,39 @@ Deno.serve(async (req) => {
     const p = parsed.data;
     if (p.kind === "receipt" && !p.payment_id) return errors.badRequest();
 
-    const { data: invoice } = await ctx.userClient.from("fee_invoices")
-      .select("id, tenant_id, amount_due, amount_paid, status, due_date, student:students(id, first_name, last_name, admission_no, class:classes(name, section)), fee_structure:fee_structures(name_i18n, billing_cycle)")
+    const { data: header } = await ctx.userClient.from("invoice_headers")
+      .select("id, tenant_id, due_date, student:students(id, first_name, last_name, admission_no, class:classes(name, section))")
       .eq("id", p.invoice_id).maybeSingle();
-    if (!invoice) return errors.badRequest();
+    if (!header) return errors.badRequest();
 
-    const student = invoice.student as unknown as { id: string; first_name: string; last_name: string; admission_no: string; class: { name: string; section: string | null } | null };
-    const feeStructure = invoice.fee_structure as unknown as { name_i18n: Record<string, string>; billing_cycle: string };
+    const { data: lines } = await ctx.userClient.from("fee_invoices")
+      .select("amount_due, amount_paid, status, fee_structure:fee_structures(name_i18n, billing_cycle)")
+      .eq("invoice_header_id", header.id).order("created_at");
+    const lineItems: FeeLineItem[] = (lines ?? []).map((l) => {
+      const fs = l.fee_structure as unknown as { name_i18n: Record<string, string>; billing_cycle: string } | null;
+      return {
+        feeStructureName: fs?.name_i18n?.en ?? "Fee", billingCycle: fs?.billing_cycle ?? "-",
+        amountDue: Number(l.amount_due), amountPaid: Number(l.amount_paid), status: l.status,
+      };
+    });
+    const amountDue = lineItems.reduce((s, l) => s + l.amountDue, 0);
+    const amountPaid = lineItems.reduce((s, l) => s + l.amountPaid, 0);
+    const status = lineItems.every((l) => l.status === "paid") ? "paid" : amountPaid > 0 ? "partial" : "pending";
+
+    const student = header.student as unknown as { id: string; first_name: string; last_name: string; admission_no: string; class: { name: string; section: string | null } | null };
     const studentName = `${student.first_name} ${student.last_name}`.trim();
     const classLabel = student.class ? `${student.class.name} ${student.class.section ?? ""}`.trim() : "-";
 
-    const { data: tenant } = await ctx.userClient.from("tenants").select("name").eq("id", invoice.tenant_id).maybeSingle();
+    const { data: tenant } = await ctx.userClient.from("tenants").select("name").eq("id", header.tenant_id).maybeSingle();
     const tenantName = tenant?.name ?? "School";
 
     if (p.kind === "invoice") {
       const doc = await issueFeeDocument(ctx.adminClient, {
-        kind: "invoice", tenantId: invoice.tenant_id, invoiceId: invoice.id, amount: invoice.amount_due,
+        kind: "invoice", tenantId: header.tenant_id, invoiceId: header.id, amount: amountDue,
         render: ({ docNo, verifyCode }) => renderInvoicePdf({
           tenantName, docNo, verifyCode, issuedOn: new Date().toISOString().slice(0, 10),
           studentName, admissionNo: student.admission_no, classLabel,
-          feeStructureName: feeStructure?.name_i18n?.en ?? "Fee", billingCycle: feeStructure?.billing_cycle ?? "-",
-          amountDue: Number(invoice.amount_due), amountPaid: Number(invoice.amount_paid), status: invoice.status,
-          dueDate: invoice.due_date,
+          lineItems, amountDue, amountPaid, status, dueDate: header.due_date,
         }),
       });
       if (!doc) return errors.internal();
@@ -84,17 +95,18 @@ Deno.serve(async (req) => {
     }
 
     const { data: payment } = await ctx.userClient.from("payments")
-      .select("id, amount, provider, provider_ref, paid_at").eq("id", p.payment_id!).eq("invoice_id", invoice.id).maybeSingle();
+      .select("id, amount, provider, provider_ref, paid_at").eq("id", p.payment_id!).eq("invoice_id", header.id).maybeSingle();
     if (!payment) return errors.badRequest();
 
     const doc = await issueFeeDocument(ctx.adminClient, {
-      kind: "receipt", tenantId: invoice.tenant_id, invoiceId: invoice.id, paymentId: payment.id, amount: payment.amount,
+      kind: "receipt", tenantId: header.tenant_id, invoiceId: header.id, paymentId: payment.id, amount: payment.amount,
       render: ({ docNo, verifyCode }) => renderReceiptPdf({
         tenantName, docNo, verifyCode, issuedOn: new Date().toISOString().slice(0, 10),
         studentName, admissionNo: student.admission_no, receivedFrom: studentName,
+        lineItems,
         amount: Number(payment.amount), provider: payment.provider, providerRef: payment.provider_ref,
         paidAt: (payment.paid_at ?? new Date().toISOString()).slice(0, 10),
-        invoiceBalanceAfter: Math.max(0, Number(invoice.amount_due) - Number(invoice.amount_paid)),
+        invoiceBalanceAfter: Math.max(0, amountDue - amountPaid),
       }),
     });
     if (!doc) return errors.internal();

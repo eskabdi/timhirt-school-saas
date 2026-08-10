@@ -27,7 +27,7 @@
 // ============================================================================
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { errors, json, corsHeaders } from "../_shared/security.ts";
-import { issueFeeDocument, notifyBilling, renderReceiptPdf } from "../_shared/fee-pdf.ts";
+import { issueFeeDocument, notifyBilling, renderReceiptPdf, type FeeLineItem } from "../_shared/fee-pdf.ts";
 
 type NotifyTradeStatus = "Paying" | "Expired" | "Pending" | "Completed" | "Failure";
 
@@ -81,17 +81,31 @@ Deno.serve(async (req) => {
             .select("id, tenant_id, invoice_id, amount, paid_at, provider, provider_ref")
             .eq("provider_ref", merchOrderId).eq("provider", "telebirr").maybeSingle();
           if (payment) {
-            const { data: invoice } = await db.from("fee_invoices")
-              .select("id, student_id, amount_due, amount_paid")
-              .eq("id", payment.invoice_id).maybeSingle();
-            if (invoice) {
+            // payment.invoice_id is an invoice_headers id (20260820000001) --
+            // settle_gateway_payment already allocated this payment across
+            // every unpaid line item under it; re-read them for the receipt.
+            const { data: header } = await db.from("invoice_headers")
+              .select("id, student_id").eq("id", payment.invoice_id).maybeSingle();
+            if (header) {
+              const { data: lines } = await db.from("fee_invoices")
+                .select("amount_due, amount_paid, status, fee_structure:fee_structures(name_i18n, billing_cycle)")
+                .eq("invoice_header_id", header.id).order("created_at");
               const { data: student } = await db.from("students")
                 .select("id, tenant_id, first_name, last_name, admission_no")
-                .eq("id", invoice.student_id).maybeSingle();
+                .eq("id", header.student_id).maybeSingle();
               const { data: tenant } = await db.from("tenants").select("name").eq("id", payment.tenant_id).maybeSingle();
-              if (student && tenant) {
+              if (student && tenant && lines) {
+                const lineItems: FeeLineItem[] = lines.map((l) => {
+                  const fs = l.fee_structure as unknown as { name_i18n: Record<string, string>; billing_cycle: string } | null;
+                  return {
+                    feeStructureName: fs?.name_i18n?.en ?? "Fee", billingCycle: fs?.billing_cycle ?? "-",
+                    amountDue: Number(l.amount_due), amountPaid: Number(l.amount_paid), status: l.status,
+                  };
+                });
+                const amountDue = lineItems.reduce((s, l) => s + l.amountDue, 0);
+                const amountPaid = lineItems.reduce((s, l) => s + l.amountPaid, 0);
                 const doc = await issueFeeDocument(db, {
-                  kind: "receipt", tenantId: payment.tenant_id, invoiceId: invoice.id,
+                  kind: "receipt", tenantId: payment.tenant_id, invoiceId: header.id,
                   paymentId: payment.id, amount: payment.amount,
                   render: ({ docNo, verifyCode }) => renderReceiptPdf({
                     tenantName: tenant.name,
@@ -99,15 +113,16 @@ Deno.serve(async (req) => {
                     studentName: `${student.first_name} ${student.last_name}`.trim(),
                     admissionNo: student.admission_no,
                     receivedFrom: `${student.first_name} ${student.last_name}`.trim(),
+                    lineItems,
                     amount: payment.amount, provider: "telebirr", providerRef: payment.provider_ref,
                     paidAt: (payment.paid_at ?? new Date().toISOString()).slice(0, 10),
-                    invoiceBalanceAfter: Math.max(0, invoice.amount_due - invoice.amount_paid),
+                    invoiceBalanceAfter: Math.max(0, amountDue - amountPaid),
                   }),
                 });
                 if (doc) {
                   await notifyBilling(db, {
-                    tenantId: payment.tenant_id, studentId: invoice.student_id,
-                    kind: "payment_received", invoiceId: invoice.id, paymentId: payment.id,
+                    tenantId: payment.tenant_id, studentId: header.student_id,
+                    kind: "payment_received", invoiceId: header.id, paymentId: payment.id,
                     amount: payment.amount,
                   });
                 }

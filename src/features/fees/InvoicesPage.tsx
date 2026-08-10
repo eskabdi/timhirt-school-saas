@@ -68,15 +68,28 @@ export function InvoicesPage() {
   const { profile } = useSession();
   const navigate = useNavigate();
   const [page, setPage] = useState(1);
+  // invoice_summary (20260820000001) is one row per header -- a consolidated
+  // invoice that bills several fee structures at once is a single row here,
+  // not one row per fee_invoices line item. It carries no student columns of
+  // its own (security_invoker view, grouped), so students are fetched in a
+  // second batched query and merged client-side rather than relying on
+  // PostgREST's FK-embedding heuristic through a GROUP BY view.
   const { data } = useQuery({
     queryKey: ["invoices", page],
     queryFn: async () => {
-      const { data, error, count } = await supabase.from("fee_invoices")
-        .select("id, amount_due, amount_paid, due_date, status, students(first_name,last_name)", { count: "exact" })
+      const { data, error, count } = await supabase.from("invoice_summary")
+        .select("id, student_id, due_date, amount_due, amount_paid, status, line_count", { count: "exact" })
         .order("due_date", { ascending: false })
         .range(...pageRange(page));
       if (error) throw error;
-      return { rows: data ?? [], count: count ?? 0 };
+      const studentIds = [...new Set((data ?? []).map((r) => r.student_id))];
+      const { data: students, error: studentsErr } = studentIds.length
+        ? await supabase.from("students").select("id, first_name, last_name").in("id", studentIds)
+        : { data: [] as { id: string; first_name: string; last_name: string }[], error: null };
+      if (studentsErr) throw studentsErr;
+      const studentById = new Map((students ?? []).map((s) => [s.id, s]));
+      const rows = (data ?? []).map((r) => ({ ...r, student: studentById.get(r.student_id) ?? null }));
+      return { rows, count: count ?? 0 };
     },
   });
   const invoices = data?.rows;
@@ -86,7 +99,7 @@ export function InvoicesPage() {
   const { data: totals } = useQuery({
     queryKey: ["invoices-totals"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("fee_invoices").select("amount_due, amount_paid");
+      const { data, error } = await supabase.from("invoice_summary").select("amount_due, amount_paid");
       if (error) throw error;
       const billed = (data ?? []).reduce((s, r) => s + Number(r.amount_due), 0);
       const paid = (data ?? []).reduce((s, r) => s + Number(r.amount_paid), 0);
@@ -150,12 +163,11 @@ export function InvoicesPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-line">
-            {invoices?.map((inv) => {
-              const student = inv.students as unknown as { first_name: string; last_name: string } | null;
-              return (
+            {invoices?.map((inv) => (
               <tr key={inv.id} className="cursor-pointer hover:bg-sidebar" onDoubleClick={onRowDoubleClick(navigate, inv.id)}>
                 <td className="px-4 py-2 font-medium text-ink">
-                  <Link to={inv.id} className="hover:underline">{student?.first_name} {student?.last_name}</Link>
+                  <Link to={inv.id} className="hover:underline">{inv.student?.first_name} {inv.student?.last_name}</Link>
+                  {inv.line_count > 1 && <span className="ml-1.5 text-xs font-normal text-ink-faint">({t("fees.lineCount", { count: inv.line_count })})</span>}
                 </td>
                 <td className="px-4 py-2 text-ink-faint"><EthDate value={inv.due_date} /></td>
                 <td className="px-4 py-2 text-ink-faint">{formatETB(Number(inv.amount_due), i18n.resolvedLanguage!)}</td>
@@ -174,8 +186,7 @@ export function InvoicesPage() {
                   {payError[inv.id] && <p role="alert" className="mt-1 text-xs text-danger">{payError[inv.id]}</p>}
                 </td>
               </tr>
-              );
-            })}
+            ))}
           </tbody>
         </table>
         <Pagination page={page} totalCount={data?.count ?? 0} onPageChange={setPage} className="px-4" />

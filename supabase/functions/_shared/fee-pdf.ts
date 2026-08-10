@@ -49,12 +49,19 @@ async function embedQr(pdfDoc: PDFDocument, url: string) {
   }
 }
 
+// One row per fee_invoices line item under the invoice's header
+// (20260820000001) -- a consolidated invoice bills several fee structures at
+// once, so the PDF draws a table now instead of a single description line.
+export interface FeeLineItem {
+  feeStructureName: string; billingCycle: string;
+  amountDue: number; amountPaid: number; status: string;
+}
 interface InvoiceRenderData {
   tenantName: string;
   docNo: string; verifyCode: string; issuedOn: string;
   studentName: string; admissionNo: string; classLabel: string;
-  feeStructureName: string; billingCycle: string;
-  amountDue: number; amountPaid: number; status: string;
+  lineItems: FeeLineItem[];
+  amountDue: number; amountPaid: number; status: string; // header totals
   dueDate: string;
 }
 interface ReceiptRenderData {
@@ -62,6 +69,10 @@ interface ReceiptRenderData {
   docNo: string; verifyCode: string; issuedOn: string;
   studentName: string; admissionNo: string;
   receivedFrom: string;
+  // The header's line items as they stand after this payment was applied --
+  // a receipt for a consolidated invoice shows every fee it covers, same
+  // table shape as the invoice, not just the one payments row.
+  lineItems: FeeLineItem[];
   amount: number; provider: string; providerRef: string | null; paidAt: string;
   invoiceBalanceAfter: number;
 }
@@ -94,14 +105,19 @@ export async function renderInvoicePdf(data: InvoiceRenderData): Promise<Uint8Ar
   drawText(page, font, `${data.studentName} (Student No: ${data.admissionNo})`, 40, y, 10); y -= 14;
   drawText(page, font, `Class: ${data.classLabel}`, 40, y, 10); y -= 30;
 
-  // Line item table
+  // Line item table -- one row per fee structure under this invoice.
   page.drawRectangle({ x: 40, y: y - 4, width: W - 80, height: 22, color: rgb(0.94, 0.94, 0.96) });
   drawText(page, boldFont, "Description", 46, y + 2, 9);
+  drawText(page, boldFont, "Status", 320, y + 2, 9);
   drawRightText(page, boldFont, "Amount", W - 46, y + 2, 9);
   y -= 26;
-  drawText(page, font, `${data.feeStructureName} (${data.billingCycle})`, 46, y, 10);
-  drawRightText(page, font, formatETB(data.amountDue), W - 46, y, 10);
-  y -= 30;
+  for (const item of data.lineItems) {
+    drawText(page, font, `${item.feeStructureName} (${item.billingCycle})`, 46, y, 10);
+    drawText(page, font, item.status.toUpperCase(), 320, y, 9);
+    drawRightText(page, font, formatETB(item.amountDue), W - 46, y, 10);
+    y -= 18;
+  }
+  y -= 12;
 
   page.drawLine({ start: { x: 300, y }, end: { x: W - 40, y }, thickness: 0.5, color: rgb(0.7, 0.7, 0.7) }); y -= 18;
   drawText(page, font, "Amount due", 300, y, 10);
@@ -140,18 +156,34 @@ export async function renderReceiptPdf(data: ReceiptRenderData): Promise<Uint8Ar
   drawText(page, font, `${data.receivedFrom}`, 40, y, 10); y -= 14;
   drawText(page, font, `Student: ${data.studentName} (Student No: ${data.admissionNo})`, 40, y, 10); y -= 30;
 
+  // Fee items this invoice covers, with their status after this payment --
+  // matches the invoice's own table so a receipt reads as "the same bill,
+  // now marked paid" rather than a bare amount with no context.
+  page.drawRectangle({ x: 40, y: y - 4, width: W - 80, height: 22, color: rgb(0.94, 0.94, 0.96) });
+  drawText(page, boldFont, "Description", 46, y + 2, 9);
+  drawText(page, boldFont, "Status", 320, y + 2, 9);
+  drawRightText(page, boldFont, "Amount", W - 46, y + 2, 9);
+  y -= 26;
+  for (const item of data.lineItems) {
+    drawText(page, font, `${item.feeStructureName} (${item.billingCycle})`, 46, y, 10);
+    drawText(page, font, item.status.toUpperCase(), 320, y, 9);
+    drawRightText(page, font, formatETB(item.amountDue), W - 46, y, 10);
+    y -= 18;
+  }
+  y -= 16;
+
   page.drawRectangle({ x: 40, y: y - 4, width: W - 80, height: 22, color: rgb(0.94, 0.94, 0.96) });
   drawText(page, boldFont, "Method", 46, y + 2, 9);
   drawText(page, boldFont, "Reference", 220, y + 2, 9);
-  drawRightText(page, boldFont, "Amount", W - 46, y + 2, 9);
+  drawRightText(page, boldFont, "Amount Paid", W - 46, y + 2, 9);
   y -= 26;
   drawText(page, font, data.provider.toUpperCase(), 46, y, 10);
   drawText(page, font, data.providerRef ?? "-", 220, y, 10);
   drawRightText(page, font, formatETB(data.amount), W - 46, y, 10);
   y -= 34;
 
-  drawText(page, font, `Applied to invoice. Balance after this payment: ${formatETB(data.invoiceBalanceAfter)}`, 40, y, 10);
-  y -= 60;
+  drawText(page, font, `Balance after this payment: ${formatETB(data.invoiceBalanceAfter)}`, 40, y, 10);
+  y -= 40;
 
   const qr = await embedQr(pdfDoc, `${appUrl}/verify/${data.verifyCode}`);
   if (qr) page.drawImage(qr, { x: 40, y: 60, width: 70, height: 70 });
@@ -191,7 +223,7 @@ export async function issueFeeDocument(admin: AdminClient, input: IssueFeeDocume
 
   const verifyCode = existing?.verify_code ?? generateVerifyCode();
   const year = new Date().getFullYear();
-  const docNo = existing?.doc_no ?? `${input.kind === "invoice" ? "INV" : "RCP"}-${year}-${verifyCode.slice(0, 8)}`;
+  const docNo = existing?.doc_no ?? `${input.kind === "invoice" ? "INV" : "RCP"}-${year}-${verifyCode.slice(0, 8).toUpperCase()}`;
 
   const pdfBytes = await input.render({ docNo, verifyCode });
   const path = `${input.tenantId}/${input.invoiceId}/${crypto.randomUUID()}.pdf`;

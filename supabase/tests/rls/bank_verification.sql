@@ -45,10 +45,12 @@ insert into public.guardians (id, tenant_id, student_id, user_id, relationship, 
   ('bce40000-0000-0000-0000-000000000001', 'bce00000-0000-0000-0000-00000000000a', 'bce30000-0000-0000-0000-000000000001', 'bce00004-0000-0000-0000-000000000004', 'mother', '+251911000003');
 insert into public.fee_structures (id, tenant_id, name_i18n, amount, billing_cycle) values
   ('bce50000-0000-0000-0000-000000000001', 'bce00000-0000-0000-0000-00000000000a', '{"en":"Tuition"}', 500, 'monthly');
-insert into public.fee_invoices (id, tenant_id, student_id, fee_structure_id, amount_due, amount_paid, due_date, status) values
-  ('bce60000-0000-0000-0000-000000000001', 'bce00000-0000-0000-0000-00000000000a', 'bce30000-0000-0000-0000-000000000001', 'bce50000-0000-0000-0000-000000000001', 500.00, 500.00, '2026-08-01', 'paid');
+insert into public.invoice_headers (id, tenant_id, student_id, due_date) values
+  ('bce90000-0000-0000-0000-000000000001', 'bce00000-0000-0000-0000-00000000000a', 'bce30000-0000-0000-0000-000000000001', '2026-08-01');
+insert into public.fee_invoices (id, tenant_id, student_id, fee_structure_id, amount_due, amount_paid, due_date, status, invoice_header_id) values
+  ('bce60000-0000-0000-0000-000000000001', 'bce00000-0000-0000-0000-00000000000a', 'bce30000-0000-0000-0000-000000000001', 'bce50000-0000-0000-0000-000000000001', 500.00, 500.00, '2026-08-01', 'paid', 'bce90000-0000-0000-0000-000000000001');
 insert into public.payments (id, tenant_id, invoice_id, amount, provider, provider_ref, status) values
-  ('bce70000-0000-0000-0000-000000000001', 'bce00000-0000-0000-0000-00000000000a', 'bce60000-0000-0000-0000-000000000001', 500.00, 'bank', 'bv-pay-1', 'succeeded');
+  ('bce70000-0000-0000-0000-000000000001', 'bce00000-0000-0000-0000-00000000000a', 'bce90000-0000-0000-0000-000000000001', 500.00, 'bank', 'bv-pay-1', 'succeeded');
 
 insert into public.bank_verification_domains (id, payment_method, hostname, label) values
   ('bce80000-0000-0000-0000-000000000001', 'cbe', 'secure.cbe.example', 'CBE Test');

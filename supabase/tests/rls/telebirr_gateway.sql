@@ -45,11 +45,13 @@ insert into public.students (id, tenant_id, class_id, admission_no, first_name, 
   ('fb003333-0000-0000-0000-000000000001', 'fb000000-0000-0000-0000-00000000000a', 'fb002222-0000-0000-0000-000000000001', 'ADM-TB-001', 'Test', 'Student', '2015-01-01', 'male');
 insert into public.fee_structures (id, tenant_id, name_i18n, amount, billing_cycle) values
   ('fb004444-0000-0000-0000-000000000001', 'fb000000-0000-0000-0000-00000000000a', '{"en":"Tuition"}', 500, 'monthly');
-insert into public.fee_invoices (id, tenant_id, student_id, fee_structure_id, amount_due, amount_paid, due_date, status) values
-  ('fb005555-0000-0000-0000-000000000001', 'fb000000-0000-0000-0000-00000000000a', 'fb003333-0000-0000-0000-000000000001', 'fb004444-0000-0000-0000-000000000001', 500.00, 0.00, '2026-08-01', 'pending');
+insert into public.invoice_headers (id, tenant_id, student_id, due_date) values
+  ('fb009999-0000-0000-0000-000000000001', 'fb000000-0000-0000-0000-00000000000a', 'fb003333-0000-0000-0000-000000000001', '2026-08-01');
+insert into public.fee_invoices (id, tenant_id, student_id, fee_structure_id, amount_due, amount_paid, due_date, status, invoice_header_id) values
+  ('fb005555-0000-0000-0000-000000000001', 'fb000000-0000-0000-0000-00000000000a', 'fb003333-0000-0000-0000-000000000001', 'fb004444-0000-0000-0000-000000000001', 500.00, 0.00, '2026-08-01', 'pending', 'fb009999-0000-0000-0000-000000000001');
 insert into public.payments (id, tenant_id, invoice_id, amount, provider, provider_ref, status) values
-  ('fb006666-0000-0000-0000-000000000001', 'fb000000-0000-0000-0000-00000000000a', 'fb005555-0000-0000-0000-000000000001', 500.00, 'telebirr', 'tb-ref-correct', 'pending'),
-  ('fb007777-0000-0000-0000-000000000002', 'fb000000-0000-0000-0000-00000000000a', 'fb005555-0000-0000-0000-000000000001', 250.00, 'telebirr', 'tb-ref-mismatch', 'pending');
+  ('fb006666-0000-0000-0000-000000000001', 'fb000000-0000-0000-0000-00000000000a', 'fb009999-0000-0000-0000-000000000001', 500.00, 'telebirr', 'tb-ref-correct', 'pending'),
+  ('fb007777-0000-0000-0000-000000000002', 'fb000000-0000-0000-0000-00000000000a', 'fb009999-0000-0000-0000-000000000001', 250.00, 'telebirr', 'tb-ref-mismatch', 'pending');
 
 -- ---------- (1) settle_gateway_payment is provider-agnostic: 'telebirr' ----------
 select is(
@@ -94,7 +96,7 @@ select is(
 -- tx_ref -- 'tb-ref-mismatch' was already consumed by webhook_events above,
 -- so reusing it here would report 'duplicate' regardless of payment status.
 insert into public.payments (id, tenant_id, invoice_id, amount, provider, provider_ref, status) values
-  ('fb008888-0000-0000-0000-000000000003', 'fb000000-0000-0000-0000-00000000000a', 'fb005555-0000-0000-0000-000000000001', 250.00, 'telebirr', 'tb-ref-superseded', 'failed');
+  ('fb008888-0000-0000-0000-000000000003', 'fb000000-0000-0000-0000-00000000000a', 'fb009999-0000-0000-0000-000000000001', 250.00, 'telebirr', 'tb-ref-superseded', 'failed');
 
 select is(
   public.settle_gateway_payment('tb-ref-superseded', 'telebirr', 250.00),
