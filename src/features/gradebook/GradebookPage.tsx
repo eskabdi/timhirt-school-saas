@@ -13,9 +13,24 @@ export function GradebookPage() {
   const [subjectId, setSubjectId] = useState("");
   const [scores, setScores] = useState<Record<string, number>>({});
 
-  const { data: exams } = useQuery({ queryKey: ["exams"], queryFn: async () => (await supabase.from("exams").select("id,name_i18n,max_score")).data ?? [] });
+  const { data: exams } = useQuery({ queryKey: ["exams"], queryFn: async () => (await supabase.from("exams").select("id,name_i18n,max_score,class_id")).data ?? [] });
   const { data: subjects } = useQuery({ queryKey: ["subjects"], queryFn: async () => (await supabase.from("subjects").select("id,name_i18n")).data ?? [] });
-  const { data: students } = useQuery({ queryKey: ["students-brief"], queryFn: async () => (await supabase.from("students").select("id,first_name,last_name")).data ?? [] });
+
+  const selectedExam = exams?.find((e) => e.id === examId);
+
+  // Legacy exams created before class scoping existed have class_id = null
+  // and fall back to the whole-school roster (§ see the fix's migration
+  // comment) -- every exam created going forward always carries a class_id.
+  const { data: students } = useQuery({
+    queryKey: ["students-brief", selectedExam?.class_id ?? null],
+    enabled: !!examId,
+    queryFn: async () => {
+      let query = supabase.from("students").select("id,first_name,last_name");
+      if (selectedExam?.class_id) query = query.eq("class_id", selectedExam.class_id);
+      const { data } = await query;
+      return data ?? [];
+    },
+  });
 
   const save = useMutation({
     mutationFn: async () => {
