@@ -199,4 +199,55 @@ marked successfully as `school_admin`.
 
 ---
 
+## Grading
+
+Score-bound enforcement and audit logging both genuinely work; but the
+gradebook has no concept of "this exam belongs to this class," which makes
+it break down at any real school size, and three of the module's headline
+features — GPA, class rank, and the Ethiopian grading scale actually being
+applied to a score — are configured or displayed but never computed.
+
+| Severity | What's wrong | Evidence (file:line or response) | Fix |
+|---|---|---|---|
+| High | **No class scoping anywhere in grading.** `exams` has no `class_id` (only `academic_term_id`); `grades` has no `class_id` either. `GradebookPage.tsx`'s student list is `supabase.from("students").select(...)` with **zero filter** — every score-entry screen shows literally every student in the entire school in one flat list, regardless of which class/grade the exam is actually for. At a school with more than a handful of students this is unusable, and nothing stops a teacher from entering a score for a student in a completely different grade than the exam was meant for — the system has no way to even express "this exam is for Grade 5" in the first place. | `supabase/migrations/20260713000003_attendance_grades_fees.sql:39-46` (`exams`, no class_id) and `:48-59` (`grades`, no class_id). `src/features/gradebook/GradebookPage.tsx:18` (`students-brief` query, no `.eq("class_id", ...)` anywhere in the file). | Add a `class_id` to `exams` (or a join table if one exam can span multiple sections of a grade) and filter the gradebook roster by it — the same shape `attendance`/`timetable_slots` already use successfully elsewhere in this codebase. |
+| Medium | **"Current GPA" and "Class Rank" are permanently dead stat cards.** Both are rendered on `StudentDetailPage.tsx` and the Academic Record tab, and both are hardcoded to the literal string `"—"` — no query, no calculation, nothing. Grep across the entire repo for any rank/GPA computation (SQL function, RPC, or client-side aggregate) found none. | `src/features/students/StudentDetailPage.tsx:243,245` (`statCard(t("students.profile.currentGpa"), "—")`, `statCard(t("students.profile.classRank"), "—")`). `src/features/students/tabs/AcademicRecordTab.tsx:147-148` (same pattern, "Class Rank" card). | Build the actual aggregation (GPA from weighted exam scores per the grading scale; rank from ordering same-class students by that GPA/average) — this needs the class-scoping fix above to even be well-defined per exam. |
+| Medium | **Grading Scales are configured but never applied.** `GradingScalesPage.tsx` lets a school define real percentage-to-letter bands (the actual Ethiopian A/B/C/D/F scale this repo's blueprint describes), but grep across `src/` shows `grading_scales` is referenced by exactly two files: the settings CRUD page itself, and the permissions matrix (which only governs who may edit the bands). No report card, gradebook view, or student profile ever looks up a score against these bands to show a letter grade. | Grep `grading_scales` across `src/`: `src/features/settings/GradingScalesPage.tsx`, `src/features/settings/access/PermissionsMatrixTab.tsx` only. | Wire a lookup (score/GPA → matching band → letter) into whichever surface actually needs to show it — most naturally the report card generator (see Report Cards module) and the dead GPA/rank cards above. |
+| Medium | **No teacher-submit vs registrar-override workflow exists.** `grades_insert`/`grades_update` RLS grants write access identically to "teacher of that class" and to anyone with the `grades` permission-matrix grant, at all times — there's no submitted/locked state, no visible "entered by X, later changed by Y" in any UI (even though `audit_logs` genuinely does capture it server-side — see Works below). Functionally identical gap to Attendance's retroactive-edit finding, but at least here the underlying audit trail exists; only the UI to see it is missing. | `supabase/migrations/20260817000002_resource_permissions_academics.sql:280-288` (`grades_insert`/`grades_update`, no workflow-state check). | If a formal submit/override workflow is wanted, add a status column to gate `update` more strictly once a teacher has submitted; otherwise at minimum surface `audit_logs` history on a grade in the UI so a registrar can see it was overridden, since the data is already there. |
+| Low | No "N students missing a mark" indicator anywhere in `GradebookPage.tsx` — an unscored student is just a blank input, indistinguishable from a 0 that hasn't been typed yet. | `src/features/gradebook/GradebookPage.tsx:48-56`. | Track and surface a distinct "not yet entered" state per cell. |
+
+**Works:** Mark-bound enforcement is genuinely server-side, not just a
+client-side `max` hint — live-verified: an 85/100 score on a real "Midterm
+Exam" (max_score 100) saved correctly, and a 150/100 attempt on the same
+exam was rejected with `score_exceeds_max` (400) by the `grade_guard`
+trigger, exactly mirroring the capacity-enforcement pattern seen in
+Admissions. `entered_by` is stamped server-side, never trusted from the
+client (same pattern as attendance's `recorded_by`). Unlike attendance,
+`grades` **does** have a real audit trail — `audit_trigger` is attached,
+and a live insert produced a genuine `audit_logs` row with the full new
+score, actor, and timestamp captured. Multiple weighted assessment types
+per term (`exams.max_score`/`weight`) create and list correctly.
+
+---
+
+## Exams
+
+Mark capture works (it's the same `grades`/`exams` mechanism already
+verified in the Grading module above); everything else the task brief asks
+about this module — scheduling, seating, result publication, and
+unpaid-balance blocking — was never built.
+
+| Severity | What's wrong | Evidence (file:line or response) | Fix |
+|---|---|---|---|
+| Medium | **No exam scheduling exists.** `exams` in this product is purely an assessment-type definition — `name_i18n`, `max_score`, `weight`, `academic_term_id`, and an unused `category` column — with no date, no start/end time, no room. There is no representation anywhere of "this exam sits on this day, in this room." | `supabase/migrations/20260713000003_attendance_grades_fees.sql:39-46` (full `exams` schema). Grep for `exam_date`/`exam_room`/`exam_schedule` across the whole repo: zero matches. | Would need a real scheduling table (or reuse `timetable_slots`/`calendar_events`-shaped fields) if exam-day logistics are wanted as a product feature. |
+| Medium | **No seating chart / seat assignment feature exists at all.** Grep for "seating" across the entire repo (migrations and `src/`) returns zero matches. | Grep, zero hits. | Never built — flagging for completeness per the audit brief, not implying it's a regression. |
+| Medium | **No result-publication gate.** A score is visible to the student and their guardian the instant it's saved — live-verified: entered an 85/100 Midterm score as `school_admin`, then immediately queried it as the logged-in student account and got it back with no delay, no "draft" state, no batch-release action anywhere. `grades_select` RLS has no `published`/`released` condition, and no such column exists on `grades` or `exams`. | Live: `POST /rest/v1/grades` (score 85) as school_admin, followed immediately by `GET /rest/v1/grades` as the student's own logged-in session → returns the row. `supabase/migrations/20260817000002_resource_permissions_academics.sql:273-279` (`grades_select`, no publish-state check). | If a school wants results held back until finalized (common practice — releasing marks class-by-class after review), add a `published_at`/`status` gate to the read policy for the student/guardian branch specifically (staff branches should stay unaffected). |
+| Medium | **No unpaid-balance blocking anywhere.** Grep for any fee-balance check gating exam results, report cards, or grade visibility: zero matches in `src/`. A student with a large outstanding invoice sees their grades exactly the same as a student with a zero balance. | Grep across `src/` for `unpaid`/balance-gating patterns near grades/report-card code: no matches. | Never built — a common requirement in fee-funded schools; would need a check against `invoice_summary`/outstanding balance wired into whichever surface (report card generation is the most natural place) is meant to enforce it. |
+
+**Works:** Mark capture and its guardrails are exactly what's documented
+in the Grading module above — server-enforced score bounds, server-stamped
+`entered_by`, and a real audit trail on every write. No additional
+exam-specific mechanism exists beyond that, for better or worse.
+
+---
+
 *(Audit in progress — remaining modules appended below as they are tested.)*
