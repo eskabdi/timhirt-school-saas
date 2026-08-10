@@ -19,9 +19,9 @@ values
   ('00000000-0000-0000-0000-000000000000', 'adf00003-0000-0000-0000-000000000003', 'authenticated', 'authenticated', 'adf-teacher@test.example', crypt('x', gen_salt('bf')), now(), now(), now(), '', '', '', ''),
   ('00000000-0000-0000-0000-000000000000', 'adf00004-0000-0000-0000-000000000004', 'authenticated', 'authenticated', 'adf-admin-b@test.example', crypt('x', gen_salt('bf')), now(), now(), now(), '', '', '', '');
 
-insert into public.tenants (id, name, slug, status) values
-  ('adf00000-0000-0000-0000-00000000000a', 'ADF Tenant A', 'adf-tenant-a', 'active'),
-  ('adf00000-0000-0000-0000-00000000000b', 'ADF Tenant B', 'adf-tenant-b', 'active');
+insert into public.tenants (id, name, slug, status, tier_key) values
+  ('adf00000-0000-0000-0000-00000000000a', 'ADF Tenant A', 'adf-tenant-a', 'active', 'premium'),
+  ('adf00000-0000-0000-0000-00000000000b', 'ADF Tenant B', 'adf-tenant-b', 'active', 'premium');
 
 insert into public.users (id, tenant_id, role, full_name, email) values
   ('adf00001-0000-0000-0000-000000000001', 'adf00000-0000-0000-0000-00000000000a', 'school_admin', 'ADF Admin',     'adf-admin@test.example'),

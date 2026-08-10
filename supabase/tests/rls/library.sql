@@ -25,9 +25,9 @@ values
   ('00000000-0000-0000-0000-000000000000', 'aca00001-0000-0000-0000-000000000007', 'authenticated', 'authenticated', 'lib-student2@test.example', crypt('x', gen_salt('bf')), now(), now(), now(), '', '', '', ''),
   ('00000000-0000-0000-0000-000000000000', 'acb00001-0000-0000-0000-000000000001', 'authenticated', 'authenticated', 'lib-admin-b@test.example', crypt('x', gen_salt('bf')), now(), now(), now(), '', '', '', '');
 
-insert into public.tenants (id, name, slug, status) values
-  ('aca00000-0000-0000-0000-00000000000a', 'Lib Tenant A', 'lib-tenant-a', 'active'),
-  ('acb00000-0000-0000-0000-00000000000b', 'Lib Tenant B', 'lib-tenant-b', 'active');
+insert into public.tenants (id, name, slug, status, tier_key) values
+  ('aca00000-0000-0000-0000-00000000000a', 'Lib Tenant A', 'lib-tenant-a', 'active', 'premium'),
+  ('acb00000-0000-0000-0000-00000000000b', 'Lib Tenant B', 'lib-tenant-b', 'active', 'premium');
 
 insert into public.users (id, tenant_id, role, full_name, email) values
   ('aca00001-0000-0000-0000-000000000001', 'aca00000-0000-0000-0000-00000000000a', 'school_admin', 'Lib Admin',      'lib-admin@test.example'),

@@ -25,9 +25,9 @@ values
   ('00000000-0000-0000-0000-000000000000', 'c1000002-0000-0000-0000-000000000002', 'authenticated', 'authenticated', 'cr-teacher@test.example', crypt('x', gen_salt('bf')), now(), now(), now(), '', '', '', ''),
   ('00000000-0000-0000-0000-000000000000', 'c1000003-0000-0000-0000-000000000003', 'authenticated', 'authenticated', 'cr-admin-b@test.example', crypt('x', gen_salt('bf')), now(), now(), now(), '', '', '', '');
 
-insert into public.tenants (id, name, slug, status) values
-  ('c1000000-0000-0000-0000-00000000000a', 'CR Tenant A', 'cr-tenant-a', 'active'),
-  ('c1000000-0000-0000-0000-00000000000b', 'CR Tenant B', 'cr-tenant-b', 'active');
+insert into public.tenants (id, name, slug, status, tier_key) values
+  ('c1000000-0000-0000-0000-00000000000a', 'CR Tenant A', 'cr-tenant-a', 'active', 'premium'),
+  ('c1000000-0000-0000-0000-00000000000b', 'CR Tenant B', 'cr-tenant-b', 'active', 'premium');
 
 insert into public.users (id, tenant_id, role, full_name, email) values
   ('c1000001-0000-0000-0000-000000000001', 'c1000000-0000-0000-0000-00000000000a', 'school_admin', 'CR Admin',    'cr-admin@test.example'),

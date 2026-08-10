@@ -19,8 +19,8 @@ values
   ('00000000-0000-0000-0000-000000000000', 'ec000003-0000-0000-0000-000000000003', 'authenticated', 'authenticated', 'ic-guardian@test.example', crypt('x', gen_salt('bf')), now(), now(), now(), '', '', '', ''),
   ('00000000-0000-0000-0000-000000000000', 'ec000004-0000-0000-0000-000000000004', 'authenticated', 'authenticated', 'ic-other-guardian@test.example', crypt('x', gen_salt('bf')), now(), now(), now(), '', '', '', '');
 
-insert into public.tenants (id, name, slug, status) values
-  ('ec000000-0000-0000-0000-00000000000a', 'IC Tenant', 'ic-tenant', 'active');
+insert into public.tenants (id, name, slug, status, tier_key) values
+  ('ec000000-0000-0000-0000-00000000000a', 'IC Tenant', 'ic-tenant', 'active', 'premium');
 
 insert into public.users (id, tenant_id, role, full_name, email) values
   ('ec000001-0000-0000-0000-000000000001', 'ec000000-0000-0000-0000-00000000000a', 'school_admin', 'IC Admin',      'ic-admin@test.example'),

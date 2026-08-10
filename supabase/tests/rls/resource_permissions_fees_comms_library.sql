@@ -21,8 +21,8 @@ values
   ('00000000-0000-0000-0000-000000000000', 'a0000006-0000-0000-0000-000000000006', 'authenticated', 'authenticated', 'rf-student@test.example',   crypt('x', gen_salt('bf')), now(), now(), now(), '', '', '', ''),
   ('00000000-0000-0000-0000-000000000000', 'a0000007-0000-0000-0000-000000000007', 'authenticated', 'authenticated', 'rf-guardian@test.example',  crypt('x', gen_salt('bf')), now(), now(), now(), '', '', '', '');
 
-insert into public.tenants (id, name, slug, status) values
-  ('a0000000-0000-0000-0000-00000000000a', 'RF Tenant A', 'rf-tenant-a', 'active');
+insert into public.tenants (id, name, slug, status, tier_key) values
+  ('a0000000-0000-0000-0000-00000000000a', 'RF Tenant A', 'rf-tenant-a', 'active', 'premium');
 
 insert into public.users (id, tenant_id, role, full_name, email) values
   ('a0000001-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-00000000000a', 'school_admin', 'RF Admin',      'rf-admin@test.example'),

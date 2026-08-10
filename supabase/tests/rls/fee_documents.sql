@@ -23,9 +23,9 @@ values
   ('00000000-0000-0000-0000-000000000000', 'fda00007-0000-0000-0000-000000000007', 'authenticated', 'authenticated', 'fd-parent2@test.example', crypt('x', gen_salt('bf')), now(), now(), now(), '', '', '', ''),
   ('00000000-0000-0000-0000-000000000000', 'fdb00001-0000-0000-0000-000000000001', 'authenticated', 'authenticated', 'fd-admin-b@test.example', crypt('x', gen_salt('bf')), now(), now(), now(), '', '', '', '');
 
-insert into public.tenants (id, name, slug, status) values
-  ('fda00000-0000-0000-0000-00000000000a', 'FD Tenant A', 'fd-tenant-a', 'active'),
-  ('fdb00000-0000-0000-0000-00000000000b', 'FD Tenant B', 'fd-tenant-b', 'active');
+insert into public.tenants (id, name, slug, status, tier_key) values
+  ('fda00000-0000-0000-0000-00000000000a', 'FD Tenant A', 'fd-tenant-a', 'active', 'premium'),
+  ('fdb00000-0000-0000-0000-00000000000b', 'FD Tenant B', 'fd-tenant-b', 'active', 'premium');
 
 insert into public.users (id, tenant_id, role, full_name, email) values
   ('fda00001-0000-0000-0000-000000000001', 'fda00000-0000-0000-0000-00000000000a', 'school_admin', 'FD Admin',      'fd-admin@test.example'),

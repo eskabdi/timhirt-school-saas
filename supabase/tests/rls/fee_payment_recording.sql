@@ -22,8 +22,8 @@ values
   ('00000000-0000-0000-0000-000000000000', 'aeb00002-0000-0000-0000-000000000002', 'authenticated', 'authenticated', 'fp-accountant@test.example', crypt('x', gen_salt('bf')), now(), now(), now(), '', '', '', ''),
   ('00000000-0000-0000-0000-000000000000', 'aeb00003-0000-0000-0000-000000000003', 'authenticated', 'authenticated', 'fp-registrar@test.example', crypt('x', gen_salt('bf')), now(), now(), now(), '', '', '', '');
 
-insert into public.tenants (id, name, slug, status) values
-  ('aeb00000-0000-0000-0000-00000000000a', 'FP Tenant', 'fp-tenant', 'active');
+insert into public.tenants (id, name, slug, status, tier_key) values
+  ('aeb00000-0000-0000-0000-00000000000a', 'FP Tenant', 'fp-tenant', 'active', 'premium');
 
 insert into public.users (id, tenant_id, role, full_name, email) values
   ('aeb00001-0000-0000-0000-000000000001', 'aeb00000-0000-0000-0000-00000000000a', 'school_admin', 'FP Admin',      'fp-admin@test.example'),

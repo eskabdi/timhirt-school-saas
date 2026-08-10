@@ -31,9 +31,9 @@ values
    'authenticated', 'authenticated', 'dash-parent-a@test.example', crypt('x', gen_salt('bf')),
    now(), now(), now(), '', '', '', '');
 
-insert into public.tenants (id, name, slug, status) values
-  ('da000000-0000-0000-0000-00000000000a', 'Dash Tenant A', 'dash-tenant-a', 'active'),
-  ('db000000-0000-0000-0000-00000000000b', 'Dash Tenant B', 'dash-tenant-b', 'active');
+insert into public.tenants (id, name, slug, status, tier_key) values
+  ('da000000-0000-0000-0000-00000000000a', 'Dash Tenant A', 'dash-tenant-a', 'active', 'premium'),
+  ('db000000-0000-0000-0000-00000000000b', 'Dash Tenant B', 'dash-tenant-b', 'active', 'premium');
 
 insert into public.users (id, tenant_id, role, full_name, email) values
   ('d0000001-0000-0000-0000-000000000001', 'da000000-0000-0000-0000-00000000000a', 'school_admin', 'Dash Admin A', 'dash-admin-a@test.example'),

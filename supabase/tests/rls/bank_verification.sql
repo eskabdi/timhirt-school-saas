@@ -24,9 +24,9 @@ values
   ('00000000-0000-0000-0000-000000000000', 'bce00004-0000-0000-0000-000000000004', 'authenticated', 'authenticated', 'bv-parent@test.example', crypt('x', gen_salt('bf')), now(), now(), now(), '', '', '', ''),
   ('00000000-0000-0000-0000-000000000000', 'bcf00001-0000-0000-0000-000000000001', 'authenticated', 'authenticated', 'bv-admin-b@test.example', crypt('x', gen_salt('bf')), now(), now(), now(), '', '', '', '');
 
-insert into public.tenants (id, name, slug, status) values
-  ('bce00000-0000-0000-0000-00000000000a', 'BV Tenant A', 'bv-tenant-a', 'active'),
-  ('bcf00000-0000-0000-0000-00000000000b', 'BV Tenant B', 'bv-tenant-b', 'active');
+insert into public.tenants (id, name, slug, status, tier_key) values
+  ('bce00000-0000-0000-0000-00000000000a', 'BV Tenant A', 'bv-tenant-a', 'active', 'premium'),
+  ('bcf00000-0000-0000-0000-00000000000b', 'BV Tenant B', 'bv-tenant-b', 'active', 'premium');
 
 insert into public.users (id, tenant_id, role, full_name, email) values
   ('bce00001-0000-0000-0000-000000000001', 'bce00000-0000-0000-0000-00000000000a', 'super_admin', 'BV Super',     'bv-super@test.example'),

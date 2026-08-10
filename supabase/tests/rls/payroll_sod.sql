@@ -18,8 +18,8 @@ values
    'authenticated', 'authenticated', 'accountant@test.example', crypt('x', gen_salt('bf')),
    now(), now(), now(), '', '', '', '');
 
-insert into public.tenants (id, name, slug, status) values
-  ('cccccccc-0000-0000-0000-000000000001', 'Tenant C', 'rls-test-tenant-c', 'active');
+insert into public.tenants (id, name, slug, status, tier_key) values
+  ('cccccccc-0000-0000-0000-000000000001', 'Tenant C', 'rls-test-tenant-c', 'active', 'premium');
 
 insert into public.users (id, tenant_id, role, full_name, email) values
   ('33333333-0000-0000-0000-000000000001', 'cccccccc-0000-0000-0000-000000000001', 'school_admin', 'School Admin (preparer)', 'hr@test.example'),

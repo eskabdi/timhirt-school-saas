@@ -33,8 +33,8 @@ values
   ('00000000-0000-0000-0000-000000000000', '9e000008-0000-0000-0000-000000000008', 'authenticated', 'authenticated', 'ra-student@test.example',  crypt('x', gen_salt('bf')), now(), now(), now(), '', '', '', ''),
   ('00000000-0000-0000-0000-000000000000', '9e000009-0000-0000-0000-000000000009', 'authenticated', 'authenticated', 'ra-guardian@test.example', crypt('x', gen_salt('bf')), now(), now(), now(), '', '', '', '');
 
-insert into public.tenants (id, name, slug, status) values
-  ('9e000000-0000-0000-0000-00000000000a', 'RA Tenant A', 'ra-tenant-a', 'active');
+insert into public.tenants (id, name, slug, status, tier_key) values
+  ('9e000000-0000-0000-0000-00000000000a', 'RA Tenant A', 'ra-tenant-a', 'active', 'premium');
 
 insert into public.users (id, tenant_id, role, full_name, email) values
   ('9e000001-0000-0000-0000-000000000001', '9e000000-0000-0000-0000-00000000000a', 'school_admin', 'RA Admin',       'ra-admin@test.example'),
