@@ -12,7 +12,7 @@ import { Field } from "@/components/ui/Field";
 import { Pagination, pageRange } from "@/components/ui/Pagination";
 import { EthDate } from "@/components/EthDate";
 import { formatETB, tField } from "@/lib/i18n";
-import { onRowDoubleClick } from "@/lib/utils";
+import { cn, onRowDoubleClick } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
 import { issueFeeDocumentUrl, markAllNotificationsRead, markNotificationRead, useBillingNotifications, generateFeeInvoices } from "./api";
 import { IconReceipt, IconCheckCircle, IconWarningTriangle, IconDownload, IconPlusDoc, IconCalendarSmall } from "./icons";
@@ -397,7 +397,9 @@ export function InvoicesPage() {
           </thead>
           <tbody className="divide-y divide-line">
             {invoices?.map((inv) => (
-              <tr key={inv.id} className="cursor-pointer hover:bg-sidebar" onDoubleClick={onRowDoubleClick(navigate, inv.id)}>
+              <tr key={inv.id}
+                className={cn("cursor-pointer hover:bg-sidebar", inv.status !== "paid" && "bg-danger-tint")}
+                onDoubleClick={onRowDoubleClick(navigate, inv.id)}>
                 <td className="px-4 py-2 font-medium text-ink">
                   <Link to={inv.id} className="hover:underline">{inv.student?.first_name} {inv.student?.last_name}</Link>
                   {inv.line_count > 1 && <span className="ml-1.5 text-xs font-normal text-ink-faint">({t("fees.lineCount", { count: inv.line_count })})</span>}
