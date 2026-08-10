@@ -1,26 +1,14 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useSession } from "@/features/auth/useSession";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
-import { tField } from "@/lib/i18n";
 import { useTranslation } from "react-i18next";
 import { formatEth } from "@/lib/ethiopian-date";
 import { buildTranscriptPdf } from "../transcript-pdf";
-
-function letter(total: number): string {
-  if (total >= 90) return "A+";
-  if (total >= 85) return "A";
-  if (total >= 80) return "A-";
-  if (total >= 75) return "B+";
-  if (total >= 70) return "B";
-  if (total >= 60) return "C";
-  if (total >= 50) return "D";
-  return "F";
-}
-interface Row { subject: string; code: string; instructor: string; ca: number; final: number; total: number; }
+import { fetchAcademicRecord, letterGrade as letter } from "../academic-record";
 
 const GRADE_TABS = [9, 10, 11, 12];
 
@@ -36,26 +24,11 @@ export function AcademicRecordTab({ studentId, studentName, admissionNo, gradeLa
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { data: rows } = useQuery({
+  const { data: record } = useQuery({
     queryKey: ["academic-record", studentId],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("grades")
-        .select("score, subjects(name_i18n, code), exams(category, max_score, name_i18n)")
-        .eq("student_id", studentId);
-      if (error) throw error;
-      // Aggregate per subject: CA total, Final total.
-      const bySubject = new Map<string, Row>();
-      for (const g of (data ?? []) as unknown as { score: number; subjects: { name_i18n: Record<string, string>; code: string } | null; exams: { category: string | null } | null }[]) {
-        const code = g.subjects?.code ?? "—";
-        const r = bySubject.get(code) ?? { subject: tField(g.subjects?.name_i18n, i18n.resolvedLanguage!) || code, code, instructor: "—", ca: 0, final: 0, total: 0 };
-        if (g.exams?.category === "final") r.final += Number(g.score);
-        else r.ca += Number(g.score);
-        r.total = r.ca + r.final;
-        bySubject.set(code, r);
-      }
-      return Array.from(bySubject.values());
-    },
+    queryFn: () => fetchAcademicRecord(studentId, i18n.resolvedLanguage!),
   });
+  const rows = record?.rows;
 
   // School name for the transcript letterhead — same branding record the nav
   // and ID cards read, so all three stay consistent.
@@ -65,11 +38,7 @@ export function AcademicRecordTab({ studentId, studentName, admissionNo, gradeLa
     queryFn: async () => (await supabase.from("tenant_configs").select("settings").eq("tenant_id", profile!.tenant_id!).maybeSingle()).data,
   });
 
-  const totals = useMemo(() => {
-    const list = rows ?? [];
-    const sum = list.reduce((a, r) => a + r.total, 0);
-    return { sum, max: list.length * 100, gpa: list.length ? (list.reduce((a, r) => a + gp(r.total), 0) / list.length) : 0 };
-  }, [rows]);
+  const totals = record?.totals ?? { sum: 0, max: 0, gpa: 0 };
 
   const downloadPdf = async () => {
     setError(null);
@@ -220,15 +189,4 @@ export function AcademicRecordTab({ studentId, studentName, admissionNo, gradeLa
       </Card>
     </div>
   );
-}
-
-function gp(total: number): number {
-  if (total >= 90) return 4.0;
-  if (total >= 85) return 3.75;
-  if (total >= 80) return 3.5;
-  if (total >= 75) return 3.0;
-  if (total >= 70) return 2.5;
-  if (total >= 60) return 2.0;
-  if (total >= 50) return 1.0;
-  return 0;
 }

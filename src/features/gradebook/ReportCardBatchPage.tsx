@@ -2,14 +2,96 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { useSession } from "@/features/auth/useSession";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { formatEth } from "@/lib/ethiopian-date";
+import { buildTranscriptPdf } from "../students/transcript-pdf";
+import { fetchAcademicRecord, letterGrade } from "../students/academic-record";
 
 export function ReportCardBatchPage() {
-  const { t } = useTranslation();
-  const { data: classes } = useQuery({ queryKey: ["classes"], queryFn: async () => (await supabase.from("classes").select("id,name,section").order("grade_level").order("section")).data ?? [] });
+  const { t, i18n } = useTranslation();
+  const { t: tc } = useTranslation("calendar");
+  const { profile } = useSession();
+  const { data: classes } = useQuery({ queryKey: ["classes"], queryFn: async () => (await supabase.from("classes").select("id,name,section,grade_level").order("grade_level").order("section")).data ?? [] });
   const [selected, setSelected] = useState<string[]>([]);
   const toggle = (id: string) => setSelected((s) => s.includes(id) ? s.filter((x) => x !== id) : [...s, id]);
+
+  const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+  const [result, setResult] = useState<{ succeeded: number; failed: string[] } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const generate = async () => {
+    setError(null);
+    setResult(null);
+    setBusy(true);
+    try {
+      const { data: students, error: studentsError } = await supabase.from("students")
+        .select("id, first_name, last_name, admission_no, class_id")
+        .in("class_id", selected)
+        .eq("status", "active");
+      if (studentsError) throw studentsError;
+
+      const { data: brand } = await supabase.from("tenant_configs").select("settings").eq("tenant_id", profile!.tenant_id!).maybeSingle();
+      const branding = brand?.settings?.branding as { nameEn?: string; nameAm?: string; nameOm?: string } | undefined;
+      const lang = i18n.resolvedLanguage;
+      const schoolName =
+        (lang === "am" ? branding?.nameAm : lang === "om" ? branding?.nameOm : branding?.nameEn) ||
+        branding?.nameEn || t("app.name");
+      const issuedOn = formatEth(new Date(), {
+        monthNames: tc("months", { returnObjects: true }) as string[],
+        eraSuffix: tc("eraSuffix"),
+      });
+      const labels = {
+        title: t("academicRecord.title"), student: t("clinic.student"), studentNo: t("students.admissionNo"),
+        grade: t("students.profile.grade"), period: t("academicRecord.period"),
+        subject: t("gradebook.subject"), instructor: t("academicRecord.instructor"),
+        ca: t("academicRecord.ca"), final: t("academicRecord.finalCol"), total: t("academicRecord.totalCol"),
+        letter: t("academicRecord.letter"), status: t("students.status"),
+        pass: t("academicRecord.pass"), fail: t("academicRecord.fail"),
+        semesterTotals: t("academicRecord.semesterTotals"), gpa: t("academicRecord.cumulativeGpa"),
+        issued: t("idCards.issued"), notice: t("academicRecord.noticeTitle"), noticeBody: t("academicRecord.noticeBody"),
+      };
+
+      const roster = students ?? [];
+      setProgress({ done: 0, total: roster.length });
+      let succeeded = 0;
+      const failed: string[] = [];
+      for (const s of roster) {
+        const fullName = `${s.first_name} ${s.last_name}`;
+        try {
+          const cls = classes?.find((c) => c.id === s.class_id);
+          const gradeLabel = cls ? `${t("students.profile.grade")} ${cls.grade_level}${cls.section ? `-${cls.section}` : ""}` : "—";
+          const record = await fetchAcademicRecord(s.id, i18n.resolvedLanguage!);
+          const blob = await buildTranscriptPdf({
+            schoolName, studentName: fullName, admissionNo: s.admission_no,
+            gradeLabel, academicPeriod: gradeLabel,
+            rows: record.rows.map((r) => ({ ...r, letter: letterGrade(r.total) })),
+            gpa: record.totals.gpa, totalScore: record.totals.sum, maxScore: record.totals.max,
+            issuedOn, labels,
+          });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `transcript-${s.admission_no.replace(/[^A-Za-z0-9-]/g, "")}.pdf`;
+          a.click();
+          URL.revokeObjectURL(url);
+          succeeded++;
+        } catch {
+          failed.push(fullName);
+        }
+        setProgress((p) => p ? { done: p.done + 1, total: p.total } : p);
+      }
+      setResult({ succeeded, failed });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t("academicRecord.pdfFailed"));
+    } finally {
+      setBusy(false);
+      setProgress(null);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <h1 className="font-display text-2xl font-bold text-ink">{t("gradebook.reportCards")}</h1>
@@ -20,8 +102,19 @@ export function ReportCardBatchPage() {
             {c.name} {c.section}
           </label>
         ))}
-        <Button disabled={!selected.length} className="mt-2">{t("gradebook.queuePdf", { count: selected.length })}</Button>
+        <Button disabled={!selected.length || busy} className="mt-2" onClick={generate}>
+          {busy && progress
+            ? t("gradebook.generatingProgress", { done: progress.done, total: progress.total })
+            : t("gradebook.queuePdf", { count: selected.length })}
+        </Button>
       </Card>
+      {error && <p className="text-sm text-danger">{error}</p>}
+      {result && (
+        <p className={`text-sm ${result.failed.length ? "text-danger" : "text-ok"}`}>
+          {t("gradebook.batchComplete", { count: result.succeeded })}
+          {result.failed.length > 0 && ` — ${t("gradebook.batchFailed", { names: result.failed.join(", ") })}`}
+        </p>
+      )}
       <p className="text-xs text-ink-faint">{t("gradebook.reportCardNote")}</p>
     </div>
   );
