@@ -8,12 +8,12 @@ import { Button } from "@/components/ui/Button";
 import { useTranslation } from "react-i18next";
 import { formatEth } from "@/lib/ethiopian-date";
 import { buildTranscriptPdf } from "../transcript-pdf";
-import { fetchAcademicRecord, letterGrade as letter } from "../academic-record";
+import { fetchAcademicRecord, fetchClassRank, letterGrade as letter } from "../academic-record";
 
 const GRADE_TABS = [9, 10, 11, 12];
 
-export function AcademicRecordTab({ studentId, studentName, admissionNo, gradeLabel }: {
-  studentId: string; studentName?: string; admissionNo?: string; gradeLabel?: string;
+export function AcademicRecordTab({ studentId, studentName, admissionNo, gradeLabel, classId }: {
+  studentId: string; studentName?: string; admissionNo?: string; gradeLabel?: string; classId?: string | null;
 }) {
   const { t, i18n } = useTranslation();
   // The EC month names live in the calendar namespace, same source <EthDate/>
@@ -29,6 +29,12 @@ export function AcademicRecordTab({ studentId, studentName, admissionNo, gradeLa
     queryFn: () => fetchAcademicRecord(studentId, i18n.resolvedLanguage!),
   });
   const rows = record?.rows;
+
+  const { data: classRank } = useQuery({
+    queryKey: ["class-rank", studentId, classId],
+    enabled: !!classId,
+    queryFn: () => fetchClassRank(studentId, classId!),
+  });
 
   // School name for the transcript letterhead — same branding record the nav
   // and ID cards read, so all three stay consistent.
@@ -114,7 +120,7 @@ export function AcademicRecordTab({ studentId, studentName, admissionNo, gradeLa
           </div>
           <div className="text-center">
             <p className="text-xs uppercase text-ink-faint">{t("students.profile.classRank")}</p>
-            <p className="font-display text-3xl font-bold text-ink">—</p>
+            <p className="font-display text-3xl font-bold text-ink">{classRank ? `${classRank.rank} / ${classRank.totalStudents}` : "—"}</p>
           </div>
         </Card>
         <Card className="md:col-span-2">

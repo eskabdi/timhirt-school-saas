@@ -50,3 +50,13 @@ export async function fetchAcademicRecord(studentId: string, locale: string) {
   const gpa = rows.length ? rows.reduce((a, r) => a + gradePoint(r.total), 0) / rows.length : 0;
   return { rows, totals: { sum, max: rows.length * 100, gpa } };
 }
+
+// A classmate's raw grades aren't readable via RLS by a self-viewing
+// student/guardian, so rank is computed server-side (get_class_rank(),
+// SECURITY DEFINER) rather than by fetching every classmate's grades here.
+export async function fetchClassRank(studentId: string, classId: string) {
+  const { data, error } = await supabase.rpc("get_class_rank", { p_student_id: studentId, p_class_id: classId });
+  if (error) throw error;
+  const row = Array.isArray(data) ? data[0] : data;
+  return row?.rank != null ? { rank: row.rank as number, totalStudents: row.total_students as number } : null;
+}

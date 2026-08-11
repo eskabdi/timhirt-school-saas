@@ -35,7 +35,7 @@ export function StudentDashboardView({ studentId }: { studentId: string }) {
     queryKey: ["portal-student-profile", studentId],
     queryFn: async () => {
       const { data, error } = await supabase.from("students")
-        .select("id, admission_no, roll_number, first_name, middle_name, last_name, date_of_birth, gender, status, avatar_path, blood_type, primary_language, ethnicity, admission_date, class:classes(name, section, grade_level)")
+        .select("id, class_id, admission_no, roll_number, first_name, middle_name, last_name, date_of_birth, gender, status, avatar_path, blood_type, primary_language, ethnicity, admission_date, class:classes(name, section, grade_level)")
         .eq("id", studentId).single();
       if (error) throw error;
       return data;
@@ -152,7 +152,7 @@ export function StudentDashboardView({ studentId }: { studentId: string }) {
 
       {tab === "academicRecord" && (
         <AcademicRecordTab studentId={student.id} studentName={fullName}
-          admissionNo={student.admission_no} gradeLabel={gradeLabel} />
+          admissionNo={student.admission_no} gradeLabel={gradeLabel} classId={student.class_id} />
       )}
       {tab === "attendance" && <AttendanceTab studentId={student.id} />}
       {tab === "behavioral" && <BehavioralTab studentId={student.id} readOnly />}

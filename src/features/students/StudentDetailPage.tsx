@@ -15,6 +15,7 @@ import { EditProfileModal } from "./EditProfileModal";
 import { buildStudentProfilePdf } from "./student-profile-pdf";
 import { formatEth } from "@/lib/ethiopian-date";
 import { gradeCycleKeyFor, gradeCycleI18nKey } from "@/lib/gradeCycles";
+import { fetchAcademicRecord, fetchClassRank } from "./academic-record";
 
 const TABS = ["personalInfo", "academicRecord", "attendance", "behavioral"] as const;
 type Tab = (typeof TABS)[number];
@@ -83,6 +84,18 @@ export function StudentDetailPage() {
       const present = data.filter((a) => a.status === "present" || a.status === "excused").length;
       return Math.round((present / data.length) * 100);
     },
+  });
+
+  const { data: academicRecord } = useQuery({
+    queryKey: ["academic-record", id],
+    enabled: !!id,
+    queryFn: () => fetchAcademicRecord(id!, i18n.resolvedLanguage!),
+  });
+
+  const { data: classRank } = useQuery({
+    queryKey: ["class-rank", id, student?.class_id],
+    enabled: !!id && !!student?.class_id,
+    queryFn: () => fetchClassRank(id!, student!.class_id!),
   });
 
   // School name for the PDF letterhead -- same branding record the ID card,
@@ -240,9 +253,9 @@ export function StudentDetailPage() {
           <p className="text-sm text-ink-soft">{t("students.edit.rollNumber")}: <span className="font-medium text-ink">{student.roll_number ?? "—"}</span></p>
         </div>
         <div className="flex flex-1 gap-3">
-          {statCard(t("students.profile.currentGpa"), "—")}
+          {statCard(t("students.profile.currentGpa"), academicRecord?.rows.length ? academicRecord.totals.gpa.toFixed(2) : "—")}
           {statCard(t("attendance.title"), attendancePct != null ? `${attendancePct}%` : "—")}
-          {statCard(t("students.profile.classRank"), "—")}
+          {statCard(t("students.profile.classRank"), classRank ? `${classRank.rank} / ${classRank.totalStudents}` : "—")}
         </div>
       </Card>
 
@@ -313,7 +326,7 @@ export function StudentDetailPage() {
 
       {tab === "academicRecord" && (
         <AcademicRecordTab studentId={student.id} studentName={fullName}
-          admissionNo={student.admission_no} gradeLabel={gradeLabel} />
+          admissionNo={student.admission_no} gradeLabel={gradeLabel} classId={student.class_id} />
       )}
       {tab === "attendance" && <AttendanceTab studentId={student.id} />}
       {tab === "behavioral" && (
