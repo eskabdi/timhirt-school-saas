@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useSession } from "@/features/auth/useSession";
@@ -8,26 +8,46 @@ import { Button } from "@/components/ui/Button";
 import { useTranslation } from "react-i18next";
 import { formatEth } from "@/lib/ethiopian-date";
 import { buildTranscriptPdf } from "../transcript-pdf";
-import { fetchAcademicRecord, fetchClassRank } from "../academic-record";
+import { fetchAcademicRecord, fetchClassRank, fetchGradeHistory } from "../academic-record";
 import { fetchConductSummary } from "../conduct-summary";
 
-const GRADE_TABS = [9, 10, 11, 12];
-
-export function AcademicRecordTab({ studentId, studentName, admissionNo, gradeLabel, classId }: {
-  studentId: string; studentName?: string; admissionNo?: string; gradeLabel?: string; classId?: string | null;
+export function AcademicRecordTab({ studentId, studentName, admissionNo, classId }: {
+  studentId: string; studentName?: string; admissionNo?: string; classId?: string | null;
 }) {
   const { t, i18n } = useTranslation();
   // The EC month names live in the calendar namespace, same source <EthDate/>
   // uses — the transcript's issue date must read identically to the UI.
   const { t: tc } = useTranslation("calendar");
   const { profile } = useSession();
-  const [gradeTab, setGradeTab] = useState(11);
+  const [gradeTab, setGradeTab] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { data: record } = useQuery({
+  // Real class history (past grades completed + current), not a hardcoded
+  // range -- a student never sees a tab for a grade they haven't reached.
+  const { data: gradeTabs } = useQuery({
+    queryKey: ["grade-history", studentId],
+    queryFn: () => fetchGradeHistory(studentId),
+  });
+  // Default to the most recent (current) grade once history loads, instead
+  // of a hardcoded starting tab.
+  useEffect(() => {
+    if (gradeTab == null && gradeTabs?.length) setGradeTab(gradeTabs[gradeTabs.length - 1]!);
+  }, [gradeTabs, gradeTab]);
+
+  // Cumulative, all-time record (no grade filter) -- drives the "Cumulative
+  // GPA" stat card, which is deliberately NOT scoped to whichever tab is
+  // selected.
+  const { data: cumulative } = useQuery({
     queryKey: ["academic-record", studentId],
     queryFn: () => fetchAcademicRecord(studentId, i18n.resolvedLanguage!),
+  });
+
+  // The selected tab's own record -- drives the on-screen table and the PDF.
+  const { data: record } = useQuery({
+    queryKey: ["academic-record", studentId, gradeTab],
+    enabled: gradeTab != null,
+    queryFn: () => fetchAcademicRecord(studentId, i18n.resolvedLanguage!, gradeTab!),
   });
   const rows = record?.rows;
 
@@ -45,6 +65,7 @@ export function AcademicRecordTab({ studentId, studentName, admissionNo, gradeLa
     queryFn: async () => (await supabase.from("tenant_configs").select("settings").eq("tenant_id", profile!.tenant_id!).maybeSingle()).data,
   });
 
+  const cumulativeGpa = cumulative?.totals.gpa ?? 0;
   const totals = record?.totals ?? { sum: 0, max: 0, gpa: 0 };
 
   const downloadPdf = async () => {
@@ -62,7 +83,10 @@ export function AcademicRecordTab({ studentId, studentName, admissionNo, gradeLa
         schoolName,
         studentName: studentName ?? "—",
         admissionNo: admissionNo ?? "—",
-        gradeLabel: gradeLabel ?? `${t("students.profile.grade")} ${gradeTab}`,
+        // Always reflects the SELECTED tab, not the student's current class
+        // -- viewing an earlier grade must export that grade's own record,
+        // not the current one relabeled.
+        gradeLabel: `${t("students.profile.grade")} ${gradeTab}`,
         academicPeriod: `${t("students.profile.grade")} ${gradeTab}`,
         rows: rows ?? [],
         gpa: totals.gpa,
@@ -127,7 +151,7 @@ export function AcademicRecordTab({ studentId, studentName, admissionNo, gradeLa
         <Card className="flex items-center justify-around">
           <div className="text-center">
             <p className="text-xs uppercase text-ink-faint">{t("academicRecord.cumulativeGpa")}</p>
-            <p className="font-display text-3xl font-bold text-navy">{totals.gpa.toFixed(2)}</p>
+            <p className="font-display text-3xl font-bold text-navy">{cumulativeGpa.toFixed(2)}</p>
           </div>
           <div className="text-center">
             <p className="text-xs uppercase text-ink-faint">{t("nav.subjects")}</p>
@@ -155,7 +179,7 @@ export function AcademicRecordTab({ studentId, studentName, admissionNo, gradeLa
 
       <Card className="space-y-3">
         <div className="no-print flex flex-wrap items-center gap-2">
-          {GRADE_TABS.map((g) => (
+          {(gradeTabs ?? []).map((g) => (
             <button key={g} onClick={() => setGradeTab(g)}
               className={`rounded-control px-3 py-1 text-sm ${gradeTab === g ? "bg-navy text-white" : "text-ink-soft hover:bg-sidebar"}`}>
               {t("students.profile.grade")} {g}

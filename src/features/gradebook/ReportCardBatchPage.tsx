@@ -64,7 +64,10 @@ export function ReportCardBatchPage() {
         try {
           const cls = classes?.find((c) => c.id === s.class_id);
           const gradeLabel = cls ? `${t("students.profile.grade")} ${cls.grade_level}${cls.section ? `-${cls.section}` : ""}` : "—";
-          const record = await fetchAcademicRecord(s.id, i18n.resolvedLanguage!);
+          // Scoped to this student's CURRENT grade -- a batch-generated report
+          // card is a snapshot of the present term, not the student's entire
+          // multi-year history mashed into one table.
+          const record = await fetchAcademicRecord(s.id, i18n.resolvedLanguage!, cls?.grade_level ?? undefined);
           const conductSummary = await fetchConductSummary(s.id);
           const blob = await buildTranscriptPdf({
             schoolName, studentName: fullName, admissionNo: s.admission_no,

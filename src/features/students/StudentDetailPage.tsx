@@ -326,7 +326,7 @@ export function StudentDetailPage() {
 
       {tab === "academicRecord" && (
         <AcademicRecordTab studentId={student.id} studentName={fullName}
-          admissionNo={student.admission_no} gradeLabel={gradeLabel} classId={student.class_id} />
+          admissionNo={student.admission_no} classId={student.class_id} />
       )}
       {tab === "attendance" && <AttendanceTab studentId={student.id} />}
       {tab === "behavioral" && (
