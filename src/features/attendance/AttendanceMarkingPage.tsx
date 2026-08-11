@@ -21,13 +21,25 @@ export function AttendanceMarkingPage() {
   const { profile } = useSession();
   const [date, setDate] = useState<Date>(new Date());
   const [classId, setClassId] = useState<string>("");
+  const [periodId, setPeriodId] = useState<string>("");
   const [marks, setMarks] = useState<Record<string, Status>>({});
   const queryClient = useQueryClient();
 
   const { data: classes } = useQuery({
     queryKey: ["classes"],
-    queryFn: async () => (await supabase.from("classes").select("id, name, section").order("grade_level").order("section")).data ?? [],
+    queryFn: async () => (await supabase.from("classes").select("id, name, section, attendance_mode").order("grade_level").order("section")).data ?? [],
   });
+  const selectedClass = classes?.find((c) => c.id === classId);
+  const isPerPeriod = selectedClass?.attendance_mode === "per_period";
+
+  const { data: periods } = useQuery({
+    queryKey: ["periods"],
+    enabled: isPerPeriod,
+    queryFn: async () => (await supabase.from("periods").select("id, period_no, label").eq("is_break", false).order("period_no")).data ?? [],
+  });
+  // A per-period class needs a period picked before it means anything; a
+  // daily-mode class keeps period_id null exactly as before.
+  const effectivePeriodId = isPerPeriod ? (periodId || null) : null;
 
   const { data: students } = useQuery({
     queryKey: ["attendance-roster", classId],
@@ -39,12 +51,20 @@ export function AttendanceMarkingPage() {
     },
   });
 
+  // A per-period class isn't ready to mark or show saved state until a
+  // period is actually picked -- otherwise "existing" would show the
+  // daily-mode (period_id IS NULL) rows under a per-period class, which
+  // is a different, unrelated set of attendance rows.
+  const readyToMark = !!classId && (!isPerPeriod || !!periodId);
+
   const { data: existing, isError: holidayBlocked } = useQuery({
-    queryKey: ["attendance", classId, toIsoDate(date)],
-    enabled: !!classId,
+    queryKey: ["attendance", classId, toIsoDate(date), effectivePeriodId],
+    enabled: readyToMark,
     queryFn: async () => {
-      const { data, error } = await supabase.from("attendance")
+      let query = supabase.from("attendance")
         .select("student_id, status").eq("class_id", classId).eq("attendance_date", toIsoDate(date));
+      query = effectivePeriodId ? query.eq("period_id", effectivePeriodId) : query.is("period_id", null);
+      const { data, error } = await query;
       if (error) throw error;
       return data;
     },
@@ -54,13 +74,13 @@ export function AttendanceMarkingPage() {
     mutationFn: async () => {
       const rows = Object.entries(marks).map(([student_id, status]) => ({
         tenant_id: profile!.tenant_id, student_id, class_id: classId,
-        attendance_date: toIsoDate(date), status,
+        attendance_date: toIsoDate(date), status, period_id: effectivePeriodId,
       }));
       const { error } = await supabase.from("attendance")
-        .upsert(rows, { onConflict: "tenant_id,student_id,attendance_date,class_id" });
+        .upsert(rows, { onConflict: "tenant_id,student_id,attendance_date,class_id,period_key" });
       if (error) throw error; // holiday_blocked surfaces here from the DB trigger
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["attendance", classId, toIsoDate(date)] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["attendance", classId, toIsoDate(date), effectivePeriodId] }),
   });
 
   const savedMap = new Map((existing ?? []).map((e) => [e.student_id, e.status as Status]));
@@ -88,6 +108,13 @@ export function AttendanceMarkingPage() {
           {classes?.map((c) => <option key={c.id} value={c.id}>{c.name} {c.section}</option>)}
         </select>
         <EthDatePicker value={date} onChange={setDate} />
+        {isPerPeriod && (
+          <select value={periodId} onChange={(e) => setPeriodId(e.target.value)}
+            className="rounded-control border border-line bg-card px-3 py-2 text-sm">
+            <option value="">{t("attendance.selectPeriod")}</option>
+            {periods?.map((p) => <option key={p.id} value={p.id}>{p.label ?? p.period_no}</option>)}
+          </select>
+        )}
       </div>
 
       {holidayBlocked && (
@@ -96,7 +123,7 @@ export function AttendanceMarkingPage() {
         </p>
       )}
 
-      {classId && !!students?.length && (
+      {readyToMark && !!students?.length && (
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
           {STATUSES.map((st) => (
             <Card key={st} className="py-3 text-center">
@@ -107,7 +134,7 @@ export function AttendanceMarkingPage() {
         </div>
       )}
 
-      {classId && (
+      {readyToMark && (
         !students?.length ? (
           <Card className="py-8 text-center text-ink-faint">{t("attendance.empty")}</Card>
         ) : (
