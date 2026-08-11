@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { formatEth } from "@/lib/ethiopian-date";
 import { buildTranscriptPdf } from "../students/transcript-pdf";
-import { fetchAcademicRecord, letterGrade } from "../students/academic-record";
+import { fetchAcademicRecord } from "../students/academic-record";
 
 export function ReportCardBatchPage() {
   const { t, i18n } = useTranslation();
@@ -67,7 +67,7 @@ export function ReportCardBatchPage() {
           const blob = await buildTranscriptPdf({
             schoolName, studentName: fullName, admissionNo: s.admission_no,
             gradeLabel, academicPeriod: gradeLabel,
-            rows: record.rows.map((r) => ({ ...r, letter: letterGrade(r.total) })),
+            rows: record.rows,
             gpa: record.totals.gpa, totalScore: record.totals.sum, maxScore: record.totals.max,
             issuedOn, labels,
           });

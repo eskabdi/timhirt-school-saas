@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { useTranslation } from "react-i18next";
 import { formatEth } from "@/lib/ethiopian-date";
 import { buildTranscriptPdf } from "../transcript-pdf";
-import { fetchAcademicRecord, fetchClassRank, letterGrade as letter } from "../academic-record";
+import { fetchAcademicRecord, fetchClassRank } from "../academic-record";
 
 const GRADE_TABS = [9, 10, 11, 12];
 
@@ -61,7 +61,7 @@ export function AcademicRecordTab({ studentId, studentName, admissionNo, gradeLa
         admissionNo: admissionNo ?? "—",
         gradeLabel: gradeLabel ?? `${t("students.profile.grade")} ${gradeTab}`,
         academicPeriod: `${t("students.profile.grade")} ${gradeTab}`,
-        rows: (rows ?? []).map((r) => ({ ...r, letter: letter(r.total) })),
+        rows: rows ?? [],
         gpa: totals.gpa,
         totalScore: totals.sum,
         maxScore: totals.max,
@@ -156,20 +156,17 @@ export function AcademicRecordTab({ studentId, studentName, admissionNo, gradeLa
             </tr>
           </thead>
           <tbody className="divide-y divide-line">
-            {rows?.length ? rows.map((r) => {
-              const l = letter(r.total);
-              return (
-                <tr key={r.code}>
-                  <td className="py-3"><p className="font-medium text-ink">{r.subject}</p><p className="text-xs text-ink-faint">{r.code}</p></td>
-                  <td className="text-ink-soft">{r.instructor}</td>
-                  <td className="text-ink">{r.ca.toFixed(1)}</td>
-                  <td className="text-ink">{r.final.toFixed(1)}</td>
-                  <td className="font-bold text-navy">{r.total.toFixed(1)}</td>
-                  <td><span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-ok-tint text-xs font-bold text-ok">{l}</span></td>
-                  <td><Badge tone={r.total >= 50 ? "ok" : "danger"}>{r.total >= 50 ? t("academicRecord.pass") : t("academicRecord.fail")}</Badge></td>
-                </tr>
-              );
-            }) : <tr><td colSpan={7} className="py-10 text-center text-ink-faint">{t("academicRecord.empty")}</td></tr>}
+            {rows?.length ? rows.map((r) => (
+              <tr key={r.code}>
+                <td className="py-3"><p className="font-medium text-ink">{r.subject}</p><p className="text-xs text-ink-faint">{r.code}</p></td>
+                <td className="text-ink-soft">{r.instructor}</td>
+                <td className="text-ink">{r.ca.toFixed(1)}</td>
+                <td className="text-ink">{r.final.toFixed(1)}</td>
+                <td className="font-bold text-navy">{r.total.toFixed(1)}</td>
+                <td><span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-ok-tint text-xs font-bold text-ok">{r.letter}</span></td>
+                <td><Badge tone={r.total >= 50 ? "ok" : "danger"}>{r.total >= 50 ? t("academicRecord.pass") : t("academicRecord.fail")}</Badge></td>
+              </tr>
+            )) : <tr><td colSpan={7} className="py-10 text-center text-ink-faint">{t("academicRecord.empty")}</td></tr>}
           </tbody>
           {!!rows?.length && (
             <tfoot>

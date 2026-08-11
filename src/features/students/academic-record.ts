@@ -7,36 +7,57 @@
 import { supabase } from "@/lib/supabase";
 import { tField } from "@/lib/i18n";
 
-export interface AcademicRecordRow { subject: string; code: string; instructor: string; ca: number; final: number; total: number; }
+export interface AcademicRecordRow { subject: string; code: string; instructor: string; ca: number; final: number; total: number; letter: string; }
 
-export function letterGrade(total: number): string {
-  if (total >= 90) return "A+";
-  if (total >= 85) return "A";
-  if (total >= 80) return "A-";
-  if (total >= 75) return "B+";
-  if (total >= 70) return "B";
-  if (total >= 60) return "C";
-  if (total >= 50) return "D";
-  return "F";
+interface GradeBand { letter: string; min_percent: number; gpa_points: number; }
+
+// Used only when a tenant has no grading_scales row at all -- the case for
+// every tenant today, since none is seeded on tenant creation. Once a
+// school configures a scale (Settings > Grading Scales), fetchDefaultBands()
+// below returns that instead and this ladder is never consulted for them.
+const FALLBACK_BANDS: GradeBand[] = [
+  { letter: "A+", min_percent: 90, gpa_points: 4.0 },
+  { letter: "A", min_percent: 85, gpa_points: 3.75 },
+  { letter: "A-", min_percent: 80, gpa_points: 3.5 },
+  { letter: "B+", min_percent: 75, gpa_points: 3.0 },
+  { letter: "B", min_percent: 70, gpa_points: 2.5 },
+  { letter: "C", min_percent: 60, gpa_points: 2.0 },
+  { letter: "D", min_percent: 50, gpa_points: 1.0 },
+  { letter: "F", min_percent: 0, gpa_points: 0 },
+];
+
+export function letterGrade(total: number, bands: GradeBand[] = FALLBACK_BANDS): string {
+  return bandFor(total, bands).letter;
 }
 
-export function gradePoint(total: number): number {
-  if (total >= 90) return 4.0;
-  if (total >= 85) return 3.75;
-  if (total >= 80) return 3.5;
-  if (total >= 75) return 3.0;
-  if (total >= 70) return 2.5;
-  if (total >= 60) return 2.0;
-  if (total >= 50) return 1.0;
-  return 0;
+export function gradePoint(total: number, bands: GradeBand[] = FALLBACK_BANDS): number {
+  return bandFor(total, bands).gpa_points;
+}
+
+function bandFor(total: number, bands: GradeBand[]): GradeBand {
+  return bands.find((b) => total >= b.min_percent) ?? bands[bands.length - 1] ?? FALLBACK_BANDS[FALLBACK_BANDS.length - 1]!;
+}
+
+// grading_scales/grade_bands SELECT is already RLS-scoped to the caller's
+// own tenant (or super_admin), so no tenant_id needs to be passed in here.
+async function fetchDefaultBands(): Promise<GradeBand[]> {
+  const { data: scale } = await supabase.from("grading_scales").select("id").eq("is_default", true).maybeSingle();
+  if (!scale) return FALLBACK_BANDS;
+  const { data: bands } = await supabase.from("grade_bands")
+    .select("letter, min_percent, gpa_points")
+    .eq("scale_id", scale.id).order("min_percent", { ascending: false });
+  return bands?.length ? bands : FALLBACK_BANDS;
 }
 
 export async function fetchAcademicRecord(studentId: string, locale: string) {
-  const { data, error } = await supabase.from("grades")
-    .select("score, subjects(name_i18n, code), exams(category, max_score, name_i18n)")
-    .eq("student_id", studentId);
+  const [{ data, error }, bands] = await Promise.all([
+    supabase.from("grades")
+      .select("score, subjects(name_i18n, code), exams(category, max_score, name_i18n)")
+      .eq("student_id", studentId),
+    fetchDefaultBands(),
+  ]);
   if (error) throw error;
-  const bySubject = new Map<string, AcademicRecordRow>();
+  const bySubject = new Map<string, Omit<AcademicRecordRow, "letter">>();
   for (const g of (data ?? []) as unknown as { score: number; subjects: { name_i18n: Record<string, string>; code: string } | null; exams: { category: string | null } | null }[]) {
     const code = g.subjects?.code ?? "—";
     const r = bySubject.get(code) ?? { subject: tField(g.subjects?.name_i18n, locale) || code, code, instructor: "—", ca: 0, final: 0, total: 0 };
@@ -45,9 +66,9 @@ export async function fetchAcademicRecord(studentId: string, locale: string) {
     r.total = r.ca + r.final;
     bySubject.set(code, r);
   }
-  const rows = Array.from(bySubject.values());
+  const rows: AcademicRecordRow[] = Array.from(bySubject.values()).map((r) => ({ ...r, letter: letterGrade(r.total, bands) }));
   const sum = rows.reduce((a, r) => a + r.total, 0);
-  const gpa = rows.length ? rows.reduce((a, r) => a + gradePoint(r.total), 0) / rows.length : 0;
+  const gpa = rows.length ? rows.reduce((a, r) => a + gradePoint(r.total, bands), 0) / rows.length : 0;
   return { rows, totals: { sum, max: rows.length * 100, gpa } };
 }
 
