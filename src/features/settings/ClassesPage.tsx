@@ -21,7 +21,8 @@ import { buildClassesPdf } from "./classes-pdf";
 
 const SELECT_CLS = "w-full rounded-control border border-line bg-card px-3 py-2 text-sm text-ink";
 const SHIFTS = ["morning", "afternoon"] as const;
-const emptyForm: ClassInput = { name: "", section: "", gradeLevel: "", capacity: "", homeroomTeacherId: "", shift: "" };
+const ATTENDANCE_MODES = ["daily", "per_period"] as const;
+const emptyForm: ClassInput = { name: "", section: "", gradeLevel: "", capacity: "", homeroomTeacherId: "", shift: "", attendanceMode: "daily" };
 
 function downloadBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
@@ -198,6 +199,7 @@ export function ClassesPage() {
       name: c.name, section: c.section ?? "",
       gradeLevel: c.grade_level?.toString() ?? "", capacity: c.capacity?.toString() ?? "",
       homeroomTeacherId: c.homeroom_teacher_id ?? "", shift: c.shift ?? "",
+      attendanceMode: c.attendance_mode,
     });
   };
 
@@ -208,6 +210,19 @@ export function ClassesPage() {
           <button key={s} type="button" onClick={() => onChange(s)}
             className={`flex-1 px-3 py-2 text-sm font-medium ${value === s ? "bg-navy text-white" : "bg-card text-ink-soft"}`}>
             {t(`hr.shiftOption.${s}`)}
+          </button>
+        ))}
+      </div>
+    </Field>
+  );
+
+  const attendanceModeField = (value: "daily" | "per_period", onChange: (v: "daily" | "per_period") => void) => (
+    <Field label={t("attendance.mode")}>
+      <div className="flex overflow-hidden rounded-control border border-line">
+        {ATTENDANCE_MODES.map((m) => (
+          <button key={m} type="button" onClick={() => onChange(m)}
+            className={`flex-1 px-3 py-2 text-sm font-medium ${value === m ? "bg-navy text-white" : "bg-card text-ink-soft"}`}>
+            {t(`attendance.modeOption.${m}`)}
           </button>
         ))}
       </div>
@@ -376,6 +391,7 @@ export function ClassesPage() {
             </select>
           </Field>
           {isDoubleShift && shiftField(form.shift, (v) => setForm({ ...form, shift: v }))}
+          {attendanceModeField(form.attendanceMode, (v) => setForm({ ...form, attendanceMode: v }))}
           <div className="flex justify-end gap-2 border-t border-line pt-3">
             <Button variant="ghost" onClick={() => setAdding(false)}>{t("common.cancel")}</Button>
             <Button onClick={() => create.mutate()} disabled={!form.name || create.isPending}>{t("common.add")}</Button>
@@ -396,6 +412,7 @@ export function ClassesPage() {
             </select>
           </Field>
           {isDoubleShift && shiftField(editForm.shift, (v) => setEditForm({ ...editForm, shift: v }))}
+          {attendanceModeField(editForm.attendanceMode, (v) => setEditForm({ ...editForm, attendanceMode: v }))}
           <div className="flex justify-end gap-2 border-t border-line pt-3">
             <Button variant="ghost" onClick={() => setEditing(null)}>{t("common.cancel")}</Button>
             <Button onClick={() => update.mutate()} disabled={!editForm.name || update.isPending}>{t("common.save")}</Button>
