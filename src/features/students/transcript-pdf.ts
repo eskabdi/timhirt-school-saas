@@ -15,6 +15,10 @@ export interface TranscriptRow {
   ca: number; final: number; total: number; letter: string;
 }
 
+// Dates arrive pre-formatted (Ethiopic, via formatEth) by the caller — same
+// convention as issuedOn below — so this file never does its own date math.
+export interface TranscriptConductRow { dateEc: string; label: string; detail: string; }
+
 export interface TranscriptInput {
   schoolName: string;
   studentName: string;
@@ -26,11 +30,13 @@ export interface TranscriptInput {
   totalScore: number;
   maxScore: number;
   issuedOn: string;
+  conduct?: { incidents: TranscriptConductRow[]; merits: TranscriptConductRow[]; totalMeritPoints: number };
   labels: {
     title: string; student: string; studentNo: string; grade: string; period: string;
     subject: string; instructor: string; ca: string; final: string; total: string;
     letter: string; status: string; pass: string; fail: string;
     semesterTotals: string; gpa: string; issued: string; notice: string; noticeBody: string;
+    conductTitle: string; noIncidents: string; meritPointsTotal: string;
   };
 }
 
@@ -53,9 +59,11 @@ export async function buildTranscriptPdf(input: TranscriptInput): Promise<Blob> 
 
   // Collect every string that will be drawn, so the Ethiopic fallback is
   // fetched once and only when it is genuinely needed.
+  const conductRows = [...(input.conduct?.incidents ?? []), ...(input.conduct?.merits ?? [])];
   const allText = [
     input.schoolName, input.studentName, input.gradeLabel, input.academicPeriod,
     ...Object.values(input.labels), ...input.rows.flatMap((r) => [r.subject, r.code, r.instructor]),
+    ...conductRows.flatMap((r) => [r.dateEc, r.label, r.detail]),
   ].join("");
   let ethiopic: Awaited<ReturnType<typeof doc.embedFont>> | null = null;
   if (hasNonLatin(allText)) {
@@ -162,6 +170,38 @@ export async function buildTranscriptPdf(input: TranscriptInput): Promise<Blob> 
   y -= 18;
   draw(input.labels.gpa, M, 9, { bold: true, color: FAINT });
   page.drawText(input.gpa.toFixed(2), { x: COLS[4]!, y, size: 11, font: bold, color: NAVY });
+
+  // Conduct / remarks — sourced from the same discipline_incidents/
+  // student_merits data the Behavioral tab shows. The footer notice below is
+  // anchored to a fixed y (not derived from where this section ends), so
+  // every row here is bounded against that same y=96 rather than assuming
+  // there's room.
+  if (input.conduct) {
+    y -= 26;
+    if (y > 105) {
+      draw(input.labels.conductTitle, M, 10, { bold: true, color: NAVY });
+      y -= 15;
+      const rows = [
+        ...input.conduct.incidents.map((r) => ({ ...r, color: INK })),
+        ...input.conduct.merits.map((r) => ({ ...r, color: NAVY })),
+      ];
+      if (rows.length === 0) {
+        draw(input.labels.noIncidents, M, 8, { color: FAINT });
+        y -= 13;
+      } else {
+        for (const r of rows) {
+          if (y < 105) break;
+          const line = `${r.dateEc} — ${r.label}${r.detail ? `: ${r.detail}` : ""}`;
+          draw(line.slice(0, 100), M, 8, { color: r.color });
+          y -= 12;
+        }
+      }
+      if (y > 105) {
+        draw(`${input.labels.meritPointsTotal}: ${input.conduct.totalMeritPoints}`, M, 8, { bold: true, color: NAVY });
+        y -= 13;
+      }
+    }
+  }
 
   // Footer notice
   y = 96;

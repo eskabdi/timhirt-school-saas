@@ -9,6 +9,7 @@ import { useTranslation } from "react-i18next";
 import { formatEth } from "@/lib/ethiopian-date";
 import { buildTranscriptPdf } from "../transcript-pdf";
 import { fetchAcademicRecord, fetchClassRank } from "../academic-record";
+import { fetchConductSummary } from "../conduct-summary";
 
 const GRADE_TABS = [9, 10, 11, 12];
 
@@ -55,6 +56,8 @@ export function AcademicRecordTab({ studentId, studentName, admissionNo, gradeLa
       const schoolName =
         (lang === "am" ? branding?.nameAm : lang === "om" ? branding?.nameOm : branding?.nameEn) ||
         branding?.nameEn || t("app.name");
+      const dateOpts = { monthNames: tc("months", { returnObjects: true }) as string[], eraSuffix: tc("eraSuffix") };
+      const conduct = await fetchConductSummary(studentId);
       const blob = await buildTranscriptPdf({
         schoolName,
         studentName: studentName ?? "—",
@@ -65,10 +68,20 @@ export function AcademicRecordTab({ studentId, studentName, admissionNo, gradeLa
         gpa: totals.gpa,
         totalScore: totals.sum,
         maxScore: totals.max,
-        issuedOn: formatEth(new Date(), {
-          monthNames: tc("months", { returnObjects: true }) as string[],
-          eraSuffix: tc("eraSuffix"),
-        }),
+        issuedOn: formatEth(new Date(), dateOpts),
+        conduct: {
+          incidents: conduct.incidents.map((i) => ({
+            dateEc: formatEth(new Date(i.date + "T00:00:00Z"), dateOpts),
+            label: i.category ? t(`behavioralTab.categories.${i.category}`, i.category) : t("behavioralTab.category"),
+            detail: `${t(`discipline.severityLevel.${i.severity}`, i.severity)} — ${t(`behavioralTab.statuses.${i.status}`, i.status)}`,
+          })),
+          merits: conduct.merits.map((m) => ({
+            dateEc: formatEth(new Date(m.date + "T00:00:00Z"), dateOpts),
+            label: m.title,
+            detail: `+${m.points}`,
+          })),
+          totalMeritPoints: conduct.totalMeritPoints,
+        },
         labels: {
           title: t("academicRecord.title"), student: t("clinic.student"), studentNo: t("students.admissionNo"),
           grade: t("students.profile.grade"), period: t("academicRecord.period"),
@@ -78,6 +91,8 @@ export function AcademicRecordTab({ studentId, studentName, admissionNo, gradeLa
           pass: t("academicRecord.pass"), fail: t("academicRecord.fail"),
           semesterTotals: t("academicRecord.semesterTotals"), gpa: t("academicRecord.cumulativeGpa"),
           issued: t("idCards.issued"), notice: t("academicRecord.noticeTitle"), noticeBody: t("academicRecord.noticeBody"),
+          conductTitle: t("academicRecord.conductTitle"), noIncidents: t("academicRecord.conductNone"),
+          meritPointsTotal: t("academicRecord.meritPointsTotal"),
         },
       });
       const url = URL.createObjectURL(blob);

@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/Card";
 import { formatEth } from "@/lib/ethiopian-date";
 import { buildTranscriptPdf } from "../students/transcript-pdf";
 import { fetchAcademicRecord } from "../students/academic-record";
+import { fetchConductSummary } from "../students/conduct-summary";
 
 export function ReportCardBatchPage() {
   const { t, i18n } = useTranslation();
@@ -39,10 +40,8 @@ export function ReportCardBatchPage() {
       const schoolName =
         (lang === "am" ? branding?.nameAm : lang === "om" ? branding?.nameOm : branding?.nameEn) ||
         branding?.nameEn || t("app.name");
-      const issuedOn = formatEth(new Date(), {
-        monthNames: tc("months", { returnObjects: true }) as string[],
-        eraSuffix: tc("eraSuffix"),
-      });
+      const dateOpts = { monthNames: tc("months", { returnObjects: true }) as string[], eraSuffix: tc("eraSuffix") };
+      const issuedOn = formatEth(new Date(), dateOpts);
       const labels = {
         title: t("academicRecord.title"), student: t("clinic.student"), studentNo: t("students.admissionNo"),
         grade: t("students.profile.grade"), period: t("academicRecord.period"),
@@ -52,6 +51,8 @@ export function ReportCardBatchPage() {
         pass: t("academicRecord.pass"), fail: t("academicRecord.fail"),
         semesterTotals: t("academicRecord.semesterTotals"), gpa: t("academicRecord.cumulativeGpa"),
         issued: t("idCards.issued"), notice: t("academicRecord.noticeTitle"), noticeBody: t("academicRecord.noticeBody"),
+        conductTitle: t("academicRecord.conductTitle"), noIncidents: t("academicRecord.conductNone"),
+        meritPointsTotal: t("academicRecord.meritPointsTotal"),
       };
 
       const roster = students ?? [];
@@ -64,12 +65,26 @@ export function ReportCardBatchPage() {
           const cls = classes?.find((c) => c.id === s.class_id);
           const gradeLabel = cls ? `${t("students.profile.grade")} ${cls.grade_level}${cls.section ? `-${cls.section}` : ""}` : "—";
           const record = await fetchAcademicRecord(s.id, i18n.resolvedLanguage!);
+          const conductSummary = await fetchConductSummary(s.id);
           const blob = await buildTranscriptPdf({
             schoolName, studentName: fullName, admissionNo: s.admission_no,
             gradeLabel, academicPeriod: gradeLabel,
             rows: record.rows,
             gpa: record.totals.gpa, totalScore: record.totals.sum, maxScore: record.totals.max,
             issuedOn, labels,
+            conduct: {
+              incidents: conductSummary.incidents.map((i) => ({
+                dateEc: formatEth(new Date(i.date + "T00:00:00Z"), dateOpts),
+                label: i.category ? t(`behavioralTab.categories.${i.category}`, i.category) : t("behavioralTab.category"),
+                detail: `${t(`discipline.severityLevel.${i.severity}`, i.severity)} — ${t(`behavioralTab.statuses.${i.status}`, i.status)}`,
+              })),
+              merits: conductSummary.merits.map((m) => ({
+                dateEc: formatEth(new Date(m.date + "T00:00:00Z"), dateOpts),
+                label: m.title,
+                detail: `+${m.points}`,
+              })),
+              totalMeritPoints: conductSummary.totalMeritPoints,
+            },
           });
           const url = URL.createObjectURL(blob);
           const a = document.createElement("a");
