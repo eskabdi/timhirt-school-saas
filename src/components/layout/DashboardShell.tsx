@@ -46,6 +46,9 @@ const NAV: NavSection[] = [
       { to: "/students", key: "nav.students", roles: ADMIN_REG, module: "sis" },
       { to: "/admissions", key: "nav.admissions", roles: ADMIN_REG, module: "admissions" },
       { to: "/id-cards", key: "nav.idCards", roles: ADMIN_REG, module: "id_cards" },
+      // No `module` key -- leaving certificates are available at every tier,
+      // not gated behind id_cards despite the naming similarity.
+      { to: "/leaving-certificates", key: "nav.leavingCertificates", roles: ADMIN_REG },
       { to: "/attendance", key: "nav.attendance", roles: TEACH, module: "attendance" },
       { to: "/attendance/overview", key: "nav.attendanceOverview", roles: TEACH, module: "attendance" },
       { to: "/assignments", key: "nav.assignments", roles: TEACH, module: "assignments" },

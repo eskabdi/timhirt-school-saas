@@ -55,6 +55,7 @@ import { TransportPage } from "@/features/transport/TransportPage";
 import { EventsCalendarPage } from "@/features/events/EventsCalendarPage";
 import { ReportsPage } from "@/features/reports/ReportsPage";
 import { IDCardBatchPage } from "@/features/id-cards/IDCardBatchPage";
+import { LeavingCertificatesPage } from "@/features/students/LeavingCertificatesPage";
 
 import { EmployeeListPage } from "@/features/hr/EmployeeListPage";
 import { StaffProfilePage } from "@/features/hr/StaffProfilePage";
@@ -166,6 +167,11 @@ export const router = createBrowserRouter([
                 element: <RequireModule module="id_cards" />,
                 children: [{ path: "id-cards", element: <IDCardBatchPage /> }],
               },
+              // Leaving certificates -- despite the naming similarity, this is
+              // NOT the id_cards module; it's available at every tier, so it
+              // stays outside any RequireModule wrapper (see
+              // 20260827000001_leaving_certificates.sql).
+              { path: "leaving-certificates", element: <LeavingCertificatesPage /> },
             ],
           },
 
