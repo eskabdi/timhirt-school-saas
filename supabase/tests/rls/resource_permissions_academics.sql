@@ -49,8 +49,12 @@ insert into public.users (id, tenant_id, role, full_name, email) values
 
 insert into public.academic_years (id, tenant_id, ec_year, label_i18n, starts_on, ends_on, status) values
   ('9e000000-0000-0000-0000-00000000ea01', '9e000000-0000-0000-0000-00000000000a', 2018, '{}'::jsonb, '2025-09-01', '2026-06-30', 'active');
-insert into public.academic_terms (id, tenant_id, academic_year_id, name_i18n, term_no, starts_on, ends_on) values
-  ('9e000000-0000-0000-0000-00000000ea02', '9e000000-0000-0000-0000-00000000000a', '9e000000-0000-0000-0000-00000000ea01', '{}'::jsonb, 1, '2025-09-01', '2026-01-30');
+-- results_published = true: this suite's own student-self-access grades
+-- assertion (below) is about resource-permission grants, not the R4-C4
+-- publication gate -- publish the term so that unrelated gate doesn't
+-- mask what this fixture is actually testing.
+insert into public.academic_terms (id, tenant_id, academic_year_id, name_i18n, term_no, starts_on, ends_on, results_published) values
+  ('9e000000-0000-0000-0000-00000000ea02', '9e000000-0000-0000-0000-00000000000a', '9e000000-0000-0000-0000-00000000ea01', '{}'::jsonb, 1, '2025-09-01', '2026-01-30', true);
 
 insert into public.classes (id, tenant_id, academic_year_id, name, section) values
   ('9e000000-0000-0000-0000-00000000c001', '9e000000-0000-0000-0000-00000000000a', '9e000000-0000-0000-0000-00000000ea01', 'Grade 5', 'A');

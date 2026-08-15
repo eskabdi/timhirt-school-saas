@@ -14,7 +14,7 @@ import { tField } from "@/lib/i18n";
 
 const YEAR_STATUS_TONE = { active: "ok", closed: "neutral", draft: "navy" } as const;
 
-interface Term { id: string; academic_year_id: string; term_no: number; name_i18n: Record<string, string>; starts_on: string; ends_on: string }
+interface Term { id: string; academic_year_id: string; term_no: number; name_i18n: Record<string, string>; starts_on: string; ends_on: string; results_published: boolean }
 
 export function AcademicYearsPage() {
   const { t, i18n } = useTranslation();
@@ -38,8 +38,20 @@ export function AcademicYearsPage() {
   const { data: terms } = useQuery({
     queryKey: ["academic-terms"],
     queryFn: async () => (await supabase.from("academic_terms")
-      .select("id, academic_year_id, term_no, name_i18n, starts_on, ends_on")
+      .select("id, academic_year_id, term_no, name_i18n, starts_on, ends_on, results_published")
       .order("term_no")).data as Term[] ?? [],
+  });
+
+  const togglePublish = useMutation({
+    mutationFn: async ({ termId, publish }: { termId: string; publish: boolean }) => {
+      const { error } = await supabase.from("academic_terms").update(
+        publish
+          ? { results_published: true, results_published_at: new Date().toISOString(), results_published_by: profile!.id }
+          : { results_published: false, results_published_at: null, results_published_by: null },
+      ).eq("id", termId);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["academic-terms"] }),
   });
 
   const generateTerms = useMutation({
@@ -132,8 +144,18 @@ export function AcademicYearsPage() {
                   <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                     {yearTerms.map((tr) => (
                       <div key={tr.id} className="rounded-control border border-line px-3 py-2 text-sm">
-                        <p className="font-medium text-ink">{tField(tr.name_i18n, i18n.resolvedLanguage!)}</p>
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="font-medium text-ink">{tField(tr.name_i18n, i18n.resolvedLanguage!)}</p>
+                          <Badge tone={tr.results_published ? "ok" : "neutral"}>
+                            {tr.results_published ? t("settingsPages.resultsPublished") : t("settingsPages.resultsUnpublished")}
+                          </Badge>
+                        </div>
                         <p className="text-xs text-ink-faint"><EthDate value={tr.starts_on} /> — <EthDate value={tr.ends_on} /></p>
+                        <button type="button" className="mt-1 text-xs text-navy hover:underline"
+                          onClick={() => togglePublish.mutate({ termId: tr.id, publish: !tr.results_published })}
+                          disabled={togglePublish.isPending}>
+                          {tr.results_published ? t("settingsPages.unpublishResults") : t("settingsPages.publishResults")}
+                        </button>
                       </div>
                     ))}
                   </div>
