@@ -14,6 +14,7 @@
 import { z } from "npm:zod@3";
 import { requireRole, errors, json, rateLimit, corsHeaders } from "../_shared/security.ts";
 import { loadDocumentBranding } from "../_shared/branding.ts";
+import { loadDocumentTemplate } from "../_shared/doc-template.ts";
 import { renderPayslipPdf } from "../_shared/payslip-pdf.ts";
 
 const Payload = z.object({ payslip_id: z.string().uuid(), locale: z.enum(["en", "am", "om"]).default("en") });
@@ -53,6 +54,7 @@ Deno.serve(async (req) => {
     // module. Below Standard tier loadDocumentBranding returns UNBRANDED and
     // the letterhead falls back to the plain NAVY bar + raw tenant name.
     const branding = await loadDocumentBranding(ctx.adminClient, slip.tenant_id, { locale: parsed.data.locale });
+    const template = await loadDocumentTemplate(ctx.adminClient, slip.tenant_id, "payslip");
     const { data: employee } = await ctx.adminClient.from("employees")
       .select("full_name").eq("id", slip.employee_id).maybeSingle();
     const { data: tenantRow } = await ctx.adminClient.from("tenants")
@@ -61,6 +63,7 @@ Deno.serve(async (req) => {
     const pdf = await renderPayslipPdf({
       tenantName: tenantRow?.name ?? "School",
       branding,
+      template,
       period,
       employeeName: employee?.full_name ?? "-",
       lines: (slip.payslip_lines ?? []).map((l: { label_i18n: Record<string, string>; kind: string; amount: number }) => ({

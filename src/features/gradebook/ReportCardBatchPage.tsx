@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { formatEth } from "@/lib/ethiopian-date";
 import { buildTranscriptPdf } from "../students/transcript-pdf";
+import { fetchDocumentTemplate } from "@/lib/documentTemplate";
 import { fetchAcademicRecord } from "../students/academic-record";
 import { fetchConductSummary } from "../students/conduct-summary";
 
@@ -55,6 +56,10 @@ export function ReportCardBatchPage() {
         meritPointsTotal: t("academicRecord.meritPointsTotal"),
       };
 
+      // R5-C6: fetched once for the whole batch rather than per student --
+      // it is the same tenant-level row for every report card in the run.
+      const template = await fetchDocumentTemplate("report_card");
+
       const roster = students ?? [];
       setProgress({ done: 0, total: roster.length });
       let succeeded = 0;
@@ -70,7 +75,7 @@ export function ReportCardBatchPage() {
           const record = await fetchAcademicRecord(s.id, i18n.resolvedLanguage!, cls?.grade_level ?? undefined);
           const conductSummary = await fetchConductSummary(s.id);
           const blob = await buildTranscriptPdf({
-            schoolName, studentName: fullName, admissionNo: s.admission_no,
+            schoolName, template, studentName: fullName, admissionNo: s.admission_no,
             gradeLabel, academicPeriod: gradeLabel,
             rows: record.rows,
             gpa: record.totals.gpa, totalScore: record.totals.sum, maxScore: record.totals.max,

@@ -11,6 +11,7 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { formatEth } from "@/lib/ethiopian-date";
 import { buildLeavingCertificatePdf } from "./leaving-certificate-pdf";
+import { fetchDocumentTemplate } from "@/lib/documentTemplate";
 
 interface GraduateRow {
   id: string; first_name: string; last_name: string; admission_no: string; graduated_ec_year: number;
@@ -64,8 +65,10 @@ export function LeavingCertificatesPage() {
       const gradeLabel = student.class?.grade_level != null
         ? `${t("students.profile.grade")} ${student.class.grade_level}${student.class.section ? `-${student.class.section}` : ""}`
         : student.class?.name ?? "—";
+      const template = await fetchDocumentTemplate("leaving_certificate");
       const blob = await buildLeavingCertificatePdf({
         schoolName,
+        template,
         studentName: `${student.first_name} ${student.last_name}`,
         admissionNo: student.admission_no,
         gradeLabel,

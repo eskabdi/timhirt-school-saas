@@ -22,6 +22,7 @@
 // ============================================================================
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "npm:pdf-lib@1";
 import type { DocumentBranding } from "./branding.ts";
+import { drawHeaderText, drawFooterText, drawSignatureLine, type DocTemplate } from "./doc-template.ts";
 
 const NAVY: [number, number, number] = [0.118, 0.165, 0.439];
 const BLACK: [number, number, number] = [0, 0, 0];
@@ -34,6 +35,10 @@ export interface PayslipRenderData {
   tenantName: string;
   /** R5-B2 accessor output; UNBRANDED/undefined renders the plain letterhead. */
   branding?: DocumentBranding;
+  /** R5-C6: null renders the fixed layout. Per C3's matrix a payslip takes
+   *  header/footer and a signature line, but deliberately NO watermark --
+   *  a payslip is a payment record, not a draft to be stamped over. */
+  template?: DocTemplate | null;
   period: string;
   employeeName: string;
   lines: PayslipLine[];
@@ -79,6 +84,7 @@ export async function renderPayslipPdf(data: PayslipRenderData): Promise<Uint8Ar
   drawRightText(page, boldFont, "PAYSLIP", W - 40, H - 42, 16, [1, 1, 1]);
 
   let y = H - 110;
+  y = drawHeaderText(page, font, data.template ?? null, 40, y);
   drawText(page, font, `Period: ${data.period}`, 40, y, 10); y -= 16;
   drawText(page, font, `Employee: ${data.employeeName}`, 40, y, 10); y -= 30;
 
@@ -96,6 +102,9 @@ export async function renderPayslipPdf(data: PayslipRenderData): Promise<Uint8Ar
   drawText(page, boldFont, "NET PAY", 300, y, 11);
   drawRightText(page, boldFont, `${data.netPay} ETB`, W - 46, y, 11);
 
+  // Signature line sits below the totals, right-aligned, when configured.
+  drawSignatureLine(page, font, data.template ?? null, W - 40, y - 60);
+  drawFooterText(page, font, data.template ?? null, W);
   drawText(page, font, "This document is system-generated and confidential.", 40, 30, 7, GREY);
   return pdfDoc.save();
 }

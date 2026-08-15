@@ -87,6 +87,7 @@ import { BrandingPage } from "@/features/settings/BrandingPage";
 import { IdCardTemplateDesignerPage } from "@/features/settings/IdCardTemplateDesignerPage";
 import { AccessManagementPage } from "@/features/settings/access/AccessManagementPage";
 import { CalendarPreferencesPage } from "@/features/settings/CalendarPreferencesPage";
+import { DocumentTemplatesPage } from "@/features/settings/DocumentTemplatesPage";
 import { ClassesPage } from "@/features/settings/ClassesPage";
 import { ClassDetailPage } from "@/features/settings/ClassDetailPage";
 import { SubjectsPage } from "@/features/settings/SubjectsPage";
@@ -240,6 +241,10 @@ export const router = createBrowserRouter([
               { path: "settings/audit-logs", element: <AuditLogsPage /> },
               { path: "settings/backups", element: <BackupsPage /> },
               { path: "settings/calendar", element: <CalendarPreferencesPage /> },
+              // R5-C4. No RequireModule wrapper: the page itself shows an
+              // explanatory empty state below Premium, and document_templates'
+              // RLS write policy is the real gate (role AND module).
+              { path: "settings/document-templates", element: <DocumentTemplatesPage /> },
               { path: "reports/users-audit", element: <UsersAuditReportPage /> },
             ],
           },

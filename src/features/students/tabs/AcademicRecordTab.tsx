@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { useTranslation } from "react-i18next";
 import { formatEth } from "@/lib/ethiopian-date";
 import { buildTranscriptPdf } from "../transcript-pdf";
+import { fetchDocumentTemplate } from "@/lib/documentTemplate";
 import { fetchAcademicRecord, fetchClassRank, fetchGradeHistory } from "../academic-record";
 import { fetchConductSummary } from "../conduct-summary";
 
@@ -96,8 +97,11 @@ export function AcademicRecordTab({ studentId, studentName, admissionNo, classId
         branding?.nameEn || t("app.name");
       const dateOpts = { monthNames: tc("months", { returnObjects: true }) as string[], eraSuffix: tc("eraSuffix") };
       const conduct = await fetchConductSummary(studentId);
+      // R5-C6: null when unconfigured -> the fixed layout, unchanged.
+      const template = await fetchDocumentTemplate("transcript");
       const blob = await buildTranscriptPdf({
         schoolName,
+        template,
         studentName: studentName ?? "—",
         admissionNo: admissionNo ?? "—",
         // Always reflects the SELECTED tab, not the student's current class

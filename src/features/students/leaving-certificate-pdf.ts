@@ -3,6 +3,10 @@
 // fallback fetched only when needed), laid out as a single centered
 // certificate page rather than a table.
 
+// R5-C6. Static import is bundle-safe: documentTemplate.ts imports pdf-lib
+// with `import type` only.
+import { templateRenderer, type DocTemplate } from "@/lib/documentTemplate";
+
 export interface LeavingCertificatePdfInput {
   schoolName: string;
   studentName: string;
@@ -10,6 +14,8 @@ export interface LeavingCertificatePdfInput {
   gradeLabel: string;
   graduatedEcYear: number;
   issuedOn: string;
+  /** R5-C6: null renders the fixed layout, exactly as before this round. */
+  template?: DocTemplate | null;
   labels: {
     title: string;
     bodyPrefix: string; // "This is to certify that"
@@ -26,7 +32,8 @@ const NON_LATIN = /[Ā-￿]/;
 const hasNonLatin = (s: string) => NON_LATIN.test(s);
 
 export async function buildLeavingCertificatePdf(input: LeavingCertificatePdfInput): Promise<Blob> {
-  const { PDFDocument, StandardFonts, rgb } = await import("pdf-lib");
+  const { PDFDocument, StandardFonts, rgb, degrees } = await import("pdf-lib");
+  const tpl = templateRenderer({ rgb, degrees }, input.template ?? null);
   const doc = await PDFDocument.create();
 
   const NAVY = rgb(0.016, 0.086, 0.208);
@@ -64,6 +71,8 @@ export async function buildLeavingCertificatePdf(input: LeavingCertificatePdfInp
 
   page.drawRectangle({ x: M, y: M, width: PAGE_W - 2 * M, height: PAGE_H - 2 * M, borderColor: GOLD, borderWidth: 2 });
   page.drawRectangle({ x: M + 8, y: M + 8, width: PAGE_W - 2 * M - 16, height: PAGE_H - 2 * M - 16, borderColor: NAVY, borderWidth: 0.75 });
+  // Before the body -- pdf-lib has no z-index; paint order is the control.
+  tpl.watermark(page, regular, PAGE_W, PAGE_H);
 
   const nameFont = pick(input.schoolName);
   page.drawText(safe(input.schoolName, nameFont), {
@@ -73,6 +82,9 @@ export async function buildLeavingCertificatePdf(input: LeavingCertificatePdfInp
   const titleFont = pick(input.labels.title);
   const titleW = input.labels.title.length * 11;
   page.drawText(safe(input.labels.title, titleFont), { x: PAGE_W / 2 - titleW / 2, y: PAGE_H - 175, size: 20, font: titleFont ?? bold, color: GOLD });
+
+  // Configured header line, under the certificate title. No-op when unset.
+  tpl.header(page, regular, M + 30, PAGE_H - 200);
 
   const bodyLines = [
     { text: input.labels.bodyPrefix, size: 11 },
@@ -106,9 +118,18 @@ export async function buildLeavingCertificatePdf(input: LeavingCertificatePdfInp
   const isf = pick(issued);
   page.drawText(safe(issued, isf), { x: M + 30, y: M + 60, size: 9, font: isf ?? regular, color: FAINT });
 
-  page.drawLine({ start: { x: PAGE_W - M - 180, y: M + 80 }, end: { x: PAGE_W - M - 30, y: M + 80 }, thickness: 0.75, color: FAINT });
-  const sigFont = pick(input.labels.signature);
-  page.drawText(safe(input.labels.signature, sigFont), { x: PAGE_W - M - 180, y: M + 65, size: 9, font: sigFont ?? regular, color: FAINT });
+  // This certificate has always carried a signature line. With no template
+  // row that stays exactly as it was; a configured template REPLACES it (so a
+  // school can retitle it, or deliberately turn it off) rather than drawing a
+  // second line beside it.
+  if (!input.template) {
+    page.drawLine({ start: { x: PAGE_W - M - 180, y: M + 80 }, end: { x: PAGE_W - M - 30, y: M + 80 }, thickness: 0.75, color: FAINT });
+    const sigFont = pick(input.labels.signature);
+    page.drawText(safe(input.labels.signature, sigFont), { x: PAGE_W - M - 180, y: M + 65, size: 9, font: sigFont ?? regular, color: FAINT });
+  } else {
+    tpl.signature(page, regular, PAGE_W - M - 30, M + 80);
+  }
+  tpl.footer(page, regular, PAGE_W, M + 40);
 
   const bytes = await doc.save();
   const buf = new ArrayBuffer(bytes.byteLength);

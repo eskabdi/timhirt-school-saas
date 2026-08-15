@@ -119,6 +119,7 @@ const NAV: NavSection[] = [
         items: [
           { to: "/settings/calendar", key: "nav.calendarSettings", roles: ["school_admin"] },
           { to: "/settings/branding", key: "nav.branding", roles: ["school_admin"] },
+          { to: "/settings/document-templates", key: "nav.documentTemplates", roles: ["school_admin"], module: "document_templates" },
           { to: "/settings/import-export", key: "nav.importExport", roles: ["school_admin"] },
           { to: "/settings/id-card-template", key: "nav.idCardTemplate", roles: ["school_admin"] },
           { to: "/settings/library", key: "nav.librarySettings", roles: LIBRARY, module: "library" },

@@ -17,6 +17,10 @@ export interface TranscriptRow {
 
 // Dates arrive pre-formatted (Ethiopic, via formatEth) by the caller — same
 // convention as issuedOn below — so this file never does its own date math.
+// R5-C6. Static import is safe for the bundle: documentTemplate.ts imports
+// pdf-lib with `import type` only, so nothing of pdf-lib is pulled in here.
+import { templateRenderer, type DocTemplate } from "@/lib/documentTemplate";
+
 export interface TranscriptConductRow { dateEc: string; label: string; detail: string; }
 
 export interface TranscriptInput {
@@ -30,6 +34,8 @@ export interface TranscriptInput {
   totalScore: number;
   maxScore: number;
   issuedOn: string;
+  /** R5-C6: null renders the fixed layout, exactly as before this round. */
+  template?: DocTemplate | null;
   conduct?: { incidents: TranscriptConductRow[]; merits: TranscriptConductRow[]; totalMeritPoints: number };
   labels: {
     title: string; student: string; studentNo: string; grade: string; period: string;
@@ -47,7 +53,8 @@ const NON_LATIN = /[\u0100-\uffff]/;
 const hasNonLatin = (s: string) => NON_LATIN.test(s);
 
 export async function buildTranscriptPdf(input: TranscriptInput): Promise<Blob> {
-  const { PDFDocument, StandardFonts, rgb } = await import("pdf-lib");
+  const { PDFDocument, StandardFonts, rgb, degrees } = await import("pdf-lib");
+  const tpl = templateRenderer({ rgb, degrees }, input.template ?? null);
   const doc = await PDFDocument.create();
 
   const NAVY = rgb(0.118, 0.165, 0.439);
@@ -116,6 +123,9 @@ export async function buildTranscriptPdf(input: TranscriptInput): Promise<Blob> 
   page.drawText(safe(input.labels.title, titleFont), {
     x: M, y, size: 10, font: titleFont ?? regular, color: rgb(0.85, 0.87, 0.96),
   });
+  // Painted before the body: pdf-lib has no z-index, so paint order is the
+  // only thing keeping the watermark underneath the content.
+  tpl.watermark(page, regular, 595, 842);
 
   // Student block
   y = 842 - 110;
@@ -218,6 +228,9 @@ export async function buildTranscriptPdf(input: TranscriptInput): Promise<Blob> 
   const issued = `${input.labels.issued}: ${input.issuedOn}`;
   const isf = pick(issued);
   page.drawText(safe(issued, isf), { x: M, y: 24, size: 7, font: isf ?? regular, color: FAINT });
+  // Both no-op unless the school configured them.
+  tpl.signature(page, regular, 595 - M, 78);
+  tpl.footer(page, regular, 595);
 
   // Copy into a plain ArrayBuffer: pdf-lib types its output as
   // Uint8Array<ArrayBufferLike>, which BlobPart won't accept.
