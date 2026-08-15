@@ -203,7 +203,7 @@ export function DashboardShell() {
     refetchInterval: 60_000,
     queryFn: async () => {
       const { count } = await supabase.from("portal_notifications").select("id", { count: "exact", head: true })
-        .is("read_at", null);
+        .is("read_at", null).in("kind", ["invoice_issued", "payment_received", "invoice_overdue"]);
       return count ?? 0;
     },
   });
@@ -217,6 +217,21 @@ export function DashboardShell() {
     queryFn: async () => {
       const { count } = await supabase.from("portal_notifications").select("id", { count: "exact", head: true })
         .is("read_at", null).in("kind", ["book_overdue", "book_hold_ready"]);
+      return count ?? 0;
+    },
+  });
+  // Same "light interval, no realtime" pattern as unreadBilling above, for
+  // the two attendance notification kinds (attendance_absent/attendance_late)
+  // -- guardian-only (the trigger never notifies the student themselves), so
+  // shown on the /portal landing nav item since parents have no dedicated
+  // /portal/attendance route (that one is student-only).
+  const { data: unreadAttendance } = useQuery({
+    queryKey: ["attendance-notifications-unread", profile?.id],
+    enabled: !!profile?.id && profile?.role === "parent",
+    refetchInterval: 60_000,
+    queryFn: async () => {
+      const { count } = await supabase.from("portal_notifications").select("id", { count: "exact", head: true })
+        .is("read_at", null).in("kind", ["attendance_absent", "attendance_late"]);
       return count ?? 0;
     },
   });
@@ -524,6 +539,11 @@ export function DashboardShell() {
                         {n.to === "/portal/library" && !!unreadLibrary && (
                           <span className="rounded-pill bg-danger px-1.5 py-0.5 text-[11px] font-semibold text-white">
                             {unreadLibrary}
+                          </span>
+                        )}
+                        {n.to === "/portal" && !!unreadAttendance && (
+                          <span className="rounded-pill bg-danger px-1.5 py-0.5 text-[11px] font-semibold text-white">
+                            {unreadAttendance}
                           </span>
                         )}
                       </NavLink>

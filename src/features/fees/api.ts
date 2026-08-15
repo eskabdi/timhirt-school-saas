@@ -42,6 +42,8 @@ export interface BillingNotification {
   student: { first_name: string; last_name: string } | null;
 }
 
+const BILLING_KINDS = ["invoice_issued", "payment_received", "invoice_overdue"] as const;
+
 export function useBillingNotifications(enabled: boolean) {
   return useQuery({
     queryKey: ["billing-notifications"],
@@ -49,6 +51,7 @@ export function useBillingNotifications(enabled: boolean) {
     queryFn: async () => {
       const { data, error } = await supabase.from("portal_notifications")
         .select("id, kind, invoice_id, payment_id, amount, read_at, created_at, student:students(first_name, last_name)")
+        .in("kind", BILLING_KINDS)
         .order("created_at", { ascending: false })
         .limit(50);
       if (error) throw error;
@@ -65,6 +68,7 @@ export function useUnreadBillingCount(enabled: boolean) {
     queryFn: async () => {
       const { count, error } = await supabase.from("portal_notifications")
         .select("id", { count: "exact", head: true })
+        .in("kind", BILLING_KINDS)
         .is("read_at", null);
       if (error) throw error;
       return count ?? 0;

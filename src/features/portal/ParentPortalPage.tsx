@@ -21,7 +21,10 @@ export function ParentPortalPage() {
 
   // A single child's dashboard *is* the guardian's dashboard -- skip the
   // chooser and land directly on the student-specific view. Multiple
-  // children still need a way to pick which one.
+  // children still need a way to pick which one. (The notification banner
+  // lives on ParentChildPage instead of here -- this redirects immediately
+  // in the single-child case, so a banner rendered on this page would never
+  // actually be seen.)
   if (children && children.length === 1) {
     return <Navigate to={`/portal/child/${children[0]!.student_id}`} replace />;
   }
