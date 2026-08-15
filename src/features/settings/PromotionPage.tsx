@@ -18,8 +18,10 @@ import { useSession } from "@/features/auth/useSession";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Field } from "@/components/ui/Field";
+import { EthDate } from "@/components/EthDate";
 
 interface YearRow { id: string; ec_year: number; status: string }
+interface PromotionRunRow { id: string; run_at: string; reverted_at: string | null }
 
 async function classesWithCounts(yearId: string) {
   const { data: classes } = await supabase.from("classes")
@@ -116,7 +118,7 @@ export function PromotionPage() {
       const { data, error } = await supabase.rpc("promote_students_batch", { p_moves: moves });
       if (error) throw error;
       const row = Array.isArray(data) ? data[0] : data;
-      return { promoted: row?.promoted_count ?? 0, graduated: row?.graduated_count ?? 0 };
+      return { promoted: row?.promoted_count ?? 0, graduated: row?.graduated_count ?? 0, runId: row?.run_id as string | undefined };
     },
     onSuccess: (r) => {
       setPromoteError(null);
@@ -124,10 +126,46 @@ export function PromotionPage() {
       setResult(`${r.promoted} student(s) promoted, ${r.graduated} graduated.`);
       qc.invalidateQueries({ queryKey: ["promotion-source-classes"] });
       qc.invalidateQueries({ queryKey: ["promotion-target-classes"] });
+      qc.invalidateQueries({ queryKey: ["promotion-runs"] });
     },
     onError: (e) => {
       setResult(null);
       setPromoteError(e instanceof Error ? e.message : String(e));
+    },
+  });
+
+  const { data: recentRuns } = useQuery({
+    queryKey: ["promotion-runs"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("promotion_runs").select("id, run_at, reverted_at")
+        .order("run_at", { ascending: false }).limit(5);
+      if (error) throw error;
+      return (data ?? []) as PromotionRunRow[];
+    },
+  });
+  const [revertResult, setRevertResult] = useState<string | null>(null);
+  const [revertError, setRevertError] = useState<string | null>(null);
+  const revert = useMutation({
+    mutationFn: async (runId: string) => {
+      const { data, error } = await supabase.rpc("revert_promotion_run", { p_run_id: runId });
+      if (error) throw error;
+      const row = Array.isArray(data) ? data[0] : data;
+      return { reverted: row?.reverted_count ?? 0, skipped: row?.skipped_count ?? 0 };
+    },
+    onSuccess: (r) => {
+      setRevertError(null);
+      setRevertResult(
+        r.skipped > 0
+          ? t("promotion.revertPartial", { reverted: r.reverted, skipped: r.skipped })
+          : t("promotion.revertComplete", { reverted: r.reverted }),
+      );
+      qc.invalidateQueries({ queryKey: ["promotion-runs"] });
+      qc.invalidateQueries({ queryKey: ["promotion-source-classes"] });
+      qc.invalidateQueries({ queryKey: ["promotion-target-classes"] });
+    },
+    onError: (e) => {
+      setRevertResult(null);
+      setRevertError(e instanceof Error ? e.message : String(e));
     },
   });
 
@@ -201,6 +239,28 @@ export function PromotionPage() {
       <Button onClick={() => promote.mutate()} disabled={!sourceClasses?.length || promote.isPending || hasCapacityConflict}>
         {promote.isPending ? t("promotion.promoting") : t("promotion.runPromotion")}
       </Button>
+
+      {!!recentRuns?.length && (
+        <Card className="space-y-2">
+          <h2 className="font-display text-lg font-semibold text-ink">{t("promotion.recentRuns")}</h2>
+          {revertResult && <p className="text-sm text-ok">{revertResult}</p>}
+          {revertError && <p className="text-sm text-danger">{revertError}</p>}
+          <div className="divide-y divide-line">
+            {recentRuns.map((r) => (
+              <div key={r.id} className="flex items-center justify-between py-2 text-sm">
+                <span className="text-ink"><EthDate value={r.run_at} /></span>
+                {r.reverted_at ? (
+                  <span className="text-xs text-ink-faint">{t("promotion.reverted")}</span>
+                ) : (
+                  <Button variant="tertiary" onClick={() => revert.mutate(r.id)} disabled={revert.isPending}>
+                    {t("promotion.undo")}
+                  </Button>
+                )}
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
     </div>
   );
 }
