@@ -71,7 +71,7 @@ export function StudentFormPage() {
   const [s1, setS1] = useState({
     first_name: "", first_name_am: "", middle_name: "", middle_name_am: "",
     last_name: "", last_name_am: "", gender: "" as "" | "male" | "female" | "other",
-    ethnicity: "", class_id: "",
+    ethnicity: "", class_id: "", prior_school_name: "", prior_grade: "",
   });
   const [dob, setDob] = useState<Date | null>(null);
   const [s1Errors, setS1Errors] = useState<Record<string, string>>({});
@@ -122,6 +122,12 @@ export function StudentFormPage() {
       }
       setS1Errors({});
       const student = await createStudent(tenantId, parsed.data);
+      if (s1.prior_school_name.trim() || s1.prior_grade.trim()) {
+        await supabase.from("students").update({
+          prior_school_name: s1.prior_school_name.trim() || null,
+          prior_grade: s1.prior_grade.trim() || null,
+        }).eq("id", student.id);
+      }
       setStudentId(student.id);
       return student;
     },
@@ -244,6 +250,15 @@ export function StudentFormPage() {
             </div>
 
             <EthnicitySelect value={s1.ethnicity} onChange={(v) => setS1((s) => ({ ...s, ethnicity: v }))} />
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <Field label={t("students.priorSchoolName")}>
+                <Input value={s1.prior_school_name} onChange={(e) => setS1((s) => ({ ...s, prior_school_name: e.target.value }))} maxLength={200} />
+              </Field>
+              <Field label={t("students.priorGrade")}>
+                <Input value={s1.prior_grade} onChange={(e) => setS1((s) => ({ ...s, prior_grade: e.target.value }))} maxLength={30} />
+              </Field>
+            </div>
           </div>
           <div className="flex justify-between border-t border-line px-6 py-4">
             <Button variant="ghost" onClick={() => nav("/students")}>{t("students.cancel")}</Button>

@@ -31,9 +31,9 @@ values
    'authenticated', 'authenticated', 'dash-parent-a@test.example', crypt('x', gen_salt('bf')),
    now(), now(), now(), '', '', '', '');
 
-insert into public.tenants (id, name, slug, status) values
-  ('da000000-0000-0000-0000-00000000000a', 'Dash Tenant A', 'dash-tenant-a', 'active'),
-  ('db000000-0000-0000-0000-00000000000b', 'Dash Tenant B', 'dash-tenant-b', 'active');
+insert into public.tenants (id, name, slug, status, tier_key) values
+  ('da000000-0000-0000-0000-00000000000a', 'Dash Tenant A', 'dash-tenant-a', 'active', 'premium'),
+  ('db000000-0000-0000-0000-00000000000b', 'Dash Tenant B', 'dash-tenant-b', 'active', 'premium');
 
 insert into public.users (id, tenant_id, role, full_name, email) values
   ('d0000001-0000-0000-0000-000000000001', 'da000000-0000-0000-0000-00000000000a', 'school_admin', 'Dash Admin A', 'dash-admin-a@test.example'),
@@ -140,18 +140,23 @@ insert into public.fee_structures (id, tenant_id, name_i18n, amount, billing_cyc
   ('da900000-0000-0000-0000-00000000000a', 'da000000-0000-0000-0000-00000000000a', '{"en":"Tuition"}', 1000, 'monthly'),
   ('db900000-0000-0000-0000-00000000000b', 'db000000-0000-0000-0000-00000000000b', '{"en":"Tuition"}', 1000, 'monthly');
 
-insert into public.fee_invoices (id, tenant_id, student_id, fee_structure_id, amount_due, amount_paid, due_date, status) values
+insert into public.invoice_headers (id, tenant_id, student_id, due_date) values
+  ('dac00001-0000-0000-0000-00000000000a', 'da000000-0000-0000-0000-00000000000a', 'da300001-0000-0000-0000-00000000000a', '2026-01-31'),
+  ('dac00002-0000-0000-0000-00000000000a', 'da000000-0000-0000-0000-00000000000a', 'da300002-0000-0000-0000-00000000000a', '2026-12-31'),
+  ('dbc00001-0000-0000-0000-00000000000b', 'db000000-0000-0000-0000-00000000000b', 'db300001-0000-0000-0000-00000000000b', '2026-01-31');
+
+insert into public.fee_invoices (id, tenant_id, student_id, fee_structure_id, amount_due, amount_paid, due_date, status, invoice_header_id) values
   -- Past due, part paid: 400 outstanding must land in "overdue", not 1000.
-  ('daa00001-0000-0000-0000-00000000000a', 'da000000-0000-0000-0000-00000000000a', 'da300001-0000-0000-0000-00000000000a', 'da900000-0000-0000-0000-00000000000a', 1000, 600, '2026-01-31', 'partial'),
+  ('daa00001-0000-0000-0000-00000000000a', 'da000000-0000-0000-0000-00000000000a', 'da300001-0000-0000-0000-00000000000a', 'da900000-0000-0000-0000-00000000000a', 1000, 600, '2026-01-31', 'partial', 'dac00001-0000-0000-0000-00000000000a'),
   -- Not yet due: belongs in "to be collected".
-  ('daa00002-0000-0000-0000-00000000000a', 'da000000-0000-0000-0000-00000000000a', 'da300002-0000-0000-0000-00000000000a', 'da900000-0000-0000-0000-00000000000a', 1000, 0,   '2026-12-31', 'pending'),
-  ('dbb00001-0000-0000-0000-00000000000b', 'db000000-0000-0000-0000-00000000000b', 'db300001-0000-0000-0000-00000000000b', 'db900000-0000-0000-0000-00000000000b', 5000, 0,   '2026-01-31', 'pending');
+  ('daa00002-0000-0000-0000-00000000000a', 'da000000-0000-0000-0000-00000000000a', 'da300002-0000-0000-0000-00000000000a', 'da900000-0000-0000-0000-00000000000a', 1000, 0,   '2026-12-31', 'pending', 'dac00002-0000-0000-0000-00000000000a'),
+  ('dbb00001-0000-0000-0000-00000000000b', 'db000000-0000-0000-0000-00000000000b', 'db300001-0000-0000-0000-00000000000b', 'db900000-0000-0000-0000-00000000000b', 5000, 0,   '2026-01-31', 'pending', 'dbc00001-0000-0000-0000-00000000000b');
 
 insert into public.payments (tenant_id, invoice_id, amount, provider, status, paid_at) values
-  ('da000000-0000-0000-0000-00000000000a', 'daa00001-0000-0000-0000-00000000000a', 600, 'chapa', 'succeeded', '2026-02-10T09:00:00Z'),
+  ('da000000-0000-0000-0000-00000000000a', 'dac00001-0000-0000-0000-00000000000a', 600, 'chapa', 'succeeded', '2026-02-10T09:00:00Z'),
   -- A failed attempt must not be counted as collected.
-  ('da000000-0000-0000-0000-00000000000a', 'daa00002-0000-0000-0000-00000000000a', 250, 'chapa', 'failed',    '2026-02-11T09:00:00Z'),
-  ('db000000-0000-0000-0000-00000000000b', 'dbb00001-0000-0000-0000-00000000000b', 999, 'chapa', 'succeeded', '2026-02-10T09:00:00Z');
+  ('da000000-0000-0000-0000-00000000000a', 'dac00002-0000-0000-0000-00000000000a', 250, 'chapa', 'failed',    '2026-02-11T09:00:00Z'),
+  ('db000000-0000-0000-0000-00000000000b', 'dbc00001-0000-0000-0000-00000000000b', 999, 'chapa', 'succeeded', '2026-02-10T09:00:00Z');
 
 insert into public.admission_applications (tenant_id, applicant_name, date_of_birth, guardian_name, stage) values
   ('da000000-0000-0000-0000-00000000000a', 'Applicant One',   '2018-01-01', 'Guardian One',   'applied'),

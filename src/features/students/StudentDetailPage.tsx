@@ -12,9 +12,11 @@ import { AttendanceTab } from "./tabs/AttendanceTab";
 import { BehavioralTab } from "./tabs/BehavioralTab";
 import { PrintIDCardModal } from "./PrintIDCardModal";
 import { EditProfileModal } from "./EditProfileModal";
+import { TransferStudentModal } from "./TransferStudentModal";
 import { buildStudentProfilePdf } from "./student-profile-pdf";
 import { formatEth } from "@/lib/ethiopian-date";
 import { gradeCycleKeyFor, gradeCycleI18nKey } from "@/lib/gradeCycles";
+import { fetchAcademicRecord, fetchClassRank } from "./academic-record";
 
 const TABS = ["personalInfo", "academicRecord", "attendance", "behavioral"] as const;
 type Tab = (typeof TABS)[number];
@@ -34,6 +36,7 @@ export function StudentDetailPage() {
   const [tab, setTab] = useState<Tab>("personalInfo");
   const [showIdCard, setShowIdCard] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
+  const [showTransfer, setShowTransfer] = useState(false);
   const [printBusy, setPrintBusy] = useState(false);
   const [printError, setPrintError] = useState<string | null>(null);
 
@@ -41,7 +44,7 @@ export function StudentDetailPage() {
     queryKey: ["student-profile", id],
     queryFn: async () => {
       const { data, error } = await supabase.from("students")
-        .select("id, tenant_id, class_id, admission_no, roll_number, first_name, middle_name, last_name, first_name_am, middle_name_am, last_name_am, date_of_birth, gender, status, avatar_path, blood_type, primary_language, ethnicity, admission_date, user_id, class:classes(name, section, grade_level, homeroom_teacher_id)")
+        .select("id, tenant_id, class_id, admission_no, roll_number, first_name, middle_name, last_name, first_name_am, middle_name_am, last_name_am, date_of_birth, gender, status, avatar_path, blood_type, primary_language, ethnicity, admission_date, user_id, transferred_to, transferred_reason, transferred_on, prior_school_name, prior_grade, class:classes(name, section, grade_level, homeroom_teacher_id)")
         .eq("id", id).single();
       if (error) throw error;
       return data;
@@ -83,6 +86,18 @@ export function StudentDetailPage() {
       const present = data.filter((a) => a.status === "present" || a.status === "excused").length;
       return Math.round((present / data.length) * 100);
     },
+  });
+
+  const { data: academicRecord } = useQuery({
+    queryKey: ["academic-record", id],
+    enabled: !!id,
+    queryFn: () => fetchAcademicRecord(id!, i18n.resolvedLanguage!),
+  });
+
+  const { data: classRank } = useQuery({
+    queryKey: ["class-rank", id, student?.class_id],
+    enabled: !!id && !!student?.class_id,
+    queryFn: () => fetchClassRank(id!, student!.class_id!),
   });
 
   // School name for the PDF letterhead -- same branding record the ID card,
@@ -215,6 +230,11 @@ export function StudentDetailPage() {
           <Button variant="ghost" className="border border-line" onClick={printProfile} disabled={printBusy}>
             🖨 {printBusy ? t("academicRecord.preparing") : t("students.profile.printReport")}
           </Button>
+          {student.status === "active" && (
+            <Button variant="ghost" className="border border-line" onClick={() => setShowTransfer(true)}>
+              {t("students.transfer.markTransferred")}
+            </Button>
+          )}
           <Button onClick={() => setShowEdit(true)}>✎ {t("students.profile.editProfile")}</Button>
         </div>
       </div>
@@ -240,11 +260,19 @@ export function StudentDetailPage() {
           <p className="text-sm text-ink-soft">{t("students.edit.rollNumber")}: <span className="font-medium text-ink">{student.roll_number ?? "—"}</span></p>
         </div>
         <div className="flex flex-1 gap-3">
-          {statCard(t("students.profile.currentGpa"), "—")}
+          {statCard(t("students.profile.currentGpa"), academicRecord?.rows.length ? academicRecord.totals.gpa.toFixed(2) : "—")}
           {statCard(t("attendance.title"), attendancePct != null ? `${attendancePct}%` : "—")}
-          {statCard(t("students.profile.classRank"), "—")}
+          {statCard(t("students.profile.classRank"), classRank ? `${classRank.rank} / ${classRank.totalStudents}` : "—")}
         </div>
       </Card>
+
+      {student.status === "transferred" && (
+        <Card className="border border-line bg-sidebar text-sm text-ink">
+          <p className="font-semibold">{t("students.transfer.summary", { school: student.transferred_to ?? "—" })}</p>
+          {student.transferred_on && <p className="text-ink-faint"><EthDate value={student.transferred_on} /></p>}
+          {student.transferred_reason && <p className="text-ink-faint">{student.transferred_reason}</p>}
+        </Card>
+      )}
 
       {/* Tabs */}
       <div className="no-print flex gap-6 border-b border-line">
@@ -313,7 +341,7 @@ export function StudentDetailPage() {
 
       {tab === "academicRecord" && (
         <AcademicRecordTab studentId={student.id} studentName={fullName}
-          admissionNo={student.admission_no} gradeLabel={gradeLabel} />
+          admissionNo={student.admission_no} classId={student.class_id} />
       )}
       {tab === "attendance" && <AttendanceTab studentId={student.id} />}
       {tab === "behavioral" && (
@@ -325,6 +353,7 @@ export function StudentDetailPage() {
       </div>
 
       <PrintIDCardModal studentId={student.id} studentName={fullName} open={showIdCard} onClose={() => setShowIdCard(false)} />
+      <TransferStudentModal studentId={student.id} open={showTransfer} onClose={() => setShowTransfer(false)} />
       <EditProfileModal
         open={showEdit}
         onClose={() => setShowEdit(false)}

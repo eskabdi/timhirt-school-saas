@@ -36,14 +36,17 @@
 // another school.
 // ============================================================================
 import { z } from "npm:zod@3";
-import { requireRole, errors, json, rateLimit, corsHeaders } from "../_shared/security.ts";
+import { requireRole, errors, json, rateLimit, corsHeaders, STAFF_NO_REGEX } from "../_shared/security.ts";
 
 const Payload = z.object({
   email: z.string().email().max(254),
   full_name: z.string().trim().min(1).max(120),
   role: z.enum(["teacher", "registrar", "hr_officer", "accountant", "librarian"]),
-  staff_no: z.string().regex(/^[A-Z0-9\-/]{2,20}$/).optional(),
+  staff_no: z.string().regex(STAFF_NO_REGEX).optional(),
   default_locale: z.enum(["en", "am", "om"]).default("am"),
+  // grade_cycles.key (20260814000001) -- optional; a teacher with none set
+  // stays unrestricted by enforce_teacher_cycle() (20260819000001).
+  teaching_cycle_key: z.enum(["first_cycle", "second_cycle", "lower_secondary", "upper_secondary"]).optional(),
 }).refine((p) => p.role !== "teacher" || !!p.staff_no, { message: "staff_no required for teachers" });
 
 // An hr_officer may onboard the staff they directly manage; only school_admin
@@ -98,6 +101,7 @@ Deno.serve(async (req) => {
     if (p.role === "teacher") {
       const { error: teacherErr } = await db.from("teachers").insert({
         tenant_id: ctx.tenantId, user_id: invitedUserId, staff_no: p.staff_no,
+        teaching_cycle_key: p.teaching_cycle_key ?? null,
       });
       if (teacherErr) throw teacherErr;
     }

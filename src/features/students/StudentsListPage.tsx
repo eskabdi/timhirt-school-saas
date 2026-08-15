@@ -118,17 +118,20 @@ export function StudentsListPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
-              {students.map((s) => (
+              {students.map((s) => {
+                const cls = s.class as unknown as { name: string; section: string | null } | null;
+                return (
                 <tr key={s.id} className="cursor-pointer hover:bg-sidebar" onDoubleClick={onRowDoubleClick(navigate, `/students/${s.id}`)}>
                   <td className="px-5 py-3">
                     <Link to={`/students/${s.id}`} className="font-medium text-navy hover:underline">{s.admission_no}</Link>
                   </td>
                   <td className="px-5 py-3 text-ink">{s.first_name}</td>
                   <td className="px-5 py-3 text-ink">{s.last_name}</td>
-                  <td className="px-5 py-3 text-ink-faint">{(s.class as any)?.name} {(s.class as any)?.section}</td>
+                  <td className="px-5 py-3 text-ink-faint">{cls?.name} {cls?.section}</td>
                   <td className="px-5 py-3 text-ink-faint"><EthDate value={s.date_of_birth} /></td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
           <Pagination page={page} totalCount={data?.count ?? 0} onPageChange={setPage} className="px-5" />

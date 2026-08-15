@@ -276,7 +276,7 @@ export function PublicAdmissionFormPage() {
 
   const [s2, setS2] = useState({
     guardian_name: "", guardian_name_am: "", guardian_relationship: "", guardian_occupation: "",
-    guardian_phone: "", guardian_email: "", guardian_region: "Addis Ababa", guardian_subcity: "",
+    guardian_phone: "", guardian_email: "", guardian_region: "", guardian_subcity: "",
     guardian_woreda_kebele: "", guardian_house_number: "",
   });
   const [s2Errors, setS2Errors] = useState<Record<string, string>>({});

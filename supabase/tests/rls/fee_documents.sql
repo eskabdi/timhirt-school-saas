@@ -23,9 +23,9 @@ values
   ('00000000-0000-0000-0000-000000000000', 'fda00007-0000-0000-0000-000000000007', 'authenticated', 'authenticated', 'fd-parent2@test.example', crypt('x', gen_salt('bf')), now(), now(), now(), '', '', '', ''),
   ('00000000-0000-0000-0000-000000000000', 'fdb00001-0000-0000-0000-000000000001', 'authenticated', 'authenticated', 'fd-admin-b@test.example', crypt('x', gen_salt('bf')), now(), now(), now(), '', '', '', '');
 
-insert into public.tenants (id, name, slug, status) values
-  ('fda00000-0000-0000-0000-00000000000a', 'FD Tenant A', 'fd-tenant-a', 'active'),
-  ('fdb00000-0000-0000-0000-00000000000b', 'FD Tenant B', 'fd-tenant-b', 'active');
+insert into public.tenants (id, name, slug, status, tier_key) values
+  ('fda00000-0000-0000-0000-00000000000a', 'FD Tenant A', 'fd-tenant-a', 'active', 'premium'),
+  ('fdb00000-0000-0000-0000-00000000000b', 'FD Tenant B', 'fd-tenant-b', 'active', 'premium');
 
 insert into public.users (id, tenant_id, role, full_name, email) values
   ('fda00001-0000-0000-0000-000000000001', 'fda00000-0000-0000-0000-00000000000a', 'school_admin', 'FD Admin',      'fd-admin@test.example'),
@@ -50,34 +50,36 @@ insert into public.guardians (id, tenant_id, student_id, user_id, relationship, 
 
 insert into public.fee_structures (id, tenant_id, name_i18n, amount, billing_cycle) values
   ('fda50000-0000-0000-0000-000000000001', 'fda00000-0000-0000-0000-00000000000a', '{"en":"Tuition"}', 500, 'monthly');
-insert into public.fee_invoices (id, tenant_id, student_id, fee_structure_id, amount_due, amount_paid, due_date, status) values
-  ('fda60000-0000-0000-0000-000000000001', 'fda00000-0000-0000-0000-00000000000a', 'fda30000-0000-0000-0000-000000000001', 'fda50000-0000-0000-0000-000000000001', 500.00, 500.00, '2026-08-01', 'paid');
+insert into public.invoice_headers (id, tenant_id, student_id, due_date) values
+  ('fda90000-0000-0000-0000-000000000001', 'fda00000-0000-0000-0000-00000000000a', 'fda30000-0000-0000-0000-000000000001', '2026-08-01');
+insert into public.fee_invoices (id, tenant_id, student_id, fee_structure_id, amount_due, amount_paid, due_date, status, invoice_header_id) values
+  ('fda60000-0000-0000-0000-000000000001', 'fda00000-0000-0000-0000-00000000000a', 'fda30000-0000-0000-0000-000000000001', 'fda50000-0000-0000-0000-000000000001', 500.00, 500.00, '2026-08-01', 'paid', 'fda90000-0000-0000-0000-000000000001');
 insert into public.payments (id, tenant_id, invoice_id, amount, provider, provider_ref, status) values
-  ('fda70000-0000-0000-0000-000000000001', 'fda00000-0000-0000-0000-00000000000a', 'fda60000-0000-0000-0000-000000000001', 500.00, 'cash', 'fd-pay-1', 'succeeded');
+  ('fda70000-0000-0000-0000-000000000001', 'fda00000-0000-0000-0000-00000000000a', 'fda90000-0000-0000-0000-000000000001', 500.00, 'cash', 'fd-pay-1', 'succeeded');
 
 insert into public.fee_documents (id, tenant_id, kind, invoice_id, payment_id, doc_no, verify_code, amount, pdf_path) values
-  ('fda80000-0000-0000-0000-000000000001', 'fda00000-0000-0000-0000-00000000000a', 'invoice', 'fda60000-0000-0000-0000-000000000001', null, 'INV-FD-001', repeat('a1', 24), 500.00, 'fda00000-0000-0000-0000-00000000000a/fda60000-0000-0000-0000-000000000001/inv.pdf'),
-  ('fda80000-0000-0000-0000-000000000002', 'fda00000-0000-0000-0000-00000000000a', 'receipt', 'fda60000-0000-0000-0000-000000000001', 'fda70000-0000-0000-0000-000000000001', 'RCP-FD-001', repeat('b2', 24), 500.00, 'fda00000-0000-0000-0000-00000000000a/fda60000-0000-0000-0000-000000000001/rcp.pdf');
+  ('fda80000-0000-0000-0000-000000000001', 'fda00000-0000-0000-0000-00000000000a', 'invoice', 'fda90000-0000-0000-0000-000000000001', null, 'INV-FD-001', repeat('a1', 24), 500.00, 'fda00000-0000-0000-0000-00000000000a/fda90000-0000-0000-0000-000000000001/inv.pdf'),
+  ('fda80000-0000-0000-0000-000000000002', 'fda00000-0000-0000-0000-00000000000a', 'receipt', 'fda90000-0000-0000-0000-000000000001', 'fda70000-0000-0000-0000-000000000001', 'RCP-FD-001', repeat('b2', 24), 500.00, 'fda00000-0000-0000-0000-00000000000a/fda90000-0000-0000-0000-000000000001/rcp.pdf');
 
 -- ---------- Constraint probes (as superuser, bypasses RLS) -------------------
 select throws_ok(
   $stmt$ insert into public.fee_documents (tenant_id, kind, invoice_id, payment_id, doc_no, verify_code, amount, pdf_path)
-         values ('fda00000-0000-0000-0000-00000000000a', 'receipt', 'fda60000-0000-0000-0000-000000000001', 'fda70000-0000-0000-0000-000000000001', 'RCP-FD-DUP', repeat('c3', 24), 500.00, 'x.pdf') $stmt$,
+         values ('fda00000-0000-0000-0000-00000000000a', 'receipt', 'fda90000-0000-0000-0000-000000000001', 'fda70000-0000-0000-0000-000000000001', 'RCP-FD-DUP', repeat('c3', 24), 500.00, 'x.pdf') $stmt$,
   '23505', null, 'duplicate payment_id for kind=receipt rejected (fee_documents_receipt_uq)');
 
 select throws_ok(
   $stmt$ insert into public.fee_documents (tenant_id, kind, invoice_id, doc_no, verify_code, amount, pdf_path)
-         values ('fda00000-0000-0000-0000-00000000000a', 'invoice', 'fda60000-0000-0000-0000-000000000001', 'INV-FD-DUP', repeat('d4', 24), 500.00, 'x.pdf') $stmt$,
+         values ('fda00000-0000-0000-0000-00000000000a', 'invoice', 'fda90000-0000-0000-0000-000000000001', 'INV-FD-DUP', repeat('d4', 24), 500.00, 'x.pdf') $stmt$,
   '23505', null, 'duplicate invoice_id for kind=invoice rejected (fee_documents_invoice_uq)');
 
 select throws_ok(
   $stmt$ insert into public.fee_documents (tenant_id, kind, invoice_id, doc_no, verify_code, amount, pdf_path)
-         values ('fda00000-0000-0000-0000-00000000000a', 'receipt', 'fda60000-0000-0000-0000-000000000001', 'RCP-FD-NOPAY', repeat('e5', 24), 500.00, 'x.pdf') $stmt$,
+         values ('fda00000-0000-0000-0000-00000000000a', 'receipt', 'fda90000-0000-0000-0000-000000000001', 'RCP-FD-NOPAY', repeat('e5', 24), 500.00, 'x.pdf') $stmt$,
   '23514', null, 'receipt with null payment_id rejected (fee_documents_receipt_needs_payment)');
 
 select throws_ok(
   $stmt$ insert into public.fee_documents (tenant_id, kind, invoice_id, doc_no, verify_code, amount, pdf_path)
-         values ('fda00000-0000-0000-0000-00000000000a', 'invoice', 'fda60000-0000-0000-0000-000000000001', 'INV-FD-SHORT', 'short', 500.00, 'x.pdf') $stmt$,
+         values ('fda00000-0000-0000-0000-00000000000a', 'invoice', 'fda90000-0000-0000-0000-000000000001', 'INV-FD-SHORT', 'short', 500.00, 'x.pdf') $stmt$,
   '23514', null, 'verify_code shorter than 24 chars rejected (entropy check)');
 
 -- ---------- verify_document() ------------------------------------------------
@@ -98,37 +100,37 @@ set local role authenticated;
 set local request.jwt.claim.sub = 'fda00007-0000-0000-0000-000000000007'; -- parent2, different family
 
 select is(
-  (select count(*)::int from public.fee_documents where invoice_id = 'fda60000-0000-0000-0000-000000000001'),
+  (select count(*)::int from public.fee_documents where invoice_id = 'fda90000-0000-0000-0000-000000000001'),
   0, 'a different family in the same tenant sees 0 of this invoice''s documents');
 
 set local request.jwt.claim.sub = 'fdb00001-0000-0000-0000-000000000001'; -- tenant B school_admin
 
 select is(
-  (select count(*)::int from public.fee_documents where invoice_id = 'fda60000-0000-0000-0000-000000000001'),
+  (select count(*)::int from public.fee_documents where invoice_id = 'fda90000-0000-0000-0000-000000000001'),
   0, 'cross-tenant school_admin sees 0');
 
 set local request.jwt.claim.sub = 'fda00006-0000-0000-0000-000000000006'; -- student1, own record
 
 select is(
-  (select count(*)::int from public.fee_documents where invoice_id = 'fda60000-0000-0000-0000-000000000001'),
+  (select count(*)::int from public.fee_documents where invoice_id = 'fda90000-0000-0000-0000-000000000001'),
   2, 'the student on the invoice sees both documents via s.user_id = auth.uid()');
 
 set local request.jwt.claim.sub = 'fda00004-0000-0000-0000-000000000004'; -- teacher
 
 select is(
-  (select count(*)::int from public.fee_documents where invoice_id = 'fda60000-0000-0000-0000-000000000001'),
+  (select count(*)::int from public.fee_documents where invoice_id = 'fda90000-0000-0000-0000-000000000001'),
   0, 'a teacher has no blanket read on fee_documents');
 
 set local request.jwt.claim.sub = 'fda00003-0000-0000-0000-000000000003'; -- registrar
 
 select is(
-  (select count(*)::int from public.fee_documents where invoice_id = 'fda60000-0000-0000-0000-000000000001'),
+  (select count(*)::int from public.fee_documents where invoice_id = 'fda90000-0000-0000-0000-000000000001'),
   0, 'a registrar has no blanket read on fee_documents (only school_admin/accountant)');
 
 set local request.jwt.claim.sub = 'fda00002-0000-0000-0000-000000000002'; -- accountant
 
 select is(
-  (select count(*)::int from public.fee_documents where invoice_id = 'fda60000-0000-0000-0000-000000000001'),
+  (select count(*)::int from public.fee_documents where invoice_id = 'fda90000-0000-0000-0000-000000000001'),
   2, 'accountant (staff bypass) sees both documents');
 
 -- ---------- RLS: insert/update (service_role only) ---------------------------
@@ -136,7 +138,7 @@ set local request.jwt.claim.sub = 'fda00001-0000-0000-0000-000000000001'; -- sch
 
 select throws_ok(
   $stmt$ insert into public.fee_documents (tenant_id, kind, invoice_id, doc_no, verify_code, amount, pdf_path)
-         values ('fda00000-0000-0000-0000-00000000000a', 'invoice', 'fda60000-0000-0000-0000-000000000001', 'INV-FD-CLIENT', repeat('f6', 24), 500.00, 'x.pdf') $stmt$,
+         values ('fda00000-0000-0000-0000-00000000000a', 'invoice', 'fda90000-0000-0000-0000-000000000001', 'INV-FD-CLIENT', repeat('f6', 24), 500.00, 'x.pdf') $stmt$,
   '42501', null, 'an authenticated school_admin cannot insert a fee_documents row (service_role only)');
 
 -- No update policy at all -> RLS filters the row rather than raising: the

@@ -20,12 +20,16 @@ export function StudentGradesPage() {
   return (
     <div className="space-y-2">
       <h1 className="font-display text-2xl font-bold">{t("portalPages.myGrades")}</h1>
-      {grades?.map((g, i) => (
+      {grades?.map((g, i) => {
+        const subject = g.subjects as unknown as { name_i18n: Record<string, string> } | null;
+        const exam = g.exams as unknown as { name_i18n: Record<string, string>; max_score: number } | null;
+        return (
         <Card key={i} className="flex justify-between text-sm">
-          <span>{(g.subjects as any)?.name_i18n?.en} — {(g.exams as any)?.name_i18n?.en}</span>
-          <span className="font-semibold">{g.score} / {(g.exams as any)?.max_score}</span>
+          <span>{subject?.name_i18n?.en} — {exam?.name_i18n?.en}</span>
+          <span className="font-semibold">{g.score} / {exam?.max_score}</span>
         </Card>
-      ))}
+        );
+      })}
     </div>
   );
 }

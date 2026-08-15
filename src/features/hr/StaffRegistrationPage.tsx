@@ -34,6 +34,7 @@ import { EthDate } from "@/components/EthDate";
 import { toIsoDate } from "@/lib/ethiopian-date";
 import { tField } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
+import { GRADE_CYCLES, gradeCycleI18nKey } from "@/lib/gradeCycles";
 import {
   STAFF_DOC_TYPES, STAFF_PHOTO_MIME_TYPES, callInviteStaff, inviteAndLink,
   replaceQualificationsFromText, replaceTeachingSubjects, uploadStaffDocument,
@@ -146,6 +147,12 @@ export function StaffRegistrationPage() {
   const [subjectIds, setSubjectIds] = useState<string[]>([]);
   const [subjectSearch, setSubjectSearch] = useState("");
   const [languages, setLanguages] = useState<string[]>([]);
+  // Collected here regardless of the eventual role -- employee_type isn't
+  // chosen until Step 3, same as the subject-specialization picker just
+  // above. Only actually applied if this person ends up invited as a
+  // teacher (teachers.teaching_cycle_key, 20260819000001); harmless no-op
+  // state otherwise.
+  const [teachingCycleKey, setTeachingCycleKey] = useState("");
 
   const { data: subjects } = useQuery({
     queryKey: ["hr-subjects", tenantId],
@@ -322,7 +329,7 @@ export function StaffRegistrationPage() {
           try {
             const uid = await inviteAndLink({
               tenantId, employeeId: employeeId!, email, fullName: fullName() || employeeNo!,
-              role: portalRole, staffNo: employeeNo!, locale,
+              role: portalRole, staffNo: employeeNo!, locale, teachingCycleKey,
             });
             setInvitedUserId(uid);
           } catch {
@@ -555,6 +562,14 @@ export function StaffRegistrationPage() {
           </SectionCard>
 
           <SectionCard title={t("staffReg.teachingSpecializations")} icon="🎯" className="lg:col-span-3">
+            <Field label={t("staffReg.teachingCycle")}>
+              <select value={teachingCycleKey} onChange={(e) => setTeachingCycleKey(e.target.value)}
+                className="w-full rounded-control border border-line bg-card px-3 py-2 text-sm text-ink sm:w-80">
+                <option value="">{t("staffReg.teachingCycleNotSet")}</option>
+                {GRADE_CYCLES.map((c) => <option key={c.key} value={c.key}>{t(`gradeCycles.${gradeCycleI18nKey(c.key)}`)}</option>)}
+              </select>
+            </Field>
+            <p className="text-xs text-ink-faint">{t("staffReg.teachingCycleHint")}</p>
             <p className="text-xs text-ink-faint">{t("staffReg.selectSubjectsHint")}</p>
             <div className="flex flex-wrap gap-2">
               {subjectIds.map((id) => {

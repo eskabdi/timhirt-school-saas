@@ -37,16 +37,18 @@ insert into public.students (id, tenant_id, class_id, admission_no, first_name, 
   ('cda30000-0000-0000-0000-000000000001', 'cda00000-0000-0000-0000-00000000000a', 'cda20000-0000-0000-0000-000000000001', 'ADM-PN-001', 'Stu', 'One', '2015-01-01', 'male');
 insert into public.fee_structures (id, tenant_id, name_i18n, amount, billing_cycle) values
   ('cda40000-0000-0000-0000-000000000001', 'cda00000-0000-0000-0000-00000000000a', '{"en":"Tuition"}', 500, 'monthly');
-insert into public.fee_invoices (id, tenant_id, student_id, fee_structure_id, amount_due, amount_paid, due_date, status) values
-  ('cda50000-0000-0000-0000-000000000001', 'cda00000-0000-0000-0000-00000000000a', 'cda30000-0000-0000-0000-000000000001', 'cda40000-0000-0000-0000-000000000001', 500.00, 0, '2026-08-01', 'pending');
+insert into public.invoice_headers (id, tenant_id, student_id, due_date) values
+  ('cda70000-0000-0000-0000-000000000001', 'cda00000-0000-0000-0000-00000000000a', 'cda30000-0000-0000-0000-000000000001', '2026-08-01');
+insert into public.fee_invoices (id, tenant_id, student_id, fee_structure_id, amount_due, amount_paid, due_date, status, invoice_header_id) values
+  ('cda50000-0000-0000-0000-000000000001', 'cda00000-0000-0000-0000-00000000000a', 'cda30000-0000-0000-0000-000000000001', 'cda40000-0000-0000-0000-000000000001', 500.00, 0, '2026-08-01', 'pending', 'cda70000-0000-0000-0000-000000000001');
 
 insert into public.portal_notifications (id, tenant_id, recipient_id, student_id, kind, invoice_id, amount) values
-  ('cda60000-0000-0000-0000-000000000001', 'cda00000-0000-0000-0000-00000000000a', 'cda00002-0000-0000-0000-000000000002', 'cda30000-0000-0000-0000-000000000001', 'invoice_issued', 'cda50000-0000-0000-0000-000000000001', 500.00);
+  ('cda60000-0000-0000-0000-000000000001', 'cda00000-0000-0000-0000-00000000000a', 'cda00002-0000-0000-0000-000000000002', 'cda30000-0000-0000-0000-000000000001', 'invoice_issued', 'cda70000-0000-0000-0000-000000000001', 500.00);
 
 -- ---------- replay guard -------------------------------------------------------
 select throws_ok(
   $stmt$ insert into public.portal_notifications (tenant_id, recipient_id, student_id, kind, invoice_id, amount)
-         values ('cda00000-0000-0000-0000-00000000000a', 'cda00002-0000-0000-0000-000000000002', 'cda30000-0000-0000-0000-000000000001', 'invoice_issued', 'cda50000-0000-0000-0000-000000000001', 500.00) $stmt$,
+         values ('cda00000-0000-0000-0000-00000000000a', 'cda00002-0000-0000-0000-000000000002', 'cda30000-0000-0000-0000-000000000001', 'invoice_issued', 'cda70000-0000-0000-0000-000000000001', 500.00) $stmt$,
   '23505', null, 'duplicate (recipient, kind, invoice_id) event rejected by the replay guard');
 
 -- ---------- RLS: select --------------------------------------------------------
@@ -99,7 +101,7 @@ select isnt(
 -- ---------- RLS: insert (service_role only) -------------------------------
 select throws_ok(
   $stmt$ insert into public.portal_notifications (tenant_id, recipient_id, student_id, kind, invoice_id, amount)
-         values ('cda00000-0000-0000-0000-00000000000a', 'cda00002-0000-0000-0000-000000000002', 'cda30000-0000-0000-0000-000000000001', 'payment_received', 'cda50000-0000-0000-0000-000000000001', 100.00) $stmt$,
+         values ('cda00000-0000-0000-0000-00000000000a', 'cda00002-0000-0000-0000-000000000002', 'cda30000-0000-0000-0000-000000000001', 'payment_received', 'cda70000-0000-0000-0000-000000000001', 100.00) $stmt$,
   '42501', null, 'an authenticated recipient cannot insert their own portal_notifications row (service_role only)');
 
 select * from finish();

@@ -12,7 +12,7 @@
 -- future regression that would silently stop crediting).
 -- ============================================================================
 begin;
-select plan(11);
+select plan(12);
 
 insert into auth.users (instance_id, id, aud, role, email, encrypted_password,
   email_confirmed_at, created_at, updated_at, confirmation_token, email_change,
@@ -22,8 +22,8 @@ values
   ('00000000-0000-0000-0000-000000000000', 'aeb00002-0000-0000-0000-000000000002', 'authenticated', 'authenticated', 'fp-accountant@test.example', crypt('x', gen_salt('bf')), now(), now(), now(), '', '', '', ''),
   ('00000000-0000-0000-0000-000000000000', 'aeb00003-0000-0000-0000-000000000003', 'authenticated', 'authenticated', 'fp-registrar@test.example', crypt('x', gen_salt('bf')), now(), now(), now(), '', '', '', '');
 
-insert into public.tenants (id, name, slug, status) values
-  ('aeb00000-0000-0000-0000-00000000000a', 'FP Tenant', 'fp-tenant', 'active');
+insert into public.tenants (id, name, slug, status, tier_key) values
+  ('aeb00000-0000-0000-0000-00000000000a', 'FP Tenant', 'fp-tenant', 'active', 'premium');
 
 insert into public.users (id, tenant_id, role, full_name, email) values
   ('aeb00001-0000-0000-0000-000000000001', 'aeb00000-0000-0000-0000-00000000000a', 'school_admin', 'FP Admin',      'fp-admin@test.example'),
@@ -38,40 +38,51 @@ insert into public.students (id, tenant_id, class_id, admission_no, first_name, 
   ('aeb30000-0000-0000-0000-000000000001', 'aeb00000-0000-0000-0000-00000000000a', 'aeb20000-0000-0000-0000-000000000001', 'ADM-FP-001', 'Stu', 'One', '2015-01-01', 'male');
 insert into public.fee_structures (id, tenant_id, name_i18n, amount, billing_cycle) values
   ('aeb40000-0000-0000-0000-000000000001', 'aeb00000-0000-0000-0000-00000000000a', '{"en":"Tuition"}', 500, 'monthly');
-insert into public.fee_invoices (id, tenant_id, student_id, fee_structure_id, amount_due, amount_paid, due_date, status) values
-  ('aeb50000-0000-0000-0000-000000000001', 'aeb00000-0000-0000-0000-00000000000a', 'aeb30000-0000-0000-0000-000000000001', 'aeb40000-0000-0000-0000-000000000001', 500.00, 0, '2026-08-01', 'pending'),
-  ('aeb50000-0000-0000-0000-000000000002', 'aeb00000-0000-0000-0000-00000000000a', 'aeb30000-0000-0000-0000-000000000001', 'aeb40000-0000-0000-0000-000000000001', 300.00, 0, '2026-08-01', 'pending');
+-- Two separate headers (not one shared header) -- this suite tests
+-- independent per-invoice crediting; the "several fee items share one
+-- header" behavior has its own dedicated suite (invoice_consolidation.sql).
+insert into public.invoice_headers (id, tenant_id, student_id, due_date) values
+  ('aebc0001-0000-0000-0000-000000000001', 'aeb00000-0000-0000-0000-00000000000a', 'aeb30000-0000-0000-0000-000000000001', '2026-08-01'),
+  ('aebc0002-0000-0000-0000-000000000002', 'aeb00000-0000-0000-0000-00000000000a', 'aeb30000-0000-0000-0000-000000000001', '2026-08-02');
+insert into public.fee_invoices (id, tenant_id, student_id, fee_structure_id, amount_due, amount_paid, due_date, status, invoice_header_id) values
+  ('aeb50000-0000-0000-0000-000000000001', 'aeb00000-0000-0000-0000-00000000000a', 'aeb30000-0000-0000-0000-000000000001', 'aeb40000-0000-0000-0000-000000000001', 500.00, 0, '2026-08-01', 'pending', 'aebc0001-0000-0000-0000-000000000001'),
+  ('aeb50000-0000-0000-0000-000000000002', 'aeb00000-0000-0000-0000-00000000000a', 'aeb30000-0000-0000-0000-000000000001', 'aeb40000-0000-0000-0000-000000000001', 300.00, 0, '2026-08-02', 'pending', 'aebc0002-0000-0000-0000-000000000002');
 
 set local role authenticated;
 set local request.jwt.claim.sub = 'aeb00002-0000-0000-0000-000000000002'; -- accountant
 
 select throws_ok(
   $stmt$ insert into public.payments (tenant_id, invoice_id, amount, provider, provider_ref, status)
-         values ('aeb00000-0000-0000-0000-00000000000a', 'aeb50000-0000-0000-0000-000000000001', 500.00, 'chapa', 'fp-chapa-1', 'succeeded') $stmt$,
+         values ('aeb00000-0000-0000-0000-00000000000a', 'aebc0001-0000-0000-0000-000000000001', 500.00, 'chapa', 'fp-chapa-1', 'succeeded') $stmt$,
   '42501', null, 'an accountant cannot forge a gateway (chapa) payment');
 
 select throws_ok(
+  $stmt$ insert into public.payments (tenant_id, invoice_id, amount, provider, provider_ref, status)
+         values ('aeb00000-0000-0000-0000-00000000000a', 'aebc0001-0000-0000-0000-000000000001', 500.00, 'telebirr', 'fp-telebirr-1', 'succeeded') $stmt$,
+  '42501', null, 'an accountant cannot forge a telebirr gateway payment either -- payments_manual_insert stays cash|bank only post-migration');
+
+select throws_ok(
   $stmt$ insert into public.payments (tenant_id, invoice_id, amount, provider, status)
-         values ('aeb00000-0000-0000-0000-00000000000a', 'aeb50000-0000-0000-0000-000000000001', 500.00, 'cash', 'pending') $stmt$,
+         values ('aeb00000-0000-0000-0000-00000000000a', 'aebc0001-0000-0000-0000-000000000001', 500.00, 'cash', 'pending') $stmt$,
   '42501', null, 'an accountant cannot insert a cash payment with status other than succeeded');
 
 set local request.jwt.claim.sub = 'aeb00003-0000-0000-0000-000000000003'; -- registrar
 
 select throws_ok(
   $stmt$ insert into public.payments (tenant_id, invoice_id, amount, provider, status)
-         values ('aeb00000-0000-0000-0000-00000000000a', 'aeb50000-0000-0000-0000-000000000001', 500.00, 'cash', 'succeeded') $stmt$,
+         values ('aeb00000-0000-0000-0000-00000000000a', 'aebc0001-0000-0000-0000-000000000001', 500.00, 'cash', 'succeeded') $stmt$,
   '42501', null, 'a registrar cannot insert a manual cash payment (only school_admin/accountant) -- this is the exact gap enroll-finalize-billing routes around');
 
 select throws_ok(
-  $stmt$ insert into public.fee_invoices (tenant_id, student_id, fee_structure_id, amount_due, due_date)
-         values ('aeb00000-0000-0000-0000-00000000000a', 'aeb30000-0000-0000-0000-000000000001', 'aeb40000-0000-0000-0000-000000000001', 100.00, '2026-08-01') $stmt$,
+  $stmt$ insert into public.fee_invoices (tenant_id, student_id, fee_structure_id, amount_due, due_date, invoice_header_id)
+         values ('aeb00000-0000-0000-0000-00000000000a', 'aeb30000-0000-0000-0000-000000000001', 'aeb40000-0000-0000-0000-000000000001', 100.00, '2026-08-01', 'aebc0001-0000-0000-0000-000000000001') $stmt$,
   '42501', null, 'a registrar cannot insert a fee_invoices row directly (only school_admin/accountant)');
 
 set local request.jwt.claim.sub = 'aeb00002-0000-0000-0000-000000000002'; -- accountant, valid path
 
 select lives_ok(
   $stmt$ insert into public.payments (tenant_id, invoice_id, amount, provider, status)
-         values ('aeb00000-0000-0000-0000-00000000000a', 'aeb50000-0000-0000-0000-000000000001', 300.00, 'cash', 'succeeded') $stmt$,
+         values ('aeb00000-0000-0000-0000-00000000000a', 'aebc0001-0000-0000-0000-000000000001', 300.00, 'cash', 'succeeded') $stmt$,
   'accountant''s valid cash payment insert succeeds');
 
 select is(
@@ -80,7 +91,7 @@ select is(
 
 select lives_ok(
   $stmt$ insert into public.payments (tenant_id, invoice_id, amount, provider, status)
-         values ('aeb00000-0000-0000-0000-00000000000a', 'aeb50000-0000-0000-0000-000000000001', 200.00, 'cash', 'succeeded') $stmt$,
+         values ('aeb00000-0000-0000-0000-00000000000a', 'aebc0001-0000-0000-0000-000000000001', 200.00, 'cash', 'succeeded') $stmt$,
   'second cash payment covering the remaining balance succeeds');
 
 select is(
@@ -90,7 +101,7 @@ select is(
 -- ---------- provider='bank' fires the same credit trigger as 'cash' -----------
 select lives_ok(
   $stmt$ insert into public.payments (tenant_id, invoice_id, amount, provider, provider_ref, status)
-         values ('aeb00000-0000-0000-0000-00000000000a', 'aeb50000-0000-0000-0000-000000000002', 300.00, 'bank', 'adm-cbe-app-1', 'succeeded') $stmt$,
+         values ('aeb00000-0000-0000-0000-00000000000a', 'aebc0002-0000-0000-0000-000000000002', 300.00, 'bank', 'adm-cbe-app-1', 'succeeded') $stmt$,
   'a provider=bank payment insert succeeds');
 
 select is(
@@ -99,7 +110,7 @@ select is(
 
 select throws_ok(
   $stmt$ insert into public.payments (tenant_id, invoice_id, amount, provider, provider_ref, status)
-         values ('aeb00000-0000-0000-0000-00000000000a', 'aeb50000-0000-0000-0000-000000000002', 50.00, 'bank', 'adm-cbe-app-1', 'succeeded') $stmt$,
+         values ('aeb00000-0000-0000-0000-00000000000a', 'aebc0002-0000-0000-0000-000000000002', 50.00, 'bank', 'adm-cbe-app-1', 'succeeded') $stmt$,
   '23505', null, 'a duplicate provider_ref is rejected by payments_provider_ref_uq -- the adm-<method>-<application_id> idempotency key actually works');
 
 select * from finish();

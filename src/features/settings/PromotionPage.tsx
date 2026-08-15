@@ -18,8 +18,10 @@ import { useSession } from "@/features/auth/useSession";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Field } from "@/components/ui/Field";
+import { EthDate } from "@/components/EthDate";
 
 interface YearRow { id: string; ec_year: number; status: string }
+interface PromotionRunRow { id: string; run_at: string; reverted_at: string | null }
 
 async function classesWithCounts(yearId: string) {
   const { data: classes } = await supabase.from("classes")
@@ -78,32 +80,92 @@ export function PromotionPage() {
     });
   }, [sourceClasses, targetClasses]);
 
+  const [promoteError, setPromoteError] = useState<string | null>(null);
+
+  // A move is over capacity if its mapped target's current enrollment plus
+  // every OTHER source class also mapped to that same target in this batch
+  // would exceed capacity -- mirrors the server-side check in
+  // promote_students_batch so the button disables correctly even when two
+  // source classes only overflow a shared target in combination.
+  const overCapacityClassIds = new Set(
+    (sourceClasses ?? [])
+      .filter((s) => {
+        const choice = mapping[s.id];
+        if (!choice || choice === GRADUATE) return false;
+        const target = targetClasses?.find((t) => t.id === choice);
+        if (!target || target.capacity == null) return false;
+        const incoming = (sourceClasses ?? [])
+          .filter((other) => mapping[other.id] === choice)
+          .reduce((a, other) => a + other.enrolled, 0);
+        return target.enrolled + incoming > target.capacity;
+      })
+      .map((s) => s.id),
+  );
+  const hasCapacityConflict = overCapacityClassIds.size > 0;
+
   const promote = useMutation({
     mutationFn: async () => {
       if (!sourceClasses) return;
-      let promoted = 0, graduated = 0;
-      for (const s of sourceClasses) {
-        const choice = mapping[s.id];
-        if (!choice || s.enrolled === 0) continue;
-        if (choice === GRADUATE) {
-          const { error } = await supabase.from("students")
-            .update({ status: "graduated" }).eq("class_id", s.id).eq("status", "active");
-          if (error) throw error;
-          graduated += s.enrolled;
-        } else {
-          const { error } = await supabase.from("students")
-            .update({ class_id: choice }).eq("class_id", s.id).eq("status", "active");
-          if (error) throw error;
-          promoted += s.enrolled;
-        }
-      }
-      return { promoted, graduated };
+      const moves = sourceClasses
+        .filter((s) => mapping[s.id] && s.enrolled > 0)
+        .map((s) => {
+          const choice = mapping[s.id]!;
+          return choice === GRADUATE
+            ? { source_class_id: s.id, graduate: true }
+            : { source_class_id: s.id, target_class_id: choice };
+        });
+      if (!moves.length) return null;
+      const { data, error } = await supabase.rpc("promote_students_batch", { p_moves: moves });
+      if (error) throw error;
+      const row = Array.isArray(data) ? data[0] : data;
+      return { promoted: row?.promoted_count ?? 0, graduated: row?.graduated_count ?? 0, runId: row?.run_id as string | undefined };
     },
     onSuccess: (r) => {
+      setPromoteError(null);
       if (!r) return;
       setResult(`${r.promoted} student(s) promoted, ${r.graduated} graduated.`);
       qc.invalidateQueries({ queryKey: ["promotion-source-classes"] });
       qc.invalidateQueries({ queryKey: ["promotion-target-classes"] });
+      qc.invalidateQueries({ queryKey: ["promotion-runs"] });
+    },
+    onError: (e) => {
+      setResult(null);
+      setPromoteError(e instanceof Error ? e.message : String(e));
+    },
+  });
+
+  const { data: recentRuns } = useQuery({
+    queryKey: ["promotion-runs"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("promotion_runs").select("id, run_at, reverted_at")
+        .order("run_at", { ascending: false }).limit(5);
+      if (error) throw error;
+      return (data ?? []) as PromotionRunRow[];
+    },
+  });
+  const [revertResult, setRevertResult] = useState<string | null>(null);
+  const [revertError, setRevertError] = useState<string | null>(null);
+  const revert = useMutation({
+    mutationFn: async (runId: string) => {
+      const { data, error } = await supabase.rpc("revert_promotion_run", { p_run_id: runId });
+      if (error) throw error;
+      const row = Array.isArray(data) ? data[0] : data;
+      return { reverted: row?.reverted_count ?? 0, skipped: row?.skipped_count ?? 0 };
+    },
+    onSuccess: (r) => {
+      setRevertError(null);
+      setRevertResult(
+        r.skipped > 0
+          ? t("promotion.revertPartial", { reverted: r.reverted, skipped: r.skipped })
+          : t("promotion.revertComplete", { reverted: r.reverted }),
+      );
+      qc.invalidateQueries({ queryKey: ["promotion-runs"] });
+      qc.invalidateQueries({ queryKey: ["promotion-source-classes"] });
+      qc.invalidateQueries({ queryKey: ["promotion-target-classes"] });
+    },
+    onError: (e) => {
+      setRevertResult(null);
+      setRevertError(e instanceof Error ? e.message : String(e));
     },
   });
 
@@ -145,8 +207,7 @@ export function PromotionPage() {
             </thead>
             <tbody>
               {sourceClasses?.map((s) => {
-                const target = targetClasses?.find((t) => t.id === mapping[s.id]);
-                const overCapacity = target?.capacity != null && target.enrolled + s.enrolled > target.capacity;
+                const overCapacity = overCapacityClassIds.has(s.id);
                 return (
                   <tr key={s.id} className="border-b border-line last:border-0">
                     <td className="p-3">{s.name} {s.section}{s.grade_level != null ? ` (grade ${s.grade_level})` : ""}</td>
@@ -173,10 +234,33 @@ export function PromotionPage() {
       )}
 
       {result && <p className="text-sm text-ok">{result}</p>}
+      {promoteError && <p className="text-sm text-danger">{promoteError}</p>}
 
-      <Button onClick={() => promote.mutate()} disabled={!sourceClasses?.length || promote.isPending}>
-        {promote.isPending ? "Promoting…" : "Run promotion"}
+      <Button onClick={() => promote.mutate()} disabled={!sourceClasses?.length || promote.isPending || hasCapacityConflict}>
+        {promote.isPending ? t("promotion.promoting") : t("promotion.runPromotion")}
       </Button>
+
+      {!!recentRuns?.length && (
+        <Card className="space-y-2">
+          <h2 className="font-display text-lg font-semibold text-ink">{t("promotion.recentRuns")}</h2>
+          {revertResult && <p className="text-sm text-ok">{revertResult}</p>}
+          {revertError && <p className="text-sm text-danger">{revertError}</p>}
+          <div className="divide-y divide-line">
+            {recentRuns.map((r) => (
+              <div key={r.id} className="flex items-center justify-between py-2 text-sm">
+                <span className="text-ink"><EthDate value={r.run_at} /></span>
+                {r.reverted_at ? (
+                  <span className="text-xs text-ink-faint">{t("promotion.reverted")}</span>
+                ) : (
+                  <Button variant="tertiary" onClick={() => revert.mutate(r.id)} disabled={revert.isPending}>
+                    {t("promotion.undo")}
+                  </Button>
+                )}
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
     </div>
   );
 }

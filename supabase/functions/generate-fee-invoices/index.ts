@@ -24,6 +24,17 @@
 // fee_structure_id is safe: the second call's dedup set already contains
 // every invoice the first call created.
 //
+// Consolidation (20260820000001): a school clicking "Generate Invoices" on
+// Tuition today and Library today should get ONE invoice per student with
+// two line items, not two unrelated invoices. So each matched student's new
+// fee_invoices row attaches to their currently-open invoice_headers row for
+// TODAY's due_date (one with at least one unpaid line) if one exists, else a
+// new header is created. Scoped to (student, due_date) deliberately -- an
+// unpaid header from last month must never silently absorb an unrelated
+// charge due today, and a header where every line is already paid is
+// treated as closed (a new charge starts a new invoice, it doesn't reopen
+// one a receipt has already been issued against).
+//
 // Does not render invoice PDFs or send portal notifications synchronously --
 // issue-fee-document already generates a PDF on-demand, fresh, the first
 // time anyone opens an invoice (never cached, since amount_paid/status
@@ -106,9 +117,43 @@ Deno.serve(async (req) => {
     }
 
     const dueDate = new Date().toISOString().slice(0, 10);
+
+    // Find each matched student's currently-open header for today's due
+    // date -- one that already exists AND still has at least one unpaid
+    // line item.
+    const { data: headerRows } = await admin.from("invoice_headers")
+      .select("id, student_id")
+      .eq("tenant_id", structure.tenant_id).eq("due_date", dueDate).in("student_id", toCreate);
+    const headerIds = (headerRows ?? []).map((h) => h.id);
+    const { data: lineRows } = headerIds.length
+      ? await admin.from("fee_invoices").select("invoice_header_id, status").in("invoice_header_id", headerIds)
+      : { data: [] as { invoice_header_id: string; status: string }[] };
+    const openHeaderIds = new Set(
+      (lineRows ?? []).filter((r) => r.status !== "paid").map((r) => r.invoice_header_id),
+    );
+    const openHeaderByStudent = new Map<string, string>();
+    for (const h of headerRows ?? []) {
+      if (openHeaderIds.has(h.id) && !openHeaderByStudent.has(h.student_id)) {
+        openHeaderByStudent.set(h.student_id, h.id);
+      }
+    }
+
+    // Everyone else (no open header for this due date) gets a new one.
+    const studentsNeedingHeader = toCreate.filter((id) => !openHeaderByStudent.has(id));
+    if (studentsNeedingHeader.length) {
+      const { data: newHeaders, error: hErr } = await admin.from("invoice_headers")
+        .insert(studentsNeedingHeader.map((student_id) => ({
+          tenant_id: structure.tenant_id, student_id, due_date: dueDate,
+        })))
+        .select("id, student_id");
+      if (hErr) throw hErr;
+      for (const h of newHeaders ?? []) openHeaderByStudent.set(h.student_id, h.id);
+    }
+
     const rows = toCreate.map((student_id) => ({
       tenant_id: structure.tenant_id, student_id, fee_structure_id: structure.id,
       amount_due: structure.amount, due_date: dueDate,
+      invoice_header_id: openHeaderByStudent.get(student_id)!,
     }));
 
     const { error: insErr } = await admin.from("fee_invoices").insert(rows);

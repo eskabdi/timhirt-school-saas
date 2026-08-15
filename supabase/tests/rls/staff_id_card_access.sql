@@ -22,9 +22,9 @@ values
    'authenticated', 'authenticated', 'idcard-hr-b@test.example', crypt('x', gen_salt('bf')),
    now(), now(), now(), '', '', '', '');
 
-insert into public.tenants (id, name, slug, status) values
-  ('fa000000-0000-0000-0000-00000000000a', 'ID Card Tenant A', 'idcard-tenant-a', 'active'),
-  ('fb000000-0000-0000-0000-00000000000b', 'ID Card Tenant B', 'idcard-tenant-b', 'active');
+insert into public.tenants (id, name, slug, status, tier_key) values
+  ('fa000000-0000-0000-0000-00000000000a', 'ID Card Tenant A', 'idcard-tenant-a', 'active', 'premium'),
+  ('fb000000-0000-0000-0000-00000000000b', 'ID Card Tenant B', 'idcard-tenant-b', 'active', 'premium');
 
 insert into public.users (id, tenant_id, role, full_name, email) values
   ('fc000001-0000-0000-0000-000000000001', 'fa000000-0000-0000-0000-00000000000a', 'hr_officer', 'HR Officer A', 'idcard-hr-a@test.example'),

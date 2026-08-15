@@ -63,7 +63,8 @@ export function AuditLogsPage() {
         .select("id, full_name, email")
         .limit(1000);
       if (error) throw error;
-      return new Map((data ?? []).map((u) => [u.id, u]));
+      const rows = data as unknown as { id: string; full_name: string; email: string }[] | null;
+      return new Map((rows ?? []).map((u) => [u.id, u]));
     },
   });
 
@@ -84,7 +85,7 @@ export function AuditLogsPage() {
       l.created_at,
       l.action.toUpperCase(),
       l.table_name,
-      users?.get(l.actor_id as any)?.full_name || l.actor_id || "—",
+      (l.actor_id && users?.get(l.actor_id)?.full_name) || l.actor_id || "—",
       l.row_id ?? "—",
     ]);
     const csv = [
@@ -171,7 +172,7 @@ export function AuditLogsPage() {
                     <EthDate value={new Date(log.created_at)} /> {log.created_at.slice(11, 19)}
                   </td>
                   <td className="px-4 py-3 text-sm">
-                    <span className="text-ink-soft">{users?.get(log.actor_id as any)?.full_name || "—"}</span>
+                    <span className="text-ink-soft">{(log.actor_id && users?.get(log.actor_id)?.full_name) || "—"}</span>
                   </td>
                   <td className="px-4 py-3">
                     <span

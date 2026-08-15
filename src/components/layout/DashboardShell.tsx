@@ -7,6 +7,7 @@ import { Avatar } from "@/components/ui/Avatar";
 import { useSession } from "@/features/auth/useSession";
 import { useEnabledModules } from "@/features/auth/useEnabledModules";
 import { ChangePasswordModal } from "@/features/auth/ChangePasswordModal";
+import { ImpersonationBanner } from "@/features/platform/ImpersonationBanner";
 import { useBrandTheme } from "@/features/settings/useBrandTheme";
 import { supabase } from "@/lib/supabase";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -46,7 +47,12 @@ const NAV: NavSection[] = [
       { to: "/students", key: "nav.students", roles: ADMIN_REG, module: "sis" },
       { to: "/admissions", key: "nav.admissions", roles: ADMIN_REG, module: "admissions" },
       { to: "/id-cards", key: "nav.idCards", roles: ADMIN_REG, module: "id_cards" },
+      // No `module` key -- leaving certificates are available at every tier,
+      // not gated behind id_cards despite the naming similarity.
+      { to: "/leaving-certificates", key: "nav.leavingCertificates", roles: ADMIN_REG },
       { to: "/attendance", key: "nav.attendance", roles: TEACH, module: "attendance" },
+      // No `module` key -- same "not a toggleable module" call as messages.
+      { to: "/student-leave-requests", key: "nav.studentLeaveRequests", roles: TEACH },
       { to: "/attendance/overview", key: "nav.attendanceOverview", roles: TEACH, module: "attendance" },
       { to: "/assignments", key: "nav.assignments", roles: TEACH, module: "assignments" },
       { to: "/gradebook", key: "nav.gradebook", roles: TEACH, module: "gradebook" },
@@ -203,7 +209,7 @@ export function DashboardShell() {
     refetchInterval: 60_000,
     queryFn: async () => {
       const { count } = await supabase.from("portal_notifications").select("id", { count: "exact", head: true })
-        .is("read_at", null);
+        .is("read_at", null).in("kind", ["invoice_issued", "payment_received", "invoice_overdue"]);
       return count ?? 0;
     },
   });
@@ -217,6 +223,21 @@ export function DashboardShell() {
     queryFn: async () => {
       const { count } = await supabase.from("portal_notifications").select("id", { count: "exact", head: true })
         .is("read_at", null).in("kind", ["book_overdue", "book_hold_ready"]);
+      return count ?? 0;
+    },
+  });
+  // Same "light interval, no realtime" pattern as unreadBilling above, for
+  // the two attendance notification kinds (attendance_absent/attendance_late)
+  // -- guardian-only (the trigger never notifies the student themselves), so
+  // shown on the /portal landing nav item since parents have no dedicated
+  // /portal/attendance route (that one is student-only).
+  const { data: unreadAttendance } = useQuery({
+    queryKey: ["attendance-notifications-unread", profile?.id],
+    enabled: !!profile?.id && profile?.role === "parent",
+    refetchInterval: 60_000,
+    queryFn: async () => {
+      const { count } = await supabase.from("portal_notifications").select("id", { count: "exact", head: true })
+        .is("read_at", null).in("kind", ["attendance_absent", "attendance_late"]);
       return count ?? 0;
     },
   });
@@ -264,6 +285,7 @@ export function DashboardShell() {
 
   return (
     <div className="flex min-h-screen flex-col bg-page">
+      <ImpersonationBanner />
       {/* Full-width signature bar — DESIGN.md §2: primary -> primary-container
           gradient grounds the institution's identity; gold carries the date
           and the tagline underline, "jewelry" against the deep navy. */}
@@ -524,6 +546,11 @@ export function DashboardShell() {
                         {n.to === "/portal/library" && !!unreadLibrary && (
                           <span className="rounded-pill bg-danger px-1.5 py-0.5 text-[11px] font-semibold text-white">
                             {unreadLibrary}
+                          </span>
+                        )}
+                        {n.to === "/portal" && !!unreadAttendance && (
+                          <span className="rounded-pill bg-danger px-1.5 py-0.5 text-[11px] font-semibold text-white">
+                            {unreadAttendance}
                           </span>
                         )}
                       </NavLink>

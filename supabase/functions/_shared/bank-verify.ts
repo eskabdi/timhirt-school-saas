@@ -38,8 +38,20 @@
 // until one is, a registrant/accountant using either domain should expect
 // "Failed" here and fall back to the manual receipt-image upload, which
 // remains available alongside the URL option by design.
+//
+// Two Telebirr paths now deliberately coexist, and that's not redundancy:
+// this file covers a parent/applicant who transferred money directly via the
+// Telebirr app OUTSIDE any checkout flow (e.g. paying a registrar in person,
+// or the public admission flow, which has no session to run a checkout in)
+// and needs the payment verified after the fact by pasting a receipt URL.
+// The Telebirr H5 C2B gateway (_shared/telebirr.ts, process-fee-payment) is
+// a separate, real payment-initiation API for parents paying an existing fee
+// invoice online — it supersedes Chapa (now canceled) for that flow, but
+// does not replace this manual-transfer-verification path, which still has
+// no substitute for any transfer that happens outside checkout.
 // ============================================================================
 import type { AuthContext } from "./security.ts";
+import { readBodyWithCap } from "./stream-read.ts";
 
 type AdminClient = AuthContext["adminClient"];
 
@@ -104,32 +116,14 @@ export async function verifyBankUrl(admin: AdminClient, input: VerifyBankUrlInpu
   if (!res.ok) {
     return { status: "failed", failureReason: `http_${res.status}` };
   }
-  if (!res.body) {
-    return { status: "failed", failureReason: "empty_body" };
-  }
-
-  const reader = res.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let total = 0;
-  try {
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      total += value.byteLength;
-      if (total > MAX_BYTES) {
-        await reader.cancel();
-        return { status: "failed", failureReason: "too_large" };
-      }
-      chunks.push(value);
+  const read = await readBodyWithCap(res, MAX_BYTES);
+  if (!read.ok) {
+    if (read.reason === "read_failed") {
+      console.error("verifyBankUrl: stream read failed");
     }
-  } catch (err) {
-    console.error("verifyBankUrl: stream read failed", { message: (err as Error).message });
-    return { status: "failed", failureReason: "fetch_failed" };
+    return { status: "failed", failureReason: read.reason === "read_failed" ? "fetch_failed" : read.reason };
   }
-
-  const bytes = new Uint8Array(total);
-  let offset = 0;
-  for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
+  const bytes = read.bytes;
 
   if (!bytesStartWith(bytes, PDF_MAGIC)) {
     return { status: "failed", failureReason: "not_a_pdf" };

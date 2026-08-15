@@ -19,11 +19,13 @@ insert into public.students (id, tenant_id, class_id, admission_no, first_name, 
   ('eeee3333-0000-0000-0000-000000000001', 'eeeeeeee-0000-0000-0000-000000000001', 'eeee2222-0000-0000-0000-000000000001', 'ADM-E-001', 'Test', 'Student', '2015-01-01', 'male');
 insert into public.fee_structures (id, tenant_id, name_i18n, amount, billing_cycle) values
   ('eeee4444-0000-0000-0000-000000000001', 'eeeeeeee-0000-0000-0000-000000000001', '{"en":"Tuition"}', 500, 'monthly');
-insert into public.fee_invoices (id, tenant_id, student_id, fee_structure_id, amount_due, amount_paid, due_date, status) values
-  ('eeee5555-0000-0000-0000-000000000001', 'eeeeeeee-0000-0000-0000-000000000001', 'eeee3333-0000-0000-0000-000000000001', 'eeee4444-0000-0000-0000-000000000001', 500.00, 0.00, '2026-08-01', 'pending');
+insert into public.invoice_headers (id, tenant_id, student_id, due_date) values
+  ('eeee9999-0000-0000-0000-000000000001', 'eeeeeeee-0000-0000-0000-000000000001', 'eeee3333-0000-0000-0000-000000000001', '2026-08-01');
+insert into public.fee_invoices (id, tenant_id, student_id, fee_structure_id, amount_due, amount_paid, due_date, status, invoice_header_id) values
+  ('eeee5555-0000-0000-0000-000000000001', 'eeeeeeee-0000-0000-0000-000000000001', 'eeee3333-0000-0000-0000-000000000001', 'eeee4444-0000-0000-0000-000000000001', 500.00, 0.00, '2026-08-01', 'pending', 'eeee9999-0000-0000-0000-000000000001');
 insert into public.payments (id, tenant_id, invoice_id, amount, provider, provider_ref, status) values
-  ('eeee6666-0000-0000-0000-000000000001', 'eeeeeeee-0000-0000-0000-000000000001', 'eeee5555-0000-0000-0000-000000000001', 500.00, 'chapa', 'tx-ref-correct', 'pending'),
-  ('eeee7777-0000-0000-0000-000000000002', 'eeeeeeee-0000-0000-0000-000000000001', 'eeee5555-0000-0000-0000-000000000001', 250.00, 'chapa', 'tx-ref-mismatch', 'pending');
+  ('eeee6666-0000-0000-0000-000000000001', 'eeeeeeee-0000-0000-0000-000000000001', 'eeee9999-0000-0000-0000-000000000001', 500.00, 'chapa', 'tx-ref-correct', 'pending'),
+  ('eeee7777-0000-0000-0000-000000000002', 'eeeeeeee-0000-0000-0000-000000000001', 'eeee9999-0000-0000-0000-000000000001', 250.00, 'chapa', 'tx-ref-mismatch', 'pending');
 
 -- ---------- 1. Unknown tx_ref --------------------------------------------------
 select is(

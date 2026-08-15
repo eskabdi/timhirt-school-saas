@@ -7,14 +7,11 @@ import { useSession } from "@/features/auth/useSession";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card } from "@/components/ui/Card";
-import { Panel } from "@/components/ui/Panel";
 import { Field } from "@/components/ui/Field";
 import { Modal } from "@/components/ui/Modal";
-import { Pagination, pageRange } from "@/components/ui/Pagination";
-import { Badge } from "@/components/ui/Badge";
-import { onRowDoubleClick } from "@/lib/utils";
+import { onRowDoubleClick, cn } from "@/lib/utils";
 import { formatEth } from "@/lib/ethiopian-date";
-import { gradeCycleKeyFor, gradeCycleI18nKey } from "@/lib/gradeCycles";
+import { GRADE_CYCLES, gradeCycleKeyFor, gradeCycleI18nKey } from "@/lib/gradeCycles";
 import {
   listClasses, listEnrolledCounts, listActiveAcademicYears, listTeachers,
   createClass, updateClass, deleteClass,
@@ -24,7 +21,8 @@ import { buildClassesPdf } from "./classes-pdf";
 
 const SELECT_CLS = "w-full rounded-control border border-line bg-card px-3 py-2 text-sm text-ink";
 const SHIFTS = ["morning", "afternoon"] as const;
-const emptyForm: ClassInput = { name: "", section: "", gradeLevel: "", capacity: "", homeroomTeacherId: "", shift: "" };
+const ATTENDANCE_MODES = ["daily", "per_period"] as const;
+const emptyForm: ClassInput = { name: "", section: "", gradeLevel: "", capacity: "", homeroomTeacherId: "", shift: "", attendanceMode: "daily" };
 
 function downloadBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
@@ -46,7 +44,18 @@ export function ClassesPage() {
   const [gradeLevel, setGradeLevel] = useState("");
   const [section, setSection] = useState("");
   const [academicYearId, setAcademicYearId] = useState("");
-  const [page, setPage] = useState(1);
+  // Grouped-by-cycle display (mirrors PermissionsMatrixTab's domain groups) --
+  // all groups start open so this isn't a regression from the old flat list.
+  const [openCycles, setOpenCycles] = useState<Set<string>>(
+    () => new Set([...GRADE_CYCLES.map((c) => c.key), "other"]),
+  );
+  const toggleCycle = (key: string) => {
+    setOpenCycles((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  };
 
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState<ClassInput>(emptyForm);
@@ -111,16 +120,30 @@ export function ClassesPage() {
     search: search || undefined, gradeLevel: gradeLevel || undefined,
     section: section || undefined, academicYearId: academicYearId || undefined,
   };
+  // Unpaginated (unlike most admin lists here) -- grouping by cycle needs the
+  // whole filtered set at once, and a school's total class count (tens, not
+  // thousands) makes that cheap, same reasoning as filterSource below.
   const { data, isLoading } = useQuery({
-    queryKey: ["classes-admin", filters, page],
-    queryFn: () => listClasses(filters, pageRange(page)),
+    queryKey: ["classes-admin", filters],
+    queryFn: () => listClasses(filters),
   });
   const classes = data?.rows ?? [];
   const { data: enrolledCounts } = useQuery({ queryKey: ["classes-admin-enrolled"], queryFn: listEnrolledCounts });
 
+  const cycleGroups = useMemo(() => {
+    const byKey = new Map<string, ClassRow[]>();
+    for (const c of classes) {
+      const key = gradeCycleKeyFor(c.grade_level) ?? "other";
+      (byKey.get(key) ?? byKey.set(key, []).get(key)!).push(c);
+    }
+    const order = [...GRADE_CYCLES.map((c) => c.key), "other"];
+    return order.filter((k) => byKey.has(k)).map((key) => ({ key, rows: byKey.get(key)! }));
+  }, [classes]);
+  const cycleLabel = (key: string) => key === "other" ? t("gradeCycles.otherGrades") : t(`gradeCycles.${gradeCycleI18nKey(key)}`);
+
   const hasActiveFilters = !!(search || gradeLevel || section || academicYearId);
-  const setFilter = <T,>(setter: (v: T) => void) => (v: T) => { setter(v); setPage(1); };
-  const clearFilters = () => { setSearch(""); setGradeLevel(""); setSection(""); setAcademicYearId(""); setPage(1); };
+  const setFilter = <T,>(setter: (v: T) => void) => (v: T) => { setter(v); };
+  const clearFilters = () => { setSearch(""); setGradeLevel(""); setSection(""); setAcademicYearId(""); };
 
   // classes_homeroom_teacher_unique (20260804000001) rejects a second class
   // pointing at a teacher who's already homeroom elsewhere -- surface that as
@@ -176,6 +199,7 @@ export function ClassesPage() {
       name: c.name, section: c.section ?? "",
       gradeLevel: c.grade_level?.toString() ?? "", capacity: c.capacity?.toString() ?? "",
       homeroomTeacherId: c.homeroom_teacher_id ?? "", shift: c.shift ?? "",
+      attendanceMode: c.attendance_mode,
     });
   };
 
@@ -186,6 +210,19 @@ export function ClassesPage() {
           <button key={s} type="button" onClick={() => onChange(s)}
             className={`flex-1 px-3 py-2 text-sm font-medium ${value === s ? "bg-navy text-white" : "bg-card text-ink-soft"}`}>
             {t(`hr.shiftOption.${s}`)}
+          </button>
+        ))}
+      </div>
+    </Field>
+  );
+
+  const attendanceModeField = (value: "daily" | "per_period", onChange: (v: "daily" | "per_period") => void) => (
+    <Field label={t("attendance.mode")}>
+      <div className="flex overflow-hidden rounded-control border border-line">
+        {ATTENDANCE_MODES.map((m) => (
+          <button key={m} type="button" onClick={() => onChange(m)}
+            className={`flex-1 px-3 py-2 text-sm font-medium ${value === m ? "bg-navy text-white" : "bg-card text-ink-soft"}`}>
+            {t(`attendance.modeOption.${m}`)}
           </button>
         ))}
       </div>
@@ -279,57 +316,66 @@ export function ClassesPage() {
       ) : classes.length === 0 ? (
         <Card className="py-12 text-center text-ink-faint">{t("crud.noClasses")}</Card>
       ) : (
-        <Panel id="print-scope">
-          <table className="w-full text-sm">
-            <thead className="bg-sidebar text-left text-xs uppercase text-ink-faint">
-              <tr>
-                <th className="px-5 py-3">{t("common.name")}</th>
-                <th className="px-5 py-3">{t("crud.section")}</th>
-                <th className="px-5 py-3">{t("crud.gradeLevel")}</th>
-                <th className="px-5 py-3">{t("crud.capacity")}</th>
-                <th className="px-5 py-3">{t("crud.enrolled")}</th>
-                {isDoubleShift && <th className="px-5 py-3">{t("hr.workingShift")}</th>}
-                <th className="no-print px-5 py-3 text-right">{t("crud.edit")}</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-line">
-              {classes.map((c) => {
-                const enrolled = enrolledCounts?.get(c.id) ?? 0;
-                return (
-                  <tr key={c.id} className="cursor-pointer hover:bg-sidebar" onDoubleClick={onRowDoubleClick(navigate, `/classes/${c.id}`)}>
-                    <td className="px-5 py-3">
-                      <Link to={`/classes/${c.id}`} className="font-medium text-navy hover:underline">{c.name}</Link>
-                    </td>
-                    <td className="px-5 py-3 text-ink">{c.section ?? "—"}</td>
-                    <td className="px-5 py-3 text-ink-faint">
-                      <span className="flex items-center gap-2">
-                        {c.grade_level ?? "—"}
-                        {gradeCycleKeyFor(c.grade_level) && (
-                          <Badge tone="navy">{t(`gradeCycles.${gradeCycleI18nKey(gradeCycleKeyFor(c.grade_level)!)}`)}</Badge>
-                        )}
-                      </span>
-                    </td>
-                    <td className="px-5 py-3 text-ink-faint">{c.capacity ?? t("crud.unlimited")}</td>
-                    <td className="px-5 py-3 text-ink-faint">
-                      {c.capacity != null ? `${enrolled}/${c.capacity}` : enrolled}
-                    </td>
-                    {isDoubleShift && (
-                      <td className="px-5 py-3 text-ink-faint">{c.shift ? t(`hr.shiftOption.${c.shift}`) : "—"}</td>
-                    )}
-                    <td className="no-print px-5 py-3">
-                      <div className="flex justify-end gap-3 text-xs">
-                        <Link to={`/classes/${c.id}`} className="font-medium text-navy hover:underline">{t("crud.view")}</Link>
-                        <button type="button" className="font-medium text-ink-soft hover:underline" onClick={() => openEdit(c)}>{t("crud.edit")}</button>
-                        <button type="button" className="font-medium text-danger hover:underline" onClick={() => setDeleting(c)}>{t("crud.delete")}</button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-          <Pagination page={page} totalCount={data?.count ?? 0} onPageChange={setPage} className="no-print px-5" />
-        </Panel>
+        <div id="print-scope" className="space-y-3">
+          {cycleGroups.map((group) => {
+            const isOpen = openCycles.has(group.key);
+            return (
+              <div key={group.key} className="overflow-hidden rounded-control border border-line">
+                <button
+                  type="button"
+                  onClick={() => toggleCycle(group.key)}
+                  aria-expanded={isOpen}
+                  className="flex w-full items-center justify-between bg-navy px-4 py-3 text-left text-sm font-semibold uppercase tracking-wide text-white"
+                >
+                  <span>{cycleLabel(group.key)} <span className="font-normal normal-case text-white/70">({group.rows.length})</span></span>
+                  <span className={cn("no-print transition-transform", isOpen ? "rotate-180" : "")}>⌄</span>
+                </button>
+                {/* Toggled via `hidden`, not unmounted -- window.print() is a DOM print, so a collapsed group must stay printable (index.css overrides `hidden` for #print-scope). */}
+                <table className={cn("w-full text-sm", !isOpen && "hidden")}>
+                    <thead className="bg-sidebar text-left text-xs uppercase text-ink-faint">
+                      <tr>
+                        <th className="px-5 py-3">{t("common.name")}</th>
+                        <th className="px-5 py-3">{t("crud.section")}</th>
+                        <th className="px-5 py-3">{t("crud.gradeLevel")}</th>
+                        <th className="px-5 py-3">{t("crud.capacity")}</th>
+                        <th className="px-5 py-3">{t("crud.enrolled")}</th>
+                        {isDoubleShift && <th className="px-5 py-3">{t("hr.workingShift")}</th>}
+                        <th className="no-print px-5 py-3 text-right">{t("crud.edit")}</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-line">
+                      {group.rows.map((c) => {
+                        const enrolled = enrolledCounts?.get(c.id) ?? 0;
+                        return (
+                          <tr key={c.id} className="cursor-pointer hover:bg-sidebar" onDoubleClick={onRowDoubleClick(navigate, `/classes/${c.id}`)}>
+                            <td className="px-5 py-3">
+                              <Link to={`/classes/${c.id}`} className="font-medium text-navy hover:underline">{c.name}</Link>
+                            </td>
+                            <td className="px-5 py-3 text-ink">{c.section ?? "—"}</td>
+                            <td className="px-5 py-3 text-ink-faint">{c.grade_level ?? "—"}</td>
+                            <td className="px-5 py-3 text-ink-faint">{c.capacity ?? t("crud.unlimited")}</td>
+                            <td className="px-5 py-3 text-ink-faint">
+                              {c.capacity != null ? `${enrolled}/${c.capacity}` : enrolled}
+                            </td>
+                            {isDoubleShift && (
+                              <td className="px-5 py-3 text-ink-faint">{c.shift ? t(`hr.shiftOption.${c.shift}`) : "—"}</td>
+                            )}
+                            <td className="no-print px-5 py-3">
+                              <div className="flex justify-end gap-3 text-xs">
+                                <Link to={`/classes/${c.id}`} className="font-medium text-navy hover:underline">{t("crud.view")}</Link>
+                                <button type="button" className="font-medium text-ink-soft hover:underline" onClick={() => openEdit(c)}>{t("crud.edit")}</button>
+                                <button type="button" className="font-medium text-danger hover:underline" onClick={() => setDeleting(c)}>{t("crud.delete")}</button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+              </div>
+            );
+          })}
+        </div>
       )}
 
       <Modal open={adding} onClose={() => setAdding(false)} title={t("crud.addNew")}>
@@ -345,6 +391,7 @@ export function ClassesPage() {
             </select>
           </Field>
           {isDoubleShift && shiftField(form.shift, (v) => setForm({ ...form, shift: v }))}
+          {attendanceModeField(form.attendanceMode, (v) => setForm({ ...form, attendanceMode: v }))}
           <div className="flex justify-end gap-2 border-t border-line pt-3">
             <Button variant="ghost" onClick={() => setAdding(false)}>{t("common.cancel")}</Button>
             <Button onClick={() => create.mutate()} disabled={!form.name || create.isPending}>{t("common.add")}</Button>
@@ -365,6 +412,7 @@ export function ClassesPage() {
             </select>
           </Field>
           {isDoubleShift && shiftField(editForm.shift, (v) => setEditForm({ ...editForm, shift: v }))}
+          {attendanceModeField(editForm.attendanceMode, (v) => setEditForm({ ...editForm, attendanceMode: v }))}
           <div className="flex justify-end gap-2 border-t border-line pt-3">
             <Button variant="ghost" onClick={() => setEditing(null)}>{t("common.cancel")}</Button>
             <Button onClick={() => update.mutate()} disabled={!editForm.name || update.isPending}>{t("common.save")}</Button>

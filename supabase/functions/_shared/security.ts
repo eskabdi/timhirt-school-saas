@@ -20,6 +20,10 @@ export const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
+// Shared between every path that assigns a school-issued staff number
+// (invite-staff, activate-sso-user) so the two never silently drift apart.
+export const STAFF_NO_REGEX = /^[A-Z0-9\-/]{2,20}$/;
+
 export const json = (body: unknown, status: number) =>
   new Response(JSON.stringify(body), {
     status,

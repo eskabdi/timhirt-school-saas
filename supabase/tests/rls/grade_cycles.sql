@@ -28,9 +28,9 @@ values
   ('00000000-0000-0000-0000-000000000000', '9c000003-0000-0000-0000-000000000003', 'authenticated', 'authenticated', 'gc-super@test.example',   crypt('x', gen_salt('bf')), now(), now(), now(), '', '', '', ''),
   ('00000000-0000-0000-0000-000000000000', '9c000004-0000-0000-0000-000000000004', 'authenticated', 'authenticated', 'gc-teacher-b@test.example', crypt('x', gen_salt('bf')), now(), now(), now(), '', '', '', '');
 
-insert into public.tenants (id, name, slug, status) values
-  ('9c000000-0000-0000-0000-00000000000a', 'GC Tenant A', 'gc-tenant-a', 'active'),
-  ('9c000000-0000-0000-0000-00000000000b', 'GC Tenant B', 'gc-tenant-b', 'active');
+insert into public.tenants (id, name, slug, status, tier_key) values
+  ('9c000000-0000-0000-0000-00000000000a', 'GC Tenant A', 'gc-tenant-a', 'active', 'premium'),
+  ('9c000000-0000-0000-0000-00000000000b', 'GC Tenant B', 'gc-tenant-b', 'active', 'premium');
 
 insert into public.users (id, tenant_id, role, full_name, email) values
   ('9c000001-0000-0000-0000-000000000001', '9c000000-0000-0000-0000-00000000000a', 'school_admin', 'GC Admin',     'gc-admin@test.example'),

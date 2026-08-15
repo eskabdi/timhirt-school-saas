@@ -1,9 +1,58 @@
 import { useParams, Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useSession } from "@/features/auth/useSession";
+import { Panel } from "@/components/ui/Panel";
+import { EthDate } from "@/components/EthDate";
+import { useAttendanceNotifications } from "@/features/attendance/notifications";
+import { markNotificationRead, markAllNotificationsRead } from "@/features/fees/api";
 import { StudentDashboardView } from "./StudentDashboardView";
+import { StudentLeaveRequestPanel } from "./StudentLeaveRequestPanel";
+
+function AttendanceNotificationsBanner() {
+  const { t } = useTranslation();
+  const qc = useQueryClient();
+  const { data: notifications } = useAttendanceNotifications(true);
+  const unread = notifications?.filter((n) => !n.read_at) ?? [];
+
+  const markRead = useMutation({
+    mutationFn: markNotificationRead,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["attendance-notifications"] }),
+  });
+  const markAllRead = useMutation({
+    mutationFn: () => markAllNotificationsRead(unread.map((n) => n.id)),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["attendance-notifications"] }),
+  });
+
+  if (!unread.length) return null;
+
+  return (
+    <Panel>
+      <div className="flex items-center justify-between border-b border-line px-4 py-2.5">
+        <p className="text-sm font-semibold text-ink">{t("attendance.notifications.title")} ({unread.length})</p>
+        <button type="button" className="text-xs text-navy hover:underline" onClick={() => markAllRead.mutate()} disabled={markAllRead.isPending}>
+          {t("attendance.notifications.markAllRead")}
+        </button>
+      </div>
+      <div className="divide-y divide-line">
+        {unread.map((n) => (
+          <div key={n.id} className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm">
+            <p className="text-ink">
+              {t(`attendance.notifications.${n.kind}`, {
+                student: n.student ? `${n.student.first_name} ${n.student.last_name}` : "",
+                date: n.attendance ? <EthDate value={n.attendance.attendance_date} /> : "",
+              })}
+            </p>
+            <button type="button" className="shrink-0 text-xs text-ink-faint hover:text-ink" onClick={() => markRead.mutate(n.id)}>
+              {t("attendance.notifications.markRead")}
+            </button>
+          </div>
+        ))}
+      </div>
+    </Panel>
+  );
+}
 
 export function ParentChildPage() {
   const { t } = useTranslation();
@@ -29,7 +78,9 @@ export function ParentChildPage() {
       {siblingCount != null && siblingCount > 1 && (
         <Link to="/portal" className="text-sm text-navy hover:underline">← {t("portalPages.myChildren")}</Link>
       )}
+      <AttendanceNotificationsBanner />
       <StudentDashboardView studentId={id} />
+      <StudentLeaveRequestPanel studentId={id} />
     </div>
   );
 }

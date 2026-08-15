@@ -227,6 +227,22 @@ export function DashboardPage() {
 
   if (isSuperAdmin) return <Navigate to="/platform" replace />;
 
+  // Every card above already resolved to empty via RLS for a 'pending'
+  // SSO-provisioned user (default-deny by construction, no policy change
+  // needed) -- this is UX only, so they see an explanation instead of a
+  // confusing wall of empty cards while waiting on a school_admin to
+  // activate their account.
+  if (profile?.role === "pending") {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <Panel className="max-w-sm p-6 text-center">
+          <h1 className="mb-2 font-display text-lg font-bold text-ink">{t("auth.pendingAccess.title")}</h1>
+          <p className="text-sm text-ink-soft">{t("auth.pendingAccess.body")}</p>
+        </Panel>
+      </div>
+    );
+  }
+
   const money = (n: number) => formatETB(n, locale);
   // Axis ticks get the compact form: five stacked "ETB 200,000.00" labels are
   // wider than the plot they annotate.

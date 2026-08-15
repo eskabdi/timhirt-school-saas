@@ -13,25 +13,14 @@ import { Pagination, pageRange } from "@/components/ui/Pagination";
 import { tField } from "@/lib/i18n";
 
 const YEAR_STATUS_TONE = { active: "ok", closed: "neutral", draft: "navy" } as const;
-const SELECT_CLS = "w-24 rounded-control border border-line bg-card px-3 py-2 text-sm text-ink";
 
-// Semester contains two terms each -- (semester, term-within-semester)
-// maps onto the existing academic_terms.term_no (1-4, no schema change):
-// Semester 1 Term 1 -> 1, Semester 1 Term 2 -> 2, Semester 2 Term 1 -> 3,
-// Semester 2 Term 2 -> 4.
-function termNo(semester: number, term: number): number {
-  return (semester - 1) * 2 + term;
-}
-
-interface Term { id: string; academic_year_id: string; term_no: number; name_i18n: Record<string, string>; starts_on: string; ends_on: string }
+interface Term { id: string; academic_year_id: string; term_no: number; name_i18n: Record<string, string>; starts_on: string; ends_on: string; results_published: boolean }
 
 export function AcademicYearsPage() {
   const { t, i18n } = useTranslation();
   const { profile } = useSession();
   const qc = useQueryClient();
   const [ecYear, setEcYear] = useState(toEthiopian(new Date()).year);
-  const [semester, setSemester] = useState(1);
-  const [term, setTerm] = useState(1);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
 
@@ -49,18 +38,29 @@ export function AcademicYearsPage() {
   const { data: terms } = useQuery({
     queryKey: ["academic-terms"],
     queryFn: async () => (await supabase.from("academic_terms")
-      .select("id, academic_year_id, term_no, name_i18n, starts_on, ends_on")
+      .select("id, academic_year_id, term_no, name_i18n, starts_on, ends_on, results_published")
       .order("term_no")).data as Term[] ?? [],
   });
 
-  const create = useMutation({
+  const togglePublish = useMutation({
+    mutationFn: async ({ termId, publish }: { termId: string; publish: boolean }) => {
+      const { error } = await supabase.from("academic_terms").update(
+        publish
+          ? { results_published: true, results_published_at: new Date().toISOString(), results_published_by: profile!.id }
+          : { results_published: false, results_published_at: null, results_published_by: null },
+      ).eq("id", termId);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["academic-terms"] }),
+  });
+
+  const generateTerms = useMutation({
     mutationFn: async () => {
       setError(null);
-      // Reuse the year if it already exists (adding a second/third/fourth
-      // term to a year already created is the common case) rather than
-      // erroring on the unique (tenant_id, ec_year) constraint. Queried
-      // directly rather than found in the (now paginated) `years` list —
-      // the target year may not be on the currently loaded page.
+      // Reuse the year if it already exists rather than erroring on the
+      // unique (tenant_id, ec_year) constraint. Queried directly rather than
+      // found in the (paginated) `years` list — the target year may not be
+      // on the currently loaded page.
       const { data: existing } = await supabase.from("academic_years")
         .select("id, ec_year, starts_on, ends_on, status").eq("ec_year", ecYear).maybeSingle();
       let year = existing ?? undefined;
@@ -80,24 +80,31 @@ export function AcademicYearsPage() {
         year = data;
       }
 
+      // Every year gets exactly terms 1-4 in one shot -- semester 1 is terms
+      // 1+2, semester 2 is terms 3+4 (academic_terms.term_no, no schema
+      // change) -- rather than one admin click per term, which used to leave
+      // a year with anywhere from 0 to 3 terms and no guardrail against it.
       // Even four-way split of the year's Gregorian span -- a reasonable
       // default the office can see and, if wrong for their calendar,
-      // recognize at a glance from the dates shown per term.
-      const no = termNo(semester, term);
+      // recognize at a glance from the dates shown per term. ignoreDuplicates
+      // means re-running this for a year that already has some terms only
+      // fills in whatever's missing.
       const totalMs = new Date(endsOn!).getTime() - new Date(startsOn!).getTime();
       const quarterMs = totalMs / 4;
-      const termStart = new Date(new Date(startsOn!).getTime() + (no - 1) * quarterMs);
-      const termEnd = new Date(new Date(startsOn!).getTime() + no * quarterMs - 86400000);
-
-      const { error: tErr } = await supabase.from("academic_terms").insert({
-        tenant_id: profile!.tenant_id, academic_year_id: year!.id, term_no: no,
-        name_i18n: { en: `Semester ${semester} · Term ${term}`, am: `ሴሚስተር ${semester} · ተርም ${term}`, om: `Simistara ${semester} · Termii ${term}` },
-        starts_on: termStart.toISOString().slice(0, 10), ends_on: termEnd.toISOString().slice(0, 10),
+      const rows = [1, 2, 3, 4].map((no) => {
+        const sem = Math.ceil(no / 2);
+        const termInSem = no - (sem - 1) * 2;
+        const termStart = new Date(new Date(startsOn!).getTime() + (no - 1) * quarterMs);
+        const termEnd = new Date(new Date(startsOn!).getTime() + no * quarterMs - 86400000);
+        return {
+          tenant_id: profile!.tenant_id, academic_year_id: year!.id, term_no: no,
+          name_i18n: { en: `Semester ${sem} · Term ${termInSem}`, am: `ሴሚስተር ${sem} · ተርም ${termInSem}`, om: `Simistara ${sem} · Termii ${termInSem}` },
+          starts_on: termStart.toISOString().slice(0, 10), ends_on: termEnd.toISOString().slice(0, 10),
+        };
       });
-      if (tErr) {
-        if (tErr.code === "23505") throw new Error(t("settingsPages.termExists"));
-        throw tErr;
-      }
+      const { error: tErr } = await supabase.from("academic_terms")
+        .upsert(rows, { onConflict: "tenant_id,academic_year_id,term_no", ignoreDuplicates: true });
+      if (tErr) throw tErr;
     },
     onSuccess: () => {
       setPage(1);
@@ -116,19 +123,10 @@ export function AcademicYearsPage() {
           <input type="number" value={ecYear} onChange={(e) => setEcYear(Number(e.target.value))}
             className="w-28 rounded-control border border-line bg-card px-3 py-2 text-sm text-ink" />
         </Field>
-        <Field label={t("settingsPages.semester")}>
-          <select className={SELECT_CLS} value={semester} onChange={(e) => setSemester(Number(e.target.value))}>
-            <option value={1}>1</option>
-            <option value={2}>2</option>
-          </select>
-        </Field>
-        <Field label={t("settingsPages.term")}>
-          <select className={SELECT_CLS} value={term} onChange={(e) => setTerm(Number(e.target.value))}>
-            <option value={1}>1</option>
-            <option value={2}>2</option>
-          </select>
-        </Field>
-        <Button onClick={() => create.mutate()} disabled={create.isPending}>{t("settingsPages.addTerm")}</Button>
+        <Button onClick={() => generateTerms.mutate()} disabled={generateTerms.isPending}>
+          {generateTerms.isPending ? t("settingsPages.generatingTerms") : t("settingsPages.generateTerms")}
+        </Button>
+        <p className="w-full text-xs text-ink-faint">{t("settingsPages.generateTermsHint")}</p>
       </Card>
       <div className="space-y-3">
         {years?.map((y) => {
@@ -146,8 +144,18 @@ export function AcademicYearsPage() {
                   <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                     {yearTerms.map((tr) => (
                       <div key={tr.id} className="rounded-control border border-line px-3 py-2 text-sm">
-                        <p className="font-medium text-ink">{tField(tr.name_i18n, i18n.resolvedLanguage!)}</p>
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="font-medium text-ink">{tField(tr.name_i18n, i18n.resolvedLanguage!)}</p>
+                          <Badge tone={tr.results_published ? "ok" : "neutral"}>
+                            {tr.results_published ? t("settingsPages.resultsPublished") : t("settingsPages.resultsUnpublished")}
+                          </Badge>
+                        </div>
                         <p className="text-xs text-ink-faint"><EthDate value={tr.starts_on} /> — <EthDate value={tr.ends_on} /></p>
+                        <button type="button" className="mt-1 text-xs text-navy hover:underline"
+                          onClick={() => togglePublish.mutate({ termId: tr.id, publish: !tr.results_published })}
+                          disabled={togglePublish.isPending}>
+                          {tr.results_published ? t("settingsPages.unpublishResults") : t("settingsPages.publishResults")}
+                        </button>
                       </div>
                     ))}
                   </div>

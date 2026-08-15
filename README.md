@@ -39,7 +39,8 @@ supabase/
                   buckets → discipline/merits → events, notices & admission
                   review → durable rate limits → staff linkage check
                   → student photo lifecycle
-  functions/      run-payroll · process-fee-payment · chapa-webhook
+  functions/      run-payroll · process-fee-payment · telebirr-notify
+                  telebirr-query-order · telebirr-generate-keypair
                   onboard-tenant · invite-tenant-admin · invite-staff
                   generate-payslip-pdf · submit-admission · verify-id
                   upload-admission-document · check-admission-status

@@ -24,12 +24,15 @@ export function MyPayslipsPage() {
     <div className="space-y-4">
       <h1 className="font-display text-2xl font-bold">{t("hr.payslip")}</h1>
       <div className="space-y-2">
-        {payslips?.map((p) => (
+        {payslips?.map((p) => {
+          const run = p.payroll_runs as unknown as { ec_year: number; ec_month: number } | null;
+          return (
           <Card key={p.id} className="flex items-center justify-between">
-            <span className="font-medium">{(p.payroll_runs as any)?.ec_year} / {String((p.payroll_runs as any)?.ec_month).padStart(2, "0")}</span>
+            <span className="font-medium">{run?.ec_year} / {String(run?.ec_month).padStart(2, "0")}</span>
             <span className="font-semibold">{formatETB(Number(p.net_pay), i18n.resolvedLanguage!)}</span>
           </Card>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

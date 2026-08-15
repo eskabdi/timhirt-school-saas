@@ -11,6 +11,7 @@ export interface ClassRow {
   academic_year_id: string;
   homeroom_teacher_id: string | null;
   shift: string | null;
+  attendance_mode: "daily" | "per_period";
 }
 
 export interface ClassFilters {
@@ -22,7 +23,7 @@ export interface ClassFilters {
 
 export async function listClasses(filters: ClassFilters = {}, range?: [number, number]) {
   let q = supabase.from("classes")
-    .select("id,name,section,grade_level,capacity,academic_year_id,homeroom_teacher_id,shift", { count: "exact" })
+    .select("id,name,section,grade_level,capacity,academic_year_id,homeroom_teacher_id,shift,attendance_mode", { count: "exact" })
     .order("grade_level").order("section");
   if (filters.search) q = q.or(`name.ilike.%${filters.search}%,section.ilike.%${filters.search}%`);
   if (filters.gradeLevel) q = q.eq("grade_level", Number(filters.gradeLevel));
@@ -69,6 +70,7 @@ export interface ClassInput {
   capacity: string;
   homeroomTeacherId: string;
   shift: string;
+  attendanceMode: "daily" | "per_period";
 }
 
 export async function createClass(tenantId: string, academicYearId: string, input: ClassInput) {
@@ -81,6 +83,7 @@ export async function createClass(tenantId: string, academicYearId: string, inpu
     capacity: input.capacity === "" ? null : Number(input.capacity),
     homeroom_teacher_id: input.homeroomTeacherId || null,
     shift: input.shift || null,
+    attendance_mode: input.attendanceMode,
   });
   if (error) throw error;
 }
@@ -93,6 +96,7 @@ export async function updateClass(id: string, input: ClassInput) {
     capacity: input.capacity === "" ? null : Number(input.capacity),
     homeroom_teacher_id: input.homeroomTeacherId || null,
     shift: input.shift || null,
+    attendance_mode: input.attendanceMode,
   }).eq("id", id);
   if (error) throw error;
 }

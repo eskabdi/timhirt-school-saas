@@ -2,6 +2,7 @@
 // every rendered date goes through this component or formatEth.
 import { useTranslation } from "react-i18next";
 import { formatEth } from "@/lib/ethiopian-date";
+import { useGeezNumerals } from "@/features/settings/useGeezNumerals";
 
 /**
  * Coerces whatever a caller has into a valid Date, or null.
@@ -29,11 +30,14 @@ function toDate(value: Date | string | null | undefined): Date | null {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
-export function EthDate({ value, geez = false }: {
+export function EthDate({ value, geez }: {
   value: Date | string | null | undefined;
+  // Explicit prop still wins (e.g. a caller intentionally forcing one
+  // system); omitted, it falls back to the tenant's configured preference.
   geez?: boolean;
 }) {
   const { t } = useTranslation("calendar");
+  const tenantGeez = useGeezNumerals();
   const months = t("months", { returnObjects: true }) as string[];
   const d = toDate(value);
   // Missing or unparseable: render the placeholder the tables already use for
@@ -41,7 +45,7 @@ export function EthDate({ value, geez = false }: {
   if (!d) return <span className="text-ink-faint">—</span>;
   return (
     <time dateTime={d.toISOString().slice(0, 10)}>
-      {formatEth(d, { monthNames: months, eraSuffix: t("eraSuffix"), geez })}
+      {formatEth(d, { monthNames: months, eraSuffix: t("eraSuffix"), geez: geez ?? tenantGeez })}
     </time>
   );
 }

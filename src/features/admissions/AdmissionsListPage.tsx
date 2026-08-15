@@ -52,7 +52,7 @@ export function AdmissionsListPage() {
     queryKey: ["admissions", page],
     queryFn: async () => {
       const { data, error, count } = await supabase.from("admission_applications")
-        .select("id, applicant_name, date_of_birth, desired_grade, stage, tenant_id, applicant_first_name, applicant_last_name, photo_path, converted_student_id, application_complete, meets_academic_requirements, meets_financial_requirements, documents_verified, acceptance_letter_sent, student_accepted", { count: "exact" })
+        .select("id, applicant_name, date_of_birth, desired_grade, stage, tenant_id, applicant_first_name, applicant_last_name, photo_path, converted_student_id, application_complete, meets_academic_requirements, meets_financial_requirements, documents_verified, acceptance_letter_sent, student_accepted, possible_duplicate_of", { count: "exact" })
         .is("converted_student_id", null)
         .order("created_at", { ascending: false })
         .range(...pageRange(page));
@@ -86,6 +86,7 @@ export function AdmissionsListPage() {
                 <tr key={a.id} className="cursor-pointer hover:bg-sidebar" onDoubleClick={onRowDoubleClick(navigate, `/admissions/${a.id}`)}>
                   <td className="px-4 py-3">
                     <Link to={`/admissions/${a.id}`} className="font-medium text-navy hover:underline">{a.applicant_name}</Link>
+                    {a.possible_duplicate_of && <Badge tone="late" className="ml-2">{t("admissions.duplicate.badge")}</Badge>}
                   </td>
                   <td className="px-4 py-3 text-ink-faint">{a.desired_grade ?? "—"}</td>
                   <td className="px-4 py-3 text-ink-faint"><EthDate value={a.date_of_birth} /></td>

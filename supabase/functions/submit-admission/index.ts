@@ -172,6 +172,20 @@ Deno.serve(async (req) => {
     const applicantName = `${p.applicant_first_name} ${p.applicant_middle_name} ${p.applicant_last_name}`;
     const trackingCode = generateTrackingCode();
 
+    // Duplicate-applicant detection (R4-C2): advisory only, not a block --
+    // a name+DOB match is a strong signal but not proof (siblings can share
+    // a birthday; a typo can hide a real duplicate), so this flags the most
+    // recent match for staff review rather than rejecting the submission.
+    const { data: dupMatches } = await db.from("admission_applications")
+      .select("id")
+      .eq("tenant_id", tenant.id)
+      .ilike("applicant_first_name", p.applicant_first_name)
+      .ilike("applicant_last_name", p.applicant_last_name)
+      .eq("date_of_birth", p.date_of_birth)
+      .order("created_at", { ascending: false })
+      .limit(1);
+    const possibleDuplicateOf = dupMatches?.[0]?.id ?? null;
+
     const { data: application, error } = await db.from("admission_applications").insert({
       tenant_id: tenant.id,
       applicant_name: applicantName,
@@ -197,6 +211,7 @@ Deno.serve(async (req) => {
       guardian_woreda_kebele: p.guardian_woreda_kebele || null,
       guardian_house_number: p.guardian_house_number || null,
       stage: "applied",
+      possible_duplicate_of: possibleDuplicateOf,
     }).select("id").single();
     if (error) throw error;
 

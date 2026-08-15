@@ -64,6 +64,28 @@ export function FeeStructuresPage() {
     queryFn: async () => (await supabase.from("classes").select("id,name,section,grade_level").order("grade_level")).data ?? [],
   });
   const { data: cycles } = useGradeCycles();
+
+  // R4-C5: opt-in per-tenant setting, off by default -- when on, a student/
+  // guardian with an unpaid invoice can't download report cards/transcripts
+  // from the portal (AcademicRecordTab.tsx). Staff are never blocked; this
+  // never restricts what data is visible, only the PDF download action, so
+  // it lives in tenant_configs.settings rather than requiring an RLS change.
+  const { data: brandConfig } = useQuery({
+    queryKey: ["tenant-config", profile?.tenant_id],
+    enabled: !!profile?.tenant_id,
+    queryFn: async () => (await supabase.from("tenant_configs").select("settings").eq("tenant_id", profile!.tenant_id!).maybeSingle()).data,
+  });
+  const blockUnpaidBalance = !!(brandConfig?.settings as { billing?: { blockUnpaidBalance?: boolean } } | undefined)?.billing?.blockUnpaidBalance;
+  const toggleBlockUnpaid = useMutation({
+    mutationFn: async (next: boolean) => {
+      const settings = { ...(brandConfig?.settings as Record<string, unknown> ?? {}) };
+      settings.billing = { ...(settings.billing as Record<string, unknown> ?? {}), blockUnpaidBalance: next };
+      const { error: err } = await supabase.from("tenant_configs")
+        .update({ settings }).eq("tenant_id", profile!.tenant_id!);
+      if (err) throw err;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["tenant-config", profile?.tenant_id] }),
+  });
   // A "one class" fee scopes to a specific section -- classes has one row
   // per section, so the picker dedupes by name for a clean "pick a grade's
   // representative section" list, mirroring submit-admission's own
@@ -136,7 +158,16 @@ export function FeeStructuresPage() {
   const remove = useMutation({
     mutationFn: async () => { const { error } = await supabase.from("fee_structures").delete().eq("id", deleting!.id); if (error) throw error; },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["fee-structures"] }); setDeleting(null); setError(null); },
-    onError: (e: unknown) => setError(e instanceof Error ? e.message : "Failed"),
+    // fee_invoices.fee_structure_id has no ON DELETE clause (defaults to
+    // RESTRICT) -- deleting a structure that already has invoices (the
+    // common case, since create auto-generates them) fails with 23503.
+    // Surface that as the specific reason rather than a raw Postgres
+    // message the admin has to decode, and keep the confirm modal open so
+    // it's actually visible instead of a banner hidden behind it.
+    onError: (e: unknown) => {
+      const code = e && typeof e === "object" && "code" in e ? (e as { code?: string }).code : undefined;
+      setError(code === "23503" ? t("crud.feeStructureInUse") : e instanceof Error ? e.message : "Failed");
+    },
   });
   const generate = useMutation({
     mutationFn: (feeStructureId: string) => generateFeeInvoices(feeStructureId),
@@ -208,6 +239,18 @@ export function FeeStructuresPage() {
 
       {error && <Card className="border border-danger bg-danger-tint py-3 text-sm text-danger">{error}</Card>}
 
+      <Card className="flex items-center justify-between gap-4">
+        <div>
+          <p className="text-sm font-semibold text-ink">{t("fees.blockUnpaid.title")}</p>
+          <p className="text-xs text-ink-faint">{t("fees.blockUnpaid.hint")}</p>
+        </div>
+        <label className="flex items-center gap-2 text-sm text-ink">
+          <input type="checkbox" checked={blockUnpaidBalance}
+            onChange={(e) => toggleBlockUnpaid.mutate(e.target.checked)} disabled={toggleBlockUnpaid.isPending} />
+          {t("fees.blockUnpaid.toggle")}
+        </label>
+      </Card>
+
       <div className="grid gap-3 md:grid-cols-2">
         {data?.map((f) => (
           <Card key={f.id} className="space-y-2">
@@ -256,10 +299,11 @@ export function FeeStructuresPage() {
         </div>
       </Modal>
 
-      <Modal open={!!deleting} onClose={() => setDeleting(null)} title={t("crud.deleteFeeStructure")}>
+      <Modal open={!!deleting} onClose={() => { setDeleting(null); setError(null); }} title={t("crud.deleteFeeStructure")}>
         <p className="text-sm text-ink-soft">{t("crud.delete")} <span className="font-medium text-ink">{deleting && tField(deleting.name_i18n, i18n.resolvedLanguage!)}</span>?</p>
+        {error && <p role="alert" className="mt-2 text-sm text-danger">{error}</p>}
         <div className="mt-4 flex justify-end gap-2 border-t border-line pt-3">
-          <Button variant="ghost" onClick={() => setDeleting(null)}>{t("common.cancel")}</Button>
+          <Button variant="ghost" onClick={() => { setDeleting(null); setError(null); }}>{t("common.cancel")}</Button>
           <Button variant="danger" onClick={() => remove.mutate()} disabled={remove.isPending}>{t("crud.delete")}</Button>
         </div>
       </Modal>

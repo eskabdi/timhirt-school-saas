@@ -11,6 +11,7 @@ import { RequireRole } from "@/features/auth/RequireRole";
 import { RequireModule } from "@/features/auth/RequireModule";
 import { LoginPage } from "@/features/auth/LoginPage";
 import { AcceptInvitePage } from "@/features/auth/AcceptInvitePage";
+import { SsoCallbackPage } from "@/features/auth/SsoCallbackPage";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { PlatformShell } from "@/components/layout/PlatformShell";
 
@@ -54,6 +55,8 @@ import { TransportPage } from "@/features/transport/TransportPage";
 import { EventsCalendarPage } from "@/features/events/EventsCalendarPage";
 import { ReportsPage } from "@/features/reports/ReportsPage";
 import { IDCardBatchPage } from "@/features/id-cards/IDCardBatchPage";
+import { LeavingCertificatesPage } from "@/features/students/LeavingCertificatesPage";
+import { StudentLeaveRequestsPage } from "@/features/students/StudentLeaveRequestsPage";
 
 import { EmployeeListPage } from "@/features/hr/EmployeeListPage";
 import { StaffProfilePage } from "@/features/hr/StaffProfilePage";
@@ -123,6 +126,7 @@ export const router = createBrowserRouter([
   // ---------- Public (no session) ----------
   { path: "/login", element: <LoginPage /> },
   { path: "/accept-invite", element: <AcceptInvitePage /> },
+  { path: "/auth/sso-callback", element: <SsoCallbackPage /> },
   { path: "/apply/:tenantSlug", element: <PublicAdmissionFormPage /> },
   { path: "/apply/:tenantSlug/status", element: <AdmissionStatusPage /> },
   { path: "/verify/:code?", element: <IDVerificationPage /> },
@@ -138,6 +142,13 @@ export const router = createBrowserRouter([
           // Any staff role, no module gate -- messaging isn't a toggleable
           // module, and RLS (sender/recipient only) is the real access gate.
           { path: "messages", element: <MessagesPage /> },
+
+          // Same "not a toggleable module, RLS is the real gate" call as
+          // messages -- school_admin or the student's own class teacher.
+          {
+            element: <RequireRole roles={TEACH} />,
+            children: [{ path: "student-leave-requests", element: <StudentLeaveRequestsPage /> }],
+          },
 
           // Admin: Students (SIS) + Admissions + ID cards — each its own
           // module, so each gets its own RequireModule nested under the
@@ -164,6 +175,11 @@ export const router = createBrowserRouter([
                 element: <RequireModule module="id_cards" />,
                 children: [{ path: "id-cards", element: <IDCardBatchPage /> }],
               },
+              // Leaving certificates -- despite the naming similarity, this is
+              // NOT the id_cards module; it's available at every tier, so it
+              // stays outside any RequireModule wrapper (see
+              // 20260827000001_leaving_certificates.sql).
+              { path: "leaving-certificates", element: <LeavingCertificatesPage /> },
             ],
           },
 

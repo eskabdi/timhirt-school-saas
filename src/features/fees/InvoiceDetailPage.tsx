@@ -11,7 +11,7 @@
 // accountant insert a manual 'succeeded' cash/bank payment, and a trigger
 // (apply_payment_to_invoice) already credits the invoice automatically —
 // but no page anywhere ever exposed that path. For a school where most fee
-// payment happens in person rather than through Chapa, that's not an edge
+// payment happens in person rather than through the online gateway, that's not an edge
 // case, it's the common case — the module was incomplete without it.
 // ============================================================================
 import { useState } from "react";
@@ -43,17 +43,43 @@ export function InvoiceDetailPage() {
   const qc = useQueryClient();
   const canManage = profile?.role === "school_admin" || profile?.role === "accountant";
 
-  const { data: invoice, isLoading, error } = useQuery({
+  // invoice_headers (20260820000001) -- id is a header id, not a single
+  // fee_invoices row. A consolidated invoice bills several fee structures at
+  // once, so the line items are fetched separately and rolled up client-side
+  // into amount_due/amount_paid/status the same way invoice_summary does in
+  // SQL, rather than relying on FK-embedding through a grouped view.
+  const { data: header, isLoading: headerLoading, error: headerError } = useQuery({
     queryKey: ["invoice", id],
     queryFn: async () => {
-      const { data, error } = await supabase.from("fee_invoices")
-        .select("id, tenant_id, amount_due, amount_paid, due_date, status, student:students(id, first_name, last_name, admission_no, class:classes(name, section)), fee_structure:fee_structures(name_i18n, billing_cycle)")
+      const { data, error } = await supabase.from("invoice_headers")
+        .select("id, tenant_id, due_date, student:students(id, first_name, last_name, admission_no, class:classes(name, section))")
         .eq("id", id).single();
       if (error) throw error;
       return data;
     },
     enabled: !!id,
   });
+
+  const { data: lines, isLoading: linesLoading, error: linesError } = useQuery({
+    queryKey: ["invoice-lines", id],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("fee_invoices")
+        .select("id, amount_due, amount_paid, status, fee_structure:fee_structures(name_i18n, billing_cycle)")
+        .eq("invoice_header_id", id).order("created_at");
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!id,
+  });
+
+  const isLoading = headerLoading || linesLoading;
+  const error = headerError || linesError;
+  const invoice = header && lines ? {
+    ...header,
+    amount_due: lines.reduce((s, l) => s + Number(l.amount_due), 0),
+    amount_paid: lines.reduce((s, l) => s + Number(l.amount_paid), 0),
+    status: lines.every((l) => l.status === "paid") ? "paid" : lines.some((l) => Number(l.amount_paid) > 0) ? "partial" : "pending",
+  } : undefined;
 
   const { data: payments } = useQuery({
     queryKey: ["invoice-payments", id],
@@ -98,12 +124,34 @@ export function InvoiceDetailPage() {
       const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/process-fee-payment`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token}` },
-        body: JSON.stringify({ invoice_id: id, provider: "chapa" }),
+        body: JSON.stringify({ invoice_id: id }),
       });
-      if (!res.ok) throw new Error("failed");
-      return res.json() as Promise<{ checkout_url: string }>;
+      // Read the body even on failure -- process-fee-payment returns a real
+      // reason (e.g. "Payment gateway is not configured yet") as JSON, which
+      // a bare `if (!res.ok) throw new Error("failed")` used to discard.
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body?.error || t("fees.payFailed"));
+      return body as { checkout_url: string };
     },
     onSuccess: (data) => { window.location.href = data.checkout_url; },
+  });
+
+  const refreshStatus = useMutation({
+    mutationFn: async (paymentId: string) => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/telebirr-query-order`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token}` },
+        body: JSON.stringify({ payment_id: paymentId }),
+      });
+      if (!res.ok) throw new Error("failed");
+      return res.json();
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["invoice-payments", id] });
+      qc.invalidateQueries({ queryKey: ["invoice", id] });
+      qc.invalidateQueries({ queryKey: ["invoice-lines", id] });
+    },
   });
 
   const [amount, setAmount] = useState("");
@@ -131,6 +179,7 @@ export function InvoiceDetailPage() {
       setAmount(""); setReference(""); setBankUrl(""); setManualError(null);
       setLastReceiptUrl(res.receipt_url);
       qc.invalidateQueries({ queryKey: ["invoice", id] });
+      qc.invalidateQueries({ queryKey: ["invoice-lines", id] });
       qc.invalidateQueries({ queryKey: ["invoice-payments", id] });
     },
     onError: (err: unknown) => setManualError(err instanceof Error ? err.message : String(err)),
@@ -149,8 +198,10 @@ export function InvoiceDetailPage() {
   if (isLoading) return <p className="text-ink-faint">…</p>;
   if (error || !invoice) return <p role="alert" className="text-danger">{t("errors.generic")}</p>;
 
-  const student = invoice.student as any;
-  const feeStructure = invoice.fee_structure as any;
+  const student = invoice.student as unknown as {
+    id: string; first_name: string; last_name: string; admission_no: string;
+    class: { name: string; section: string } | null;
+  };
   const canPay = invoice.status !== "paid" && (profile?.role === "parent" || canManage);
 
   return (
@@ -172,17 +223,41 @@ export function InvoiceDetailPage() {
         </div>
 
         <dl className="mt-4 grid grid-cols-2 gap-4 text-sm">
-          <div><dt className="text-ink-faint">{t("fees.feeStructure")}</dt><dd className="text-ink">{tField(feeStructure?.name_i18n, i18n.resolvedLanguage!)} ({t(`fees.cycle.${feeStructure?.billing_cycle}`)})</dd></div>
           <div><dt className="text-ink-faint">{t("fees.due")}</dt><dd className="text-ink"><EthDate value={invoice.due_date} /></dd></div>
           <div><dt className="text-ink-faint">{t("fees.amountDue")}</dt><dd className="text-ink">{formatETB(Number(invoice.amount_due), i18n.resolvedLanguage!)}</dd></div>
           <div><dt className="text-ink-faint">{t("fees.amountPaid")}</dt><dd className="text-ink">{formatETB(Number(invoice.amount_paid), i18n.resolvedLanguage!)}</dd></div>
           <div><dt className="text-ink-faint">{t("fees.remaining")}</dt><dd className="font-semibold text-ink">{formatETB(remaining, i18n.resolvedLanguage!)}</dd></div>
         </dl>
 
+        {/* Fee structure breakdown, one row per line item -- matches the invoice/receipt PDF table (_shared/fee-pdf.ts). */}
+        <div className="mt-4 overflow-hidden rounded-control border border-line">
+          <table className="w-full text-sm">
+            <thead className="bg-sidebar text-left text-xs uppercase text-ink-faint">
+              <tr>
+                <th className="px-3 py-2">{t("fees.feeStructure")}</th>
+                <th className="px-3 py-2">{t("fees.status")}</th>
+                <th className="px-3 py-2 text-right">{t("fees.amount")}</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-line">
+              {lines?.map((line) => {
+                const fs = line.fee_structure as unknown as { name_i18n: Record<string, string>; billing_cycle: string } | null;
+                return (
+                  <tr key={line.id}>
+                    <td className="px-3 py-2 text-ink">{tField(fs?.name_i18n, i18n.resolvedLanguage!)} ({t(`fees.cycle.${fs?.billing_cycle}`)})</td>
+                    <td className="px-3 py-2"><Badge tone={STATUS_TONE[line.status as keyof typeof STATUS_TONE] ?? "neutral"}>{t(`fees.invoiceStatus.${line.status}`)}</Badge></td>
+                    <td className="px-3 py-2 text-right text-ink">{formatETB(Number(line.amount_due), i18n.resolvedLanguage!)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+
         <div className="mt-4 flex flex-wrap gap-2">
           {canPay && (
             <Button onClick={() => pay.mutate()} disabled={pay.isPending}>
-              {t("fees.payViaChapa")}
+              {t("fees.payViaTelebirr")}
             </Button>
           )}
           <Button variant="ghost" onClick={() => downloadInvoice.mutate()} disabled={downloadInvoice.isPending}>
@@ -190,6 +265,7 @@ export function InvoiceDetailPage() {
           </Button>
         </div>
         {downloadInvoice.isError && <p role="alert" className="mt-2 text-sm text-danger">{t("fees.errors.documentFailed")}</p>}
+        {pay.isError && <p role="alert" className="mt-2 text-sm text-danger">{pay.error instanceof Error ? pay.error.message : t("fees.payFailed")}</p>}
       </Card>
 
       {lastReceiptUrl && (
@@ -232,6 +308,11 @@ export function InvoiceDetailPage() {
                       {bankVerifications?.has(p.id) && (
                         <button type="button" className="text-navy hover:underline" onClick={() => setPreviewPaymentId(p.id)}>
                           {t("fees.bankVerification.view")}
+                        </button>
+                      )}
+                      {p.status === "pending" && p.provider === "telebirr" && (
+                        <button type="button" className="text-navy hover:underline" onClick={() => refreshStatus.mutate(p.id)} disabled={refreshStatus.isPending}>
+                          {t("fees.refreshStatus")}
                         </button>
                       )}
                     </div>

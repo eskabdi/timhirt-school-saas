@@ -16,16 +16,21 @@ const SIZE_CLASSES = {
 } as const;
 
 /** Initials-in-a-circle avatar — used wherever a tenant logo or user photo
- * would go once real image uploads exist; falls back cleanly without one. */
-export function Avatar({ name, size = "md", className }: {
-  name: string; size?: keyof typeof SIZE_CLASSES; className?: string;
+ * would go once real image uploads exist; falls back cleanly without one.
+ * `color`, when given, overrides the default navy background via inline
+ * style — a plain className can't reliably win against bg-navy since both
+ * are Tailwind utilities and cascade order isn't source order. */
+export function Avatar({ name, size = "md", className, color }: {
+  name: string; size?: keyof typeof SIZE_CLASSES; className?: string; color?: string;
 }) {
   return (
     <span
       className={cn(
-        "flex shrink-0 items-center justify-center rounded-full bg-navy font-display font-bold text-white",
+        "flex shrink-0 items-center justify-center rounded-full font-display font-bold text-white",
+        !color && "bg-navy",
         SIZE_CLASSES[size], className,
       )}
+      style={color ? { backgroundColor: color } : undefined}
       aria-hidden
     >
       {initialsFor(name)}

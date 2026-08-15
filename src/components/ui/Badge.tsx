@@ -12,15 +12,19 @@ const TONE_CLASSES: Record<Tone, string> = {
 };
 
 /** Small tinted status pill — payroll run status, academic year status,
- * admission stage. */
-export function Badge({ tone = "neutral", children, className }: {
-  tone?: Tone; children: ReactNode; className?: string;
+ * admission stage. `dot` prepends a small filled circle for lists (e.g. the
+ * Invoices ledger) where the badge needs to read at a glance in a dense
+ * table row — still a tinted pill, not a solid fill (DESIGN.md "jewelry, not
+ * wallpaper" rule stays the same; the dot alone carries the extra signal). */
+export function Badge({ tone = "neutral", dot = false, children, className }: {
+  tone?: Tone; dot?: boolean; children: ReactNode; className?: string;
 }) {
   return (
     <span className={cn(
-      "inline-flex items-center rounded-pill px-2.5 py-1 text-xs font-semibold capitalize",
+      "inline-flex items-center gap-1.5 rounded-pill px-2.5 py-1 text-xs font-semibold capitalize",
       TONE_CLASSES[tone], className,
     )}>
+      {dot && <span className="h-1.5 w-1.5 rounded-full bg-current" aria-hidden="true" />}
       {children}
     </span>
   );

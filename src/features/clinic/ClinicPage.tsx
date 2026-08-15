@@ -86,13 +86,15 @@ export function ClinicPage() {
         </Card>
       )}
       <div className="space-y-2">
-        {visits?.rows.map((v) => (
+        {visits?.rows.map((v) => {
+          const student = v.students as unknown as { first_name: string; last_name: string } | null;
+          return (
           <Card key={v.id} className="text-sm">
             <button
               onClick={() => setExpanded((cur) => (cur === v.id ? null : v.id))}
               className="flex w-full items-center justify-between text-left"
             >
-              <span className="font-medium text-ink">{(v.students as any)?.first_name} {(v.students as any)?.last_name}</span>
+              <span className="font-medium text-ink">{student?.first_name} {student?.last_name}</span>
               <span className="text-ink-faint"><EthDate value={v.visit_date.slice(0, 10)} /></span>
             </button>
             {expanded === v.id && detail && (
@@ -103,7 +105,8 @@ export function ClinicPage() {
               </div>
             )}
           </Card>
-        ))}
+          );
+        })}
       </div>
       <Pagination page={page} totalCount={visits?.count ?? 0} onPageChange={setPage} />
       <p className="text-xs text-ink-faint">{t("clinic.restrictedNote")}</p>

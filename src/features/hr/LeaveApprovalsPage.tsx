@@ -38,10 +38,12 @@ export function LeaveApprovalsPage() {
         <Card className="py-12 text-center text-ink-faint">{t("hr.pendingCount", { count: 0 })}</Card>
       ) : (
         <div className="space-y-2">
-          {requests.map((r) => (
+          {requests.map((r) => {
+            const employee = r.employees as unknown as { full_name: string } | null;
+            return (
             <Card key={r.id} className="flex items-center justify-between">
               <div>
-                <p className="font-medium text-ink">{(r.employees as any)?.full_name}</p>
+                <p className="font-medium text-ink">{employee?.full_name}</p>
                 <p className="text-sm text-ink-faint"><EthDate value={r.starts_on} /> — <EthDate value={r.ends_on} /></p>
               </div>
               <div className="flex gap-2">
@@ -49,7 +51,8 @@ export function LeaveApprovalsPage() {
                 <Button onClick={() => decide.mutate({ id: r.id, status: "approved" })}>{t("hr.approveLeave")}</Button>
               </div>
             </Card>
-          ))}
+            );
+          })}
         </div>
       )}
       <Pagination page={page} totalCount={data?.count ?? 0} onPageChange={setPage} />

@@ -34,9 +34,9 @@ values
    'authenticated', 'authenticated', 'staff-acct-a@test.example', crypt('x', gen_salt('bf')),
    now(), now(), now(), '', '', '', '');
 
-insert into public.tenants (id, name, slug, status) values
-  ('ea000000-0000-0000-0000-00000000000a', 'Staff Tenant A', 'staff-tenant-a', 'active'),
-  ('eb000000-0000-0000-0000-00000000000b', 'Staff Tenant B', 'staff-tenant-b', 'active');
+insert into public.tenants (id, name, slug, status, tier_key) values
+  ('ea000000-0000-0000-0000-00000000000a', 'Staff Tenant A', 'staff-tenant-a', 'active', 'premium'),
+  ('eb000000-0000-0000-0000-00000000000b', 'Staff Tenant B', 'staff-tenant-b', 'active', 'premium');
 
 insert into public.users (id, tenant_id, role, full_name, email) values
   ('ef000001-0000-0000-0000-000000000001', 'ea000000-0000-0000-0000-00000000000a', 'hr_officer', 'HR A',        'staff-hr-a@test.example'),

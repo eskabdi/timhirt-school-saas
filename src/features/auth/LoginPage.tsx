@@ -12,6 +12,7 @@ const schema = z.object({
   email: z.string().email().max(254),
   password: z.string().min(1).max(200),
 });
+const emailSchema = z.string().email().max(254);
 
 export function LoginPage() {
   const { t } = useTranslation();
@@ -24,6 +25,12 @@ export function LoginPage() {
   const [busy, setBusy] = useState(false);
   const [lockedUntil, setLockedUntil] = useState<number | null>(null);
   const [now, setNow] = useState(() => Date.now());
+  // Two-step, email-first flow: Step 1 is just the email + Continue, which
+  // asks sso-domain-lookup whether this email's domain routes to SSO before
+  // ever showing the password field. `revealed` is that step boundary —
+  // once true the password field appears and behaves exactly as before.
+  const [revealed, setRevealed] = useState(false);
+  const [checkingSso, setCheckingSso] = useState(false);
 
   // Ticks the countdown shown while locked out; the effect below clears the
   // lock itself once `now` passes `lockedUntil`, so this only needs to run
@@ -38,7 +45,47 @@ export function LoginPage() {
     if (lockedUntil && now >= lockedUntil) setLockedUntil(null);
   }, [now, lockedUntil]);
 
+  // Step 1: email only. Asks sso-domain-lookup whether this email's domain
+  // routes to an SSO provider before ever revealing the password field.
+  // Fails open to the password step on any lookup error or non-2xx --
+  // same instinct as check-login-attempt's fetch-failure handling below:
+  // this is a routing decision, not a security control, so a broken
+  // lookup should never lock someone out of signing in the normal way.
+  const onContinue = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    const parsedEmail = emailSchema.safeParse(email);
+    if (!parsedEmail.success) { setError(t("auth.invalid")); return; }
+    setCheckingSso(true);
+    try {
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/sso-domain-lookup`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: parsedEmail.data }),
+      });
+      if (!res.ok) { setRevealed(true); return; }
+      const body = await res.json().catch(() => null);
+      if (!body?.sso) { setRevealed(true); return; }
+
+      const domain = parsedEmail.data.split("@")[1]!;
+      const { data, error: ssoErr } = await supabase.auth.signInWithSSO({
+        domain, options: { redirectTo: `${window.location.origin}/auth/sso-callback` },
+      });
+      if (ssoErr || !data?.url) {
+        setError(t("auth.sso.genericError"));
+        setRevealed(true);
+        return;
+      }
+      window.location.href = data.url; // leaving the page; no further state updates needed
+    } catch {
+      setRevealed(true);
+    } finally {
+      setCheckingSso(false);
+    }
+  };
+
   const onSubmit = async (e: React.FormEvent) => {
+    if (!revealed) return onContinue(e);
     e.preventDefault();
     setError(null);
     const parsed = schema.safeParse({ email, password });
@@ -94,21 +141,25 @@ export function LoginPage() {
         )}
         <form onSubmit={onSubmit} className="space-y-4" noValidate>
           <Field label={t("auth.email")}>
-            <Input type="email" autoComplete="username" required maxLength={254} disabled={!!lockedUntil}
+            <Input type="email" autoComplete="username" required maxLength={254} disabled={!!lockedUntil || checkingSso}
               value={email} onChange={(e) => setEmail(e.target.value)} />
           </Field>
-          <Field label={t("auth.password")}>
-            <Input type="password" autoComplete="current-password" required maxLength={200} disabled={!!lockedUntil}
-              value={password} onChange={(e) => setPassword(e.target.value)} />
-          </Field>
+          {revealed && (
+            <Field label={t("auth.password")}>
+              <Input type="password" autoComplete="current-password" required maxLength={200} disabled={!!lockedUntil}
+                value={password} onChange={(e) => setPassword(e.target.value)} autoFocus />
+            </Field>
+          )}
           {error && <p role="alert" className="text-sm text-danger">{error}</p>}
           {lockedUntil && (
             <p role="alert" className="text-sm text-danger">
               {t("auth.tooManyAttempts", { minutes: lockedMinutes, seconds: String(lockedSeconds).padStart(2, "0") })}
             </p>
           )}
-          <Button type="submit" disabled={busy || !!lockedUntil} className="w-full justify-center">
-            {busy ? t("auth.signingIn") : t("auth.signIn")}
+          <Button type="submit" disabled={busy || checkingSso || !!lockedUntil} className="w-full justify-center">
+            {revealed
+              ? (busy ? t("auth.signingIn") : t("auth.signIn"))
+              : (checkingSso ? t("auth.checkingSso") : t("auth.continueLabel"))}
           </Button>
         </form>
       </div>

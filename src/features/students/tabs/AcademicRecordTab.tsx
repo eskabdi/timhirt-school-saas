@@ -1,60 +1,60 @@
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useSession } from "@/features/auth/useSession";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
-import { tField } from "@/lib/i18n";
 import { useTranslation } from "react-i18next";
 import { formatEth } from "@/lib/ethiopian-date";
 import { buildTranscriptPdf } from "../transcript-pdf";
+import { fetchAcademicRecord, fetchClassRank, fetchGradeHistory } from "../academic-record";
+import { fetchConductSummary } from "../conduct-summary";
 
-function letter(total: number): string {
-  if (total >= 90) return "A+";
-  if (total >= 85) return "A";
-  if (total >= 80) return "A-";
-  if (total >= 75) return "B+";
-  if (total >= 70) return "B";
-  if (total >= 60) return "C";
-  if (total >= 50) return "D";
-  return "F";
-}
-interface Row { subject: string; code: string; instructor: string; ca: number; final: number; total: number; }
-
-const GRADE_TABS = [9, 10, 11, 12];
-
-export function AcademicRecordTab({ studentId, studentName, admissionNo, gradeLabel }: {
-  studentId: string; studentName?: string; admissionNo?: string; gradeLabel?: string;
+export function AcademicRecordTab({ studentId, studentName, admissionNo, classId }: {
+  studentId: string; studentName?: string; admissionNo?: string; classId?: string | null;
 }) {
   const { t, i18n } = useTranslation();
   // The EC month names live in the calendar namespace, same source <EthDate/>
   // uses — the transcript's issue date must read identically to the UI.
   const { t: tc } = useTranslation("calendar");
   const { profile } = useSession();
-  const [gradeTab, setGradeTab] = useState(11);
+  const [gradeTab, setGradeTab] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { data: rows } = useQuery({
+  // Real class history (past grades completed + current), not a hardcoded
+  // range -- a student never sees a tab for a grade they haven't reached.
+  const { data: gradeTabs } = useQuery({
+    queryKey: ["grade-history", studentId],
+    queryFn: () => fetchGradeHistory(studentId),
+  });
+  // Default to the most recent (current) grade once history loads, instead
+  // of a hardcoded starting tab.
+  useEffect(() => {
+    if (gradeTab == null && gradeTabs?.length) setGradeTab(gradeTabs[gradeTabs.length - 1]!);
+  }, [gradeTabs, gradeTab]);
+
+  // Cumulative, all-time record (no grade filter) -- drives the "Cumulative
+  // GPA" stat card, which is deliberately NOT scoped to whichever tab is
+  // selected.
+  const { data: cumulative } = useQuery({
     queryKey: ["academic-record", studentId],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("grades")
-        .select("score, subjects(name_i18n, code), exams(category, max_score, name_i18n)")
-        .eq("student_id", studentId);
-      if (error) throw error;
-      // Aggregate per subject: CA total, Final total.
-      const bySubject = new Map<string, Row>();
-      for (const g of (data ?? []) as unknown as { score: number; subjects: { name_i18n: Record<string, string>; code: string } | null; exams: { category: string | null } | null }[]) {
-        const code = g.subjects?.code ?? "—";
-        const r = bySubject.get(code) ?? { subject: tField(g.subjects?.name_i18n, i18n.resolvedLanguage!) || code, code, instructor: "—", ca: 0, final: 0, total: 0 };
-        if (g.exams?.category === "final") r.final += Number(g.score);
-        else r.ca += Number(g.score);
-        r.total = r.ca + r.final;
-        bySubject.set(code, r);
-      }
-      return Array.from(bySubject.values());
-    },
+    queryFn: () => fetchAcademicRecord(studentId, i18n.resolvedLanguage!),
+  });
+
+  // The selected tab's own record -- drives the on-screen table and the PDF.
+  const { data: record } = useQuery({
+    queryKey: ["academic-record", studentId, gradeTab],
+    enabled: gradeTab != null,
+    queryFn: () => fetchAcademicRecord(studentId, i18n.resolvedLanguage!, gradeTab!),
+  });
+  const rows = record?.rows;
+
+  const { data: classRank } = useQuery({
+    queryKey: ["class-rank", studentId, classId],
+    enabled: !!classId,
+    queryFn: () => fetchClassRank(studentId, classId!),
   });
 
   // School name for the transcript letterhead — same branding record the nav
@@ -65,14 +65,28 @@ export function AcademicRecordTab({ studentId, studentName, admissionNo, gradeLa
     queryFn: async () => (await supabase.from("tenant_configs").select("settings").eq("tenant_id", profile!.tenant_id!).maybeSingle()).data,
   });
 
-  const totals = useMemo(() => {
-    const list = rows ?? [];
-    const sum = list.reduce((a, r) => a + r.total, 0);
-    return { sum, max: list.length * 100, gpa: list.length ? (list.reduce((a, r) => a + gp(r.total), 0) / list.length) : 0 };
-  }, [rows]);
+  // R4-C5: opt-in per-tenant setting (FeeStructuresPage.tsx). Only ever
+  // restricts the PDF download action for a self-viewing student/guardian —
+  // never the underlying data (that's R4-C4's job), and never staff.
+  const isPortalViewer = profile?.role === "student" || profile?.role === "parent";
+  const blockUnpaidBalance = !!(brand?.settings as { billing?: { blockUnpaidBalance?: boolean } } | undefined)?.billing?.blockUnpaidBalance;
+  const { data: hasUnpaidBalance } = useQuery({
+    queryKey: ["student-unpaid-balance", studentId],
+    enabled: isPortalViewer && blockUnpaidBalance,
+    queryFn: async () => {
+      const { count } = await supabase.from("invoice_summary").select("id", { count: "exact", head: true })
+        .eq("student_id", studentId).neq("status", "paid");
+      return (count ?? 0) > 0;
+    },
+  });
+  const downloadBlocked = isPortalViewer && blockUnpaidBalance && !!hasUnpaidBalance;
+
+  const cumulativeGpa = cumulative?.totals.gpa ?? 0;
+  const totals = record?.totals ?? { sum: 0, max: 0, gpa: 0 };
 
   const downloadPdf = async () => {
     setError(null);
+    if (downloadBlocked) { setError(t("academicRecord.unpaidBalanceBlock")); return; }
     setBusy(true);
     try {
       const branding = brand?.settings?.branding as { nameEn?: string; nameAm?: string; nameOm?: string } | undefined;
@@ -80,20 +94,35 @@ export function AcademicRecordTab({ studentId, studentName, admissionNo, gradeLa
       const schoolName =
         (lang === "am" ? branding?.nameAm : lang === "om" ? branding?.nameOm : branding?.nameEn) ||
         branding?.nameEn || t("app.name");
+      const dateOpts = { monthNames: tc("months", { returnObjects: true }) as string[], eraSuffix: tc("eraSuffix") };
+      const conduct = await fetchConductSummary(studentId);
       const blob = await buildTranscriptPdf({
         schoolName,
         studentName: studentName ?? "—",
         admissionNo: admissionNo ?? "—",
-        gradeLabel: gradeLabel ?? `${t("students.profile.grade")} ${gradeTab}`,
+        // Always reflects the SELECTED tab, not the student's current class
+        // -- viewing an earlier grade must export that grade's own record,
+        // not the current one relabeled.
+        gradeLabel: `${t("students.profile.grade")} ${gradeTab}`,
         academicPeriod: `${t("students.profile.grade")} ${gradeTab}`,
-        rows: (rows ?? []).map((r) => ({ ...r, letter: letter(r.total) })),
+        rows: rows ?? [],
         gpa: totals.gpa,
         totalScore: totals.sum,
         maxScore: totals.max,
-        issuedOn: formatEth(new Date(), {
-          monthNames: tc("months", { returnObjects: true }) as string[],
-          eraSuffix: tc("eraSuffix"),
-        }),
+        issuedOn: formatEth(new Date(), dateOpts),
+        conduct: {
+          incidents: conduct.incidents.map((i) => ({
+            dateEc: formatEth(new Date(i.date + "T00:00:00Z"), dateOpts),
+            label: i.category ? t(`behavioralTab.categories.${i.category}`, i.category) : t("behavioralTab.category"),
+            detail: `${t(`discipline.severityLevel.${i.severity}`, i.severity)} — ${t(`behavioralTab.statuses.${i.status}`, i.status)}`,
+          })),
+          merits: conduct.merits.map((m) => ({
+            dateEc: formatEth(new Date(m.date + "T00:00:00Z"), dateOpts),
+            label: m.title,
+            detail: `+${m.points}`,
+          })),
+          totalMeritPoints: conduct.totalMeritPoints,
+        },
         labels: {
           title: t("academicRecord.title"), student: t("clinic.student"), studentNo: t("students.admissionNo"),
           grade: t("students.profile.grade"), period: t("academicRecord.period"),
@@ -103,6 +132,8 @@ export function AcademicRecordTab({ studentId, studentName, admissionNo, gradeLa
           pass: t("academicRecord.pass"), fail: t("academicRecord.fail"),
           semesterTotals: t("academicRecord.semesterTotals"), gpa: t("academicRecord.cumulativeGpa"),
           issued: t("idCards.issued"), notice: t("academicRecord.noticeTitle"), noticeBody: t("academicRecord.noticeBody"),
+          conductTitle: t("academicRecord.conductTitle"), noIncidents: t("academicRecord.conductNone"),
+          meritPointsTotal: t("academicRecord.meritPointsTotal"),
         },
       });
       const url = URL.createObjectURL(blob);
@@ -126,18 +157,19 @@ export function AcademicRecordTab({ studentId, studentName, admissionNo, gradeLa
           <Badge tone="ok">{t("academicRecord.officialDocument")}</Badge>
           <Button variant="ghost" className="border border-line">✉ {t("academicRecord.emailGuardian")}</Button>
           <Button variant="ghost" className="border border-line">✎ {t("academicRecord.requestRevision")}</Button>
-          <Button onClick={downloadPdf} disabled={busy}>
+          <Button onClick={downloadPdf} disabled={busy || downloadBlocked}>
             ⬇ {busy ? t("academicRecord.preparing") : t("academicRecord.downloadPdf")}
           </Button>
         </div>
       </div>
+      {downloadBlocked && <p className="text-sm text-danger">{t("academicRecord.unpaidBalanceBlock")}</p>}
       {error && <p className="text-sm text-danger">{error}</p>}
 
       <div className="grid gap-4 md:grid-cols-3">
         <Card className="flex items-center justify-around">
           <div className="text-center">
             <p className="text-xs uppercase text-ink-faint">{t("academicRecord.cumulativeGpa")}</p>
-            <p className="font-display text-3xl font-bold text-navy">{totals.gpa.toFixed(2)}</p>
+            <p className="font-display text-3xl font-bold text-navy">{cumulativeGpa.toFixed(2)}</p>
           </div>
           <div className="text-center">
             <p className="text-xs uppercase text-ink-faint">{t("nav.subjects")}</p>
@@ -145,7 +177,7 @@ export function AcademicRecordTab({ studentId, studentName, admissionNo, gradeLa
           </div>
           <div className="text-center">
             <p className="text-xs uppercase text-ink-faint">{t("students.profile.classRank")}</p>
-            <p className="font-display text-3xl font-bold text-ink">—</p>
+            <p className="font-display text-3xl font-bold text-ink">{classRank ? `${classRank.rank} / ${classRank.totalStudents}` : "—"}</p>
           </div>
         </Card>
         <Card className="md:col-span-2">
@@ -165,7 +197,7 @@ export function AcademicRecordTab({ studentId, studentName, admissionNo, gradeLa
 
       <Card className="space-y-3">
         <div className="no-print flex flex-wrap items-center gap-2">
-          {GRADE_TABS.map((g) => (
+          {(gradeTabs ?? []).map((g) => (
             <button key={g} onClick={() => setGradeTab(g)}
               className={`rounded-control px-3 py-1 text-sm ${gradeTab === g ? "bg-navy text-white" : "text-ink-soft hover:bg-sidebar"}`}>
               {t("students.profile.grade")} {g}
@@ -181,20 +213,17 @@ export function AcademicRecordTab({ studentId, studentName, admissionNo, gradeLa
             </tr>
           </thead>
           <tbody className="divide-y divide-line">
-            {rows?.length ? rows.map((r) => {
-              const l = letter(r.total);
-              return (
-                <tr key={r.code}>
-                  <td className="py-3"><p className="font-medium text-ink">{r.subject}</p><p className="text-xs text-ink-faint">{r.code}</p></td>
-                  <td className="text-ink-soft">{r.instructor}</td>
-                  <td className="text-ink">{r.ca.toFixed(1)}</td>
-                  <td className="text-ink">{r.final.toFixed(1)}</td>
-                  <td className="font-bold text-navy">{r.total.toFixed(1)}</td>
-                  <td><span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-ok-tint text-xs font-bold text-ok">{l}</span></td>
-                  <td><Badge tone={r.total >= 50 ? "ok" : "danger"}>{r.total >= 50 ? t("academicRecord.pass") : t("academicRecord.fail")}</Badge></td>
-                </tr>
-              );
-            }) : <tr><td colSpan={7} className="py-10 text-center text-ink-faint">{t("academicRecord.empty")}</td></tr>}
+            {rows?.length ? rows.map((r) => (
+              <tr key={r.code}>
+                <td className="py-3"><p className="font-medium text-ink">{r.subject}</p><p className="text-xs text-ink-faint">{r.code}</p></td>
+                <td className="text-ink-soft">{r.instructor}</td>
+                <td className="text-ink">{r.ca.toFixed(1)}</td>
+                <td className="text-ink">{r.final.toFixed(1)}</td>
+                <td className="font-bold text-navy">{r.total.toFixed(1)}</td>
+                <td><span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-ok-tint text-xs font-bold text-ok">{r.letter}</span></td>
+                <td><Badge tone={r.total >= 50 ? "ok" : "danger"}>{r.total >= 50 ? t("academicRecord.pass") : t("academicRecord.fail")}</Badge></td>
+              </tr>
+            )) : <tr><td colSpan={7} className="py-10 text-center text-ink-faint">{t("academicRecord.empty")}</td></tr>}
           </tbody>
           {!!rows?.length && (
             <tfoot>
@@ -220,15 +249,4 @@ export function AcademicRecordTab({ studentId, studentName, admissionNo, gradeLa
       </Card>
     </div>
   );
-}
-
-function gp(total: number): number {
-  if (total >= 90) return 4.0;
-  if (total >= 85) return 3.75;
-  if (total >= 80) return 3.5;
-  if (total >= 75) return 3.0;
-  if (total >= 70) return 2.5;
-  if (total >= 60) return 2.0;
-  if (total >= 50) return 1.0;
-  return 0;
 }
