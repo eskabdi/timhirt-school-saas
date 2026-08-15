@@ -7,6 +7,7 @@ import { Avatar } from "@/components/ui/Avatar";
 import { useSession } from "@/features/auth/useSession";
 import { useEnabledModules } from "@/features/auth/useEnabledModules";
 import { ChangePasswordModal } from "@/features/auth/ChangePasswordModal";
+import { ImpersonationBanner } from "@/features/platform/ImpersonationBanner";
 import { useBrandTheme } from "@/features/settings/useBrandTheme";
 import { supabase } from "@/lib/supabase";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -284,6 +285,7 @@ export function DashboardShell() {
 
   return (
     <div className="flex min-h-screen flex-col bg-page">
+      <ImpersonationBanner />
       {/* Full-width signature bar — DESIGN.md §2: primary -> primary-container
           gradient grounds the institution's identity; gold carries the date
           and the tagline underline, "jewelry" against the deep navy. */}

@@ -17,7 +17,9 @@ import { Field } from "@/components/ui/Field";
 import { Card } from "@/components/ui/Card";
 import { Panel } from "@/components/ui/Panel";
 import { Badge } from "@/components/ui/Badge";
+import { Modal } from "@/components/ui/Modal";
 import { cn } from "@/lib/utils";
+import { startImpersonation } from "./impersonation";
 
 const STATUS_TONE = { active: "ok", suspended: "danger" } as const;
 
@@ -89,7 +91,29 @@ export function TenantDetailPage() {
   const { t } = useTranslation();
   const { id } = useParams();
   const [inviting, setInviting] = useState(false);
+  const [impersonating, setImpersonating] = useState<{ id: string; full_name: string } | null>(null);
+  const [impersonateReason, setImpersonateReason] = useState("");
+  const [impersonateError, setImpersonateError] = useState<string | null>(null);
   const qc = useQueryClient();
+
+  const impersonate = useMutation({
+    mutationFn: async () => {
+      if (!impersonating || impersonateReason.trim().length < 3) return;
+      await startImpersonation(impersonating.id, impersonateReason.trim());
+    },
+    onSuccess: () => {
+      setImpersonating(null);
+      setImpersonateReason("");
+      setImpersonateError(null);
+      // A full reload, not client-side navigation -- every cached React
+      // Query result and in-memory auth context was built under the
+      // super_admin's own identity and must not leak across the swap.
+      // Lands on "/", the tenant's own dashboard (the platform console
+      // their old role could reach is not reachable by this new one).
+      window.location.href = "/";
+    },
+    onError: (e) => setImpersonateError(e instanceof Error ? e.message : String(e)),
+  });
 
   const { data: tenant } = useQuery({
     queryKey: ["tenant", id],
@@ -272,7 +296,7 @@ export function TenantDetailPage() {
         <Panel className="overflow-x-auto">
           <table className="w-full min-w-[480px] text-sm">
             <thead className="bg-sidebar text-left text-xs uppercase text-ink-faint">
-              <tr><th className="px-4 py-2">{t("common.name")}</th><th className="px-4 py-2">{t("common.email")}</th><th className="px-4 py-2">{t("common.locale")}</th></tr>
+              <tr><th className="px-4 py-2">{t("common.name")}</th><th className="px-4 py-2">{t("common.email")}</th><th className="px-4 py-2">{t("common.locale")}</th><th className="px-4 py-2" /></tr>
             </thead>
             <tbody className="divide-y divide-line">
               {admins?.map((a) => (
@@ -280,15 +304,42 @@ export function TenantDetailPage() {
                   <td className="px-4 py-2 font-medium text-ink">{a.full_name}</td>
                   <td className="px-4 py-2 text-ink-faint">{a.email}</td>
                   <td className="px-4 py-2 uppercase text-ink">{a.locale}</td>
+                  <td className="px-4 py-2 text-right">
+                    <button type="button" className="text-xs text-navy hover:underline"
+                      onClick={() => { setImpersonating(a); setImpersonateReason(""); setImpersonateError(null); }}>
+                      {t("platformPagesX.impersonate")}
+                    </button>
+                  </td>
                 </tr>
               ))}
               {admins?.length === 0 && (
-                <tr><td colSpan={3} className="px-4 py-6 text-center text-ink-faint">{t("platformPagesX.noAdmins")}</td></tr>
+                <tr><td colSpan={4} className="px-4 py-6 text-center text-ink-faint">{t("platformPagesX.noAdmins")}</td></tr>
               )}
             </tbody>
           </table>
         </Panel>
       </div>
+
+      <Modal open={!!impersonating} onClose={() => setImpersonating(null)} title={t("platformPagesX.impersonateTitle")}>
+        <div className="space-y-3">
+          <p className="text-sm text-ink-faint">
+            {t("platformPagesX.impersonateSubtitle", { name: impersonating?.full_name ?? "" })}
+          </p>
+          <Field label={t("platformPagesX.impersonateReason")}>
+            <textarea value={impersonateReason} onChange={(e) => setImpersonateReason(e.target.value)}
+              maxLength={500} rows={3} minLength={3}
+              className="w-full rounded-control border border-line bg-card px-3 py-2 text-sm text-ink" />
+          </Field>
+          {impersonateError && <p className="text-sm text-danger">{impersonateError}</p>}
+          <div className="flex justify-end gap-2">
+            <Button variant="tertiary" onClick={() => setImpersonating(null)}>{t("students.cancel")}</Button>
+            <Button variant="danger" onClick={() => impersonate.mutate()}
+              disabled={impersonateReason.trim().length < 3 || impersonate.isPending}>
+              {impersonate.isPending ? t("platformPagesX.impersonateStarting") : t("platformPagesX.impersonateConfirm")}
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
