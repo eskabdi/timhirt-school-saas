@@ -8,6 +8,7 @@ import { EthDate } from "@/components/EthDate";
 import { useAttendanceNotifications } from "@/features/attendance/notifications";
 import { markNotificationRead, markAllNotificationsRead } from "@/features/fees/api";
 import { StudentDashboardView } from "./StudentDashboardView";
+import { StudentLeaveRequestPanel } from "./StudentLeaveRequestPanel";
 
 function AttendanceNotificationsBanner() {
   const { t } = useTranslation();
@@ -79,6 +80,7 @@ export function ParentChildPage() {
       )}
       <AttendanceNotificationsBanner />
       <StudentDashboardView studentId={id} />
+      <StudentLeaveRequestPanel studentId={id} />
     </div>
   );
 }

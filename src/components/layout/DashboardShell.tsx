@@ -50,6 +50,8 @@ const NAV: NavSection[] = [
       // not gated behind id_cards despite the naming similarity.
       { to: "/leaving-certificates", key: "nav.leavingCertificates", roles: ADMIN_REG },
       { to: "/attendance", key: "nav.attendance", roles: TEACH, module: "attendance" },
+      // No `module` key -- same "not a toggleable module" call as messages.
+      { to: "/student-leave-requests", key: "nav.studentLeaveRequests", roles: TEACH },
       { to: "/attendance/overview", key: "nav.attendanceOverview", roles: TEACH, module: "attendance" },
       { to: "/assignments", key: "nav.assignments", roles: TEACH, module: "assignments" },
       { to: "/gradebook", key: "nav.gradebook", roles: TEACH, module: "gradebook" },

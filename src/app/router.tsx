@@ -56,6 +56,7 @@ import { EventsCalendarPage } from "@/features/events/EventsCalendarPage";
 import { ReportsPage } from "@/features/reports/ReportsPage";
 import { IDCardBatchPage } from "@/features/id-cards/IDCardBatchPage";
 import { LeavingCertificatesPage } from "@/features/students/LeavingCertificatesPage";
+import { StudentLeaveRequestsPage } from "@/features/students/StudentLeaveRequestsPage";
 
 import { EmployeeListPage } from "@/features/hr/EmployeeListPage";
 import { StaffProfilePage } from "@/features/hr/StaffProfilePage";
@@ -141,6 +142,13 @@ export const router = createBrowserRouter([
           // Any staff role, no module gate -- messaging isn't a toggleable
           // module, and RLS (sender/recipient only) is the real access gate.
           { path: "messages", element: <MessagesPage /> },
+
+          // Same "not a toggleable module, RLS is the real gate" call as
+          // messages -- school_admin or the student's own class teacher.
+          {
+            element: <RequireRole roles={TEACH} />,
+            children: [{ path: "student-leave-requests", element: <StudentLeaveRequestsPage /> }],
+          },
 
           // Admin: Students (SIS) + Admissions + ID cards — each its own
           // module, so each gets its own RequireModule nested under the
