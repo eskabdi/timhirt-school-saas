@@ -78,7 +78,7 @@
   "idCardModal": { "generating": "የፊትና የኋላ ገጽ በማመንጨት ላይ…", "previewNote": "ቅድመ እይታ — ገጽ 1 የፊት፣ ገጽ 2 የኋላ ነው።", "previewTitle": "የመታወቂያ ካርድ ቅድመ እይታ", "close": "ዝጋ", "savePdf": "PDF አስቀምጥ", "print": "አትም" },
   "behavioralTab": { "incidentLog": "የስነ ስርዓት ክስተት መዝገብ", "logIncident": "አዲስ ክስተት መዝግብ", "category": "ምድብ", "noIncidents": "የተመዘገበ የስነ ስርዓት ክስተት የለም።", "merits": "ሽልማቶችና እውቅናዎች", "add": "ጨምር", "noAwards": "እስካሁን ሽልማት የለም።", "noPoints": "እስካሁን የሽልማት ነጥብ የለም።", "trends": "የባህሪ አዝማሚያዎች", "actionTaken": "የተወሰደ እርምጃ", "addMerit": "ሽልማት / እውቅና ጨምር", "meritPlaceholder": "የክፍል ከፍተኛ", "points": "ነጥቦች", "categories": { "conduct": "ስነ ምግባር", "attendance": "ክትትል", "academic": "ትምህርታዊ", "property": "ንብረት", "safety": "ደህንነት", "other": "ሌላ", "sports": "ስፖርት", "arts": "ጥበባት", "leadership": "አመራር", "service": "አገልግሎት" }, "statuses": { "open": "ክፍት", "resolved": "ተፈትቷል", "escalated": "ተላልፏል" } },
   "gradebook": { "title": "ውጤት መዝገብ", "exam": "ፈተና", "subject": "የትምህርት ዓይነት", "saveGrades": "ውጤቶችን አስቀምጥ",
-    "exams": "ፈተናዎች", "name": "ስም", "maxScore": "ከፍተኛ ውጤት", "windowStart": "መጀመሪያ ቀን (ዓ.ም)", "createExam": "ፈተና ፍጠር",
+    "exams": "ፈተናዎች", "name": "ስም", "maxScore": "ከፍተኛ ውጤት", "windowStart": "መጀመሪያ ቀን (ዓ.ም)", "createExam": "ፈተና ፍጠር", "examType": "የፈተና ዓይነት", "startTime": "መጀመሪያ ሰዓት", "endTime": "መጨረሻ ሰዓት", "room": "ክፍል ቁጥር",
     "reportCards": "የውጤት ካርዶች", "queuePdf": "PDF ማመንጨት ጀምር ({count})",
     "generatingProgress": "{done} ከ{total} በማመንጨት ላይ…", "batchComplete": "{count} የውጤት ካርዶች ተመንጭተዋል።", "batchFailed": "አልተሳካም፦ {names}",
     "reportCardNote": "እያንዳንዱ የውጤት ካርድ የሚመነጨው በአሳሽዎ ውስጥ ከተማሪው ከተመዘገበው ውጤት በመነሳት ነው፣ ልክ እንደ ነጠላ ተማሪ PDF አውርድ አዝራር በሚሰራው መንገድ፤ የዓ.ም ወሰነ ትምህርት ቀናት በPDF ግርጌ ይታተማሉ።" },
