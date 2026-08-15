@@ -65,11 +65,28 @@ export function AcademicRecordTab({ studentId, studentName, admissionNo, classId
     queryFn: async () => (await supabase.from("tenant_configs").select("settings").eq("tenant_id", profile!.tenant_id!).maybeSingle()).data,
   });
 
+  // R4-C5: opt-in per-tenant setting (FeeStructuresPage.tsx). Only ever
+  // restricts the PDF download action for a self-viewing student/guardian —
+  // never the underlying data (that's R4-C4's job), and never staff.
+  const isPortalViewer = profile?.role === "student" || profile?.role === "parent";
+  const blockUnpaidBalance = !!(brand?.settings as { billing?: { blockUnpaidBalance?: boolean } } | undefined)?.billing?.blockUnpaidBalance;
+  const { data: hasUnpaidBalance } = useQuery({
+    queryKey: ["student-unpaid-balance", studentId],
+    enabled: isPortalViewer && blockUnpaidBalance,
+    queryFn: async () => {
+      const { count } = await supabase.from("invoice_summary").select("id", { count: "exact", head: true })
+        .eq("student_id", studentId).neq("status", "paid");
+      return (count ?? 0) > 0;
+    },
+  });
+  const downloadBlocked = isPortalViewer && blockUnpaidBalance && !!hasUnpaidBalance;
+
   const cumulativeGpa = cumulative?.totals.gpa ?? 0;
   const totals = record?.totals ?? { sum: 0, max: 0, gpa: 0 };
 
   const downloadPdf = async () => {
     setError(null);
+    if (downloadBlocked) { setError(t("academicRecord.unpaidBalanceBlock")); return; }
     setBusy(true);
     try {
       const branding = brand?.settings?.branding as { nameEn?: string; nameAm?: string; nameOm?: string } | undefined;
@@ -140,11 +157,12 @@ export function AcademicRecordTab({ studentId, studentName, admissionNo, classId
           <Badge tone="ok">{t("academicRecord.officialDocument")}</Badge>
           <Button variant="ghost" className="border border-line">✉ {t("academicRecord.emailGuardian")}</Button>
           <Button variant="ghost" className="border border-line">✎ {t("academicRecord.requestRevision")}</Button>
-          <Button onClick={downloadPdf} disabled={busy}>
+          <Button onClick={downloadPdf} disabled={busy || downloadBlocked}>
             ⬇ {busy ? t("academicRecord.preparing") : t("academicRecord.downloadPdf")}
           </Button>
         </div>
       </div>
+      {downloadBlocked && <p className="text-sm text-danger">{t("academicRecord.unpaidBalanceBlock")}</p>}
       {error && <p className="text-sm text-danger">{error}</p>}
 
       <div className="grid gap-4 md:grid-cols-3">

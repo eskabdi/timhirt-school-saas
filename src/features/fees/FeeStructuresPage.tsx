@@ -64,6 +64,28 @@ export function FeeStructuresPage() {
     queryFn: async () => (await supabase.from("classes").select("id,name,section,grade_level").order("grade_level")).data ?? [],
   });
   const { data: cycles } = useGradeCycles();
+
+  // R4-C5: opt-in per-tenant setting, off by default -- when on, a student/
+  // guardian with an unpaid invoice can't download report cards/transcripts
+  // from the portal (AcademicRecordTab.tsx). Staff are never blocked; this
+  // never restricts what data is visible, only the PDF download action, so
+  // it lives in tenant_configs.settings rather than requiring an RLS change.
+  const { data: brandConfig } = useQuery({
+    queryKey: ["tenant-config", profile?.tenant_id],
+    enabled: !!profile?.tenant_id,
+    queryFn: async () => (await supabase.from("tenant_configs").select("settings").eq("tenant_id", profile!.tenant_id!).maybeSingle()).data,
+  });
+  const blockUnpaidBalance = !!(brandConfig?.settings as { billing?: { blockUnpaidBalance?: boolean } } | undefined)?.billing?.blockUnpaidBalance;
+  const toggleBlockUnpaid = useMutation({
+    mutationFn: async (next: boolean) => {
+      const settings = { ...(brandConfig?.settings as Record<string, unknown> ?? {}) };
+      settings.billing = { ...(settings.billing as Record<string, unknown> ?? {}), blockUnpaidBalance: next };
+      const { error: err } = await supabase.from("tenant_configs")
+        .update({ settings }).eq("tenant_id", profile!.tenant_id!);
+      if (err) throw err;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["tenant-config", profile?.tenant_id] }),
+  });
   // A "one class" fee scopes to a specific section -- classes has one row
   // per section, so the picker dedupes by name for a clean "pick a grade's
   // representative section" list, mirroring submit-admission's own
@@ -216,6 +238,18 @@ export function FeeStructuresPage() {
       </div>
 
       {error && <Card className="border border-danger bg-danger-tint py-3 text-sm text-danger">{error}</Card>}
+
+      <Card className="flex items-center justify-between gap-4">
+        <div>
+          <p className="text-sm font-semibold text-ink">{t("fees.blockUnpaid.title")}</p>
+          <p className="text-xs text-ink-faint">{t("fees.blockUnpaid.hint")}</p>
+        </div>
+        <label className="flex items-center gap-2 text-sm text-ink">
+          <input type="checkbox" checked={blockUnpaidBalance}
+            onChange={(e) => toggleBlockUnpaid.mutate(e.target.checked)} disabled={toggleBlockUnpaid.isPending} />
+          {t("fees.blockUnpaid.toggle")}
+        </label>
+      </Card>
 
       <div className="grid gap-3 md:grid-cols-2">
         {data?.map((f) => (
