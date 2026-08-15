@@ -55,6 +55,17 @@ export function AdmissionDetailPage() {
     },
   });
 
+  const { data: duplicateOf } = useQuery({
+    queryKey: ["admission-duplicate-of", data?.possible_duplicate_of],
+    enabled: !!data?.possible_duplicate_of,
+    queryFn: async () => {
+      const { data: dup, error } = await supabase.from("admission_applications")
+        .select("id, applicant_name, created_at").eq("id", data!.possible_duplicate_of).maybeSingle();
+      if (error) throw error;
+      return dup;
+    },
+  });
+
   const { data: docUrls } = useQuery({
     queryKey: ["admission-doc-urls", id, data?.birth_certificate_path, data?.transcript_path, data?.photo_path, data?.payment_receipt_path],
     enabled: !!data,
@@ -113,6 +124,16 @@ export function AdmissionDetailPage() {
       <p className="text-sm text-ink-faint">
         <Link to="/admissions" className="hover:underline">{t("admissions.title")}</Link> › {data.desired_grade ?? t(`admissions.stage.${data.stage}`)} › <span className="text-navy">{t("students.profile.breadcrumb")}</span>
       </p>
+      {data.possible_duplicate_of && (
+        <Card className="border border-late bg-late-tint text-sm text-ink">
+          <p className="font-semibold">{t("admissions.duplicate.warning")}</p>
+          {duplicateOf && (
+            <Link to={`/admissions/${duplicateOf.id}`} className="text-navy hover:underline">
+              {t("admissions.duplicate.link", { name: duplicateOf.applicant_name })}
+            </Link>
+          )}
+        </Card>
+      )}
       <Card>
         <div className="flex items-center justify-between">
           <h1 className="font-display text-xl font-bold text-ink">{data.applicant_name}</h1>
