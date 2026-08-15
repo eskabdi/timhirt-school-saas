@@ -28,6 +28,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { errors, json, corsHeaders } from "../_shared/security.ts";
 import { issueFeeDocument, notifyBilling, renderReceiptPdf, type FeeLineItem } from "../_shared/fee-pdf.ts";
+import { loadDocumentBranding } from "../_shared/branding.ts";
 
 type NotifyTradeStatus = "Paying" | "Expired" | "Pending" | "Completed" | "Failure";
 
@@ -104,11 +105,13 @@ Deno.serve(async (req) => {
                 });
                 const amountDue = lineItems.reduce((s, l) => s + l.amountDue, 0);
                 const amountPaid = lineItems.reduce((s, l) => s + l.amountPaid, 0);
+                // R5-B2: gated on branding_extended; UNBRANDED below Standard.
+                const branding = await loadDocumentBranding(db, payment.tenant_id);
                 const doc = await issueFeeDocument(db, {
                   kind: "receipt", tenantId: payment.tenant_id, invoiceId: header.id,
                   paymentId: payment.id, amount: payment.amount,
                   render: ({ docNo, verifyCode }) => renderReceiptPdf({
-                    tenantName: tenant.name,
+                    tenantName: tenant.name, branding,
                     docNo, verifyCode, issuedOn: new Date().toISOString().slice(0, 10),
                     studentName: `${student.first_name} ${student.last_name}`.trim(),
                     admissionNo: student.admission_no,

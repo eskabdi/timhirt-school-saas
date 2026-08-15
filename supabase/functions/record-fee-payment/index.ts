@@ -25,6 +25,7 @@
 import { z } from "npm:zod@3";
 import { requireRole, errors, json, rateLimit, corsHeaders } from "../_shared/security.ts";
 import { issueFeeDocument, notifyBilling, renderReceiptPdf, type FeeLineItem } from "../_shared/fee-pdf.ts";
+import { loadDocumentBranding } from "../_shared/branding.ts";
 import { verifyBankUrl } from "../_shared/bank-verify.ts";
 
 const Payload = z.object({
@@ -120,11 +121,13 @@ Deno.serve(async (req) => {
         const refreshedDue = lineItems.reduce((s, l) => s + l.amountDue, 0);
         const refreshedPaid = lineItems.reduce((s, l) => s + l.amountPaid, 0);
         const studentName = `${student.first_name} ${student.last_name}`.trim();
+        // R5-B2: gated on branding_extended; UNBRANDED below Standard.
+        const branding = await loadDocumentBranding(ctx.adminClient, header.tenant_id);
         const doc = await issueFeeDocument(ctx.adminClient, {
           kind: "receipt", tenantId: header.tenant_id, invoiceId: header.id,
           paymentId: payment.id, amount: payment.amount,
           render: ({ docNo, verifyCode }) => renderReceiptPdf({
-            tenantName: tenant.name, docNo, verifyCode, issuedOn: new Date().toISOString().slice(0, 10),
+            tenantName: tenant.name, branding, docNo, verifyCode, issuedOn: new Date().toISOString().slice(0, 10),
             studentName, admissionNo: student.admission_no, receivedFrom: studentName,
             lineItems,
             amount: Number(payment.amount), provider: payment.provider, providerRef: payment.provider_ref,

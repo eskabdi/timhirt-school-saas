@@ -5,9 +5,16 @@
 // trilingual line labels; uploads to the private `payslips` bucket at
 // {tenant_id}/{ec_year}/{ec_month}/{employee_id}/{uuid}.pdf; returns a 60s
 // signed URL. Object names are randomized (INSA secure-upload).
+//
+// R5-B2: rendered via _shared/payslip-pdf.ts (pdf-lib) rather than the
+// hand-rolled byte-string writer this used to carry -- that writer produced
+// a bare text page with no letterhead at all, so there was nothing for
+// extended branding to apply to.
 // ============================================================================
 import { z } from "npm:zod@3";
 import { requireRole, errors, json, rateLimit, corsHeaders } from "../_shared/security.ts";
+import { loadDocumentBranding } from "../_shared/branding.ts";
+import { renderPayslipPdf } from "../_shared/payslip-pdf.ts";
 
 const Payload = z.object({ payslip_id: z.string().uuid(), locale: z.enum(["en", "am", "om"]).default("en") });
 
@@ -41,11 +48,28 @@ Deno.serve(async (req) => {
       : parsed.data.locale === "om" ? ETH_MONTHS_OM : ETH_MONTHS_EN;
     const period = `${months[run.ec_month - 1]} ${run.ec_year}`;
 
-    // Minimal deterministic PDF (production: swap for pdf-lib + Ethiopic font embed)
-    const linesText = (slip.payslip_lines ?? []).map((l: { label_i18n: Record<string, string>; kind: string; amount: number }) =>
-      `${(l.label_i18n?.[parsed.data.locale] ?? l.label_i18n?.en ?? "").slice(0, 40)}  ${l.kind === "deduction" ? "-" : ""}${l.amount} ETB`);
-    const content = [`PAYSLIP — ${period}`, "", ...linesText, "", `NET PAY: ${slip.net_pay} ETB`].join("\n");
-    const pdf = buildSimplePdf(content);
+    // R5-B2: rendered by pdf-lib via the shared payslip renderer, with a
+    // letterhead that carries extended branding when the tenant has the
+    // module. Below Standard tier loadDocumentBranding returns UNBRANDED and
+    // the letterhead falls back to the plain NAVY bar + raw tenant name.
+    const branding = await loadDocumentBranding(ctx.adminClient, slip.tenant_id, { locale: parsed.data.locale });
+    const { data: employee } = await ctx.adminClient.from("employees")
+      .select("full_name").eq("id", slip.employee_id).maybeSingle();
+    const { data: tenantRow } = await ctx.adminClient.from("tenants")
+      .select("name").eq("id", slip.tenant_id).maybeSingle();
+
+    const pdf = await renderPayslipPdf({
+      tenantName: tenantRow?.name ?? "School",
+      branding,
+      period,
+      employeeName: employee?.full_name ?? "-",
+      lines: (slip.payslip_lines ?? []).map((l: { label_i18n: Record<string, string>; kind: string; amount: number }) => ({
+        label: l.label_i18n?.[parsed.data.locale] ?? l.label_i18n?.en ?? "",
+        kind: l.kind,
+        amount: l.amount,
+      })),
+      netPay: slip.net_pay,
+    });
 
     const path = `${slip.tenant_id}/${run.ec_year}/${run.ec_month}/${slip.employee_id}/${crypto.randomUUID()}.pdf`;
     const { error: upErr } = await ctx.adminClient.storage.from("payslips")
@@ -62,23 +86,3 @@ Deno.serve(async (req) => {
     return errors.internal();
   }
 });
-
-/** Tiny single-page PDF writer (ASCII-safe body; Ethiopic via font embed in prod). */
-function buildSimplePdf(text: string): Uint8Array {
-  const safe = text.replace(/[()\\]/g, " ").split("\n")
-    .map((l, i) => `BT /F1 11 Tf 40 ${780 - i * 16} Td (${l}) Tj ET`).join("\n");
-  const objs = [
-    "<< /Type /Catalog /Pages 2 0 R >>",
-    "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
-    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>",
-    `<< /Length ${safe.length} >>\nstream\n${safe}\nendstream`,
-    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
-  ];
-  let pdf = "%PDF-1.4\n"; const offsets: number[] = [];
-  objs.forEach((o, i) => { offsets.push(pdf.length); pdf += `${i + 1} 0 obj\n${o}\nendobj\n`; });
-  const xref = pdf.length;
-  pdf += `xref\n0 ${objs.length + 1}\n0000000000 65535 f \n` +
-    offsets.map((o) => `${String(o).padStart(10, "0")} 00000 n \n`).join("") +
-    `trailer\n<< /Size ${objs.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`;
-  return new TextEncoder().encode(pdf);
-}
