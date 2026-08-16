@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/Button";
 import { formatEth } from "@/lib/ethiopian-date";
 import { buildLeavingCertificatePdf } from "./leaving-certificate-pdf";
 import { fetchDocumentTemplate } from "@/lib/documentTemplate";
+import { useDocumentSchoolName } from "@/lib/documentBranding";
 
 interface GraduateRow {
   id: string; first_name: string; last_name: string; admission_no: string; graduated_ec_year: number;
@@ -19,7 +20,9 @@ interface GraduateRow {
 }
 
 export function LeavingCertificatesPage() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
+  // R5-B2: shared accessor for the certificate letterhead.
+  const schoolName = useDocumentSchoolName();
   const { t: tc } = useTranslation("calendar");
   const { profile } = useSession();
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -38,12 +41,6 @@ export function LeavingCertificatesPage() {
     },
   });
 
-  const { data: brand } = useQuery({
-    queryKey: ["tenant-config", profile?.tenant_id],
-    enabled: !!profile?.tenant_id,
-    queryFn: async () => (await supabase.from("tenant_configs").select("settings").eq("tenant_id", profile!.tenant_id!).maybeSingle()).data,
-  });
-
   const cohorts = useMemo(() => {
     const groups = new Map<number, GraduateRow[]>();
     for (const g of graduates ?? []) {
@@ -58,10 +55,6 @@ export function LeavingCertificatesPage() {
     setError(null);
     setBusyId(student.id);
     try {
-      const branding = brand?.settings?.branding as { nameEn?: string; nameAm?: string; nameOm?: string } | undefined;
-      const lang = i18n.resolvedLanguage;
-      const schoolName = (lang === "am" ? branding?.nameAm : lang === "om" ? branding?.nameOm : branding?.nameEn)
-        || branding?.nameEn || t("app.name");
       const gradeLabel = student.class?.grade_level != null
         ? `${t("students.profile.grade")} ${student.class.grade_level}${student.class.section ? `-${student.class.section}` : ""}`
         : student.class?.name ?? "—";

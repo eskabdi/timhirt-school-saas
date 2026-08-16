@@ -15,6 +15,7 @@ import { tField } from "@/lib/i18n";
 import { toIsoDate, formatEth } from "@/lib/ethiopian-date";
 import { buildSeatingChartPdf } from "./seating-chart-pdf";
 import { fetchDocumentTemplate } from "@/lib/documentTemplate";
+import { useDocumentSchoolName } from "@/lib/documentBranding";
 
 interface SeatAssignmentRow { id: string; student_id: string; seat_label: string }
 interface RosterStudent { id: string; first_name: string; last_name: string }
@@ -24,6 +25,9 @@ function SeatingChartModal({ examId, examLabel, classId, onClose }: {
 }) {
   const { t } = useTranslation();
   const { t: tc } = useTranslation("calendar");
+  // R5-B2: the seating chart used to print the product name here, never the
+  // school's — the one call site that had already drifted off the chain.
+  const schoolName = useDocumentSchoolName();
   const qc = useQueryClient();
   const [rows, setRows] = useState(4);
   const [cols, setCols] = useState(4);
@@ -73,7 +77,9 @@ function SeatingChartModal({ examId, examLabel, classId, onClose }: {
   const exportPdf = async () => {
     const template = await fetchDocumentTemplate("seating_chart");
     const blob = await buildSeatingChartPdf({
-      schoolName: t("app.name"), title: examLabel, rows, cols, template,
+      schoolName,
+      title: examLabel,
+      rows, cols, template,
       seats: grid.map((g) => ({
         row: g.row, col: g.col, label: g.seat!.seat_label,
         studentName: g.seat ? `${studentById.get(g.seat.student_id)?.first_name ?? ""} ${studentById.get(g.seat.student_id)?.last_name ?? ""}`.trim() : null,
