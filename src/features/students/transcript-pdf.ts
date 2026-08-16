@@ -127,6 +127,13 @@ export async function buildTranscriptPdf(input: TranscriptInput): Promise<Blob> 
   // only thing keeping the watermark underneath the content.
   tpl.watermark(page, regular, 595, 842);
 
+  // Optional configured header line, drawn in the gap between the navy band
+  // (which ends at 842-76) and the student block. Fixed position rather than
+  // flowed: the block below keeps its exact 842-110 start whether or not a
+  // header is configured, so an unconfigured transcript is byte-for-byte the
+  // layout it was before R5-C6.
+  tpl.header(page, regular, M, 842 - 92);
+
   // Student block
   y = 842 - 110;
   const info: [string, string][] = [

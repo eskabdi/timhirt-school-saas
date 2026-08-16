@@ -1,5 +1,7 @@
-// Tier x module matrix: which of the 18 modules each subscription tier
-// includes. Tenants inherit their tier's modules (see useEnabledModules);
+// Tier x module matrix: which modules each subscription tier includes. Both
+// axes come straight from the `modules` and `subscription_tiers` tables, so
+// a migration that registers a new module (R5-B1, R5-C1) shows up here with
+// no code change. Tenants inherit their tier's modules (see useEnabledModules);
 // one-off exceptions are set per-tenant on TenantDetailPage instead of here.
 import { useTranslation } from "react-i18next";
 import { useState } from "react";
