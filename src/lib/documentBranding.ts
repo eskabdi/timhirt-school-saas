@@ -7,10 +7,15 @@
 //
 // Before this, that chain -- read tenant_configs.settings.branding, pick the
 // active locale's name, fall back through English to the app name -- was
-// copy-pasted into AcademicRecordTab, ReportCardBatchPage,
-// LeavingCertificatesPage and StudentDetailPage, and had already drifted:
-// ExamsPage's seating chart skipped branding entirely and printed the
-// product name instead of the school's.
+// copy-pasted into AcademicRecordTab, ReportCardBatchPage and
+// LeavingCertificatesPage, and had already drifted: ExamsPage's seating
+// chart skipped branding entirely and printed the product name instead of
+// the school's. Those four now call this hook.
+//
+// Three call sites deliberately keep their own lookup: StudentDetailPage
+// and StaffProfilePage also need `logoPath` for the ID cards, which R5-B2
+// leaves unchanged at every tier, and DashboardShell is nav chrome rather
+// than a generated document.
 //
 // SCOPE, deliberately narrow: this returns the school NAME only. Round 5's
 // brief is explicit that ID cards and transcripts "stay always-on at every
