@@ -45,17 +45,31 @@ supabase secrets set STRIPE_WEBHOOK_SECRET=whsec_xxx      # optional
 # app instead of the default http://localhost:3000 fallback.
 supabase secrets set APP_URL=https://your-app.vercel.app
 
-# Deploy all Edge Functions
+# Deploy all Edge Functions.
+#
+# All 14 are listed. Exactly four are anonymous and MUST carry
+# --no-verify-jwt; they are the ones that authorize in-code instead (HMAC for
+# the webhook, per-IP rate limiting for the rest). Everything else is
+# JWT-verified at the edge AND role-checked by requireRole() inside.
+# Deploying a function that is missing here is how a public endpoint ends up
+# either unreachable or, worse, reachable without the gate it expects — keep
+# this list and supabase/config.toml in step with supabase/functions/.
 supabase functions deploy run-payroll
 supabase functions deploy process-fee-payment
-supabase functions deploy chapa-webhook --no-verify-jwt
 supabase functions deploy onboard-tenant
 supabase functions deploy invite-tenant-admin
+supabase functions deploy invite-staff
 supabase functions deploy generate-payslip-pdf
+supabase functions deploy issue-id-card
+supabase functions deploy provision-portal-accounts
+supabase functions deploy manage-integration-credentials
+
+# Anonymous — authorization is in-code, so the edge JWT check is off.
+supabase functions deploy chapa-webhook --no-verify-jwt
 supabase functions deploy submit-admission --no-verify-jwt
 supabase functions deploy upload-admission-document --no-verify-jwt
+supabase functions deploy check-admission-status --no-verify-jwt
 supabase functions deploy verify-id --no-verify-jwt
-supabase functions deploy manage-integration-credentials
 ```
 
 Also set **Authentication → URL Configuration** in the Supabase dashboard:

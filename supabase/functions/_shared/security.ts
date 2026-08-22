@@ -94,6 +94,28 @@ function rateLimitDb(): SupabaseClient {
   return limiterClient;
 }
 
+/**
+ * Client IP for rate-limit keying, taken from the RIGHTMOST `x-forwarded-for`
+ * entry.
+ *
+ * `x-forwarded-for` is a list, and a proxy *appends* the peer it saw. Anything
+ * the caller sent arrives first, so the leftmost entry is fully attacker-
+ * controlled: rotating `X-Forwarded-For: 1.2.3.4` per request gave every
+ * request its own bucket and made the limiter on the four anonymous endpoints
+ * (submit-admission, upload-admission-document, check-admission-status,
+ * verify-id) a no-op — exactly the endpoints with no auth in front of them.
+ * The last entry is the one our own edge appended, which a client cannot forge.
+ *
+ * A missing header collapses to a single shared "unknown" bucket, which is more
+ * restrictive than handing out a fresh bucket, not less.
+ */
+export function clientIp(req: Request): string {
+  const xff = req.headers.get("x-forwarded-for");
+  if (!xff) return "unknown";
+  const hops = xff.split(",").map((h) => h.trim()).filter(Boolean);
+  return hops.length > 0 ? hops[hops.length - 1] : "unknown";
+}
+
 export async function rateLimit(key: string, limit: number, windowMs: number): Promise<boolean> {
   const { data, error } = await rateLimitDb()
     .rpc("consume_rate_limit", { p_key: key, p_limit: limit, p_window_ms: windowMs });

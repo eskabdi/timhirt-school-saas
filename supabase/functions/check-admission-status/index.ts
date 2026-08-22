@@ -14,7 +14,7 @@
 // ============================================================================
 import { z } from "npm:zod@3";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { errors, json, rateLimit, corsHeaders } from "../_shared/security.ts";
+import { errors, json, rateLimit, clientIp, corsHeaders } from "../_shared/security.ts";
 
 const Payload = z.object({
   tenant_slug: z.string().regex(/^[a-z0-9][a-z0-9-]{1,40}$/),
@@ -26,7 +26,7 @@ Deno.serve(async (req) => {
   try {
     if (req.method !== "POST") return errors.badRequest();
 
-    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+    const ip = clientIp(req);
     if (!(await rateLimit(`admission-status:${ip}`, 20, 60_000))) return errors.tooMany(60);
 
     const parsed = Payload.safeParse(await req.json().catch(() => null));

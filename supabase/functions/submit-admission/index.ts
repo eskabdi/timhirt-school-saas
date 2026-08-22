@@ -23,7 +23,7 @@
 // ============================================================================
 import { z } from "npm:zod@3";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { errors, json, rateLimit, corsHeaders } from "../_shared/security.ts";
+import { errors, json, rateLimit, clientIp, corsHeaders } from "../_shared/security.ts";
 
 const Payload = z.object({
   tenant_slug: z.string().regex(/^[a-z0-9][a-z0-9-]{1,40}$/),
@@ -77,7 +77,7 @@ function generateTrackingCode(): string {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
-  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+  const ip = clientIp(req);
 
   if (req.method === "GET") {
     try {
