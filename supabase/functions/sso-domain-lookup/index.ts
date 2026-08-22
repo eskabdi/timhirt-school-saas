@@ -14,7 +14,7 @@
 // ============================================================================
 import { z } from "npm:zod@3";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { errors, json, rateLimit, corsHeaders } from "../_shared/security.ts";
+import { errors, json, rateLimit, corsHeaders, clientIp } from "../_shared/security.ts";
 
 const Payload = z.object({ email: z.string().email().max(254) });
 
@@ -29,7 +29,7 @@ Deno.serve(async (req) => {
     const domain = email.split("@")[1];
     if (!domain) return errors.badRequest();
 
-    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+    const ip = clientIp(req);
     if (!(await rateLimit(`sso-lookup:ip:${ip}`, 20, 60_000))) return errors.tooMany();
 
     const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);

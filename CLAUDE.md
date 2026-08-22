@@ -29,10 +29,10 @@ the Vercel frontend (see [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md)).
 
 ```
 src/
-  app/            App.tsx, providers.tsx (single QueryClient), router.tsx (~50
+  app/            App.tsx, providers.tsx (single QueryClient), router.tsx (~95
                   routes over Admin / Teacher / Student / Parent / Public /
                   Platform surfaces)
-  features/<domain>/   feature-sliced (~28 domains: students, attendance,
+  features/<domain>/   feature-sliced (24 domains: students, attendance,
                   gradebook, fees, hr, admissions, portal, platform, settings,
                   …). A folder holds its *Page.tsx views plus, as needed,
                   api.ts / *Api.ts (Supabase data access) and schemas.ts (zod).
@@ -51,9 +51,9 @@ src/
   __tests__/      vitest unit tests (Ethiopian-date math, EC parity, payroll)
 
 supabase/
-  migrations/     44 timestamped SQL files, applied in filename order
-  functions/      15 Deno Edge Functions + _shared/ (security.ts, dates)
-  tests/          run.sh + rls/ pgTAP suites (7)
+  migrations/     106 timestamped SQL files, applied in filename order
+  functions/      32 Deno Edge Functions + _shared/ (security.ts, dates)
+  tests/          run.sh + rls/ pgTAP suites (55)
 
 scripts/          check-locales.mjs, i18n-audit.mjs, i18n-review-export.mjs
 docs/             architecture blueprint, DEPLOYMENT.md
@@ -98,6 +98,19 @@ forbid. `cardinality('{}')` is `0`.
 
 **`ALTER TYPE … ADD VALUE` works inside the deploy wrapper's transaction**,
 provided the new labels are not *used* in that same transaction.
+
+**A `SECURITY DEFINER` function is a hole in RLS until it re-checks the caller
+itself.** It runs as the owner, so no policy applies inside it. The 20260719
+batch granted 13 of them to `authenticated` while trusting a caller-supplied
+`p_tenant_id` and addressing rows by bare `id` — a *student* could create rows
+in another tenant, rewrite another tenant's `data_jobs.storage_path`, and read
+another tenant's `system_config`, all while `select` on those tables correctly
+returned zero rows. Every such function must derive the tenant from
+`get_tenant_id_for_user(auth.uid())`, gate on the same role its table's policy
+names, pin `set search_path = public, pg_temp`, and `revoke … from public, anon`
+before granting. Regression: `supabase/tests/rls/rpc_authorization.sql`.
+Remember Postgres grants `EXECUTE` to `PUBLIC` by default — writing no `grant`
+is not the same as granting nothing.
 
 **Gregorian is canonical storage; EC is presentation-only (§17.2).** Every
 rendered date goes through `<EthDate/>` or `formatEth`. Raw `toLocaleDateString`
@@ -162,12 +175,12 @@ Run the gates — CI runs all of them, so a miss here is a red build later:
 
 ```bash
 npx tsc --noEmit
-npx eslint src                      # 0 errors; ~41 pre-existing `any` warnings
+npx eslint src                      # must be clean: 0 errors, 0 warnings
 npx vitest run
 npm run check:i18n                  # must be 0
 npm run check:locales               # parity + no wholesale reformat
 npm run build
-PGHOST=… ./supabase/tests/run.sh    # 44 migrations + 7 pgTAP suites
+PGHOST=… ./supabase/tests/run.sh    # 106 migrations + 55 pgTAP suites
 ```
 
 `eslint scripts/` reports `no-undef` on node globals — `scripts/` is outside the
