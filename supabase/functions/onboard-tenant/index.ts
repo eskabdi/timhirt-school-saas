@@ -10,7 +10,7 @@
 // ============================================================================
 import { z } from "npm:zod@3";
 import { requireRole, errors, json, rateLimit, corsHeaders } from "../_shared/security.ts";
-import { toEthiopian, toGregorian } from "../_shared/ethiopian-date.ts";
+import { toEthiopian, toGregorian, todayAddis } from "../_shared/ethiopian-date.ts";
 
 const Payload = z.object({
   name: z.string().trim().min(2).max(120),
@@ -71,7 +71,7 @@ Deno.serve(async (req) => {
     // as a UX feature, make it an explicit opt-in field on the onboarding
     // payload (e.g. `seed_next_year: boolean`) — a visible decision, not
     // hidden date-based magic.
-    const ec = toEthiopian(new Date());
+    const ec = toEthiopian(todayAddis());
     const ecYear = ec.year;
     const startsOn = toGregorian({ year: ecYear, month: 1, day: 1 });
     const endsOn = toGregorian({ year: ecYear, month: 13, day: 5 });

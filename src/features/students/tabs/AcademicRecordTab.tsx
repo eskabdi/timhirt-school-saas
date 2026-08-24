@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { useTranslation } from "react-i18next";
-import { formatEth } from "@/lib/ethiopian-date";
+import { formatEth, today } from "@/lib/ethiopian-date";
 import { buildTranscriptPdf } from "../transcript-pdf";
 import { fetchDocumentTemplate } from "@/lib/documentTemplate";
 import { useDocumentSchoolName } from "@/lib/documentBranding";
@@ -112,7 +112,7 @@ export function AcademicRecordTab({ studentId, studentName, admissionNo, classId
         gpa: totals.gpa,
         totalScore: totals.sum,
         maxScore: totals.max,
-        issuedOn: formatEth(new Date(), dateOpts),
+        issuedOn: formatEth(today(), dateOpts),
         conduct: {
           incidents: conduct.incidents.map((i) => ({
             dateEc: formatEth(new Date(i.date + "T00:00:00Z"), dateOpts),

@@ -49,6 +49,20 @@ provided the new labels are not *used* in that same transaction.
 rendered date goes through `<EthDate/>` or `formatEth`. Raw `toLocaleDateString`
 is banned by lint.
 
+**"Today" means `today()`/`todayAddis()`, never a bare `new Date()`.**
+`toEthiopian`/`formatEth`/`<EthDate/>` read a Date's *UTC* fields by design
+(§17.2), but `new Date()` is the current instant, and Ethiopia is UTC+3 with
+no DST — for the three hours after local midnight (21:00–24:00 UTC) the UTC
+calendar day is still yesterday. `toEthiopian(new Date())` silently returned
+yesterday's EC date in that window, which corrupted every "today" derived
+from it: dashboard/calendar today-highlighting, EC-year defaults, and the
+issuance date stamped on every generated document. Browser code calls
+`today()` (`src/lib/ethiopian-date.ts`, pins UTC midnight from the local
+Y/M/D); Edge Functions call `todayAddis()`
+(`supabase/functions/_shared/ethiopian-date.ts`, fixed +3h offset, since Deno
+runs in UTC regardless of the caller's timezone) — never `new Date()` when
+what you mean is "today."
+
 ### React / UI
 
 **`Field` renders a `<label>`.** A `<label>` with no `htmlFor` forwards clicks

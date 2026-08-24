@@ -31,7 +31,7 @@ import { Toggle } from "@/components/ui/Toggle";
 import { Stepper } from "@/components/ui/Stepper";
 import { EthDatePicker } from "@/components/EthDatePicker";
 import { EthDate } from "@/components/EthDate";
-import { toIsoDate } from "@/lib/ethiopian-date";
+import { toIsoDate, today } from "@/lib/ethiopian-date";
 import { tField } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { GRADE_CYCLES, gradeCycleI18nKey } from "@/lib/gradeCycles";
@@ -201,7 +201,7 @@ export function StaffRegistrationPage() {
       tenant_id: tenantId,
       status: "draft",
       employee_type: "teacher", // placeholder; step 3 sets the real value
-      hire_date: toIsoDate(new Date()), // placeholder; step 3 sets the real value
+      hire_date: toIsoDate(today()), // placeholder; step 3 sets the real value
       ...patch,
     }).select("id, employee_no").single();
     if (error) throw error;

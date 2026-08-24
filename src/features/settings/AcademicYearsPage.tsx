@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useSession } from "@/features/auth/useSession";
-import { toEthiopian, toGregorian } from "@/lib/ethiopian-date";
+import { toGregorian, todayEthiopian } from "@/lib/ethiopian-date";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
@@ -20,7 +20,7 @@ export function AcademicYearsPage() {
   const { t, i18n } = useTranslation();
   const { profile } = useSession();
   const qc = useQueryClient();
-  const [ecYear, setEcYear] = useState(toEthiopian(new Date()).year);
+  const [ecYear, setEcYear] = useState(todayEthiopian().year);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
 

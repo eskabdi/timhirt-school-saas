@@ -16,6 +16,7 @@ import { Pagination, pageRange } from "@/components/ui/Pagination";
 import { richTextToPlain } from "@/components/ui/RichText";
 import { VISIBILITY_ROLES } from "@/components/ui/RoleVisibility";
 import { tField } from "@/lib/i18n";
+import { toIsoDate, today as todayGregorian } from "@/lib/ethiopian-date";
 import { NoticeFormModal, type NoticeRow } from "./NoticeFormModal";
 
 export function NoticesPage() {
@@ -52,7 +53,7 @@ export function NoticesPage() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["notices"] }); setDeleting(null); },
   });
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = toIsoDate(todayGregorian());
   const roleLabel = (role: string) =>
     t(VISIBILITY_ROLES.find((r) => r.role === role)?.labelKey ?? role);
 

@@ -43,6 +43,21 @@ export const isEthLeapYear = (ey: number) => mod(ey, 4) === 3;
 export const daysInEthMonth = (ey: number, m: number) =>
   m === 13 ? (isEthLeapYear(ey) ? 6 : 5) : 30;
 
+/**
+ * "Today" pinned to UTC midnight from the tenant's Addis Ababa calendar
+ * day (Africa/Addis_Ababa, UTC+3, fixed — Ethiopia observes no DST) rather
+ * than the Edge Function runtime's own UTC clock. `toEthiopian(new Date())`
+ * reads UTC fields, so for the three hours after Addis midnight (21:00-24:00
+ * UTC) it still reports yesterday's EC date/year — most visibly at
+ * onboard-tenant's Meskerem 1 (Sep 11/12) new-year boundary, where a tenant
+ * created in that window would be seeded into the EC year that just ended
+ * rather than the one that began locally.
+ */
+export const todayAddis = (): Date => {
+  const addis = new Date(Date.now() + 3 * 60 * 60 * 1000);
+  return new Date(Date.UTC(addis.getUTCFullYear(), addis.getUTCMonth(), addis.getUTCDate()));
+};
+
 /** Gregorian [start, end] span of one EC month — used for payroll periods. */
 export function ecMonthSpan(ecYear: number, ecMonth: number): { start: Date; end: Date } {
   const start = toGregorian({ year: ecYear, month: ecMonth, day: 1 });

@@ -6,7 +6,7 @@ import { useSession } from "@/features/auth/useSession";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { tField } from "@/lib/i18n";
-import { formatEth } from "@/lib/ethiopian-date";
+import { formatEth, today } from "@/lib/ethiopian-date";
 import { TimetableSlotModal, type ExistingSlot } from "./TimetableSlotModal";
 import { GenerateTimetableModal } from "./GenerateTimetableModal";
 import { buildTimetablePdf } from "./timetable-pdf";
@@ -297,7 +297,7 @@ export function TimetableEditorPage() {
             room: s.room ?? "",
           };
         })),
-        issuedOn: formatEth(new Date(), { monthNames: tc("months", { returnObjects: true }) as string[], eraSuffix: tc("eraSuffix") }),
+        issuedOn: formatEth(today(), { monthNames: tc("months", { returnObjects: true }) as string[], eraSuffix: tc("eraSuffix") }),
         labels: { title: t("crud.timetableMaster"), issued: t("idCards.issued") },
       });
       const url = URL.createObjectURL(blob);

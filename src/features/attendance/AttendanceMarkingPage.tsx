@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Panel, PanelHeader, PanelFooter } from "@/components/ui/Panel";
 import { SegmentedControl, type SegmentOption } from "@/components/ui/SegmentedControl";
-import { toIsoDate } from "@/lib/ethiopian-date";
+import { toIsoDate, today } from "@/lib/ethiopian-date";
 
 type Status = "present" | "absent" | "late" | "excused";
 const STATUSES: Status[] = ["present", "absent", "late", "excused"];
@@ -19,7 +19,7 @@ const TONE: Record<Status, SegmentOption<Status>["tone"]> = {
 export function AttendanceMarkingPage() {
   const { t } = useTranslation();
   const { profile } = useSession();
-  const [date, setDate] = useState<Date>(new Date());
+  const [date, setDate] = useState<Date>(today());
   const [classId, setClassId] = useState<string>("");
   const [periodId, setPeriodId] = useState<string>("");
   const [marks, setMarks] = useState<Record<string, Status>>({});
