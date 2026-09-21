@@ -12,6 +12,7 @@ import { Field } from "@/components/ui/Field";
 import { Pagination, pageRange } from "@/components/ui/Pagination";
 import { EthDate } from "@/components/EthDate";
 import { formatETB, tField } from "@/lib/i18n";
+import { toIsoDate, today } from "@/lib/ethiopian-date";
 import { cn, onRowDoubleClick } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
 import { issueFeeDocumentUrl, markAllNotificationsRead, markNotificationRead, useBillingNotifications, generateFeeInvoices } from "./api";
@@ -176,7 +177,7 @@ export function InvoicesPage() {
       .select("term_no, name_i18n, starts_on, ends_on").eq("academic_year_id", activeYear!.id).order("term_no")).data ?? [],
   });
   const currentTerm = useMemo(() => {
-    const todayIso = new Date().toISOString().slice(0, 10);
+    const todayIso = toIsoDate(today());
     return terms?.find((term) => term.starts_on <= todayIso && todayIso <= term.ends_on) ?? null;
   }, [terms]);
 

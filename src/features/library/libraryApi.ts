@@ -6,6 +6,7 @@
 // migration), never a direct client insert.
 import { supabase } from "@/lib/supabase";
 import { callFunction } from "@/lib/functions";
+import { toIsoDate, today } from "@/lib/ethiopian-date";
 
 export interface LibraryBookRow {
   id: string;
@@ -202,7 +203,7 @@ export async function listPendingFines(): Promise<FineRow[]> {
 
 export async function markFinePaid(fineId: string) {
   const { error } = await supabase.from("library_fines")
-    .update({ status: "paid", paid_on: new Date().toISOString().slice(0, 10) }).eq("id", fineId);
+    .update({ status: "paid", paid_on: toIsoDate(today()) }).eq("id", fineId);
   if (error) throw error;
 }
 

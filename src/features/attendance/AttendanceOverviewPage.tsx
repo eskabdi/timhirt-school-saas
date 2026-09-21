@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { Avatar } from "@/components/ui/Avatar";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { LineChart, type LineSeries } from "@/components/charts/Line";
-import { toEthiopian, toIsoDate } from "@/lib/ethiopian-date";
+import { toEthiopian, toIsoDate, today } from "@/lib/ethiopian-date";
 import { cn } from "@/lib/utils";
 import { IconFilter } from "@/features/dashboard/icons";
 import { ATTENDANCE_VIEWS as VIEWS, rangeFor, type TermRow, type View } from "@/features/attendance/attendanceRange";
@@ -102,7 +102,7 @@ export function AttendanceOverviewPage() {
       .select("term_no,starts_on,ends_on").eq("academic_year_id", activeYear!.id).order("term_no")).data as TermRow[] ?? [],
   });
 
-  const range = useMemo(() => rangeFor(view, new Date(), terms ?? [], activeYear), [view, terms, activeYear]);
+  const range = useMemo(() => rangeFor(view, today(), terms ?? [], activeYear), [view, terms, activeYear]);
   const prevRange = useMemo(() => (range ? shiftRangeBack(range) : null), [range]);
 
   const grades = useMemo(
@@ -165,7 +165,7 @@ export function AttendanceOverviewPage() {
     },
   });
 
-  const todayIso = toIsoDate(new Date());
+  const todayIso = toIsoDate(today());
   const { data: absentToday } = useQuery({
     queryKey: ["attendance-absent-today", todayIso, filteredClassIds.join(",")],
     enabled: filteredClassIds.length > 0,

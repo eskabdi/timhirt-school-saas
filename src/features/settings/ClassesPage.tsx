@@ -10,7 +10,7 @@ import { Card } from "@/components/ui/Card";
 import { Field } from "@/components/ui/Field";
 import { Modal } from "@/components/ui/Modal";
 import { onRowDoubleClick, cn } from "@/lib/utils";
-import { formatEth } from "@/lib/ethiopian-date";
+import { formatEth, toIsoDate, today } from "@/lib/ethiopian-date";
 import { GRADE_CYCLES, gradeCycleKeyFor, gradeCycleI18nKey } from "@/lib/gradeCycles";
 import {
   listClasses, listEnrolledCounts, listActiveAcademicYears, listTeachers,
@@ -71,8 +71,8 @@ export function ClassesPage() {
   // actually contains today, not just the highest ec_year.
   const currentYear = useMemo(() => {
     if (!years?.length) return undefined;
-    const today = new Date().toISOString().slice(0, 10);
-    return years.find((y) => y.starts_on <= today && today <= y.ends_on) ?? years[0];
+    const todayIso = toIsoDate(today());
+    return years.find((y) => y.starts_on <= todayIso && todayIso <= y.ends_on) ?? years[0];
   }, [years]);
   const { data: teachers } = useQuery({ queryKey: ["teachers-for-classes"], queryFn: listTeachers });
   // Shift only means anything for a double-shift school -- a full-day
@@ -248,7 +248,7 @@ export function ClassesPage() {
       const blob = await buildClassesPdf({
         schoolName: t("app.name"), title: t("crud.classes"),
         columns: [t("common.name"), t("crud.section"), t("crud.gradeLevel"), t("crud.capacity"), t("crud.enrolled")],
-        rows, issuedOn: formatEth(new Date(), { monthNames: tc("months", { returnObjects: true }) as string[], eraSuffix: tc("eraSuffix") }),
+        rows, issuedOn: formatEth(today(), { monthNames: tc("months", { returnObjects: true }) as string[], eraSuffix: tc("eraSuffix") }),
         issuedLabel: t("idCards.issued"),
       });
       downloadBlob(blob, "classes.pdf");

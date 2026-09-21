@@ -9,7 +9,7 @@ import { supabase } from "@/lib/supabase";
 import { useSession } from "@/features/auth/useSession";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { formatEth } from "@/lib/ethiopian-date";
+import { formatEth, today } from "@/lib/ethiopian-date";
 import { buildLeavingCertificatePdf } from "./leaving-certificate-pdf";
 import { fetchDocumentTemplate } from "@/lib/documentTemplate";
 import { useDocumentSchoolName } from "@/lib/documentBranding";
@@ -66,7 +66,7 @@ export function LeavingCertificatesPage() {
         admissionNo: student.admission_no,
         gradeLabel,
         graduatedEcYear: student.graduated_ec_year,
-        issuedOn: formatEth(new Date(), { monthNames: tc("months", { returnObjects: true }) as string[], eraSuffix: tc("eraSuffix") }),
+        issuedOn: formatEth(today(), { monthNames: tc("months", { returnObjects: true }) as string[], eraSuffix: tc("eraSuffix") }),
         labels: {
           title: t("leavingCertificates.certTitle"),
           bodyPrefix: t("leavingCertificates.bodyPrefix"),

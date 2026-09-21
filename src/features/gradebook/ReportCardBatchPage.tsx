@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-import { formatEth } from "@/lib/ethiopian-date";
+import { formatEth, today } from "@/lib/ethiopian-date";
 import { buildTranscriptPdf } from "../students/transcript-pdf";
 import { fetchDocumentTemplate } from "@/lib/documentTemplate";
 import { useDocumentSchoolName } from "@/lib/documentBranding";
@@ -38,7 +38,7 @@ export function ReportCardBatchPage() {
       if (studentsError) throw studentsError;
 
       const dateOpts = { monthNames: tc("months", { returnObjects: true }) as string[], eraSuffix: tc("eraSuffix") };
-      const issuedOn = formatEth(new Date(), dateOpts);
+      const issuedOn = formatEth(today(), dateOpts);
       const labels = {
         title: t("academicRecord.title"), student: t("clinic.student"), studentNo: t("students.admissionNo"),
         grade: t("students.profile.grade"), period: t("academicRecord.period"),

@@ -12,7 +12,7 @@ import { Field } from "@/components/ui/Field";
 import { Modal } from "@/components/ui/Modal";
 import { Pagination, pageRange } from "@/components/ui/Pagination";
 import { tField } from "@/lib/i18n";
-import { toIsoDate, formatEth } from "@/lib/ethiopian-date";
+import { toIsoDate, formatEth, today } from "@/lib/ethiopian-date";
 import { buildSeatingChartPdf } from "./seating-chart-pdf";
 import { fetchDocumentTemplate } from "@/lib/documentTemplate";
 import { useDocumentSchoolName } from "@/lib/documentBranding";
@@ -84,7 +84,7 @@ function SeatingChartModal({ examId, examLabel, classId, onClose }: {
         row: g.row, col: g.col, label: g.seat!.seat_label,
         studentName: g.seat ? `${studentById.get(g.seat.student_id)?.first_name ?? ""} ${studentById.get(g.seat.student_id)?.last_name ?? ""}`.trim() : null,
       })),
-      issuedOn: formatEth(new Date(), { monthNames: tc("months", { returnObjects: true }) as string[], eraSuffix: tc("eraSuffix") }),
+      issuedOn: formatEth(today(), { monthNames: tc("months", { returnObjects: true }) as string[], eraSuffix: tc("eraSuffix") }),
       issuedLabel: t("idCards.issued"),
     });
     const url = URL.createObjectURL(blob);

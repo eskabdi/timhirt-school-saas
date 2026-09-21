@@ -15,7 +15,7 @@ import { useSession } from "@/features/auth/useSession";
 import { Button } from "@/components/ui/Button";
 import { tField } from "@/lib/i18n";
 import {
-  daysInEthMonth, toEthiopian, toGregorian, toIsoDate, type EthDate,
+  daysInEthMonth, toEthiopian, toGregorian, toIsoDate, todayEthiopian, type EthDate,
 } from "@/lib/ethiopian-date";
 import { EventFormModal, type EventRow } from "./EventFormModal";
 import { cn } from "@/lib/utils";
@@ -37,7 +37,7 @@ export function EventsCalendarPage() {
   const { t: tc } = useTranslation("calendar");
   const { profile } = useSession();
 
-  const today = useMemo(() => toEthiopian(new Date()), []);
+  const today = useMemo(() => todayEthiopian(), []);
   const [view, setView] = useState<View>("month");
   const [cursor, setCursor] = useState<EthDate>({ ...today, day: 1 });
   const [formOpen, setFormOpen] = useState(false);

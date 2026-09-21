@@ -10,7 +10,7 @@
 // instead of taking the page down.
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { toIsoDate } from "@/lib/ethiopian-date";
+import { toIsoDate, today } from "@/lib/ethiopian-date";
 import { groupIntoThreads, type MessageRow } from "@/features/communication/messageThreads";
 
 export interface Breakdown { key: string; count: number }
@@ -105,16 +105,16 @@ export function useMessages(userId: string | undefined) {
 
 /** Notices whose visibility window covers today, in the order the board sets. */
 export function useNotices(tenantId: string) {
-  const today = toIsoDate(new Date());
+  const todayIso = toIsoDate(today());
   return useQuery({
-    queryKey: key(tenantId, "notices", today),
+    queryKey: key(tenantId, "notices", todayIso),
     enabled: !!tenantId,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("notices")
         .select("id, title_i18n, body_html, visible_from, visible_to")
-        .lte("visible_from", today)
-        .gte("visible_to", today)
+        .lte("visible_from", todayIso)
+        .gte("visible_to", todayIso)
         .order("sort_order")
         .limit(8);
       if (error) throw error;

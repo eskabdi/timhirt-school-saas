@@ -24,7 +24,7 @@ import { DocumentsTab } from "./tabs/DocumentsTab";
 import { EditProfileModal } from "./EditProfileModal";
 import { MessageStaffModal } from "./MessageStaffModal";
 import { buildStaffProfilePdf } from "./staff-profile-pdf";
-import { formatEth } from "@/lib/ethiopian-date";
+import { formatEth, toIsoDate, today } from "@/lib/ethiopian-date";
 
 const TABS = ["overview", "professional", "employment", "payroll", "documents"] as const;
 type Tab = (typeof TABS)[number];
@@ -107,7 +107,7 @@ export function StaffProfilePage() {
         department: employee.department ?? "",
         status: t(`hr.employeeStatus.${employee.status}`),
         hireDateEc: fmt(employee.hire_date),
-        issuedOn: fmt(new Date().toISOString().slice(0, 10)),
+        issuedOn: fmt(toIsoDate(today())),
         personal: [
           [t("staffReg.gender"), employee.gender ? t(`students.${employee.gender}`) : "-"],
           [t("staffReg.dob"), fmt(employee.date_of_birth)],

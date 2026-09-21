@@ -96,8 +96,29 @@ export function formatEth(g: Date, opts: FormatEthOptions): string {
   return `${month} ${day}, ${year}${opts.eraSuffix ? ` ${opts.eraSuffix}` : ""}`;
 }
 
+/**
+ * "Today" as a calendar date, pinned to UTC midnight from the *local*
+ * Y/M/D — not `new Date()` itself.
+ *
+ * `toEthiopian`/`formatEth`/`<EthDate/>` all read a Date's UTC fields,
+ * by design (§17.2 canonical storage: a stored date is pinned to UTC
+ * midnight so EC conversion can't slip a day). But `new Date()` returns
+ * the current *instant*, and its UTC fields are the calendar day in
+ * UTC — not in the browser's local timezone. Ethiopia is UTC+3, so for
+ * the three hours after local midnight (21:00-24:00 UTC), UTC is still
+ * on yesterday's date: `toEthiopian(new Date())` reports yesterday's EC
+ * date, `<EthDate value={new Date()}/>` mis-highlights "today" in every
+ * calendar widget, and documents stamped with `formatEth(new Date(), …)`
+ * get issued with yesterday's date. This pins the *local* Y/M/D instead,
+ * so those UTC-field readers see the day the user is actually living in.
+ */
+export const today = (): Date => {
+  const now = new Date();
+  return new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+};
+
 /** Today's EC date. */
-export const todayEthiopian = (): EthDate => toEthiopian(new Date());
+export const todayEthiopian = (): EthDate => toEthiopian(today());
 
 /** ISO yyyy-mm-dd for API payloads (GC canonical). */
 export const toIsoDate = (d: Date): string => d.toISOString().slice(0, 10);
