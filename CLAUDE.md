@@ -4,6 +4,15 @@ Timhirt — multi-tenant Ethiopian school management SaaS. React + Vite +
 TanStack Query on Supabase (Postgres + RLS + Edge Functions + Storage), no
 custom API server.
 
+> **Not deployed to live yet (as of 2026-09-21):** this branch
+> (`claude/project-deployment-w0brxd`) has Round 5 (tiered document
+> customization) and the EC "today" UTC fix merged in (commit `15acb4f`),
+> but neither has been pushed to production — no migration applied, no Edge
+> Function redeployed, no `npm run deploy`. Production is still running
+> whatever shipped at the end of Round 4. Remove this note once an actual
+> deploy has been verified live (see "A `READY` deployment is not a shipped
+> deployment" below).
+
 The architecture blueprint is [`docs/school-saas-architecture-blueprint.md`](docs/school-saas-architecture-blueprint.md).
 Code comments cite it by section (§6.2 route guards, §17.2 canonical date
 storage, §10.4 injection/XSS). It ends at §20 — a few comments cite §21.9 for
