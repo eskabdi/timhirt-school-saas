@@ -16,7 +16,7 @@ One entry per Work Package (fix plan §0 Rule 10). Status per finding:
 | C-01 (unsigned Telebirr webhook) | **fixed (code)** · verified-staging ✗ · verified-prod ✗ | `telebirr-notify` directory deleted; `settle_gateway_payment` unreachable from every API role; `r6_hotfix.sql` #4–#6; CI guard `scripts/ci/no-payment-gateway.sh`. Production 404 not yet verified: the deployed function must be deleted (`audit/prod-drift-2026-09-24.md`). |
 | L-06 (Origin-derived redirect) | **fixed (code)** | `process-fee-payment` removed with the gateway. |
 | RV-05 (anon-callable audit purge) | **fixed (code)** | `r6_hotfix.sql` #1–#3: `cleanup_old_audit_logs()` not executable by anon / authenticated / service_role. |
-| G-09 (repo ≠ production) | **open — blocked on owner** | No production credentials in this session; see the drift runbook. |
+| G-09 (repo ≠ production) | **open — drift measured, deploy pending owner approval** | Read-only reconciliation done with the owner-authorised session tokens (`audit/prod-drift-2026-09-24.md` §2, including the access record). The deploy (§3) waits for the owner's explicit go-ahead. |
 
 ### Implementation
 

@@ -54,8 +54,9 @@ supabase functions delete telebirr-generate-keypair
 supabase functions delete process-fee-payment
 
 # Verify the deletes (a READY/200 from the CLI is not proof). Each must print 404:
+: "${SUPABASE_URL:?set SUPABASE_URL=https://<project-ref>.supabase.co first}"
 for f in telebirr-notify telebirr-query-order telebirr-generate-keypair process-fee-payment; do
-  printf '%s ' "$f"; curl -s -o /dev/null -w '%{http_code}\n' -X POST "$SUPABASE_URL/functions/v1/$f"
+  printf '%s ' "$f"; curl -s -m 15 -o /dev/null -w '%{http_code}\n' -X POST "$SUPABASE_URL/functions/v1/$f"
 done
 ```
 

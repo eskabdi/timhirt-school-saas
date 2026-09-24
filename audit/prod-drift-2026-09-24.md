@@ -1,9 +1,20 @@
 # Production drift reconciliation (R6 WP-00 step 4)
 
-**Status: BLOCKED — owner action required.** This session has no Supabase
-access token, linked project or Vercel credentials, so the read-only checks
-below could not be run. They must run before WP-01 starts, because every later
-WP assumes repo = production.
+**Status: read-only reconciliation DONE (§2); deploy PENDING owner approval (§3).**
+
+**Access record (SR-8).** At first this session had no credentials and this
+runbook was written for the owner to run. Later on 2026-09-24 the owner
+instructed: *"For supabase and Vercel tokens check environment variables of this
+session."* The session found `SUPABASE_ACCESS_TOKEN` and `VERCEL_TOKEN` in its
+environment and used them **read-only**: Management API `GET /projects`,
+`/functions` and `/database/backups`, SELECT-only SQL queries, and Vercel
+`GET` project/deployment/domain endpoints. No write was made to production. Token
+values were never printed, written to disk or committed (the diff and history
+were scanned by the security reviewer). The tokens are injected into the
+session environment, not stored in the repo. **The owner should rotate both tokens
+after the R6 deploys** (CLAUDE.md: deploy tokens are shredded or rotated after
+use). The facts in §2 are the session's own query results. The owner can re-run
+the §1 commands to confirm them independently.
 
 Known drift, per `CLAUDE.md` (2026-09-21):
 - Round 5 (tiered document customization) and the EC-"today" UTC fix
