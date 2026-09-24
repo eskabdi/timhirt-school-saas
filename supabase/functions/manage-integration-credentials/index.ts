@@ -14,10 +14,8 @@
 // C-01) are not providers -- posting any of them gets a clean 400 from the
 // enum, not silent acceptance.
 // ============================================================================
-import { z } from "npm:zod@3";
 import { requireRole, errors, json, rateLimit, corsHeaders } from "../_shared/security.ts";
-
-const PROVIDERS = ["sms_smsala", "sms_afromessage", "sms_geezsms"] as const;
+import { Payload } from "./schema.ts";
 
 // Secrets: Vault-backed, all-or-nothing per provider (same discipline as before).
 const PROVIDER_SECRET_KEYS: Record<string, string[]> = {
@@ -33,11 +31,6 @@ const PROVIDER_CONFIG_KEYS: Record<string, string[]> = {
   sms_afromessage: ["sender_id"],
 };
 
-const Payload = z.object({
-  provider: z.enum(PROVIDERS),
-  credentials: z.record(z.string().min(1).max(500)).optional(),
-  config: z.record(z.string().max(2000)).optional(),
-});
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });

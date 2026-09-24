@@ -34,7 +34,7 @@ One entry per Work Package (fix plan §0 Rule 10). Status per finding:
 
 1. **Scope of "remove Telebirr".** Only the *online gateway* is removed. `telebirr` remains as a *manual* payment method (a wallet transfer proven by a receipt URL, alongside CBE/Awash) in `registration_payment_method`, `bank_verification_domains` and the admission/bank-verification forms. That path never credits anything by itself, and WP-03's bank catalogue replaces it. For the same reason, the CI guard bans gateway identifiers rather than every `telebirr` string; WP-03 tightens it.
 2. **`settle_gateway_payment` kept, not dropped.** It is revoked from `public`, `anon`, `authenticated` and `service_role`. It stays as the Appendix C starting point, and its allocation logic is still exercised by `webhook_settlement.sql` and `invoice_consolidation.sql` (run as owner).
-3. **`telebirr_gateway.sql` replaced by `r6_hotfix.sql`.** The old suite asserted properties of objects this WP deletes (token cache, Telebirr integration row). The new suite asserts their removal. Settlement allocation coverage is unchanged (see 2).
+3. **`telebirr_gateway.sql` replaced by `r6_hotfix.sql`.** The old suite asserted properties of objects this WP deletes (token cache, Telebirr integration row). The new suite asserts their removal. Settlement allocation coverage is unchanged (see 2); the old suite's "a voided order never settles" check moved to `webhook_settlement.sql` (RG-3).
 4. **`service_role` also revoked from `cleanup_old_audit_logs()`.** The plan revokes from `public, anon, authenticated`. Revoking from `service_role` too is stricter and matches the hard stop "do not run the purge until WP-08".
 5. **Branching.** The session's working branch is `claude/timhirt-security-audit-kan0ei`. The plan's base `fix/production-readiness-r6` was created from `a293cb8`, and the WP PR targets it.
 6. **Parents have no in-app payment action until WP-03.** Accepted consequence of removing the gateway. Staff record payments via `record-fee-payment`.
@@ -43,8 +43,9 @@ One entry per Work Package (fix plan §0 Rule 10). Status per finding:
 
 | Gate | Result |
 |---|---|
-| `supabase/tests/run.sh` | 106 migrations applied, **54/54 suites passed**; `r6_hotfix.sql` 19/19 (after the review round; 15/15 before) |
+| `supabase/tests/run.sh` | 106 migrations applied, **54/54 suites passed**; `r6_hotfix.sql` 21/21 (15 → 19 → 21 across review rounds); `webhook_settlement.sql` 10/10 (RG-3 voided-order check) |
 | Fail-before proof | Without the migration, `r6_hotfix.sql` fails #1–#3 (purge executable), #7 (token cache exists), #8 (Telebirr row present), #9 (CHECK still allows telebirr), and #11/#12 (explicitly granted EXECUTE not revoked). #4–#6 pass on the base only because the shim lacks Supabase's default grants (L-08); #11/#12 close that gap by granting first. Mutation-tested by the db-migration reviewer (round 2). |
+| `deno test supabase/functions` | 3/3 (`manage-integration-credentials/schema.test.ts`: gateway providers rejected — test-verifier F5). Fails 2/3 when `telebirr` is re-added to the schema. Runs in CI. |
 | `npx tsc --noEmit` | clean |
 | `npx eslint src` | 0 problems |
 | `npx vitest run` | 6 files, 50 tests passed |
@@ -101,6 +102,12 @@ Full detail is in `audit/prod-drift-2026-09-24.md`. Relevant to the migration's 
 | `POST /functions/v1/{telebirr-notify,telebirr-query-order,telebirr-generate-keypair,process-fee-payment}` | 404 each |
 
 Order matters (SR-1/SR-2): **apply the migration first**. That removes the old `telebirr-notify`'s ability to call settlement. **Then delete the four functions with no gap**, which removes the unauthenticated `provider_trans_id` write path in the old Failure/Expired branch.
+
+### Review round 3 fixes
+
+- test-verifier F1: `r6_hotfix.sql` now installs a stand-in `cron.job`, and asserts that the purge job is unscheduled and unrelated jobs are kept (#11–#12 of 21).
+- test-verifier F5: `manage-integration-credentials` schema moved to `schema.ts` with a Deno test. **Deploy note:** when deploying this function through the Management API multipart endpoint, include `manage-integration-credentials/schema.ts` alongside `index.ts` and `_shared/security.ts` (the CLI bundles it automatically).
+- regression-guardian RG-1 (stale "Configure Telebirr" text in en/am/om), RG-2 (merged locale line restored; line counts equal to base), RG-3 (voided-order assertion in `webhook_settlement.sql`), RG-4 (production `verify_jwt` values recorded in drift §2; backlog row closed).
 
 ### Owner actions required before WP-00 can be marked verified-prod
 

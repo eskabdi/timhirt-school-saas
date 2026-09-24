@@ -3,10 +3,12 @@
 -- settle_gateway_payment() directly (the function chapa-webhook calls after
 -- HMAC verification): a correct-amount call credits exactly once; a replayed
 -- tx_ref is a no-op; an unknown tx_ref reports not_found; a mismatched
--- amount is rejected WITHOUT crediting, leaving the payment 'pending'.
+-- amount is rejected WITHOUT crediting, leaving the payment 'pending'; and a
+-- voided ('failed') order can never settle later, even at its exact amount
+-- (R6 WP-00 voids pending gateway orders on exactly this guarantee).
 -- ============================================================================
 begin;
-select plan(8);
+select plan(10);
 
 insert into public.tenants (id, name, slug, status) values
   ('eeeeeeee-0000-0000-0000-000000000001', 'Tenant E', 'rls-test-tenant-e', 'active');
@@ -26,6 +28,14 @@ insert into public.fee_invoices (id, tenant_id, student_id, fee_structure_id, am
 insert into public.payments (id, tenant_id, invoice_id, amount, provider, provider_ref, status) values
   ('eeee6666-0000-0000-0000-000000000001', 'eeeeeeee-0000-0000-0000-000000000001', 'eeee9999-0000-0000-0000-000000000001', 500.00, 'chapa', 'tx-ref-correct', 'pending'),
   ('eeee7777-0000-0000-0000-000000000002', 'eeeeeeee-0000-0000-0000-000000000001', 'eeee9999-0000-0000-0000-000000000001', 250.00, 'chapa', 'tx-ref-mismatch', 'pending');
+
+-- A second, unpaid invoice whose only gateway order has been voided.
+insert into public.invoice_headers (id, tenant_id, student_id, due_date) values
+  ('eeee9999-0000-0000-0000-000000000002', 'eeeeeeee-0000-0000-0000-000000000001', 'eeee3333-0000-0000-0000-000000000001', '2026-09-01');
+insert into public.fee_invoices (id, tenant_id, student_id, fee_structure_id, amount_due, amount_paid, due_date, status, invoice_header_id) values
+  ('eeee5555-0000-0000-0000-000000000002', 'eeeeeeee-0000-0000-0000-000000000001', 'eeee3333-0000-0000-0000-000000000001', 'eeee4444-0000-0000-0000-000000000001', 300.00, 0.00, '2026-09-01', 'pending', 'eeee9999-0000-0000-0000-000000000002');
+insert into public.payments (id, tenant_id, invoice_id, amount, provider, provider_ref, status) values
+  ('eeee8888-0000-0000-0000-000000000003', 'eeeeeeee-0000-0000-0000-000000000001', 'eeee9999-0000-0000-0000-000000000002', 300.00, 'telebirr', 'tx-ref-voided', 'failed');
 
 -- ---------- 1. Unknown tx_ref --------------------------------------------------
 select is(
@@ -62,6 +72,15 @@ select is(
 select is(
   public.settle_gateway_payment('tx-ref-mismatch', 'chapa', 999.00),
   'amount_mismatch', 'Gateway-reported amount not matching stored amount is rejected, not credited');
+
+-- ---------- 5. A voided ('failed') order can never settle later -------------
+select is(
+  public.settle_gateway_payment('tx-ref-voided', 'telebirr', 300.00),
+  'not_found', 'A voided (failed) gateway order reports not_found, even at its exact original amount');
+
+select is(
+  (select amount_paid from public.fee_invoices where id = 'eeee5555-0000-0000-0000-000000000002'),
+  0.00::numeric, 'Attempting to settle a voided order credits nothing');
 
 select * from finish();
 rollback;

@@ -17,7 +17,7 @@
 -- invoice_consolidation.sql.
 -- ============================================================================
 begin;
-select plan(19);
+select plan(21);
 
 -- ---------- (1) audit-log purge contained ----------------------------------
 select ok(not has_function_privilege('anon', 'public.cleanup_old_audit_logs()', 'execute'),
@@ -81,6 +81,16 @@ insert into vault.secrets (name, secret) values
 grant execute on function public.cleanup_old_audit_logs() to anon, authenticated, service_role;
 grant execute on function public.settle_gateway_payment(text, public.payment_provider, numeric) to anon, authenticated, service_role;
 
+-- Stand-in for pg_cron (absent from the harness), so the unschedule step runs
+-- for real: one job calls the purge, one unrelated job must survive.
+create schema if not exists cron;
+create table if not exists cron.job (jobid bigserial primary key, command text not null);
+create or replace function cron.unschedule(p_jobid bigint) returns boolean language sql as
+$$ delete from cron.job where jobid = p_jobid returning true $$;
+insert into cron.job (command) values
+  ('select public.cleanup_old_audit_logs()'),
+  ('select public.cleanup_expired_backups()');
+
 -- ---------- (3) re-apply the migration inside this transaction -------------
 \ir ../../migrations/20260924000001_r6_hotfix_contain.sql
 
@@ -94,6 +104,11 @@ select ok(not has_function_privilege('service_role', 'public.settle_gateway_paym
   're-applying the migration revokes explicitly granted settlement EXECUTE from every API role');
 select is((select status::text from public.payments where id = 'e6008888-0000-0000-0000-000000000003'), 'failed',
   'a pending order from any other gateway provider is voided too (settlement is provider-agnostic)');
+
+select is((select count(*)::int from cron.job where command ilike '%cleanup_old_audit_logs%'), 0,
+  'any pg_cron job calling the audit purge is unscheduled');
+select is((select count(*)::int from cron.job), 1,
+  'unrelated pg_cron jobs are left alone');
 
 select is((select status::text from public.payments where id = 'e6006666-0000-0000-0000-000000000001'), 'failed',
   'a pending Telebirr gateway order is voided, so it can never settle');
