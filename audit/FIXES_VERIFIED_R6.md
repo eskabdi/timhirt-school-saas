@@ -43,7 +43,7 @@ One entry per Work Package (fix plan §0 Rule 10). Status per finding:
 
 | Gate | Result |
 |---|---|
-| `supabase/tests/run.sh` | 106 migrations applied, **54/54 suites passed**; `r6_hotfix.sql` 15/15 |
+| `supabase/tests/run.sh` | 106 migrations applied, **54/54 suites passed**; `r6_hotfix.sql` 19/19 (after the review round; 15/15 before) |
 | Fail-before proof | Without the migration, `r6_hotfix.sql` fails #1–#3 (purge executable), #7 (token cache exists), #8 (Telebirr row present). #4–#6 already pass on the base because the shim doesn't reproduce Supabase's default `service_role` grants — the L-08 blind spot fixed in WP-01. |
 | `npx tsc --noEmit` | clean |
 | `npx eslint src` | 0 problems |
@@ -51,7 +51,7 @@ One entry per Work Package (fix plan §0 Rule 10). Status per finding:
 | `npm run check:i18n` / `check:locales` | 0 hard-coded strings / parity OK, no reformat |
 | `npm run build` | built; **0 bundle hits** for `process-fee-payment`, `telebirr-query-order`, `telebirr-generate-keypair` |
 | `deno check` (touched functions) | `manage-integration-credentials`, `record-fee-payment`, `verify-admission-bank-url`, `upload-admission-document` OK. `enroll-finalize-billing`: 2 × TS2352, **pre-existing on base** (backlog → WP-04). |
-| `scripts/ci/no-payment-gateway.sh` | ok; proven to fail on a planted identifier and a planted function directory |
+| `scripts/ci/no-payment-gateway.sh` | ok. Hardened after review (SR-5/F2): proven to fail on camelCase `merchOrderId`/`processFeePayment`, a new `telebirr-webhook` directory and a `config.toml` entry, and to exit 2 (not ok) when a scanned directory is missing |
 
 ### DNS evidence — `edux.et` (DNS-over-HTTPS via Cloudflare, 2026-09-24)
 
@@ -69,10 +69,46 @@ One entry per Work Package (fix plan §0 Rule 10). Status per finding:
 | `https://probe-r6check.edux.et` | no HTTP response through the sandbox egress proxy | ❓ owner: verify from outside (wildcard added to the Vercel project? certificate `*.edux.et`?) |
 | Certificate (`openssl s_client`) | issuer = sandbox egress CA (TLS re-terminated) | ❓ not verifiable here |
 
+### Production facts gathered (2026-09-24, read-only, Management/Vercel API)
+
+Full detail is in `audit/prod-drift-2026-09-24.md`. Relevant to the migration's data effects and to C-01 forensics (DBM-01, SR-3):
+- **Telebirr payments in production: 0 in total** (no pending, no succeeded). Production has 6 bank + 4 cash payments, all `succeeded`. So the void step changes 0 rows, and no historical Telebirr settlement exists that could have come from a forged notify.
+- Telebirr `platform_integrations` row: `configured = false`, `config` has no `fabric_app_key`, no `our_public_key_pem`. The delete removes an empty row.
+- Telebirr Vault secrets in production: **none** (`vault.secrets where name like 'telebirr%'` → 0 rows).
+- Telebirr functions **are still deployed** (`telebirr-notify` v4, `verify_jwt=false`). They can't settle anything while unconfigured, but they are still reachable (SR-1, SR-2).
+
+### Rollback / forward-fix plan (DBM-01)
+
+- **Pre-deploy capture:** run just before applying the migration, and paste the output into `prod-drift-2026-09-24.md` §3:
+  `select id, tenant_id, invoice_id, amount, provider::text, provider_ref, status::text, created_at from payments where provider not in ('cash','bank');`
+  `select * from platform_integrations where provider = 'telebirr';`
+  Expected from the facts above: 0 payment rows, 1 empty integration row.
+- **Deploy log:** the migration raises notices with the exact row counts (`voided N pending gateway payment(s)`, `deleted N Telebirr platform_integrations row(s)`).
+- **Forward-fix, not revert:** if a voided order later proves to have been paid (it appears on the merchant statement), credit it through `record-fee-payment` as a manual bank payment referencing the provider ref. Never set it back to `pending`, because nothing can settle it any more.
+- **Recovery source:** `audit_trigger` stores the before-image of every voided payment and of the deleted integration row in `audit_logs.old_data`.
+- **Privileges:** re-granting EXECUTE is a one-line forward migration. It is not expected to be needed.
+- **Last resort:** PITR/backup restore. ⚠️ No backup exists today (PITR off, 0 backups), so this option doesn't exist until the owner enables backups (G-06).
+
+### Post-deploy verification (SR-4, SR-7, DBM-05, F6) — each must hold, record in the drift table
+
+| Check | Expect |
+|---|---|
+| `select version from supabase_migrations.schema_migrations where version = '20260924000001'` | 1 row |
+| `select has_function_privilege('service_role','public.settle_gateway_payment(text,public.payment_provider,numeric)','execute')` (and for `cleanup_old_audit_logs()`, and for `anon`/`authenticated`) | all `false` |
+| `select count(*) from vault.secrets where name like 'telebirr%'` | 0 (don't rely on the migration NOTICE) |
+| `select jobid, command from cron.job where command ilike '%cleanup_old_audit_logs%'` | 0 rows (or `cron` schema absent) |
+| `select count(*) from platform_integrations where provider = 'telebirr'` | 0 |
+| `POST /functions/v1/{telebirr-notify,telebirr-query-order,telebirr-generate-keypair,process-fee-payment}` | 404 each |
+
+Order matters (SR-1/SR-2): **apply the migration first**. That removes the old `telebirr-notify`'s ability to call settlement. **Then delete the four functions with no gap**, which removes the unauthenticated `provider_trans_id` write path in the old Failure/Expired branch.
+
 ### Owner actions required before WP-00 can be marked verified-prod
 
 1. Confirm PITR is on and take a manual backup; record the backup id here.
 2. Run the drift commands in `audit/prod-drift-2026-09-24.md` and fill in its table.
 3. Deploy to staging, then production: migrations (incl. `20260924000001`), `supabase functions delete telebirr-notify telebirr-query-order telebirr-generate-keypair process-fee-payment`, redeploy changed functions (`manage-integration-credentials`, `record-fee-payment`, `enroll-finalize-billing`), frontend via `npm run deploy`. Then verify `POST /functions/v1/telebirr-notify` → 404, and grep the served bundle for a marker.
 4. Delete any leftover Telebirr Vault secrets by hand if the migration raised the "could not delete" notice.
-5. DNS: confirm there was no email on `edux.et` (or restore MX/SPF/DKIM/DMARC); verify the wildcard certificate from outside.
+5. DNS / domains (F7): (i) confirm there was no email on `edux.et`, or restore MX/SPF/DKIM/DMARC; (ii) `*.edux.et` is **not attached** to the Vercel project yet (random labels, `admin.` and `staging.` fail the TLS handshake). Add `*.edux.et` to the production project in WP-20.6 step 2, and `staging.edux.et` + `*.staging.edux.et` to a staging project once WP-17 creates it. Then run the `openssl` SAN check. (iii) HSTS preload submission is blocked until the apex serves the app with `includeSubDomains; preload`, which means the WP-20 www→apex flip.
+6. Enable backups (G-06): turn on PITR, or a plan with daily backups, **before** any production write beyond this WP.
+7. Revoke with Ethio Telecom (merchant portal) any Telebirr test credentials or keypair that were ever issued (SR-4). Production never stored any, but testbed credentials may exist.
+8. Accept or reject deviation 1 below (the CI guard allows bare `telebirr` as the manual wallet method until WP-03), as SR-5(d) asks.

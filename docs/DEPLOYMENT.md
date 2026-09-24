@@ -52,7 +52,16 @@ supabase functions delete telebirr-notify
 supabase functions delete telebirr-query-order
 supabase functions delete telebirr-generate-keypair
 supabase functions delete process-fee-payment
+
+# Verify the deletes (a READY/200 from the CLI is not proof). Each must print 404:
+for f in telebirr-notify telebirr-query-order telebirr-generate-keypair process-fee-payment; do
+  printf '%s ' "$f"; curl -s -o /dev/null -w '%{http_code}\n' -X POST "$SUPABASE_URL/functions/v1/$f"
+done
 ```
+
+The list above is not exhaustive. After any change to `supabase/functions/_shared/*`,
+redeploy every function that imports the changed file, and diff the deployed list
+(`supabase functions list`) against `ls supabase/functions` (see the `deploy` skill).
 
 Also set **Authentication → URL Configuration** in the Supabase dashboard:
 Site URL to your deployed app's origin, and add `<your-app>/accept-invite`

@@ -17,7 +17,7 @@
 -- invoice_consolidation.sql.
 -- ============================================================================
 begin;
-select plan(15);
+select plan(19);
 
 -- ---------- (1) audit-log purge contained ----------------------------------
 select ok(not has_function_privilege('anon', 'public.cleanup_old_audit_logs()', 'execute'),
@@ -68,14 +68,32 @@ insert into public.invoice_headers (id, tenant_id, student_id, due_date) values
   ('e6009999-0000-0000-0000-000000000001', 'e6000000-0000-0000-0000-00000000000a', 'e6003333-0000-0000-0000-000000000001', '2026-08-01');
 insert into public.payments (id, tenant_id, invoice_id, amount, provider, provider_ref, status) values
   ('e6006666-0000-0000-0000-000000000001', 'e6000000-0000-0000-0000-00000000000a', 'e6009999-0000-0000-0000-000000000001', 500.00, 'telebirr', 'r6-tb-pending', 'pending'),
-  ('e6007777-0000-0000-0000-000000000002', 'e6000000-0000-0000-0000-00000000000a', 'e6009999-0000-0000-0000-000000000001', 300.00, 'bank',     'r6-bank-pending', 'pending');
+  ('e6007777-0000-0000-0000-000000000002', 'e6000000-0000-0000-0000-00000000000a', 'e6009999-0000-0000-0000-000000000001', 300.00, 'bank',     'r6-bank-pending', 'pending'),
+  ('e6008888-0000-0000-0000-000000000003', 'e6000000-0000-0000-0000-00000000000a', 'e6009999-0000-0000-0000-000000000001', 200.00, 'chapa',    'r6-chapa-pending', 'pending');
 insert into vault.secrets (name, secret) values
   ('telebirr_fabric_app_secret', 'should-be-deleted'),
   ('telebirr_private_key_pem',   'should-be-deleted'),
   ('sms_smsala_api_key',         'must-survive');
 
+-- Mirror Supabase's default grants to the API roles before re-applying, so
+-- the revokes are proven to happen rather than passing vacuously (the shim
+-- does not reproduce those defaults — L-08, fixed properly in WP-01).
+grant execute on function public.cleanup_old_audit_logs() to anon, authenticated, service_role;
+grant execute on function public.settle_gateway_payment(text, public.payment_provider, numeric) to anon, authenticated, service_role;
+
 -- ---------- (3) re-apply the migration inside this transaction -------------
 \ir ../../migrations/20260924000001_r6_hotfix_contain.sql
+
+select ok(not has_function_privilege('service_role', 'public.cleanup_old_audit_logs()', 'execute')
+       and not has_function_privilege('authenticated', 'public.cleanup_old_audit_logs()', 'execute')
+       and not has_function_privilege('anon', 'public.cleanup_old_audit_logs()', 'execute'),
+  're-applying the migration revokes explicitly granted purge EXECUTE from every API role');
+select ok(not has_function_privilege('service_role', 'public.settle_gateway_payment(text, public.payment_provider, numeric)', 'execute')
+       and not has_function_privilege('authenticated', 'public.settle_gateway_payment(text, public.payment_provider, numeric)', 'execute')
+       and not has_function_privilege('anon', 'public.settle_gateway_payment(text, public.payment_provider, numeric)', 'execute'),
+  're-applying the migration revokes explicitly granted settlement EXECUTE from every API role');
+select is((select status::text from public.payments where id = 'e6008888-0000-0000-0000-000000000003'), 'failed',
+  'a pending order from any other gateway provider is voided too (settlement is provider-agnostic)');
 
 select is((select status::text from public.payments where id = 'e6006666-0000-0000-0000-000000000001'), 'failed',
   'a pending Telebirr gateway order is voided, so it can never settle');
@@ -90,6 +108,18 @@ set local role authenticated;
 set local request.jwt.claim.sub = 'e6000001-0000-0000-0000-000000000001';
 select is((select count(*)::int from public.platform_integrations), 3,
   'super_admin sees exactly the 3 SMS providers');
+reset role;
+
+insert into auth.users (instance_id, id, aud, role, email, encrypted_password,
+  email_confirmed_at, created_at, updated_at, confirmation_token, email_change,
+  email_change_token_new, recovery_token)
+values ('00000000-0000-0000-0000-000000000000', 'e6000002-0000-0000-0000-000000000002', 'authenticated', 'authenticated', 'r6-admin@test.example', crypt('x', gen_salt('bf')), now(), now(), now(), '', '', '', '');
+insert into public.users (id, tenant_id, role, full_name, email) values
+  ('e6000002-0000-0000-0000-000000000002', 'e6000000-0000-0000-0000-00000000000a', 'school_admin', 'R6 School Admin', 'r6-admin@test.example');
+set local role authenticated;
+set local request.jwt.claim.sub = 'e6000002-0000-0000-0000-000000000002';
+select is((select count(*)::int from public.platform_integrations), 0,
+  'a non-super_admin (school_admin) sees zero platform_integrations rows, config included');
 reset role;
 
 select * from finish();

@@ -16,7 +16,8 @@
 --    webhook (C-01) is removed rather than fixed, together with
 --    telebirr-query-order, telebirr-generate-keypair and process-fee-payment
 --    (whose Origin-derived redirect URL was L-06). The database side:
---      - pending gateway orders are voided, so nothing can settle later;
+--      - pending gateway orders (any provider other than the manual
+--        'cash'/'bank') are voided, so nothing can settle them later;
 --      - the Telebirr platform_integrations row and its Vault secrets are
 --        deleted, and the provider check no longer allows 'telebirr';
 --      - telebirr_token_cache (cached fabric tokens) is dropped;
@@ -47,13 +48,24 @@ exception
 end $$;
 
 -- ---------- 2. Telebirr gateway decommission -------------------------------
--- 2a. Void in-flight gateway orders so nothing can settle them later.
-update public.payments
-   set status = 'failed'
- where provider = 'telebirr' and status = 'pending';
+-- 2a + 2b. Void in-flight gateway orders (every non-manual provider, since
+-- settle_gateway_payment() is provider-agnostic) and delete the Telebirr
+-- integration row. Row counts are reported so the deploy log records exactly
+-- what changed. Both changes are captured by audit_trigger (old_data), which
+-- is the recovery source. The forward-fix plan is in audit/FIXES_VERIFIED_R6.md.
+do $$
+declare n integer;
+begin
+  update public.payments
+     set status = 'failed'
+   where provider not in ('cash', 'bank') and status = 'pending';
+  get diagnostics n = row_count;
+  raise notice 'R6 WP-00: voided % pending gateway payment(s)', n;
 
--- 2b. Integration row, provider allow-list and secrets.
-delete from public.platform_integrations where provider = 'telebirr';
+  delete from public.platform_integrations where provider = 'telebirr';
+  get diagnostics n = row_count;
+  raise notice 'R6 WP-00: deleted % Telebirr platform_integrations row(s)', n;
+end $$;
 
 alter table public.platform_integrations
   drop constraint if exists platform_integrations_provider_check;
@@ -65,6 +77,7 @@ do $$
 begin
   delete from vault.secrets
    where name in ('telebirr_fabric_app_secret', 'telebirr_private_key_pem');
+  raise notice 'R6 WP-00: Telebirr Vault secret deletion attempted; verify 0 remain';
 exception
   when insufficient_privilege or undefined_table or invalid_schema_name then
     raise notice 'R6 WP-00: could not delete Telebirr Vault secrets automatically (%). Delete them by hand: telebirr_fabric_app_secret, telebirr_private_key_pem.', sqlerrm;
