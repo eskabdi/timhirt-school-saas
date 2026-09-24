@@ -62,15 +62,40 @@ The session later found `SUPABASE_ACCESS_TOKEN` and `VERCEL_TOKEN` in its enviro
 | Vercel domains | `edux.et`, `www`, `*.edux.et` | `edux.et` (308 → `www.edux.et`), `www.edux.et`, `timhirt-school-saas.vercel.app`. **`*.edux.et` is not attached to the project**, so wildcard DNS resolves but the project serves no tenant subdomains yet (WP-20). |
 | Vercel DNS records (MX/TXT) | preserved | Could not list: the Vercel token lacks the `domainRecord:list` scope. DoH shows no MX/SPF/DMARC. |
 
-## 3. Record after deploying this WP
+## 3. Deploy of WP-00 (2026-09-24 ~17:22–17:35 UTC, owner-approved)
 
-| Check | Expected after WP-00 deploy | Observed | Date |
-|---|---|---|---|
-| Migrations unapplied on prod | none (latest `20260924000001`) | _pending_ | |
-| Schema diff | empty | _pending_ | |
-| Edge Functions deployed but not in repo | none: `telebirr-notify`, `telebirr-query-order`, `telebirr-generate-keypair`, `process-fee-payment` deleted | _pending_ | |
-| Edge Functions in repo but not deployed | none | _pending_ | |
-| `POST /functions/v1/telebirr-notify` | 404 | _pending_ | |
-| Round 5 marker in served bundle (CLAUDE.md "READY is not shipped") | present | _pending_ | |
-| PITR enabled (step 1) | yes | _pending_ | |
-| Manual backup id before deploy (step 1) | recorded | _pending_ | |
+Owner approval (2026-09-24): *"Deploy to production"* and *"Keep telebir"* (deviation 1 accepted).
+Staging was skipped because no staging project exists (WP-17 creates it); the owner approved production directly. PITR was still **off**, with 0 backups.
+
+**Pre-deploy capture** (full output kept in the session scratchpad):
+- Gateway payments (`provider not in ('cash','bank')`): **0 rows**.
+- Telebirr integration row: 1 row, `configured=false`, `config={}`.
+- Telebirr Vault secrets: none. Token cache: 0 rows. `cron` schema: absent.
+- **Live risk confirmed before the fix:** `cleanup_old_audit_logs()` ACL `{=X/postgres,…,anon=X,authenticated=X,service_role=X}`, i.e. callable by anyone (H-01/RV-05). `settle_gateway_payment` ACL `{postgres=X,service_role=X}`, i.e. reachable through the old unsigned `telebirr-notify` (C-01).
+
+**Steps executed:**
+1. Migration `20260924000001` applied in one transaction through the Management API, together with its `schema_migrations` row.
+2. Deleted Edge Functions `telebirr-notify`, `telebirr-query-order`, `telebirr-generate-keypair` and `process-fee-payment` (each `DELETE` returned 200), immediately after step 1.
+3. Redeployed `manage-integration-credentials` (v6, includes `schema.ts`), `record-fee-payment` (v6), `enroll-finalize-billing` (v4), `onboard-tenant` (v8), `process-export-job` (v3), `process-import-job` (v2) and `run-payroll` (v7). Used `supabase functions deploy --use-api` (CLI 2.117.0), which bundles server-side and takes `verify_jwt` from `config.toml`.
+4. Frontend: `vercel deploy --prod` built on Vercel's servers (`Running "npm run build"`, no `--prebuilt`). The first attempts failed with a bare `fetch failed`; the deployment list confirmed nothing had shipped, and a retry succeeded. Deployment `timhirt-school-saas-4blhs4gcv` is READY, target production, commit `150f99b`, aliased to `www.edux.et`, `edux.et` and `timhirt-school-saas.vercel.app`.
+
+| Check | Expected | Observed (2026-09-24) |
+|---|---|---|
+| Migration `20260924000001` on prod | 1 row | ✅ present |
+| EXECUTE on `cleanup_old_audit_logs()` / `settle_gateway_payment()` for anon, authenticated, service_role | all false | ✅ all 6 false |
+| `platform_integrations` Telebirr rows / provider CHECK | 0 / SMS only | ✅ 0 / `sms_smsala, sms_afromessage, sms_geezsms` |
+| `telebirr_token_cache` | dropped | ✅ `to_regclass` null |
+| Vault `telebirr%` secrets | 0 | ✅ 0 |
+| `cron.job` purge jobs | 0 or no cron | ✅ `cron` not installed |
+| Pending gateway payments after | 0 | ✅ 0; real payments untouched (6 bank + 4 cash succeeded) |
+| `POST /functions/v1/{telebirr-notify,telebirr-query-order,telebirr-generate-keypair,process-fee-payment}` | 404 | ✅ 404 × 4 (control `verify-id` → 400) |
+| Edge Functions deployed vs repo | equal | ✅ 28 = 28, none missing, none extra |
+| `verify_jwt` vs `config.toml` | equal | ✅ no mismatches |
+| JWT-protected functions without a token | 401 | ✅ `manage-integration-credentials`, `run-payroll` → 401 |
+| Served bundle has env baked in | project ref, anon key | ✅ 6 project-ref hits, anon JWT present |
+| Served bundle free of gateway code | 0 | ✅ 0 hits across all JS chunks |
+| Served bundle carries this WP's change | marker present | ✅ "This version has no online payment gateway" found |
+| Fonts served as real TTF | `00010000` | ✅ Tayitu, Jiret, Noto |
+| `supabase db diff` (full schema diff) | empty | ⚠️ Not run: needs the database password, which this session doesn't have. The migration set is equal (106 = 106). |
+
+**Repo = production** at commit `150f99b` of branch `claude/timhirt-security-audit-kan0ei` (PR #7, not yet merged). Merge PR #7 so the default branch matches what is live.

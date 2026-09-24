@@ -13,10 +13,10 @@ One entry per Work Package (fix plan §0 Rule 10). Status per finding:
 
 | ID | Status | Evidence |
 |---|---|---|
-| C-01 (unsigned Telebirr webhook) | **fixed (code)** · verified-staging ✗ · verified-prod ✗ | `telebirr-notify` directory deleted; `settle_gateway_payment` unreachable from every API role; `r6_hotfix.sql` #4–#6; CI guard `scripts/ci/no-payment-gateway.sh`. Production 404 not yet verified: the deployed function must be deleted (`audit/prod-drift-2026-09-24.md`). |
-| L-06 (Origin-derived redirect) | **fixed (code)** | `process-fee-payment` removed with the gateway. |
-| RV-05 (anon-callable audit purge) | **fixed (code)** | `r6_hotfix.sql` #1–#3: `cleanup_old_audit_logs()` not executable by anon / authenticated / service_role. |
-| G-09 (repo ≠ production) | **open — drift measured, deploy pending owner approval** | Read-only reconciliation done with the owner-authorised session tokens (`audit/prod-drift-2026-09-24.md` §2, including the access record). The deploy (§3) waits for the owner's explicit go-ahead. |
+| C-01 (unsigned Telebirr webhook) | **verified-prod** (2026-09-24) · verified-staging n/a (no staging project; owner approved prod-direct) | Repo: gateway removed, `r6_hotfix.sql`, CI guard. Prod: 4 endpoints → 404; settlement EXECUTE false for anon/authenticated/service_role (`prod-drift-2026-09-24.md` §3). |
+| L-06 (Origin-derived redirect) | **verified-prod** | `process-fee-payment` removed from the repo and deleted in prod (404). |
+| RV-05 (anon-callable audit purge) | **verified-prod** | Pre-deploy ACL showed anon/authenticated/service_role EXECUTE. Post-deploy all false. `r6_hotfix.sql` #1–#3, #11. |
+| G-09 (repo ≠ production) | **closed for WP-00 scope** | Production = commit `150f99b`: migrations 106 = 106, functions 28 = 28 with matching `verify_jwt`, frontend built from `150f99b`. Remaining: merge PR #7 so the default branch equals production; full `db diff` needs the DB password. |
 
 ### Implementation
 
@@ -109,13 +109,18 @@ Order matters (SR-1/SR-2): **apply the migration first**. That removes the old `
 - test-verifier F5: `manage-integration-credentials` schema moved to `schema.ts` with a Deno test. **Deploy note:** when deploying this function through the Management API multipart endpoint, include `manage-integration-credentials/schema.ts` alongside `index.ts` and `_shared/security.ts` (the CLI bundles it automatically).
 - regression-guardian RG-1 (stale "Configure Telebirr" text in en/am/om), RG-2 (merged locale line restored; line counts equal to base), RG-3 (voided-order assertion in `webhook_settlement.sql`), RG-4 (production `verify_jwt` values recorded in drift §2; backlog row closed).
 
-### Owner actions required before WP-00 can be marked verified-prod
+### Owner decisions (2026-09-24)
 
-1. Confirm PITR is on and take a manual backup; record the backup id here.
-2. Run the drift commands in `audit/prod-drift-2026-09-24.md` and fill in its table.
-3. Deploy to staging, then production: migrations (incl. `20260924000001`), `supabase functions delete telebirr-notify telebirr-query-order telebirr-generate-keypair process-fee-payment`, redeploy changed functions (`manage-integration-credentials`, `record-fee-payment`, `enroll-finalize-billing`), frontend via `npm run deploy`. Then verify `POST /functions/v1/telebirr-notify` → 404, and grep the served bundle for a marker.
-4. Delete any leftover Telebirr Vault secrets by hand if the migration raised the "could not delete" notice.
-5. DNS / domains (F7): (i) confirm there was no email on `edux.et`, or restore MX/SPF/DKIM/DMARC; (ii) `*.edux.et` is **not attached** to the Vercel project yet (random labels, `admin.` and `staging.` fail the TLS handshake). Add `*.edux.et` to the production project in WP-20.6 step 2, and `staging.edux.et` + `*.staging.edux.et` to a staging project once WP-17 creates it. Then run the `openssl` SAN check. (iii) HSTS preload submission is blocked until the apex serves the app with `includeSubDomains; preload`, which means the WP-20 www→apex flip.
-6. Enable backups (G-06): turn on PITR, or a plan with daily backups, **before** any production write beyond this WP.
-7. Revoke with Ethio Telecom (merchant portal) any Telebirr test credentials or keypair that were ever issued (SR-4). Production never stored any, but testbed credentials may exist.
-8. Accept or reject deviation 1 below (the CI guard allows bare `telebirr` as the manual wallet method until WP-03), as SR-5(d) asks.
+- **Deploy approved:** "Deploy to production". Staging skipped (none exists). PITR still off at deploy time.
+- **Deviation 1 accepted:** "Keep telebir". `telebirr` stays as a *manual* payment method (wallet transfer + receipt URL) until WP-03's bank catalogue. The CI guard keeps banning gateway identifiers only. This closes test-verifier F2 and security SR-5(d).
+
+### Owner actions still open
+
+1. ~~PITR/backup before deploy~~. Deploy approved without a backup. **Enable PITR or daily backups now (G-06)**; there is still no restore point.
+2. ~~Drift reconciliation~~: done (`prod-drift-2026-09-24.md` §2, §3).
+3. ~~Deploy + 404 verification~~: done and verified 2026-09-24.
+4. ~~Leftover Vault secrets~~: verified 0.
+5. DNS / domains (F7): (i) confirm there was never email on `edux.et`, or restore MX/SPF/DKIM/DMARC; (ii) attach `*.edux.et` in WP-20.6; (iii) HSTS preload waits for the WP-20 www→apex flip.
+6. Revoke with Ethio Telecom any Telebirr testbed credentials or keypair that were ever issued (SR-4).
+7. **Merge PR #7** so the default branch matches production.
+8. **Rotate `SUPABASE_ACCESS_TOKEN` and `VERCEL_TOKEN`** after the R6 deploys (SR-8, CLAUDE.md).
