@@ -1,6 +1,6 @@
 # Production drift reconciliation (R6 WP-00 step 4)
 
-**Status: read-only reconciliation DONE (§2); deploy PENDING owner approval (§3).**
+**Status: read-only reconciliation DONE (§2); WP-00 deploy DONE and verified 2026-09-24 (§3).**
 
 **Access record (SR-8).** At first this session had no credentials and this
 runbook was written for the owner to run. Later on 2026-09-24 the owner
@@ -45,7 +45,7 @@ supabase functions list                      # compare with: ls supabase/functio
 
 ## 2. Observed (2026-09-24, Management API + Vercel API, read-only)
 
-The session later found `SUPABASE_ACCESS_TOKEN` and `VERCEL_TOKEN` in its environment. The read-only checks were run with them; no values were printed or stored.
+See the access record at the top of this file.
 
 | Check | Expected | Observed |
 |---|---|---|
@@ -62,12 +62,12 @@ The session later found `SUPABASE_ACCESS_TOKEN` and `VERCEL_TOKEN` in its enviro
 | Vercel domains | `edux.et`, `www`, `*.edux.et` | `edux.et` (308 → `www.edux.et`), `www.edux.et`, `timhirt-school-saas.vercel.app`. **`*.edux.et` is not attached to the project**, so wildcard DNS resolves but the project serves no tenant subdomains yet (WP-20). |
 | Vercel DNS records (MX/TXT) | preserved | Could not list: the Vercel token lacks the `domainRecord:list` scope. DoH shows no MX/SPF/DMARC. |
 
-## 3. Deploy of WP-00 (2026-09-24 ~17:22–17:35 UTC, owner-approved)
+## 3. Deploy of WP-00 (2026-09-24 ~17:21–17:29 UTC, owner-approved)
 
 Owner approval (2026-09-24): *"Deploy to production"* and *"Keep telebir"* (deviation 1 accepted).
 Staging was skipped because no staging project exists (WP-17 creates it); the owner approved production directly. PITR was still **off**, with 0 backups.
 
-**Pre-deploy capture** (full output kept in the session scratchpad):
+**Pre-deploy capture** (raw output: `audit/evidence/wp00-prod-predeploy-capture-20260924.txt`):
 - Gateway payments (`provider not in ('cash','bank')`): **0 rows**.
 - Telebirr integration row: 1 row, `configured=false`, `config={}`.
 - Telebirr Vault secrets: none. Token cache: 0 rows. `cron` schema: absent.
@@ -97,5 +97,7 @@ Staging was skipped because no staging project exists (WP-17 creates it); the ow
 | Served bundle carries this WP's change | marker present | ✅ "This version has no online payment gateway" found |
 | Fonts served as real TTF | `00010000` | ✅ Tayitu, Jiret, Noto |
 | `supabase db diff` (full schema diff) | empty | ⚠️ Not run: needs the database password, which this session doesn't have. The migration set is equal (106 = 106). |
+
+Timeline: pre-deploy capture ~17:21Z → migration ~17:22Z → function deletes ~17:23Z → function redeploys 17:24–17:25Z → Vercel production deployment created 17:28:38Z. The records commit (`c89ccd4`, 17:30:49Z) came after all of these. **Raw post-deploy evidence, re-captured 2026-09-24T17:37:24Z:** `audit/evidence/wp00-prod-verification-20260924T173724Z.txt` (every check above reproduced).
 
 **Repo = production** at commit `150f99b` of branch `claude/timhirt-security-audit-kan0ei` (PR #7, not yet merged). Merge PR #7 so the default branch matches what is live.

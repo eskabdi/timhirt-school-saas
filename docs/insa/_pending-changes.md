@@ -53,3 +53,16 @@ inventory, residual-risk register) and then empties this file.
 - NS delegated to Vercel (verified 2026-09-24). Architecture doc must show:
   Vercel DNS, wildcard `*.edux.et`, and the apex → `www` redirect currently in
   place (the plan wants `www` → apex; see WP-00 record).
+
+### WP-00 owner decisions and accepted deviations (→ WP-18 `10-residual-risk-register.md`)
+
+| ID | Decision | Owner / date | Scope | Expiry / exit condition | Compensating controls |
+|---|---|---|---|---|---|
+| D-01 | Keep `telebirr` as a **manual** payment method (wallet transfer + receipt URL) and allow the bare word in the CI guard. Fix plan WP-03.1 step 5 wanted every `telebirr` identifier gone. | Owner (eskabdi), 2026-09-24: "Keep telebir" | `registration_payment_method`, `bank_verification_domains`, admission/bank-verification forms, `record-fee-payment` enum | Ends in WP-03, when the bank catalogue replaces the method and the CI guard bans every `telebirr` identifier | The method never credits an invoice by itself (staff record or verify payments). The gateway identifiers themselves are banned by `scripts/ci/no-payment-gateway.sh`, and the gateway endpoints return 404 in production. |
+| D-02 | Deploy WP-00 **directly to production without staging**. | Owner, 2026-09-24: "Deploy to production" (after being told no staging project exists) | WP-00 deploy only | Ends in WP-17 (staging project). Every later WP deploys to staging first. | Full local gate (pgTAP 54/54 incl. `r6_hotfix` 21/21, Deno, Vitest, build); mutation-tested by the db-migration reviewer; small, permission-only migration; raw pre/post evidence in `audit/evidence/`. |
+| D-03 | Deploy WP-00 with **PITR off and no backup** (plan step 1 not met). | Owner, 2026-09-24: approved the deploy after being told PITR was off with 0 backups | WP-00 deploy only. **Not** a standing waiver: every later production write still needs a backup. | Ends when the owner enables PITR or daily backups (G-06, WP-19). The owner should do this before the next production write. | The migration's data effect was empty (0 gateway payments, empty config row, 0 secrets). The targeted pre-deploy capture `audit/evidence/wp00-prod-predeploy-capture-20260924.txt` plus `audit_logs.old_data` are the recovery record. |
+
+**Not yet decided (open, needs the owner):**
+- **O-01:** plan WP-00 step 4 `supabase db diff --linked` was not run. The session has no database password. Evidence instead: migrations 106 = 106, functions 28 = 28. Either provide the DB password for the diff, or accept this as D-04.
+- **O-02:** plan WP-00 step 0: did `edux.et` ever have email? No MX/SPF/DMARC records exist now.
+- **O-03:** release-gatekeeper GK-1. Only 5 of the reviewers named in fix plan §0A.2/§0A.6 ran for WP-00 (WP-00 step 6 names 3). Either run the other 10 (tenant-isolation, authz, code-quality, conventions, insa-docs, api-contract, frontend-security, i18n-a11y, supply-chain, payments-integrity), or waive them for WP-00, which was the bootstrap WP when the agents were being installed.

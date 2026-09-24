@@ -1,0 +1,16 @@
+# R6 WP-00 production PRE-deploy capture — raw output (captured 2026-09-24 ~17:21Z, before migration 20260924000001)
+
+## gateway payments
+[]
+## telebirr integration row
+[{"provider":"telebirr","display_name":"Telebirr (H5 C2B Web Payment)","configured":false,"config":{},"updated_at":"2026-07-15 21:55:37.382426+00"}]
+## telebirr vault secret names
+[]
+## function ACLs
+[{"fn":"cleanup_old_audit_logs()","proacl":"{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}"},{"fn":"settle_gateway_payment(text,payment_provider,numeric)","proacl":"{postgres=X/postgres,service_role=X/postgres}"}]
+## token cache rows
+[{"count":0}]
+## cron jobs
+{"message":"Failed to run sql query: ERROR:  42P01: relation \"cron.job\" does not exist\nLINE 1: select jobid, command from cron.job\n                                   ^\n"}
+## provider check
+[{"pg_get_constraintdef":"CHECK ((provider = ANY (ARRAY['telebirr'::text, 'sms_smsala'::text, 'sms_afromessage'::text, 'sms_geezsms'::text])))"}]

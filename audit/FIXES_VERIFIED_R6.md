@@ -23,11 +23,11 @@ One entry per Work Package (fix plan §0 Rule 10). Status per finding:
 | Step (plan WP-00) | Done | Notes |
 |---|---|---|
 | 0. `edux.et` DNS checklist | Partial | See the DNS evidence below. The certificate check can't be done from this sandbox (TLS is re-terminated by the egress proxy). |
-| 1. PITR confirmed + manual backup id | **Owner** | Needs the production dashboard. |
+| 1. PITR confirmed + manual backup id | **Not met, owner-accepted** | PITR off, 0 backups at deploy time. The owner approved the deploy anyway; a targeted pre-deploy capture (`audit/evidence/wp00-prod-predeploy-capture-20260924.txt`) was the only recovery record. Tracked in `docs/insa/_pending-changes.md` (D-03) and G-06. |
 | 2. Contain the purge (hotfix migration) | Yes | `supabase/migrations/20260924000001_r6_hotfix_contain.sql` |
-| 3. Remove Telebirr (WP-03.1) | Yes (repo) · **Owner** (deployed functions) | 4 functions + `_shared/telebirr.ts` deleted; `config.toml`, `manage-integration-credentials`, `IntegrationsPage`, `InvoiceDetailPage`, `InvoicesPage`, 13 locale keys × 3 locales, `DEPLOYMENT.md` updated. Deployed copies must be deleted with `supabase functions delete …`. |
-| 4. Reconcile drift | **Owner** | Commands in `audit/prod-drift-2026-09-24.md`. |
-| 5. Deploy Round 5 + EC-today fix + this WP | **Owner** | Not done from this session (no credentials, and it needs explicit approval). |
+| 3. Remove Telebirr (WP-03.1) | **Yes (repo + prod)** | 4 functions + `_shared/telebirr.ts` deleted in the repo; deleted in prod 2026-09-24 (404 × 4, `audit/evidence/wp00-prod-verification-*.txt`). `config.toml`, `manage-integration-credentials`, `IntegrationsPage`, `InvoiceDetailPage`, `InvoicesPage`, 13 locale keys × 3 locales and `DEPLOYMENT.md` updated. |
+| 4. Reconcile drift | **Yes, except full `db diff`** | Migrations 106 = 106 and functions 28 = 28 with matching `verify_jwt`; frontend commit verified in the served bundle. `supabase db diff --linked` not run: it needs the DB password, which this session doesn't have (D-04). |
+| 5. Deploy Round 5 + EC-today fix + this WP | **Yes (prod, no staging)** | Owner-approved 2026-09-24; staging doesn't exist (D-02). Details and timeline in `audit/prod-drift-2026-09-24.md` §3. |
 | 6. Install subagent workflow | Yes | 21 agents in `.claude/agents/` (generated from plan Appendix B, B.0 preamble inlined) + `.claude/commands/wp-run.md`; plan copied to `docs/audits/timhirt-production-fix-plan.md`. |
 
 ### Deviations from the plan
@@ -105,7 +105,7 @@ Order matters (SR-1/SR-2): **apply the migration first**. That removes the old `
 
 ### Review round 3 fixes
 
-- test-verifier F1: `r6_hotfix.sql` now installs a stand-in `cron.job`, and asserts that the purge job is unscheduled and unrelated jobs are kept (#11–#12 of 21).
+- test-verifier F1: `r6_hotfix.sql` now installs a stand-in `cron.job`, and asserts that the purge job is unscheduled and unrelated jobs are kept (#14–#15 of 21).
 - test-verifier F5: `manage-integration-credentials` schema moved to `schema.ts` with a Deno test. **Deploy note:** when deploying this function through the Management API multipart endpoint, include `manage-integration-credentials/schema.ts` alongside `index.ts` and `_shared/security.ts` (the CLI bundles it automatically).
 - regression-guardian RG-1 (stale "Configure Telebirr" text in en/am/om), RG-2 (merged locale line restored; line counts equal to base), RG-3 (voided-order assertion in `webhook_settlement.sql`), RG-4 (production `verify_jwt` values recorded in drift §2; backlog row closed).
 
@@ -124,3 +124,62 @@ Order matters (SR-1/SR-2): **apply the migration first**. That removes the old `
 6. Revoke with Ethio Telecom any Telebirr testbed credentials or keypair that were ever issued (SR-4).
 7. **Merge PR #7** so the default branch matches production.
 8. **Rotate `SUPABASE_ACCESS_TOKEN` and `VERCEL_TOKEN`** after the R6 deploys (SR-8, CLAUDE.md).
+
+### Release gatekeeper — WP-00 (2026-09-24, HEAD `c89ccd4`)
+
+**VERDICT: FAIL.** There are no open code or test blockers, and every local gate reproduces green. The WP fails for four reasons: required reviewers are missing, recorded human acceptances are not in the place §0A.4 requires, the production evidence is not reproducible, and WP-00 steps 1 and 4 are incomplete. Review is at the §0A.1 three-round cap, so this is escalated to the owner.
+
+**Reviewer verdicts collected** (`/tmp/review-*.md`): security-reviewer FAIL (round 2, `5dc3868`); db-migration-reviewer PASS (round 2, `5dc3868`); infra-config-reviewer PASS (round 1, `afce13d`); test-verifier FAIL (`5dc3868`); regression-guardian PASS (`5dc3868`). No reviewer verdict covers `551e5a2`, `150f99b`, `c89ccd4` or the production deploy.
+
+**Missing required verdicts:** under §0A.2, §0A.3 and the §0A.6 WP-00 row ("in addition to the 8 core"), these verdicts are required and absent. Core: tenant-isolation-auditor, authz-reviewer, code-quality-reviewer, conventions-guardian, insa-docs-auditor. Triggered: api-contract-reviewer (§0A.6 row, and `supabase/functions/**`), frontend-security-reviewer (`src/**/*.tsx`), i18n-a11y-reviewer (`src/locales/**`), supply-chain-reviewer (`.github/workflows/ci.yml` adds `npx -y deno@2.9.6`), and payments-integrity-reviewer (the migration updates `payments`, and the diff touches fee functions). WP-00 step 6 names only security, db-migration and infra-config. The plan contradicts itself here, and no owner waiver is recorded.
+
+**Gate re-run by the gatekeeper on `c89ccd4` (clean export):**
+- `tsc`: 0. `eslint src`: 0. `vitest`: 6 files / 50 tests. `check:i18n`: 0. `check:locales` against the base: parity OK. `build`: OK.
+- Deno tests: 3/3. `no-payment-gateway.sh`: ok. It fails on a planted `merchOrderId`, on a `chapa-webhook` directory, and on the base tree.
+- pgTAP on a private DB: 106 migrations, 54/54 suites, `r6_hotfix` 21/21, `webhook_settlement` 10/10.
+- Mutation checks: removing the cron unschedule fails r6_hotfix #14 and #15. Letting settlement accept `failed` orders fails webhook_settlement #9 and #10.
+- The Vitest scope change drops no existing test.
+- The repo has 106 migrations and 28 functions. That count matches drift §3.
+- The redeploy set covers every importer of `_shared/ethiopian-date.ts`.
+
+**Closed (verified by the gatekeeper):**
+- test-verifier: F1 (cron), F5 (Deno schema test), F6.
+- regression-guardian: RG-1 to RG-4.
+- db-migration-reviewer: DBM-07 and DBM-08.
+- infra-config-reviewer: F1 to F6.
+- security-reviewer: SR-9.
+
+**Tests added:** `r6_hotfix.sql` (21 assertions), `webhook_settlement.sql` +2, `manage-integration-credentials/schema.test.ts` (3), and the CI guard `scripts/ci/no-payment-gateway.sh`.
+
+**What must change for PASS:**
+1. **GK-1 (major, required reviewers missing).** Either run the 10 missing reviewers, or have the owner record a one-time WP-00 bootstrap waiver and fix the step 6 / §0A.6 conflict in the plan. Record the waiver in `docs/insa/_pending-changes.md`.
+2. **GK-2 (major, acceptance not recorded where §0A.4 requires it).** Three owner decisions exist only in `audit/`:
+   - deviation 1 (bare `telebirr` allowed until WP-03; plan WP-03.1 step 5 is unchanged);
+   - skipping staging for "404 on staging" and for step 5 (until WP-17);
+   - deploying with PITR off and no backup.
+
+   Record each one in `docs/insa/_pending-changes.md` (no residual-risk register exists yet) with the owner, date, decision, scope and expiry. The owner's words were recorded by the implementer, so the gatekeeper cannot confirm them independently.
+3. **GK-3 (major, not verifiable).** C-01 and L-06 are marked "verified-prod". They rest only on the summary table in drift §3. No raw post-deploy output is kept: no curl status lines, no SQL results, no `functions list`. The pre-deploy capture exists only in an ephemeral `/tmp` scratchpad. It matches §3, but it is not committed. The timeline is also inconsistent: the deploy window "~17:22–17:35 UTC" ends after the `c89ccd4` commit time (17:30:49 UTC), and that commit already records the deploy as verified. Fix: re-run the `docs/DEPLOYMENT.md` 404 loop and the six post-deploy SQL checks, commit the timestamped raw output (drift §3 or `audit/evidence/`), and correct the timeline.
+4. **GK-4 (major, WP-00 steps incomplete).**
+   - Step 1: PITR is off, and there are 0 backups and no backup id.
+   - Step 4: `supabase db diff --linked` was not run. G-09 is marked "closed for WP-00 scope" on migration-list equality and function-name counts only.
+   - Step 0: the mail-record question is unanswered.
+
+   Fix: enable PITR or backups and record the backup id, run the schema diff and record it, and answer the mail question. Alternatively, the owner accepts each gap as in GK-2.
+
+**Open minors → `audit/backlog.md`:**
+- Stale records: `FIXES_VERIFIED_R6` Implementation table rows 1 and 3–5, the drift header line 3, and the duplicated drift line 48. The cron assertion numbers (#14–#15, not #11–#12) are also wrong.
+- No UI test shows that IntegrationsPage lists only SMS providers.
+- SR-8: token rotation.
+- SR-11: the guard does not check provider hosts.
+- SR-12: upload-admission-document trusts X-Forwarded-For and the client MIME type.
+- Infra F7: `*.edux.et` is not attached and the certificate is unverified.
+- Telebirr testbed credentials have not been revoked.
+
+**Residual risks (live today):**
+- No restore point exists in production (G-06).
+- No staging environment exists.
+- `telebirr` remains as a manual method.
+- Parents have no in-app payment action until WP-03.
+- The audit purge is disabled, so audit logs grow without bound until WP-08 and WP-10.
+- PR #7 is unmerged, so the default branch does not equal production.
