@@ -26,16 +26,8 @@ verify_enabled = true
 
 [functions.run-payroll]
 verify_jwt = true
-[functions.process-fee-payment]
-verify_jwt = true
 [functions.manage-integration-credentials]
 verify_jwt = true                      # super_admin only, checked in-code
-[functions.telebirr-generate-keypair]
-verify_jwt = true                      # super_admin only, checked in-code
-[functions.telebirr-notify]
-verify_jwt = false                     # public webhook, no inbound sig verification yet -- see _shared/telebirr.ts
-[functions.telebirr-query-order]
-verify_jwt = true                      # school_admin/accountant, checked in-code
 
 [functions.onboard-tenant]
 verify_jwt = true

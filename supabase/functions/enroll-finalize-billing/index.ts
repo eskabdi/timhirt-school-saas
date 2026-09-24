@@ -5,8 +5,7 @@
 // matching payment + receipt) for a freshly-enrolled student.
 //
 // Runs internally with adminClient (service_role) -- this function's own
-// requireRole() IS the authZ, same pattern process-fee-payment already uses
-// for inserting gateway payments. This is deliberate, not a shortcut: RLS on
+// requireRole() IS the authZ. This is deliberate, not a shortcut: RLS on
 // fee_invoices/payments (invoices_write / payments_manual_insert) only
 // allows school_admin/accountant, but enrollment in this app is normally
 // performed by a registrar -- a direct client-side insert throws for the

@@ -8,8 +8,7 @@
 // invoice_id (20260820000001) is a header id, not a single fee_invoices row
 // -- a consolidated invoice can carry several fee items, and one payment here
 // is meant to settle the whole bill (or whatever part of it the amount
-// covers). Reads the header via ctx.userClient (RLS is the authZ, same as
-// process-fee-payment) and inserts the payments row via ctx.userClient too
+// covers). Reads the header via ctx.userClient (RLS is the authZ) and inserts the payments row via ctx.userClient too
 // (not adminClient) so payments_manual_insert stays the real enforcement and
 // apply_manual_payment_trg allocates the amount across the header's unpaid
 // line items exactly as it did for a single invoice before this function
@@ -53,7 +52,7 @@ Deno.serve(async (req) => {
     if (!parsed.success) return errors.badRequest();
     const p = parsed.data;
 
-    // AuthZ via RLS: invisible header -> null -> 400, same as process-fee-payment.
+    // AuthZ via RLS: invisible header -> null -> 400.
     const { data: header } = await ctx.userClient.from("invoice_headers")
       .select("id, tenant_id, student_id").eq("id", p.invoice_id).maybeSingle();
     if (!header) return errors.badRequest();

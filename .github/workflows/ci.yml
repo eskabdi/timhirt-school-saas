@@ -29,6 +29,8 @@ jobs:
         run: npm run check:i18n
       - name: i18n — locale parity and no wholesale reformat
         run: npm run check:locales -- "${{ github.event.pull_request.base.sha || 'HEAD~1' }}"
+      - name: No online payment gateway (R6 WP-00, C-01)
+        run: bash scripts/ci/no-payment-gateway.sh
       - run: npm run build
 
   # RLS + payroll SoD + webhook-settlement pgTAP suites — supabase/tests/rls/*.sql

@@ -2,69 +2,42 @@
 // [INSA-style category: INTERNAL — see §21.9 on what "INSA category" labels
 // mean for this codebase] manage-integration-credentials
 // AuthZ: super_admin only. The ONLY write path into Supabase Vault for
-// gateway/SMS-provider SECRETS (migration 011), and into
-// platform_integrations.config for their non-secret identifiers (migration
-// ..._telebirr_gateway). Secret values are never echoed back in the response
+// SMS-provider SECRETS (migration 011), and into platform_integrations.config
+// for their non-secret identifiers. Secret values are never echoed back in the response
 // — only a "configured" boolean and timestamp. Each provider has a fixed
 // allow-list of expected secret AND config keys; anything outside that list,
 // or a partial secret set, is rejected rather than silently stored (a
 // half-configured provider fails silently later, which is worse than
 // refusing it up front).
 //
-// Chapa and Stripe are canceled providers -- posting either now gets a clean
-// 400 from the enum, not silent acceptance. Telebirr's `configured` flag is
-// a stricter three-part check (secret + required config + a generated
-// keypair) rather than the older providers' "all listed keys were written"
-// rule -- see computeTelebirrConfigured() below.
+// Chapa, Stripe and the Telebirr online gateway (decommissioned in R6 WP-00,
+// C-01) are not providers -- posting any of them gets a clean 400 from the
+// enum, not silent acceptance.
 // ============================================================================
 import { z } from "npm:zod@3";
-import { SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { requireRole, errors, json, rateLimit, corsHeaders } from "../_shared/security.ts";
 
-const PROVIDERS = ["telebirr", "sms_smsala", "sms_afromessage", "sms_geezsms"] as const;
+const PROVIDERS = ["sms_smsala", "sms_afromessage", "sms_geezsms"] as const;
 
 // Secrets: Vault-backed, all-or-nothing per provider (same discipline as before).
 const PROVIDER_SECRET_KEYS: Record<string, string[]> = {
-  telebirr: ["fabric_app_secret"],
   sms_smsala: ["api_key"],
   sms_afromessage: ["api_key"],
   sms_geezsms: ["api_key"],
 };
 
 // Config: non-secret, platform_integrations.config jsonb. Also all-or-nothing
-// per provider (a value may be an empty string -- e.g. telebirr_public_key_pem
-// legitimately starts blank -- but the KEY must be present so a client can't
-// silently omit a field it forgot about).
+// per provider (a value may be an empty string, but the KEY must be present so
+// a client can't silently omit a field it forgot about).
 const PROVIDER_CONFIG_KEYS: Record<string, string[]> = {
-  telebirr: ["fabric_app_key", "appid", "merch_code", "telebirr_public_key_pem"],
   sms_afromessage: ["sender_id"],
 };
-
-// Subset of telebirr's config keys required for `configured` to flip true.
-// telebirr_public_key_pem is deliberately excluded: it starts blank until
-// Ethio Telecom supplies it, and "not yet configured" would be permanently,
-// incorrectly true otherwise. our_public_key_pem is required but is NOT in
-// PROVIDER_CONFIG_KEYS above because it is only ever written by
-// telebirr-generate-keypair, never by this endpoint.
-const TELEBIRR_REQUIRED_CONFIG_KEYS = ["fabric_app_key", "appid", "merch_code"];
 
 const Payload = z.object({
   provider: z.enum(PROVIDERS),
   credentials: z.record(z.string().min(1).max(500)).optional(),
   config: z.record(z.string().max(2000)).optional(),
 });
-
-async function computeConfigured(db: SupabaseClient, provider: string): Promise<boolean> {
-  if (provider !== "telebirr") return true; // existing simple rule for SMS providers
-  const { data: row } = await db.from("platform_integrations")
-    .select("config").eq("provider", "telebirr").maybeSingle();
-  const config = (row?.config ?? {}) as Record<string, string>;
-  const hasRequiredConfig = TELEBIRR_REQUIRED_CONFIG_KEYS.every((k) => !!config[k]);
-  const hasKeypair = !!config.our_public_key_pem;
-  const { data: secretRow } = await db.schema("vault").from("secrets")
-    .select("id").eq("name", "telebirr_fabric_app_secret").maybeSingle();
-  return hasRequiredConfig && hasKeypair && !!secretRow;
-}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -128,7 +101,9 @@ Deno.serve(async (req) => {
       return errors.badRequest(); // provider has config fields but none were posted
     }
 
-    const configured = await computeConfigured(db, provider);
+    // Every remaining provider is configured once its full secret/config
+    // set has been written, which the all-or-nothing checks above guarantee.
+    const configured = true;
     await db.from("platform_integrations").update({
       configured, updated_by: ctx.userId, updated_at: new Date().toISOString(),
     }).eq("provider", provider);

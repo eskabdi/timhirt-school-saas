@@ -269,27 +269,6 @@ export function InvoicesPage() {
     },
   });
 
-  const [payError, setPayError] = useState<Record<string, string | null>>({});
-  const pay = useMutation({
-    mutationFn: async (invoiceId: string) => {
-      const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/process-fee-payment`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token}` },
-        body: JSON.stringify({ invoice_id: invoiceId }),
-      });
-      // Read the body even on failure -- process-fee-payment returns a real
-      // reason (e.g. "Payment gateway is not configured yet") as JSON, which
-      // a bare `if (!res.ok) throw new Error("failed")` used to discard.
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body?.error || t("fees.payFailed"));
-      return body as { checkout_url: string };
-    },
-    onMutate: (invoiceId) => setPayError((m) => ({ ...m, [invoiceId]: null })),
-    onSuccess: (data) => { window.location.href = data.checkout_url; },
-    onError: (e: unknown, invoiceId) => setPayError((m) => ({ ...m, [invoiceId]: e instanceof Error ? e.message : t("fees.payFailed") })),
-  });
-
   const downloadInvoice = useMutation({
     mutationFn: (invoiceId: string) => issueFeeDocumentUrl("invoice", invoiceId),
     onSuccess: (res) => window.open(res.url, "_blank"),
@@ -415,11 +394,7 @@ export function InvoicesPage() {
                     <button type="button" className="text-navy hover:underline" onClick={(e) => { e.stopPropagation(); downloadInvoice.mutate(inv.id); }}>
                       {t("fees.downloadInvoice")}
                     </button>
-                    {inv.status !== "paid" && (
-                      <Button variant="ghost" onClick={() => pay.mutate(inv.id)} disabled={pay.isPending}>{t("fees.payViaTelebirr")}</Button>
-                    )}
                   </div>
-                  {payError[inv.id] && <p role="alert" className="mt-1 text-xs text-danger">{payError[inv.id]}</p>}
                 </td>
               </tr>
             ))}

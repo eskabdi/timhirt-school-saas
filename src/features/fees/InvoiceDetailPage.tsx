@@ -118,42 +118,6 @@ export function InvoiceDetailPage() {
     },
   });
 
-  const pay = useMutation({
-    mutationFn: async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/process-fee-payment`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token}` },
-        body: JSON.stringify({ invoice_id: id }),
-      });
-      // Read the body even on failure -- process-fee-payment returns a real
-      // reason (e.g. "Payment gateway is not configured yet") as JSON, which
-      // a bare `if (!res.ok) throw new Error("failed")` used to discard.
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body?.error || t("fees.payFailed"));
-      return body as { checkout_url: string };
-    },
-    onSuccess: (data) => { window.location.href = data.checkout_url; },
-  });
-
-  const refreshStatus = useMutation({
-    mutationFn: async (paymentId: string) => {
-      const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/telebirr-query-order`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token}` },
-        body: JSON.stringify({ payment_id: paymentId }),
-      });
-      if (!res.ok) throw new Error("failed");
-      return res.json();
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["invoice-payments", id] });
-      qc.invalidateQueries({ queryKey: ["invoice", id] });
-      qc.invalidateQueries({ queryKey: ["invoice-lines", id] });
-    },
-  });
-
   const [amount, setAmount] = useState("");
   const [provider, setProvider] = useState<"cash" | "bank">("cash");
   const [reference, setReference] = useState("");
@@ -202,7 +166,6 @@ export function InvoiceDetailPage() {
     id: string; first_name: string; last_name: string; admission_no: string;
     class: { name: string; section: string } | null;
   };
-  const canPay = invoice.status !== "paid" && (profile?.role === "parent" || canManage);
 
   return (
     <div className="max-w-2xl space-y-4">
@@ -255,17 +218,11 @@ export function InvoiceDetailPage() {
         </div>
 
         <div className="mt-4 flex flex-wrap gap-2">
-          {canPay && (
-            <Button onClick={() => pay.mutate()} disabled={pay.isPending}>
-              {t("fees.payViaTelebirr")}
-            </Button>
-          )}
           <Button variant="ghost" onClick={() => downloadInvoice.mutate()} disabled={downloadInvoice.isPending}>
             {downloadInvoice.isPending ? t("fees.generating") : t("fees.downloadInvoice")}
           </Button>
         </div>
         {downloadInvoice.isError && <p role="alert" className="mt-2 text-sm text-danger">{t("fees.errors.documentFailed")}</p>}
-        {pay.isError && <p role="alert" className="mt-2 text-sm text-danger">{pay.error instanceof Error ? pay.error.message : t("fees.payFailed")}</p>}
       </Card>
 
       {lastReceiptUrl && (
@@ -308,11 +265,6 @@ export function InvoiceDetailPage() {
                       {bankVerifications?.has(p.id) && (
                         <button type="button" className="text-navy hover:underline" onClick={() => setPreviewPaymentId(p.id)}>
                           {t("fees.bankVerification.view")}
-                        </button>
-                      )}
-                      {p.status === "pending" && p.provider === "telebirr" && (
-                        <button type="button" className="text-navy hover:underline" onClick={() => refreshStatus.mutate(p.id)} disabled={refreshStatus.isPending}>
-                          {t("fees.refreshStatus")}
                         </button>
                       )}
                     </div>
