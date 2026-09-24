@@ -183,3 +183,9 @@ Order matters (SR-1/SR-2): **apply the migration first**. That removes the old `
 - Parents have no in-app payment action until WP-03.
 - The audit purge is disabled, so audit logs grow without bound until WP-08 and WP-10.
 - PR #7 is unmerged, so the default branch does not equal production.
+
+### Owner decisions after the gatekeeper FAIL (2026-09-24)
+
+- **PITR/backups:** not mandatory now (needs a tier upgrade). Recorded as a standing D-03 in `docs/insa/_pending-changes.md`, with compensating controls. This closes GK-4 step 1 as *accepted*, not *met*.
+- **Email (GK-4 step 0 / O-02):** answered. Mail exists on hostns.io. MX, SPF and DKIM are missing from Vercel DNS, and the owner must add them (the token can't write DNS). See `docs/runbooks/domain-edux-et.md`.
+- **Merge PR #7:** instructed by the owner. It is merged with the gatekeeper verdict still **FAIL** on two open items the owner hasn't decided: **O-01** (`db diff` needs the DB password) and **O-03 / GK-1** (10 plan-required reviewers not run for WP-00). Both remain open in `docs/insa/_pending-changes.md`. WP-00 is **not** gatekeeper-PASS until they are resolved or waived.
