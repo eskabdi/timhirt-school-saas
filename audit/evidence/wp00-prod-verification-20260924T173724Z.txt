@@ -1,0 +1,66 @@
+# R6 WP-00 production verification — raw output
+# captured_at_utc: 2026-09-24T17:37:24Z
+# project_ref: livqynxlibmccaycseer   (Management API /database/query; read-only SELECTs; HTTP probes via curl)
+# repo_commit: c89ccd4819f243a560c0448ca3b229cd79deadf9
+
+## SQL 1: migration row
+> select version from supabase_migrations.schema_migrations where version='20260924000001'
+[{"version":"20260924000001"}]
+## SQL 2: EXECUTE privileges (6 checks)
+> has_function_privilege for anon/authenticated/service_role on cleanup_old_audit_logs() and settle_gateway_payment(...)
+[{"rolname":"anon","purge":false,"settle":false},{"rolname":"authenticated","purge":false,"settle":false},{"rolname":"service_role","purge":false,"settle":false}]
+## SQL 3: function ACLs
+[{"fn":"cleanup_old_audit_logs()","proacl":"{postgres=X/postgres}"},{"fn":"settle_gateway_payment(text,payment_provider,numeric)","proacl":"{postgres=X/postgres}"}]
+## SQL 4: telebirr integration rows / provider CHECK
+[{"telebirr_rows":0,"provider_check":"CHECK ((provider = ANY (ARRAY['sms_smsala'::text, 'sms_afromessage'::text, 'sms_geezsms'::text])))"}]
+## SQL 5: token cache dropped
+[{"token_cache":null}]
+## SQL 6: telebirr vault secrets
+[{"vault_telebirr":0}]
+## SQL 7: cron schema present?
+[{"cron_schema":null}]
+## SQL 8: payments by provider/status
+[{"provider":"bank","status":"succeeded","count":6},{"provider":"cash","status":"succeeded","count":4}]
+## SQL 9: migration count
+[{"applied":106}]
+## HTTP: removed endpoints (expect 404) + control
+telebirr-notify POST -> 404
+telebirr-query-order POST -> 404
+telebirr-generate-keypair POST -> 404
+process-fee-payment POST -> 404
+verify-id POST -> 400
+## API: deployed functions vs repo
+deployed 28 repo 28
+extra [] missing []
+  activate-sso-user verify_jwt=True
+  check-admission-status verify_jwt=False
+  check-login-attempt verify_jwt=False
+  complete-sso-login verify_jwt=True
+  end-impersonation verify_jwt=True
+  enroll-finalize-billing verify_jwt=True
+  generate-fee-invoices verify_jwt=True
+  generate-payslip-pdf verify_jwt=True
+  impersonate-user verify_jwt=True
+  invite-staff verify_jwt=True
+  invite-tenant-admin verify_jwt=True
+  issue-fee-document verify_jwt=True
+  issue-id-card verify_jwt=True
+  issue-staff-id verify_jwt=True
+  manage-integration-credentials verify_jwt=True
+  manage-sso-provider verify_jwt=True
+  onboard-tenant verify_jwt=True
+  process-export-job verify_jwt=True
+  process-import-job verify_jwt=True
+  process-library-circulation verify_jwt=True
+  provision-portal-accounts verify_jwt=True
+  record-fee-payment verify_jwt=True
+  run-payroll verify_jwt=True
+  sso-domain-lookup verify_jwt=False
+  submit-admission verify_jwt=False
+  upload-admission-document verify_jwt=False
+  verify-admission-bank-url verify_jwt=False
+  verify-id verify_jwt=False
+## Vercel: current production deployment
+  2026-09-24T17:28:38Z READY 150f99b timhirt-school-saas-4blhs4gcv-eskabdi.vercel.app
+## Served bundle (www.edux.et)
+  bundle=assets/index-DOq8bz4m.js project_ref_hits=6 gateway_hits=0

@@ -7,6 +7,10 @@ on:
   push:
     branches: [main]
 
+# Least privilege for the GITHUB_TOKEN: every job only reads the repo.
+permissions:
+  contents: read
+
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
@@ -29,6 +33,12 @@ jobs:
         run: npm run check:i18n
       - name: i18n — locale parity and no wholesale reformat
         run: npm run check:locales -- "${{ github.event.pull_request.base.sha || 'HEAD~1' }}"
+      - name: No online payment gateway (R6 WP-00, C-01)
+        run: bash scripts/ci/no-payment-gateway.sh
+      # Edge Function unit tests. DENO_NO_PACKAGE_JSON + --node-modules-dir=none
+      # stop Deno from resolving npm: imports out of the root node_modules.
+      - name: Edge Function tests (Deno)
+        run: DENO_NO_PACKAGE_JSON=1 npx -y deno@2.9.6 test --node-modules-dir=none supabase/functions
       - run: npm run build
 
   # RLS + payroll SoD + webhook-settlement pgTAP suites — supabase/tests/rls/*.sql

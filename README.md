@@ -21,7 +21,7 @@ see blueprint §21.9 for the reasoning.
 | **Ethiopian calendar** | `lib/ethiopian-date.ts` — pure Beyene–Kudlek EC↔GC facade (zero runtime deps), `<EthDatePicker/>` 13-month grid, Geez numerals, holiday-aware attendance blocking. **Gregorian is canonical storage; EC is presentation-only.** |
 | **Trilingual i18n** | `react-i18next` + ICU; English / Amharic (አማርኛ) / Afaan Oromoo, 1104 keys at full parity across all three; `jsonb` i18n columns for tenant-authored labels; `t_field()` SQL helper. `scripts/i18n-audit.mjs` fails the build on untranslated user-facing copy |
 | **HR & Payroll** | Effective-dated tax brackets (Proclamation No. 1395/2025) & pension rates (Proc. 715/2011, basic-salary-only base); `run-payroll` Edge Function computes gross→tax→pension→net; segregation of duties enforced by a DB state-machine trigger (`approved_by <> prepared_by`, forward-only transitions, immutable once `paid`) |
-| **Payments** | Chapa (aggregates Telebirr/CBE Birr/cards) + Stripe; server-derived amounts; atomic settlement RPC — HMAC-verified, amount-checked, and replay-protected in a single transaction; **credentials configurable by super_admin through the UI** (`/platform/integrations`, Supabase Vault-backed) — no CLI/infra access required, though `supabase secrets set` still works as a fallback |
+| **Payments** | **Manual bank transfer only** in this version (fix plan WP-03: school bank accounts, payment proof, staff verification with dual control). Staff record cash/bank payments today via `record-fee-payment`. No online gateway: Chapa and Stripe were canceled, and the Telebirr gateway was decommissioned in R6 WP-00 (C-01). |
 | **18 modules** | SIS, Attendance, Timetable, Gradebook, Fees, Communication, Reporting, Library, Transport, HR & Payroll, Admissions, Assignments, Hostel, Inventory, Discipline, Clinic, ID Cards/Certificates, Events, MoE Reporting |
 | **80 routes** | Admin, Teacher, Student, Parent, Public (`/apply`, rate-limited `/verify`), and Platform (`super_admin`, including self-service `/platform/integrations`) surfaces |
 | **Security** | Column-level grants on 🔒 fields with HR/clinic re-exposing views for authorized roles, immutable user identity fields (`tenant_id`/`role`/`email` locked by policy + trigger), append-only redacted audit log, CSP/HSTS headers, staging test-account scaffold |
@@ -39,8 +39,7 @@ supabase/
                   buckets → discipline/merits → events, notices & admission
                   review → durable rate limits → staff linkage check
                   → student photo lifecycle
-  functions/      run-payroll · process-fee-payment · telebirr-notify
-                  telebirr-query-order · telebirr-generate-keypair
+  functions/      run-payroll · record-fee-payment · issue-fee-document
                   onboard-tenant · invite-tenant-admin · invite-staff
                   generate-payslip-pdf · submit-admission · verify-id
                   upload-admission-document · check-admission-status
@@ -129,14 +128,14 @@ each one.
 - [x] ~~Confirm the exact gazetted commencement date for Proclamation No. 1395/2025~~ **Verified 2026-07-15** against the official gazette (Federal Negarit Gazette, Proclamation No. 1395/2017 E.C., via mofed.gov.et) — all bracket rates and deduction amounts match exactly, independently re-derived and cross-checked. `effective_from` updated to `2025-07-08` in migration `004`, the date confirmed for the Alternative Minimum Tax clause; Article 11 (Employment Income Tax Rates) falls under the same amendment's general "all other provisions" effective-date clause, whose exact date was OCR-corrupted in the fetched PDF — **recommend one final visual (non-OCR) check of that specific clause** before go-live, everything else about this schedule is fully verified. See the citation in migration `004`'s comment block and the worksheet in `docs/DEPLOYMENT.md`.
 - [ ] Confirm pension rates (7% employee / 11% employer on **basic salary only**, Proc. 715/2011)
 - [x] ~~Self-host Noto Sans Ethiopic (don't depend on a font CDN in production)~~ **Done** — Noto Serif Ethiopic, Jiret and Tayitu ship from `public/fonts/`. Both loaders now validate the sfnt magic before embedding: a missing asset returns the SPA's `index.html` with a 200, which `embedFont` rejects and both callers used to swallow, silently rendering Ethiopic in Helvetica.
-- [x] ~~Verify the Chapa webhook signature scheme~~ **Done** — `x-chapa-signature` signs the payload; `chapa-signature` signs the secret itself. The old code preferred the latter and checked it against the payload, so every legitimate delivery was rejected 401. We now require the payload-bound header: Chapa's docs say either is sufficient, but the constant one is replayable against any body once observed. **Still needs one sandbox round-trip against a live Chapa account.**
+- [x] ~~Verify the Chapa webhook signature scheme~~ **Obsolete** — no online payment gateway in this version (R6 WP-00).
 - [ ] Shadow at least one payroll run against the worksheet in `docs/DEPLOYMENT.md`
 - [ ] **Have Amharic/Afaan Oromoo strings reviewed by an education-domain speaker.** 1104 keys are at full parity and none are English placeholders, but parity is not correctness — no automated check can tell you whether the Amharic for "provisionally accepted" reads right to an Ethiopian registrar. Export with `node scripts/i18n-review-export.mjs`.
 - [x] ~~Confirm every staff `auth.users` row has a linked `employees.user_id`~~ **Automated** — Settings → Health Monitoring lists unlinked staff accounts (`check_staff_employee_linkage()`). Payslip and leave policies join through `employees.user_id`, so an unlinked account sees an empty list rather than an error.
 - [x] ~~Run the RLS cross-tenant matrix~~ **Automated in CI** — the `rls-tests` job runs all five suites (42 assertions) on every push. Tenant A vs Tenant B returns zero rows for `students`, `payslips`, `fee_invoices`, `employees` including via embedded relations, and for `student-photos` storage objects.
 - [ ] Run the bracket-boundary property test (`npm run test`) against the final gazetted rates — the payroll SoD suite itself is now automated in CI
 - [x] ~~Back the in-memory rate limiter with a shared store~~ **Done** — `public.rate_limits` plus the atomic `consume_rate_limit()` RPC. Verified with 60 concurrent callers against one key at limit 10: exactly 10 allowed. Fails closed.
-- [ ] Configure Chapa/Telebirr/SMS-gateway credentials — either through `/platform/integrations` as super_admin (Vault-backed, no CLI access needed) or via `supabase secrets set` for infra-managed deployments; both are read by the Edge Functions, Vault first
+- [ ] Configure SMS-gateway credentials through `/platform/integrations` as super_admin (Vault-backed). There are no payment-gateway credentials in this version.
 - [ ] Rotate all Edge Function secrets before go-live, **and the Supabase/Vercel deploy tokens**; confirm `service_role` key is never in `.env` files committed to git
 
 ## Architecture reference

@@ -39,16 +39,11 @@
 // "Failed" here and fall back to the manual receipt-image upload, which
 // remains available alongside the URL option by design.
 //
-// Two Telebirr paths now deliberately coexist, and that's not redundancy:
-// this file covers a parent/applicant who transferred money directly via the
-// Telebirr app OUTSIDE any checkout flow (e.g. paying a registrar in person,
-// or the public admission flow, which has no session to run a checkout in)
-// and needs the payment verified after the fact by pasting a receipt URL.
-// The Telebirr H5 C2B gateway (_shared/telebirr.ts, process-fee-payment) is
-// a separate, real payment-initiation API for parents paying an existing fee
-// invoice online — it supersedes Chapa (now canceled) for that flow, but
-// does not replace this manual-transfer-verification path, which still has
-// no substitute for any transfer that happens outside checkout.
+// This file covers a parent/applicant who transferred money directly (bank or
+// Telebirr wallet) and needs the payment verified after the fact by pasting a
+// receipt URL. It is a manual-transfer path: nothing here credits an invoice.
+// The Telebirr H5 C2B online gateway was decommissioned in R6 WP-00 (C-01);
+// this version takes manual bank-transfer payments only (fix plan WP-03).
 // ============================================================================
 import type { AuthContext } from "./security.ts";
 import { readBodyWithCap } from "./stream-read.ts";
