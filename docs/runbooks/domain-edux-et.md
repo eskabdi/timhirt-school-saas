@@ -4,7 +4,20 @@ DNS for `edux.et` is served by Vercel (`ns1.vercel-dns.com`, `ns2.vercel-dns.com
 Mail is hosted separately (hostns.io, host `91.204.209.21`, PTR `gin.hostns.io`). The owner created
 the mailboxes `superadmin@edux.et`, `noreply@edux.et` and `info@edux.et`.
 
-## ⚠️ Split-brain delegation (found 2026-09-24)
+## Current state (re-verified 2026-09-24, Google and Cloudflare DoH)
+
+| Record | Live |
+|---|---|
+| `NS edux.et` | ✅ only `ns1.vercel-dns.com`, `ns2.vercel-dns.com`, so the split-brain below is resolved |
+| `A edux.et`, `A admin.edux.et` (wildcard) | ✅ Vercel `216.198.79.1`, `64.29.17.65`; `edux.et` 308 → `www.edux.et`, served by Vercel |
+| Supabase Auth email | ✅ custom SMTP through **Resend**: `MX send.edux.et 10 feedback-smtp.eu-west-1.amazonses.com`, `TXT send.edux.et "v=spf1 include:amazonses.com ~all"`, DKIM `resend._domainkey.edux.et`. The owner confirmed an invite email was sent and received. |
+| `TXT _dmarc.edux.et` | ✅ `v=DMARC1; p=none;` |
+| `MX edux.et`, SPF `TXT edux.et` | ❌ none. **Mail to `info@`, `superadmin@` and `noreply@edux.et` is not delivered.** If those hostns.io mailboxes should receive mail, add the MX and SPF records from step 1 below (the SPF must also `include:amazonses.com` if Resend ever sends from the apex). |
+
+Cloudflare's resolver briefly returned the old hostns.io `A` record after the change (cache); Google already
+had the Vercel answer. Re-run the verify commands below once the TTL expires.
+
+## ⚠️ Split-brain delegation (found 2026-09-24, since resolved)
 
 The registrar lists **four** nameservers, from two providers: `ns1.hostns.io`, `ns2.hostns.io`, `ns1.vercel-dns.com`, `ns2.vercel-dns.com`.
 The two zones hold different data, so answers depend on which server a resolver asks:
@@ -50,5 +63,6 @@ for r in https://cloudflare-dns.com/dns-query https://dns.google/resolve; do
 # Both resolvers must return identical answers before you remove the hostns.io nameservers.
 ```
 Then send a test message to and from `info@edux.et` and check the headers show `spf=pass` and `dkim=pass`.
-Supabase Auth emails (invites, password reset) use Supabase's SMTP unless custom SMTP is configured. If
-`noreply@edux.et` is to be the sender, configure custom SMTP in Supabase and keep SPF/DKIM aligned (WP-07/WP-19).
+Supabase Auth emails (invites, password reset) go through custom SMTP via Resend (configured by the owner on
+2026-09-24). Keep the `send.edux.et` SPF and `resend._domainkey` DKIM records in place, and tighten DMARC once
+aggregate reports show alignment (WP-07/WP-19).
