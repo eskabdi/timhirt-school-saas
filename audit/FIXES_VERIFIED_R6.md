@@ -44,7 +44,7 @@ One entry per Work Package (fix plan §0 Rule 10). Status per finding:
 | Gate | Result |
 |---|---|
 | `supabase/tests/run.sh` | 106 migrations applied, **54/54 suites passed**; `r6_hotfix.sql` 19/19 (after the review round; 15/15 before) |
-| Fail-before proof | Without the migration, `r6_hotfix.sql` fails #1–#3 (purge executable), #7 (token cache exists), #8 (Telebirr row present). #4–#6 already pass on the base because the shim doesn't reproduce Supabase's default `service_role` grants — the L-08 blind spot fixed in WP-01. |
+| Fail-before proof | Without the migration, `r6_hotfix.sql` fails #1–#3 (purge executable), #7 (token cache exists), #8 (Telebirr row present), #9 (CHECK still allows telebirr), and #11/#12 (explicitly granted EXECUTE not revoked). #4–#6 pass on the base only because the shim lacks Supabase's default grants (L-08); #11/#12 close that gap by granting first. Mutation-tested by the db-migration reviewer (round 2). |
 | `npx tsc --noEmit` | clean |
 | `npx eslint src` | 0 problems |
 | `npx vitest run` | 6 files, 50 tests passed |
@@ -84,7 +84,7 @@ Full detail is in `audit/prod-drift-2026-09-24.md`. Relevant to the migration's 
   `select * from platform_integrations where provider = 'telebirr';`
   Expected from the facts above: 0 payment rows, 1 empty integration row.
 - **Deploy log:** the migration raises notices with the exact row counts (`voided N pending gateway payment(s)`, `deleted N Telebirr platform_integrations row(s)`).
-- **Forward-fix, not revert:** if a voided order later proves to have been paid (it appears on the merchant statement), credit it through `record-fee-payment` as a manual bank payment referencing the provider ref. Never set it back to `pending`, because nothing can settle it any more.
+- **Forward-fix, not revert:** if a voided order later proves to have been paid (it appears on the merchant statement), credit it through `record-fee-payment` as a manual bank payment with a **new** reference (the bank-statement reference, or `R6-<original ref>`). `payments.provider_ref` has a global unique index, so the voided row's ref cannot be reused (DBM-07); record the original gateway ref in the payment note. Never set it back to `pending`, because nothing can settle it any more.
 - **Recovery source:** `audit_trigger` stores the before-image of every voided payment and of the deleted integration row in `audit_logs.old_data`.
 - **Privileges:** re-granting EXECUTE is a one-line forward migration. It is not expected to be needed.
 - **Last resort:** PITR/backup restore. ⚠️ No backup exists today (PITR off, 0 backups), so this option doesn't exist until the owner enables backups (G-06).
