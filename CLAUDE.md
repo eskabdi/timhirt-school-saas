@@ -121,7 +121,7 @@ npx vitest run
 npm run check:i18n                  # must be 0
 npm run check:locales               # parity + no wholesale reformat
 npm run build
-PGHOST=… ./supabase/tests/run.sh    # 38 migrations + 5 pgTAP suites
+PGHOST=… ./supabase/tests/run.sh    # 106 migrations + 54 pgTAP suites
 ```
 
 `eslint scripts/` reports `no-undef` on node globals — `scripts/` is outside the

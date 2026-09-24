@@ -1,0 +1,621 @@
+# WP-00 catalog parity: production (livqynxlibmccaycseer) vs repo (all 106 migrations on local Postgres 16)
+# Captured 20260924T221703Z via Management API /database/query (read_only=true); local via psql on wp00_ref (repo f57d82c).
+# Closes authz AZ-1 / tenant-isolation TI-1 (supplements owner decision D-04).
+# Scope: every pg_policy on public+storage (name, cmd, permissive, roles, md5(qual#with_check)),
+#        relrowsecurity/relforcerowsecurity of every public table,
+#        every non-extension public function (signature, prosecdef, proconfig, md5(prosrc)).
+# Not in scope: table/function ACLs (the harness shim lacks Supabase default grants, L-08 -> WP-01).
+
+## Query
+select 'policy|'||n.nspname||'.'||c.relname||'|'||p.polname||'|'||p.polcmd::text||'|'||p.polpermissive::text||'|'||coalesce((select string_agg(case when r=0 then 'public' else r::regrole::text end, ',' order by 1) from unnest(p.polroles) r),'')||'|'||md5(coalesce(pg_get_expr(p.polqual,p.polrelid),'')||'#'||coalesce(pg_get_expr(p.polwithcheck,p.polrelid),'')) as l
+from pg_policy p join pg_class c on c.oid=p.polrelid join pg_namespace n on n.oid=c.relnamespace where n.nspname in ('public','storage')
+union all
+select 'rls|public.'||c.relname||'|'||c.relrowsecurity::text||'|'||c.relforcerowsecurity::text from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relkind in ('r','p')
+union all
+select 'fn|'||p.oid::regprocedure::text||'|'||p.prosecdef::text||'|'||coalesce(array_to_string(p.proconfig,','),'')||'|'||md5(p.prosrc) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and not exists (select 1 from pg_depend d where d.classid='pg_proc'::regclass and d.objid=p.oid and d.deptype='e')
+order by 1;
+
+## Result
+local lines: 595
+prod lines:  595
+sha256 local: 644b4822b507b0998eae014f56bb181f4ff3f35117393dbd815639cb376932f8
+sha256 prod:  644b4822b507b0998eae014f56bb181f4ff3f35117393dbd815639cb376932f8
+diff lines:   0
+breakdown (prod):      76 fn     407 policy     112 rls 
+
+## Production catalog lines
+fn|acknowledge_alert(uuid)|true||0346873fc03c97e1cbf0771a1cb48d5c
+fn|apply_payment_to_invoice()|true|search_path=public|88615dd23799a3b511a92d1cf12aeaa5
+fn|assign_roll_number()|false||c67f3d9ebff581b6e7a20a84a073ba36
+fn|attendance_guard()|true|search_path=public|a653a443d1a0091df962b1410220fe03
+fn|attendance_notify_guardians()|true|search_path=public|32d5224bc0fa21553684bb69f70f22f5
+fn|attendance_retroactive_edit_window_days(uuid)|true|search_path=public|c5e0b1befc35c7686e9c34f62536c57f
+fn|audit_trigger()|true|search_path=public|617b57b98d2b62a28c74a796b58e583a
+fn|auto_assign_exam_seats(uuid,integer,integer)|true|search_path=public|a546318702b66d1d6b5f3d16b5eb8e2f
+fn|check_staff_employee_linkage()|true|search_path=public, pg_temp|2a06ead6e172e0012e1fcf431328f614
+fn|cleanup_expired_backups()|true||4469940cdd77c16bf452fdae74e078e7
+fn|cleanup_old_audit_logs()|true|search_path=public|d0993755941d27795e3afe8019823e70
+fn|complete_job(uuid,integer,text)|true||806cc921c0a2cf2a6fec1aec34969a65
+fn|consume_rate_limit(text,integer,integer)|true|search_path=public, pg_temp|9215efdff5d490422f56796e215068b9
+fn|create_export_job(uuid,text)|true||00a738eb8ecf97c6a2467efff95aa2a2
+fn|create_health_alert(uuid,text,text,text)|true||99efe0b4836ae4e731ce451dae5792b0
+fn|create_import_job(uuid,text,integer)|true||8385eccd6c7f034a7d8e430ac4e3b0fb
+fn|dashboard_alerts(date,date)|true|search_path=public, pg_temp|d7d3c59d4fa1eee77315f9b9c686fe17
+fn|dashboard_attendance_week(date)|true|search_path=public, pg_temp|503d3a736f7477658a79103cc984967a
+fn|dashboard_billing(date,date)|true|search_path=public, pg_temp|030c5e4cd57151be2a9a5f16379054fd
+fn|dashboard_can_read()|true|search_path=public, pg_temp|7b09390bfd5ac91292f534fa387849d9
+fn|dashboard_can_read_finance()|true|search_path=public, pg_temp|3354b45e7eb546f2d72c46e5027fd41d
+fn|dashboard_high_absence(date,date,numeric,integer)|true|search_path=public, pg_temp|098d742f58dc607d9df187690afb5a0f
+fn|dashboard_lowest_gpa(integer)|true|search_path=public, pg_temp|63732cae4a6932132bccb5581f8af012
+fn|dashboard_missing_attendance(date,date)|true|search_path=public, pg_temp|48c60506df4114c3cd56cda0e5d4e675
+fn|dashboard_overview(uuid)|true|search_path=public, pg_temp|7eb1893f45998b96ea21dea3d70d19fc
+fn|dashboard_teaching_days(uuid,date,date)|true|search_path=public, pg_temp|99fe5ce4a4e9930c278c66301921c4ba
+fn|decide_student_leave_request(uuid,boolean)|false||84bec32c874f7e3fc7040c178c098dea
+fn|ec_year_of(date)|false|search_path=public|0724e930d7c48d3a3193c98702412c36
+fn|enforce_teacher_cycle()|false||64a595611850270832901a9ec61ec79b
+fn|enroll_admission_application(uuid,uuid)|false||8b59190a05878caca8f1ddc2daca696a
+fn|exam_guard()|true|search_path=public|1f9fd4a916a21db54d5629fb77c1b96d
+fn|fail_job(uuid,text)|true||f24b581ed156f0930e047d3c25dcb701
+fn|get_class_rank(uuid,uuid)|true|search_path=public|64501823db38e6a564ec7b7b692f5170
+fn|get_config(text,uuid)|true||e4333f81b1b78c64dd096e4872cf18bd
+fn|get_email_for_user(uuid)|true|search_path=public|e98fc3e19033fa1dd6f47edce3a87371
+fn|get_role_for_user(uuid)|true|search_path=public|c875f2dc33e7025bb6180a0196e2344d
+fn|get_security_settings()|true|search_path=public|360bcec9b4a1e2e7df85c181e7ae7c10
+fn|get_student_grade_history(uuid)|true|search_path=public|964059ede36f621ed627a5b9edc6f5ba
+fn|get_tenant_id_for_user(uuid)|true|search_path=public|303274f1c6e1e7713e6a610bc5b94d5e
+fn|grade_cycle_for(smallint)|false||dfb8c9a199e378a370d5864836136b39
+fn|grade_guard()|true|search_path=public|54b2032f13850593bd3aef6697b0b568
+fn|grade_point_for(uuid,numeric)|true|search_path=public|9a3362fdffcc2c7e3a99e7f466acb491
+fn|guardians_lock_user_id()|true|search_path=public|5ced8b80b36599343e2c3af604cf3ee7
+fn|has_module(uuid,text)|true|search_path=public|6667cf7795426fb5205f3ff0b49e6f57
+fn|has_permission(uuid,text)|true||ca6a55f5f7821ea0221e74dcc01c58b2
+fn|has_resource_permission(uuid,text,text)|true|search_path=public|ff46475f485c5360e6d49355bce4973d
+fn|is_feature_enabled(text,uuid)|true||6530f51074393b499b1fd2acaef09c34
+fn|is_guardian_of(uuid)|true|search_path=public|e747edfb8d572f73600b3886c8e73345
+fn|is_teacher_of_class(uuid)|true|search_path=public|44445055f90e798b0f11c91e216be425
+fn|jwt_user_id()|true|search_path=public|729cca15204558de823547e7e1854dea
+fn|leave_decision_trigger()|true|search_path=public|77bd9f72f332d4d5b7b7743a7de5203f
+fn|library_bulk_return(uuid,uuid)|true|search_path=public|6eb9a17dfd376fc9ff728b0f1c03bfe9
+fn|library_checkout(uuid,uuid,uuid,library_checkout_type,date)|true|search_path=public|f773a0cd18d0df38e657d5cf5c25803c
+fn|library_checkout_tenant_guard()|true|search_path=public|fa47e68c10688df2ff6e3edd27090035
+fn|library_hold_tenant_guard()|true|search_path=public|b43da7fc6d327a1dcf5b641bcc82cc2b
+fn|library_renew(uuid,uuid)|true|search_path=public|237ca91293d12a995bdbfa8031e6416c
+fn|library_return(uuid,uuid)|true|search_path=public|98609b195831fed44bd66f4ad1fb8799
+fn|messages_default_thread()|false||1d2c5404a0e8324520b5fddd9e801a84
+fn|payroll_run_transition()|true|search_path=public|90952d67c627ede139c6a75f94838a8c
+fn|promote_students_batch(jsonb)|false||1085e9fe3dea29ddecaadbe846ba32f8
+fn|record_health_metric(uuid,text,numeric,text,numeric,numeric)|true||8f8a2041b81fd9b8854da2c3b844632d
+fn|revert_promotion_run(uuid)|false||9dcbe2e719e40d073b0c5ca83d0b8297
+fn|set_employee_number()|true|search_path=public, pg_temp|27887a5dc800fa1cb44ac16e9027017a
+fn|set_student_number()|true|search_path=public|d21804730448ddfdc99816b6ad573c63
+fn|set_tenant_no()|true|search_path=public|23d580f061bf114f9d3790d59f328707
+fn|set_updated_at()|false||7eb7a124693fea28124edfd2e7860d87
+fn|settle_gateway_payment(text,payment_provider,numeric)|true|search_path=public|c8a4adb3ca4230b00612004681bc56ae
+fn|student_capture_graduation_year()|true|search_path=public|b171a599172a4a6be698397c23eac632
+fn|student_clear_transfer_fields()|true|search_path=public|361f1d09a027a7612e6b48207dfac40e
+fn|students_lock_user_id()|true|search_path=public|c3b701d00c8f2a6b33791067878c7968
+fn|t_field(jsonb,text)|false||819a571df8c354e5b74552da3c41a3ac
+fn|timeout_stalled_backups()|true||9deeaaecc4c092afcae6008e94131362
+fn|update_job_progress(uuid,integer,integer,jsonb)|true||9f2007e3e60125e5f460fa874d9b43f8
+fn|users_lock_identity()|true|search_path=public|2c10896b9f728a7612ee40227d296656
+fn|verify_document(text)|true|search_path=public|7b3e580afdaf8226de9979aa3eb12546
+fn|verify_id_card(text)|true|search_path=public|def4cabff216ed5131f91d6b2ee57805
+policy|public.academic_terms|academic_terms_delete|d|true|authenticated|0b8399742d695822147f105f23fe29c9
+policy|public.academic_terms|academic_terms_insert|a|true|authenticated|033616456cc8e02b87270b180602a45f
+policy|public.academic_terms|academic_terms_select|r|true|authenticated|149edf0eef52930642e8320eae2c98e4
+policy|public.academic_terms|academic_terms_update|w|true|authenticated|b61f4fd94fcaef8063ba4693fd1e808a
+policy|public.academic_years|academic_years_delete|d|true|authenticated|3bf1dea3724adddf571b86800a1cd0a0
+policy|public.academic_years|academic_years_insert|a|true|authenticated|5aab8d06aec95328423ff43d42613f8d
+policy|public.academic_years|academic_years_select|r|true|authenticated|7c057482d0c3923dbc6f4af5a1775fd0
+policy|public.academic_years|academic_years_update|w|true|authenticated|4aa7fbdd69d6fc5e6b32541b40586c02
+policy|public.admission_applications|admission_applications_module_gate|*|false|authenticated|2ab37fa5baff6e923d94a873c53ab569
+policy|public.admission_applications|admissions_delete|d|true|authenticated|d37e665b932b0d90f08f2fb9c248706e
+policy|public.admission_applications|admissions_insert|a|true|authenticated|e92707f77716cd2469bac29e4afb0222
+policy|public.admission_applications|admissions_select|r|true|authenticated|d9b78beca8ed784a8d040d7d32f083cf
+policy|public.admission_applications|admissions_update|w|true|authenticated|ba7a1be073dc529bf72f21a27fee461d
+policy|public.announcements|announcements_delete|d|true|authenticated|99a5bb0f0855a2317a9f4ba5a53ed0f4
+policy|public.announcements|announcements_insert|a|true|authenticated|0b436a098362f7efe87173206c0ec348
+policy|public.announcements|announcements_module_gate|*|false|authenticated|e333ee3abe9456b2827c66cb10519ecf
+policy|public.announcements|announcements_select|r|true|authenticated|f09aa3c617ea198ab67469d3e2dead85
+policy|public.announcements|announcements_update|w|true|authenticated|c7c1666b7ca421fbb33d1d7ed6b863c7
+policy|public.asset_register|asset_register_select|r|true|authenticated|85d785f914110c6b2000334d1b0a95fd
+policy|public.asset_register|asset_register_write|*|true|authenticated|57a227068236905491ce9c1bc8149c86
+policy|public.assignment_attachments|assignment_attachments_delete|d|true|authenticated|d783ce5756013e180f2e65258678384a
+policy|public.assignment_attachments|assignment_attachments_insert|a|true|authenticated|b9f4069d2e10036bb245eaa2c26a8eef
+policy|public.assignment_attachments|assignment_attachments_module_gate|*|false|authenticated|30ade76f13d137f636d5d0fd5ab2d710
+policy|public.assignment_attachments|assignment_attachments_select|r|true|authenticated|361fc5259a5683df50d7a4120284ac05
+policy|public.assignment_attachments|assignment_attachments_update|w|true|authenticated|46cf82be9c257d3794e3da4120d92988
+policy|public.assignment_sections|assignment_sections_delete|d|true|authenticated|e84338682cfa68ff8e40abc66f35a3a5
+policy|public.assignment_sections|assignment_sections_insert|a|true|authenticated|d175bbca363a99c4634b664e49fb2660
+policy|public.assignment_sections|assignment_sections_module_gate|*|false|authenticated|30ade76f13d137f636d5d0fd5ab2d710
+policy|public.assignment_sections|assignment_sections_select|r|true|authenticated|986f6c61e374412c9152d133009daa96
+policy|public.assignment_sections|assignment_sections_update|w|true|authenticated|b8be3912c3f77e7458b9c07f0509a4a5
+policy|public.assignment_submissions|assignment_submissions_module_gate|*|false|authenticated|30ade76f13d137f636d5d0fd5ab2d710
+policy|public.assignment_submissions|submissions_select|r|true|authenticated|0be1f155d13d6a6e2fd7b655249c425c
+policy|public.assignment_submissions|submissions_student_insert|a|true|authenticated|8ca7525dc34c9f1c6fad088682f7a516
+policy|public.assignment_submissions|submissions_teacher_grade|w|true|authenticated|29acc504554591cce9acea25afc02ce4
+policy|public.assignments|assignments_delete|d|true|authenticated|574fe17d069c75bb50d278765b3ff8f8
+policy|public.assignments|assignments_insert|a|true|authenticated|da2b03da9c0dca4f5929416e4388e11a
+policy|public.assignments|assignments_module_gate|*|false|authenticated|30ade76f13d137f636d5d0fd5ab2d710
+policy|public.assignments|assignments_select|r|true|authenticated|4211870a03fff937e245dd6324b07f5d
+policy|public.assignments|assignments_update|w|true|authenticated|958f6fd3d3b5247c1e29c2c7c501a108
+policy|public.attendance|attendance_insert|a|true|authenticated|d66b98845aa7806fad7627d25cac7759
+policy|public.attendance|attendance_module_gate|*|false|authenticated|0e77d950684f26789f360ee60be61677
+policy|public.attendance|attendance_retroactive_edit_gate|w|false|authenticated|f40d8ae13d0986a7811995bca34dcee4
+policy|public.attendance|attendance_select|r|true|authenticated|fa25133ab7fb43b14acddb77e1c40be3
+policy|public.attendance|attendance_update|w|true|authenticated|be452b63ac2a93037d42a43b96f68074
+policy|public.audit_logs|audit_read|r|true|authenticated|e5366b468b0e68348178c2fd7ec2ce91
+policy|public.backup_jobs|backup_jobs_admin_access|*|true|public|9de731274eac7e6aede168d94ece4ae4
+policy|public.backup_jobs|backup_jobs_tenant_isolation|r|true|public|959a171737caf81b92212f7b705c1d31
+policy|public.bank_payment_verifications|bank_payment_verifications_select|r|true|authenticated|7e5e236d3e66214a70f9ea33aa6cda33
+policy|public.bank_verification_domains|bank_verification_domains_select|r|true|authenticated|8fc83448cc1729047ef68f79e32e6460
+policy|public.bank_verification_domains|bank_verification_domains_write|*|true|authenticated|8dc9a6bbfb9dad90e31a7368efa2a931
+policy|public.builtin_role_permission_grants|builtin_role_permission_grants_select|r|true|authenticated|85d785f914110c6b2000334d1b0a95fd
+policy|public.builtin_role_permission_grants|builtin_role_permission_grants_write|*|true|authenticated|917d62a15e7d095b9e953dd4f59cbb02
+policy|public.calendar_events|calendar_events_delete|d|true|authenticated|3293aebea321729d31fcd880f3a449d8
+policy|public.calendar_events|calendar_events_insert|a|true|authenticated|3eb64dba2022f01ff2fb68a8f46a4e1f
+policy|public.calendar_events|calendar_events_module_gate|*|false|authenticated|7bec380bb1d29fffc97f2695105aa4a8
+policy|public.calendar_events|calendar_events_select|r|true|authenticated|6021307f46f81685913941bf1df458d4
+policy|public.calendar_events|calendar_events_update|w|true|authenticated|b003c685dec777fe8b65bfdf08d59a63
+policy|public.class_subject_teachers|class_subject_teachers_delete|d|true|authenticated|9cfed5df2fa077924fe45febec06f783
+policy|public.class_subject_teachers|class_subject_teachers_insert|a|true|authenticated|3f87f6706502cd0519a2ba6e991afffe
+policy|public.class_subject_teachers|class_subject_teachers_select|r|true|authenticated|23d9ea594a06c8718bda9465afbcf92b
+policy|public.class_subject_teachers|class_subject_teachers_update|w|true|authenticated|a525846df1493acccea7773a35d742e7
+policy|public.class_subject_teachers|cst_select|r|true|authenticated|85d785f914110c6b2000334d1b0a95fd
+policy|public.class_subject_teachers|cst_write|*|true|authenticated|917d62a15e7d095b9e953dd4f59cbb02
+policy|public.classes|classes_delete|d|true|authenticated|070727adc6cef3e7a11e5b1719057ac4
+policy|public.classes|classes_insert|a|true|authenticated|85818a0f7cb3838ac96d168315bc8d0f
+policy|public.classes|classes_select|r|true|authenticated|54f994b3166a30cd120f124b64811c41
+policy|public.classes|classes_update|w|true|authenticated|c1922b81799223f55fe86812b2330dea
+policy|public.clinic_visits|clinic_detail_view_read|r|true|timhirt_view_owner|50f6ba1eefbabc162086438d0cbdf5a1
+policy|public.clinic_visits|clinic_select|r|true|authenticated|4bfd31e2c744276f2b1d489728eae1c7
+policy|public.clinic_visits|clinic_visits_delete|d|true|authenticated|09610ad5cd6bd346fb6f740d3d2e4f8b
+policy|public.clinic_visits|clinic_visits_insert|a|true|authenticated|cc392a7b49d7f54b96b56d709ca8f69f
+policy|public.clinic_visits|clinic_visits_module_gate|*|false|authenticated|18eed055277493028fdd3081374268ec
+policy|public.clinic_visits|clinic_visits_select|r|true|authenticated|3f628946321ce0bb37f34ade969a0b20
+policy|public.clinic_visits|clinic_visits_update|w|true|authenticated|f914ac629f3e740b565d158a11fa38de
+policy|public.clinic_visits|clinic_write|*|true|authenticated|917d62a15e7d095b9e953dd4f59cbb02
+policy|public.data_jobs|data_jobs_admin_update|w|true|public|917d62a15e7d095b9e953dd4f59cbb02
+policy|public.data_jobs|data_jobs_read|r|true|public|05770f52ae6133a701d0527890948186
+policy|public.data_jobs|data_jobs_write|a|true|public|ec673e1b2dc8587941060b2debbdc898
+policy|public.discipline_incidents|discipline_incidents_module_gate|*|false|authenticated|cbd365db3936f3282fd065cb33fcd0c4
+policy|public.discipline_incidents|discipline_insert|a|true|authenticated|690465a89b31da2c754d18a1661e5549
+policy|public.discipline_incidents|discipline_select|r|true|authenticated|0695219c587f64fce0104c4bd4ac18ad
+policy|public.discipline_incidents|discipline_update|w|true|authenticated|1e9b79816a44b36a13b6e48fc74119a2
+policy|public.document_templates|document_templates_select|r|true|authenticated|1f46d049457527b21bac95687bf20fda
+policy|public.document_templates|document_templates_write|*|true|authenticated|0fd1cabccd469e19731a85e1d5841a0f
+policy|public.employee_documents|employee_documents_module_gate|*|false|authenticated|fae749f1996443ccfcd987fc509e3c8e
+policy|public.employee_documents|employee_documents_select|r|true|authenticated|d03597bbd36cf6695df9295cb1ead6a5
+policy|public.employee_documents|employee_documents_write|*|true|authenticated|960eee3de03531bed2548a4f76208248
+policy|public.employee_emergency_contacts|employee_emergency_contacts_select|r|true|authenticated|c06868bc1c8249563fe6687eab7ff541
+policy|public.employee_emergency_contacts|employee_emergency_contacts_write|*|true|authenticated|960eee3de03531bed2548a4f76208248
+policy|public.employee_qualifications|employee_qualifications_select|r|true|authenticated|8a9fcbcf347e8ddbb4ad2327abbae4ff
+policy|public.employee_qualifications|employee_qualifications_write|*|true|authenticated|960eee3de03531bed2548a4f76208248
+policy|public.employee_salary_components|employee_salary_components_module_gate|*|false|authenticated|fae749f1996443ccfcd987fc509e3c8e
+policy|public.employee_salary_components|esc_delete|d|true|authenticated|7f92fa5d53580cd8bde2b8645cfb1a26
+policy|public.employee_salary_components|esc_insert|a|true|authenticated|7224300d7f0fa6c2bc4006e3ff7ea12e
+policy|public.employee_salary_components|esc_select|r|true|authenticated|81b1db1db695e3061c23db40359310bd
+policy|public.employee_salary_components|esc_update|w|true|authenticated|77f8f3943d2bf099a4fa39df924a82b1
+policy|public.employee_subjects|employee_subjects_select|r|true|authenticated|4402ce981f74756e922c95b6d97ff55d
+policy|public.employee_subjects|employee_subjects_write|*|true|authenticated|960eee3de03531bed2548a4f76208248
+policy|public.employees|employees_delete|d|true|authenticated|a15fc201eed6f022054313c97e64a0c5
+policy|public.employees|employees_insert|a|true|authenticated|51e7fe224f6d3bb314be750d1cfb4c9d
+policy|public.employees|employees_module_gate|*|false|authenticated|fae749f1996443ccfcd987fc509e3c8e
+policy|public.employees|employees_select|r|true|authenticated|421544f6a4e0567ca174c765a2600bbf
+policy|public.employees|employees_update|w|true|authenticated|9cfbe5d542e2a1e95b9f856aa6d34e79
+policy|public.employees|hr_sensitive_view_read|r|true|timhirt_view_owner|704d613ced246433385c883d502c324f
+policy|public.employment_contracts|contracts_delete|d|true|authenticated|b13f41ca0e0c677c4a6ddd876f1ff7e2
+policy|public.employment_contracts|contracts_insert|a|true|authenticated|9acbcbde9e69f77c4967b8b8de0a8265
+policy|public.employment_contracts|contracts_select|r|true|authenticated|201f6d3b0ceb18865e7cca839c063a83
+policy|public.employment_contracts|contracts_update|w|true|authenticated|5ab73359b7fb6814863be243abd1a730
+policy|public.employment_contracts|employment_contracts_module_gate|*|false|authenticated|fae749f1996443ccfcd987fc509e3c8e
+policy|public.exam_seat_assignments|exam_seat_assignments_select|r|true|authenticated|9590ad67f60fc65c1590815358832c4f
+policy|public.exam_seat_assignments|exam_seat_assignments_write|*|true|authenticated|d595e76be332c561e3231e76ba08e456
+policy|public.exams|exams_delete|d|true|authenticated|2fff6ca7197397d5d5b3ad403719f357
+policy|public.exams|exams_insert|a|true|authenticated|108e8b6d54a486f291cff15a66bd88e2
+policy|public.exams|exams_module_gate|*|false|authenticated|6077c9309241474661a87c3c4ff946ad
+policy|public.exams|exams_select|r|true|authenticated|7525bbfe0dc3924d2f46860ddbc1adc8
+policy|public.exams|exams_update|w|true|authenticated|8b7a08f5a2d3100f4bcde250368a5dd9
+policy|public.feature_flags|feature_flags_read|r|true|public|959a171737caf81b92212f7b705c1d31
+policy|public.feature_flags|feature_flags_write|*|true|public|917d62a15e7d095b9e953dd4f59cbb02
+policy|public.fee_documents|fee_documents_module_gate|*|false|authenticated|f6c5df49c17ec397f901e3835466faa8
+policy|public.fee_documents|fee_documents_select|r|true|authenticated|47595445a172355a2632408468207cec
+policy|public.fee_invoices|fee_invoices_module_gate|*|false|authenticated|f6c5df49c17ec397f901e3835466faa8
+policy|public.fee_invoices|invoices_delete|d|true|authenticated|3cb4957bd5435b9a5ed0524d75205bec
+policy|public.fee_invoices|invoices_insert|a|true|authenticated|63f733b015f5d39fce4a79cf5432e59c
+policy|public.fee_invoices|invoices_select|r|true|authenticated|afebc06cea79c603931bc9e8accd0a26
+policy|public.fee_invoices|invoices_update|w|true|authenticated|bd896e9d52389b96fbddecc5040a3170
+policy|public.fee_structures|fee_structures_delete|d|true|authenticated|ae086e8ec1525979d9a1487f39f76709
+policy|public.fee_structures|fee_structures_insert|a|true|authenticated|517ee15ac148c71fcbc97225a778d29b
+policy|public.fee_structures|fee_structures_module_gate|*|false|authenticated|f6c5df49c17ec397f901e3835466faa8
+policy|public.fee_structures|fee_structures_select|r|true|authenticated|9c73b08b75fcbee14bf27d2cbda0391a
+policy|public.fee_structures|fee_structures_update|w|true|authenticated|e581c2c954c15576f30af6f213e4733a
+policy|public.grade_bands|grade_bands_delete|d|true|authenticated|cc348aaa05abecbbd48da65f58e8d0ea
+policy|public.grade_bands|grade_bands_insert|a|true|authenticated|a9d8eb653f4d8eb1c6ee943f91a29c77
+policy|public.grade_bands|grade_bands_select|r|true|authenticated|3b0d7a8c3f985a368a28afe8892e9526
+policy|public.grade_bands|grade_bands_update|w|true|authenticated|e59793cba5079ad82f1aa514e510a052
+policy|public.grade_cycles|grade_cycles_select|r|true|authenticated|8fc83448cc1729047ef68f79e32e6460
+policy|public.grade_cycles|grade_cycles_write|*|true|authenticated|8dc9a6bbfb9dad90e31a7368efa2a931
+policy|public.grades|grades_insert|a|true|authenticated|b6b9ec7875db2b26ed79b997bdeeefc7
+policy|public.grades|grades_module_gate|*|false|authenticated|6077c9309241474661a87c3c4ff946ad
+policy|public.grades|grades_publication_gate|r|false|authenticated|d26a3f6d74a297c72c5369acffae3c19
+policy|public.grades|grades_select|r|true|authenticated|9d9388543b4867ea233d9f047e2a6c64
+policy|public.grades|grades_update|w|true|authenticated|82ce01a0de5e6bb4a49be234cfed702e
+policy|public.grading_scales|grading_scales_delete|d|true|authenticated|01f96709e207b971015df582fc65f3cd
+policy|public.grading_scales|grading_scales_insert|a|true|authenticated|dbec5130c31ad04fdbfbeb0c24bf8dbc
+policy|public.grading_scales|grading_scales_select|r|true|authenticated|0980e6777ee9ca7d335095279bb0e22c
+policy|public.grading_scales|grading_scales_update|w|true|authenticated|dfe2c527dccec6730d2a6ec051131fa1
+policy|public.guardians|guardians_delete|d|true|authenticated|66703fd6b48232ecfdc2f069e1b2d2cb
+policy|public.guardians|guardians_insert|a|true|authenticated|d3e295c61351dd1c87d904551d4eeb94
+policy|public.guardians|guardians_module_gate|*|false|authenticated|a3ac17e963edac18af2763fd7d453266
+policy|public.guardians|guardians_select|r|true|authenticated|10d5d5b9c2138912db76dc2f564e661f
+policy|public.guardians|guardians_update|w|true|authenticated|b7ab1d37d29239e80b94258be46a80d5
+policy|public.health_alerts|health_alerts_admin_delete|d|true|public|4bfd31e2c744276f2b1d489728eae1c7
+policy|public.health_alerts|health_alerts_admin_update|w|true|public|917d62a15e7d095b9e953dd4f59cbb02
+policy|public.health_alerts|health_alerts_insert|a|true|public|3ad89e8b197766dfe7dd9d8061b4e48f
+policy|public.health_alerts|health_alerts_read|r|true|public|959a171737caf81b92212f7b705c1d31
+policy|public.health_conditions|health_conditions_delete|d|true|authenticated|c0a7e3fec88eb83398c682a54919c9a7
+policy|public.health_conditions|health_conditions_insert|a|true|authenticated|3a48628f7e987482ea70d8863c9dbf04
+policy|public.health_conditions|health_conditions_module_gate|*|false|authenticated|18eed055277493028fdd3081374268ec
+policy|public.health_conditions|health_conditions_select|r|true|authenticated|245dc3d216ddfcee4e9500e2e9e7fd94
+policy|public.health_conditions|health_conditions_update|w|true|authenticated|9be84b9fa8311c125ee29ea6b598bb08
+policy|public.health_conditions|health_select|r|true|authenticated|4bfd31e2c744276f2b1d489728eae1c7
+policy|public.health_conditions|health_write|*|true|authenticated|917d62a15e7d095b9e953dd4f59cbb02
+policy|public.hostel_allocations|hostel_alloc_delete|d|true|authenticated|40e5b313f27d22e714ac5425c59c5634
+policy|public.hostel_allocations|hostel_alloc_insert|a|true|authenticated|7765eb1d3f9b4b1632f1ceb528ddb5ea
+policy|public.hostel_allocations|hostel_alloc_select|r|true|authenticated|bf0fea763ddc99e8247681018740a620
+policy|public.hostel_allocations|hostel_alloc_update|w|true|authenticated|4a0148a698640ca8db8a0e3cf53a58be
+policy|public.hostel_allocations|hostel_allocations_module_gate|*|false|authenticated|14ca90efd900b8e0ff9d348354776225
+policy|public.hostel_buildings|hostel_buildings_module_gate|*|false|authenticated|14ca90efd900b8e0ff9d348354776225
+policy|public.hostel_buildings|hostel_buildings_select|r|true|authenticated|85d785f914110c6b2000334d1b0a95fd
+policy|public.hostel_buildings|hostel_buildings_write|*|true|authenticated|57a227068236905491ce9c1bc8149c86
+policy|public.hostel_rooms|hostel_rooms_module_gate|*|false|authenticated|14ca90efd900b8e0ff9d348354776225
+policy|public.hostel_rooms|hostel_rooms_select|r|true|authenticated|85d785f914110c6b2000334d1b0a95fd
+policy|public.hostel_rooms|hostel_rooms_write|*|true|authenticated|57a227068236905491ce9c1bc8149c86
+policy|public.hostel_visitor_logs|hostel_visitor_logs_delete|d|true|authenticated|9b2ce3e1c390aa711c453008cb36cdbb
+policy|public.hostel_visitor_logs|hostel_visitor_logs_insert|a|true|authenticated|2c464f524808d086f2b18f84c8f5b66e
+policy|public.hostel_visitor_logs|hostel_visitor_logs_module_gate|*|false|authenticated|14ca90efd900b8e0ff9d348354776225
+policy|public.hostel_visitor_logs|hostel_visitor_logs_select|r|true|authenticated|2cfb9d629adc77378b05b3a005fd4abb
+policy|public.hostel_visitor_logs|hostel_visitor_logs_update|w|true|authenticated|e8ffd2fb53e1eb87efcc9b1bc84a9964
+policy|public.hostel_visitor_logs|visitor_logs_select|r|true|authenticated|4bfd31e2c744276f2b1d489728eae1c7
+policy|public.hostel_visitor_logs|visitor_logs_write|*|true|authenticated|917d62a15e7d095b9e953dd4f59cbb02
+policy|public.id_card_batches|id_card_batches_delete|d|true|authenticated|590d6fd427434231c30fe669f1ccbc5a
+policy|public.id_card_batches|id_card_batches_insert|a|true|authenticated|dfe65c66534ad30867acc8392d7eae2f
+policy|public.id_card_batches|id_card_batches_module_gate|*|false|authenticated|269202d13a0b34e40e2b04185b329082
+policy|public.id_card_batches|id_card_batches_select|r|true|authenticated|3e4d05894480c05c44794ae86aa9663f
+policy|public.id_card_batches|id_card_batches_update|w|true|authenticated|fe342bc4f8f48acb79270061842b621f
+policy|public.id_cards|id_cards_delete|d|true|authenticated|d264d7a24ff6f215630f4d734bda1775
+policy|public.id_cards|id_cards_insert|a|true|authenticated|d1ee3e016b0b206af2deb4a495a797be
+policy|public.id_cards|id_cards_module_gate|*|false|authenticated|269202d13a0b34e40e2b04185b329082
+policy|public.id_cards|id_cards_select|r|true|authenticated|18d65b828f32323e056139b12ee6fe8c
+policy|public.id_cards|id_cards_update|w|true|authenticated|de35aa8fa2cd86d5239373b58e7f463c
+policy|public.id_cards|idcards_select|r|true|authenticated|35a938d4c80bdf11c8b9931cff6c96de
+policy|public.id_cards|idcards_write|*|true|authenticated|abb0b91c326d25c4c89db7dde2fad5e9
+policy|public.impersonation_sessions|impersonation_sessions_select|r|true|authenticated|132d802027d34f1683ff71067f4372dc
+policy|public.inventory_items|inventory_items_module_gate|*|false|authenticated|bcc324d469ebb7def922e5854a121249
+policy|public.inventory_items|inventory_items_select|r|true|authenticated|85d785f914110c6b2000334d1b0a95fd
+policy|public.inventory_items|inventory_items_write|*|true|authenticated|57a227068236905491ce9c1bc8149c86
+policy|public.inventory_movements|inv_move_select|r|true|authenticated|30d0518d2f961a950ea4aa403b7ac13e
+policy|public.inventory_movements|inv_move_write|a|true|authenticated|3a92e67b0020c9ee6806f8b9b15737e0
+policy|public.inventory_movements|inventory_movements_module_gate|*|false|authenticated|bcc324d469ebb7def922e5854a121249
+policy|public.invoice_headers|invoice_headers_module_gate|*|false|authenticated|f6c5df49c17ec397f901e3835466faa8
+policy|public.invoice_headers|invoice_headers_select|r|true|authenticated|cc9befda3ef70fb60e92e46f49759562
+policy|public.leave_balances|balances_delete|d|true|authenticated|e23ec47695ae7bbba3a7588ced289bd3
+policy|public.leave_balances|balances_insert|a|true|authenticated|2a83b7ce2870e5ac2d3e470c45e0476e
+policy|public.leave_balances|balances_select|r|true|authenticated|54599e67cd15712a63b86262b2677618
+policy|public.leave_balances|balances_update|w|true|authenticated|a14d1307ae81adb37fb9014c4e6f40a4
+policy|public.leave_balances|leave_balances_module_gate|*|false|authenticated|fae749f1996443ccfcd987fc509e3c8e
+policy|public.leave_requests|leave_cancel_own|w|true|authenticated|6199f802d70bb1d88de2ccf381c1b081
+policy|public.leave_requests|leave_decide|w|true|authenticated|53c2e092ef9987957b1ba7a371c1770e
+policy|public.leave_requests|leave_file_on_behalf|a|true|authenticated|6ffb4d4eb8f6c00905dbca95962fe313
+policy|public.leave_requests|leave_file_own|a|true|authenticated|0d5c776f2774d46bc60a2a9b419a0972
+policy|public.leave_requests|leave_requests_module_gate|*|false|authenticated|fae749f1996443ccfcd987fc509e3c8e
+policy|public.leave_requests|leave_select|r|true|authenticated|759b8c6b4f85c8872198920b36b19224
+policy|public.leave_types|leave_types_delete|d|true|authenticated|5f8a2ca72bfbf2d20491bd353e470c78
+policy|public.leave_types|leave_types_insert|a|true|authenticated|7434446186320ca99bebea76f520576a
+policy|public.leave_types|leave_types_module_gate|*|false|authenticated|fae749f1996443ccfcd987fc509e3c8e
+policy|public.leave_types|leave_types_select|r|true|authenticated|24477037b8b2168dad6a8c5403a3d3c2
+policy|public.leave_types|leave_types_update|w|true|authenticated|ad0a2b2246f574b4fcedb13e393eaf15
+policy|public.library_book_copies|library_book_copies_delete|d|true|authenticated|b3c9d7701b9db15822a32c93059eb40b
+policy|public.library_book_copies|library_book_copies_insert|a|true|authenticated|413ae6c1674d6652848ab5231b648cc2
+policy|public.library_book_copies|library_book_copies_module_gate|*|false|authenticated|5272c7d9aa9f3c786e4482edf3e55601
+policy|public.library_book_copies|library_book_copies_select|r|true|authenticated|708f9b6799877e54bfa7abea20287de4
+policy|public.library_book_copies|library_book_copies_update|w|true|authenticated|678bb59da35e949b31e10247e3fd7bf0
+policy|public.library_books|library_books_delete|d|true|authenticated|6ccef8f0229ecc73ef4160447216bce7
+policy|public.library_books|library_books_insert|a|true|authenticated|06daa30042b7eeda47436e0e748621af
+policy|public.library_books|library_books_module_gate|*|false|authenticated|5272c7d9aa9f3c786e4482edf3e55601
+policy|public.library_books|library_books_select|r|true|authenticated|a22cba8c4ca115271180d49e0917a194
+policy|public.library_books|library_books_update|w|true|authenticated|76f19fb26921a009ea68fc8f7b85eea5
+policy|public.library_checkouts|library_checkouts_module_gate|*|false|authenticated|5272c7d9aa9f3c786e4482edf3e55601
+policy|public.library_checkouts|library_checkouts_select|r|true|authenticated|3394fbd79193ea726409a9e764eb96ca
+policy|public.library_fines|library_fines_module_gate|*|false|authenticated|5272c7d9aa9f3c786e4482edf3e55601
+policy|public.library_fines|library_fines_select|r|true|authenticated|8cbbc48d945ad239535d5051b3f0c040
+policy|public.library_fines|library_fines_update|w|true|authenticated|72c4adf1117ac6556c194af3f5bfb9ab
+policy|public.library_holds|library_holds_module_gate|*|false|authenticated|5272c7d9aa9f3c786e4482edf3e55601
+policy|public.library_holds|library_holds_select|r|true|authenticated|8a8f0348e5ba9d68be67a786a733440e
+policy|public.library_settings|library_settings_delete|d|true|authenticated|704297f858b4b778f23726c1a19184fc
+policy|public.library_settings|library_settings_insert|a|true|authenticated|3627fa991ca53e58c35910dc65257a82
+policy|public.library_settings|library_settings_module_gate|*|false|authenticated|5272c7d9aa9f3c786e4482edf3e55601
+policy|public.library_settings|library_settings_select|r|true|authenticated|8447908e9c93c6bbe66bf66467e75f6a
+policy|public.library_settings|library_settings_update|w|true|authenticated|e213326b4bda08623227d6bca997d8a2
+policy|public.messages|messages_insert|a|true|authenticated|3b88e764550059779d0b3d138e228fa2
+policy|public.messages|messages_select|r|true|authenticated|48f15eae286ac308ad9562cc1c656b97
+policy|public.messages|messages_update|w|true|authenticated|5cdf15632b201d13f988f58b82d6f336
+policy|public.modules|modules_select|r|true|authenticated|8fc83448cc1729047ef68f79e32e6460
+policy|public.modules|modules_write|*|true|authenticated|8dc9a6bbfb9dad90e31a7368efa2a931
+policy|public.moe_exports|moe_delete|d|true|authenticated|0253f76ebc89bbbee5daf3be9c4a48a1
+policy|public.moe_exports|moe_exports_module_gate|*|false|authenticated|3c835496f832272f1ffc7ab6bb3fa5ed
+policy|public.moe_exports|moe_insert|a|true|authenticated|06f5479866922931d1886f2353a36d12
+policy|public.moe_exports|moe_select|r|true|authenticated|0b31cc2c7af0ec8a2b544c6e152f1c90
+policy|public.moe_exports|moe_update|w|true|authenticated|5be65171856220329d104492e812547a
+policy|public.notices|notices_delete|d|true|authenticated|bfbbd8ab68d5f386bd1048b75535d558
+policy|public.notices|notices_insert|a|true|authenticated|053e1051849621589bb3c97a3a29a3b6
+policy|public.notices|notices_module_gate|*|false|authenticated|e333ee3abe9456b2827c66cb10519ecf
+policy|public.notices|notices_select|r|true|authenticated|d0c7ee9e7082104bc6d183a895d6a3c3
+policy|public.notices|notices_update|w|true|authenticated|86c84e27e3d0d5324450e16b5fda71a1
+policy|public.notification_log|notification_log_module_gate|*|false|authenticated|e333ee3abe9456b2827c66cb10519ecf
+policy|public.notification_log|notiflog_select|r|true|authenticated|6fb6a3c5daadd469002251416320c2b4
+policy|public.notification_templates|templates_read|r|true|authenticated|8fc83448cc1729047ef68f79e32e6460
+policy|public.notification_templates|templates_write|*|true|authenticated|8dc9a6bbfb9dad90e31a7368efa2a931
+policy|public.operational_modes|operational_modes_select|r|true|authenticated|8fc83448cc1729047ef68f79e32e6460
+policy|public.operational_modes|operational_modes_write|*|true|authenticated|8dc9a6bbfb9dad90e31a7368efa2a931
+policy|public.payments|payments_manual_insert|a|true|authenticated|7e8193620bee0939e2d48a32b972de8f
+policy|public.payments|payments_module_gate|*|false|authenticated|f6c5df49c17ec397f901e3835466faa8
+policy|public.payments|payments_select|r|true|authenticated|73f5f35f8fe1dc12ff40d32e18c20a4d
+policy|public.payroll_runs|payroll_runs_module_gate|*|false|authenticated|fae749f1996443ccfcd987fc509e3c8e
+policy|public.payroll_runs|runs_approve|w|true|authenticated|e7d3a49f60bb0d425ca03e90f738335d
+policy|public.payroll_runs|runs_insert|a|true|authenticated|1de9b65005c552203961d800dab61fc8
+policy|public.payroll_runs|runs_select|r|true|authenticated|0a53720f4f04e19ce6ba83f719021b54
+policy|public.payslip_lines|payslip_lines_module_gate|*|false|authenticated|0793cd73b087121768f75aa6c0494b33
+policy|public.payslip_lines|payslip_lines_select|r|true|authenticated|f28f5e6f4ff2a9a93241e09f6b252bcb
+policy|public.payslips|payslips_module_gate|*|false|authenticated|fae749f1996443ccfcd987fc509e3c8e
+policy|public.payslips|payslips_select|r|true|authenticated|bebbbf06999b4c212af915a8d08a1834
+policy|public.pension_rates|pension_read|r|true|authenticated|8fc83448cc1729047ef68f79e32e6460
+policy|public.pension_rates|pension_write|*|true|authenticated|8dc9a6bbfb9dad90e31a7368efa2a931
+policy|public.periods|periods_delete|d|true|authenticated|242941f3dd79836ac4132011c0c4ef1e
+policy|public.periods|periods_insert|a|true|authenticated|3028b31ff1491df19f6aa4bc026508de
+policy|public.periods|periods_module_gate|*|false|authenticated|4eab2032ca66a809b219cce1baec4071
+policy|public.periods|periods_select|r|true|authenticated|e469c824238c8465b9f49727cfe18196
+policy|public.periods|periods_update|w|true|authenticated|edfa8762053f5a1b1c094a0a907594dd
+policy|public.permissions|permissions_public_read|r|true|public|8fc83448cc1729047ef68f79e32e6460
+policy|public.platform_integrations|platform_integrations_select|r|true|authenticated|132d802027d34f1683ff71067f4372dc
+policy|public.portal_notifications|portal_notifications_select|r|true|authenticated|c126c91384047980324bba3f7a8c5a9e
+policy|public.portal_notifications|portal_notifications_update|w|true|authenticated|5cdf15632b201d13f988f58b82d6f336
+policy|public.promotion_run_students|promotion_run_students_insert|a|true|authenticated|1a4f3843100f730aed18b504a9305751
+policy|public.promotion_run_students|promotion_run_students_select|r|true|authenticated|1f46d049457527b21bac95687bf20fda
+policy|public.promotion_runs|promotion_runs_insert|a|true|authenticated|1a4f3843100f730aed18b504a9305751
+policy|public.promotion_runs|promotion_runs_select|r|true|authenticated|1f46d049457527b21bac95687bf20fda
+policy|public.promotion_runs|promotion_runs_update|w|true|authenticated|4f16c9f52afb958cabd53c79cf03b392
+policy|public.report_templates|report_templates_delete|d|true|authenticated|a6b4d58161aaf52a353028c7ef5fb4b5
+policy|public.report_templates|report_templates_insert|a|true|authenticated|946de095dd13932f48ac3721e74a648a
+policy|public.report_templates|report_templates_select|r|true|authenticated|03afcef1317b645a68c166148c182810
+policy|public.report_templates|report_templates_update|w|true|authenticated|0581080dc3460467e3a31348a7f8d31e
+policy|public.resource_default_role_grants|resource_default_role_grants_select|r|true|authenticated|8fc83448cc1729047ef68f79e32e6460
+policy|public.resource_open_actions|resource_open_actions_select|r|true|authenticated|8fc83448cc1729047ef68f79e32e6460
+policy|public.restore_jobs|restore_jobs_admin_access|*|true|public|9de731274eac7e6aede168d94ece4ae4
+policy|public.restore_jobs|restore_jobs_tenant_isolation|r|true|public|959a171737caf81b92212f7b705c1d31
+policy|public.role_permissions|role_permissions_admin_manage|*|true|authenticated|c720cdf8e202fc243ab5c8487a43bf1e
+policy|public.role_permissions|role_permissions_tenant_isolation|r|true|authenticated|6ad26652215ed0fd0e105cd619af1134
+policy|public.roles|roles_admin_manage|*|true|public|9de731274eac7e6aede168d94ece4ae4
+policy|public.roles|roles_tenant_isolation|r|true|public|959a171737caf81b92212f7b705c1d31
+policy|public.salary_components|salary_components_delete|d|true|authenticated|5cf646b44ad02e4637fb736ca2209bb8
+policy|public.salary_components|salary_components_insert|a|true|authenticated|e9a7f243283e585111d2fff71a1f09fe
+policy|public.salary_components|salary_components_module_gate|*|false|authenticated|fae749f1996443ccfcd987fc509e3c8e
+policy|public.salary_components|salary_components_select|r|true|authenticated|2f58c872dee7796df693c703763c32f2
+policy|public.salary_components|salary_components_update|w|true|authenticated|c8f20d4673ae0d74d6da768883001ffd
+policy|public.school_types|school_types_select|r|true|authenticated|8fc83448cc1729047ef68f79e32e6460
+policy|public.school_types|school_types_write|*|true|authenticated|8dc9a6bbfb9dad90e31a7368efa2a931
+policy|public.staff_attendance|staff_att_delete|d|true|authenticated|7a58f06bea04332bcd72ade834778975
+policy|public.staff_attendance|staff_att_insert|a|true|authenticated|946a30e6dededd31f69aac96d436feac
+policy|public.staff_attendance|staff_att_select|r|true|authenticated|2ae04367de1377d4deae6cf897c4033d
+policy|public.staff_attendance|staff_att_update|w|true|authenticated|ec92adc65c0d0ed75d66a10aa7ec3f7d
+policy|public.staff_attendance|staff_attendance_module_gate|*|false|authenticated|fae749f1996443ccfcd987fc509e3c8e
+policy|public.staff_performance_reviews|staff_performance_reviews_module_gate|*|false|authenticated|fae749f1996443ccfcd987fc509e3c8e
+policy|public.staff_performance_reviews|staff_reviews_delete|d|true|authenticated|e51638e71cfc687884e4f2435e56fdeb
+policy|public.staff_performance_reviews|staff_reviews_insert|a|true|authenticated|159d223b8adbe11098cc1ab9b7ffd6d4
+policy|public.staff_performance_reviews|staff_reviews_select|r|true|authenticated|ccc44a86483b147962291b3454de1104
+policy|public.staff_performance_reviews|staff_reviews_update|w|true|authenticated|d08a6d827b77bab8e0396a8ec208e4ab
+policy|public.student_leave_requests|student_leave_requests_insert|a|true|authenticated|d6b4d55aef275c2de0392026f672bc97
+policy|public.student_leave_requests|student_leave_requests_select|r|true|authenticated|00c1f8acc2721a4d71dde59156da7433
+policy|public.student_leave_requests|student_leave_requests_update|w|true|authenticated|7e9dad6d983d59319da283a0ae0c79f2
+policy|public.student_merits|student_merits_delete|d|true|authenticated|822aa22b60e4571c5c474e82eb11f1ff
+policy|public.student_merits|student_merits_insert|a|true|authenticated|74c279ab10ee957fec9bae23999946f1
+policy|public.student_merits|student_merits_module_gate|*|false|authenticated|a3ac17e963edac18af2763fd7d453266
+policy|public.student_merits|student_merits_select|r|true|authenticated|7d92db4b278d2a3f6b0b4a0d2cd24283
+policy|public.student_merits|student_merits_update|w|true|authenticated|e6a2e0213404786f895bb265ebfd09b5
+policy|public.student_route_assignments|route_assign_delete|d|true|authenticated|e582daeefb4dbee246ee6fdfb3f116d1
+policy|public.student_route_assignments|route_assign_insert|a|true|authenticated|fa675ebff93db4dfc1ee9b46aee5e670
+policy|public.student_route_assignments|route_assign_select|r|true|authenticated|5b3fd8f18eb2774ee5e4abd4a82a3780
+policy|public.student_route_assignments|route_assign_update|w|true|authenticated|d2e3531dfa485ffe32657307de53a3e1
+policy|public.student_route_assignments|student_route_assignments_module_gate|*|false|authenticated|c86234d39488abe1ca96b5a523b4a823
+policy|public.students|students_delete|d|true|authenticated|22906b24d08109c69e27a31f5b23f65b
+policy|public.students|students_insert|a|true|authenticated|752e8c46663c65d09516564125a11fa0
+policy|public.students|students_module_gate|*|false|authenticated|a3ac17e963edac18af2763fd7d453266
+policy|public.students|students_select|r|true|authenticated|e2ef06425e1a1a529d2cc2e45c4aa0b1
+policy|public.students|students_update|w|true|authenticated|d91862f34d3700cd50c6f1430bf7a977
+policy|public.subjects|subjects_delete|d|true|authenticated|557b6ed5275914c6591afea494a73d15
+policy|public.subjects|subjects_insert|a|true|authenticated|e38c8bc4e8a0fc23c274420f9b18578e
+policy|public.subjects|subjects_select|r|true|authenticated|689838dafc85f0695ffa00b91d02e5bc
+policy|public.subjects|subjects_update|w|true|authenticated|3e2298e0d397c412d30e2d3f3c7b3ff0
+policy|public.subscription_tiers|subscription_tiers_select|r|true|authenticated|8fc83448cc1729047ef68f79e32e6460
+policy|public.subscription_tiers|subscription_tiers_write|*|true|authenticated|8dc9a6bbfb9dad90e31a7368efa2a931
+policy|public.system_config|system_config_read|r|true|public|2121cd0fc86aca59251692b8af304d94
+policy|public.system_config|system_config_write|*|true|public|04f0995721ce9530c51feedf4370afb3
+policy|public.system_health|system_health_insert|a|true|public|3ad89e8b197766dfe7dd9d8061b4e48f
+policy|public.system_health|system_health_read|r|true|public|959a171737caf81b92212f7b705c1d31
+policy|public.tax_brackets|tax_read|r|true|authenticated|8fc83448cc1729047ef68f79e32e6460
+policy|public.tax_brackets|tax_write|*|true|authenticated|8dc9a6bbfb9dad90e31a7368efa2a931
+policy|public.teachers|teachers_delete|d|true|authenticated|e870ed640a7bfa31b779b0f12609ce70
+policy|public.teachers|teachers_insert|a|true|authenticated|c5ce62f0253cbf3ec3d2f486aa4df443
+policy|public.teachers|teachers_select|r|true|authenticated|b87da79d83d34f71050d36feac925fed
+policy|public.teachers|teachers_update|w|true|authenticated|501b094c1af834513a156dd4e4a0ba1d
+policy|public.tenant_configs|configs_select|r|true|authenticated|85d785f914110c6b2000334d1b0a95fd
+policy|public.tenant_configs|configs_write|*|true|authenticated|917d62a15e7d095b9e953dd4f59cbb02
+policy|public.tenant_module_overrides|tenant_module_overrides_select|r|true|authenticated|1f46d049457527b21bac95687bf20fda
+policy|public.tenant_module_overrides|tenant_module_overrides_write|*|true|authenticated|8dc9a6bbfb9dad90e31a7368efa2a931
+policy|public.tenant_sso_providers|tenant_sso_providers_admin_manage|*|true|authenticated|9de731274eac7e6aede168d94ece4ae4
+policy|public.tenant_sso_providers|tenant_sso_providers_select|r|true|authenticated|959a171737caf81b92212f7b705c1d31
+policy|public.tenants|tenants_select|r|true|authenticated|46d7fcbf1a312f997bed85d05663c639
+policy|public.tenants|tenants_write|*|true|authenticated|8dc9a6bbfb9dad90e31a7368efa2a931
+policy|public.tier_modules|tier_modules_select|r|true|authenticated|8fc83448cc1729047ef68f79e32e6460
+policy|public.tier_modules|tier_modules_write|*|true|authenticated|8dc9a6bbfb9dad90e31a7368efa2a931
+policy|public.timetable_slots|timetable_select|r|true|authenticated|85d785f914110c6b2000334d1b0a95fd
+policy|public.timetable_slots|timetable_slots_module_gate|*|false|authenticated|4eab2032ca66a809b219cce1baec4071
+policy|public.timetable_slots|timetable_write|*|true|authenticated|917d62a15e7d095b9e953dd4f59cbb02
+policy|public.transport_routes|transport_routes_module_gate|*|false|authenticated|c86234d39488abe1ca96b5a523b4a823
+policy|public.transport_routes|transport_routes_select|r|true|authenticated|85d785f914110c6b2000334d1b0a95fd
+policy|public.transport_routes|transport_routes_write|*|true|authenticated|57a227068236905491ce9c1bc8149c86
+policy|public.transport_stops|transport_stops_module_gate|*|false|authenticated|c86234d39488abe1ca96b5a523b4a823
+policy|public.transport_stops|transport_stops_select|r|true|authenticated|85d785f914110c6b2000334d1b0a95fd
+policy|public.transport_stops|transport_stops_write|*|true|authenticated|57a227068236905491ce9c1bc8149c86
+policy|public.user_permission_overrides|user_permission_overrides_select|r|true|authenticated|85d785f914110c6b2000334d1b0a95fd
+policy|public.user_permission_overrides|user_permission_overrides_write|*|true|authenticated|f99dbdc606b16789f98ee0ac523da624
+policy|public.user_roles|user_roles_admin_manage|*|true|authenticated|d82a39b2fdaf1250e4bbd8a0294d79a1
+policy|public.user_roles|user_roles_tenant_isolation|r|true|public|959a171737caf81b92212f7b705c1d31
+policy|public.users|users_select|r|true|authenticated|e34ef865cbdf19c56bafe83c99f1994c
+policy|public.users|users_self_update|w|true|authenticated|db673db80621f6aa73d856557b59662b
+policy|storage.objects|admin delete avatars|d|true|authenticated|71f0e47b197d098ea0eb20255837a12d
+policy|storage.objects|admin delete documents|d|true|authenticated|8301c1a403785254a3fdfd79d7251057
+policy|storage.objects|admin read evidence|r|true|authenticated|5164bc9c1bda8c26c0102cf9cdef5fa1
+policy|storage.objects|admin read id-cards|r|true|authenticated|5395ef1d585e371f455bf4a7ca00e54f
+policy|storage.objects|admin read moe-exports|r|true|authenticated|6e944f2c3eaaf7f926923c72d3b3562a
+policy|storage.objects|admin update avatars|w|true|authenticated|665c44f4517f9448214700cec71bb4cc
+policy|storage.objects|admin update documents|w|true|authenticated|b5a79c7b948b0f52802e5234bf9cfbc7
+policy|storage.objects|admin write avatars|a|true|authenticated|30b67e222f8e39c496f3fd13da0f2444
+policy|storage.objects|admin write documents|a|true|authenticated|79ad43c77d77f114be466a16002fe452
+policy|storage.objects|payslip read|r|true|authenticated|5ad61618fe268d2a2102322c2f0f1e01
+policy|storage.objects|public read branding|r|true|authenticated,anon|4600a30458ff6927864379ab9a04644f
+policy|storage.objects|read own or taught submission|r|true|authenticated|2e0cf5ee6e07d3de87549300de3d1019
+policy|storage.objects|registrar delete student photos|d|true|authenticated|2b768342094dd9d4f62949248f265f29
+policy|storage.objects|registrar replace student photos|w|true|authenticated|f5ab23845ca5257b9533a194f593631a
+policy|storage.objects|registrar write student photos|a|true|authenticated|9ce7d303648338afd02abfe0f952568a
+policy|storage.objects|school_admin delete own tenant import csv|d|true|authenticated|bec0ab0531c76f408114a2773147fdd7
+policy|storage.objects|school_admin manage branding|*|true|authenticated|70ff7608031fe5489a9d5cc7c494da71
+policy|storage.objects|school_admin manage id card templates|*|true|authenticated|ba527efb17528388c824f4cc97fe4116
+policy|storage.objects|school_admin read own tenant import csv|r|true|authenticated|bec0ab0531c76f408114a2773147fdd7
+policy|storage.objects|school_admin upload own tenant import csv|a|true|authenticated|e77929da403f7c41d0c8d15a8b8029d4
+policy|storage.objects|staff delete assignment attachments|d|true|authenticated|82f9c8e77fa89fd2a9cf8c92f38db376
+policy|storage.objects|staff write assignment attachments|a|true|authenticated|8572af0bfbc2a151f8cef35eb3fd9444
+policy|storage.objects|staff write evidence|a|true|authenticated|2caec8b5275a93d2f218229676b91d11
+policy|storage.objects|student write own submission|a|true|authenticated|f1d90a1fec1956ed25495df70b7154f5
+policy|storage.objects|tenant read admission documents|r|true|authenticated|8137b3b8159f500a8bfcc83796c84dc8
+policy|storage.objects|tenant read assignment attachments|r|true|authenticated|e95ca7e39c8f2e693ea9ca8bc6cbad4c
+policy|storage.objects|tenant read avatars|r|true|authenticated|9fe25917c38cd5597bcc5ad072f9775b
+policy|storage.objects|tenant read bank verifications|r|true|authenticated|b0ceaf32eff6ca68c05ffc1b4c8372d8
+policy|storage.objects|tenant read documents|r|true|authenticated|eaac434a873acbeb3873d654767ce205
+policy|storage.objects|tenant read fee documents|r|true|authenticated|67898536126c7df5f806b3c0a46856c2
+policy|storage.objects|tenant read id cards|r|true|authenticated|5395ef1d585e371f455bf4a7ca00e54f
+policy|storage.objects|tenant read report cards|r|true|authenticated|c51c4a39c5f85e7c8dea5847ed259562
+policy|storage.objects|tenant read student photos|r|true|authenticated|3e38b54be74fdd2cea9f65ce0c43df28
+rls|public.academic_terms|true|true
+rls|public.academic_years|true|true
+rls|public.admission_applications|true|true
+rls|public.announcements|true|true
+rls|public.asset_register|true|true
+rls|public.assignment_attachments|true|true
+rls|public.assignment_sections|true|true
+rls|public.assignment_submissions|true|true
+rls|public.assignments|true|true
+rls|public.attendance|true|true
+rls|public.audit_logs|true|true
+rls|public.backup_jobs|true|false
+rls|public.bank_payment_verifications|true|true
+rls|public.bank_verification_domains|true|true
+rls|public.builtin_role_permission_grants|true|true
+rls|public.calendar_events|true|true
+rls|public.class_subject_teachers|true|true
+rls|public.classes|true|true
+rls|public.clinic_visits|true|true
+rls|public.data_jobs|true|false
+rls|public.discipline_incidents|true|true
+rls|public.document_templates|true|true
+rls|public.employee_documents|true|true
+rls|public.employee_emergency_contacts|true|true
+rls|public.employee_qualifications|true|true
+rls|public.employee_salary_components|true|true
+rls|public.employee_subjects|true|true
+rls|public.employees|true|true
+rls|public.employment_contracts|true|true
+rls|public.exam_seat_assignments|true|true
+rls|public.exams|true|true
+rls|public.feature_flags|true|false
+rls|public.fee_documents|true|true
+rls|public.fee_invoices|true|true
+rls|public.fee_structures|true|true
+rls|public.grade_bands|true|true
+rls|public.grade_cycles|true|true
+rls|public.grades|true|true
+rls|public.grading_scales|true|true
+rls|public.guardians|true|true
+rls|public.health_alerts|true|false
+rls|public.health_conditions|true|true
+rls|public.hostel_allocations|true|true
+rls|public.hostel_buildings|true|true
+rls|public.hostel_rooms|true|true
+rls|public.hostel_visitor_logs|true|true
+rls|public.id_card_batches|true|true
+rls|public.id_cards|true|true
+rls|public.impersonation_sessions|true|true
+rls|public.inventory_items|true|true
+rls|public.inventory_movements|true|true
+rls|public.invoice_headers|true|true
+rls|public.leave_balances|true|true
+rls|public.leave_requests|true|true
+rls|public.leave_types|true|true
+rls|public.library_book_copies|true|true
+rls|public.library_books|true|true
+rls|public.library_checkouts|true|true
+rls|public.library_fines|true|true
+rls|public.library_holds|true|true
+rls|public.library_settings|true|true
+rls|public.messages|true|true
+rls|public.modules|true|true
+rls|public.moe_exports|true|true
+rls|public.notices|true|true
+rls|public.notification_log|true|true
+rls|public.notification_templates|true|true
+rls|public.operational_modes|true|true
+rls|public.payments|true|true
+rls|public.payroll_runs|true|true
+rls|public.payslip_lines|true|true
+rls|public.payslips|true|true
+rls|public.pension_rates|true|true
+rls|public.periods|true|true
+rls|public.permissions|true|false
+rls|public.platform_integrations|true|true
+rls|public.portal_notifications|true|true
+rls|public.promotion_run_students|true|true
+rls|public.promotion_runs|true|true
+rls|public.rate_limits|true|true
+rls|public.report_templates|true|true
+rls|public.resource_default_role_grants|true|true
+rls|public.resource_open_actions|true|true
+rls|public.restore_jobs|true|false
+rls|public.role_permissions|true|false
+rls|public.roles|true|false
+rls|public.salary_components|true|true
+rls|public.school_types|true|true
+rls|public.staff_attendance|true|true
+rls|public.staff_performance_reviews|true|true
+rls|public.student_leave_requests|true|true
+rls|public.student_merits|true|true
+rls|public.student_route_assignments|true|true
+rls|public.students|true|true
+rls|public.subjects|true|true
+rls|public.subscription_tiers|true|true
+rls|public.system_config|true|false
+rls|public.system_health|true|false
+rls|public.tax_brackets|true|true
+rls|public.teachers|true|true
+rls|public.tenant_configs|true|true
+rls|public.tenant_module_overrides|true|true
+rls|public.tenant_sso_providers|true|true
+rls|public.tenants|true|true
+rls|public.tier_modules|true|true
+rls|public.timetable_slots|true|true
+rls|public.transport_routes|true|true
+rls|public.transport_stops|true|true
+rls|public.user_permission_overrides|true|true
+rls|public.user_roles|true|false
+rls|public.users|true|true
+rls|public.webhook_events|true|true

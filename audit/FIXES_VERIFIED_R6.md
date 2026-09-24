@@ -7,7 +7,7 @@ One entry per Work Package (fix plan §0 Rule 10). Status per finding:
 
 ## WP-00 — Freeze, protect, and reconcile production (G-09, RV-05, C-01, L-06)
 
-**Branch / PR:** `claude/timhirt-security-audit-kan0ei` → `fix/production-readiness-r6` (R6 base, created at `a293cb8`). The PR link is added when the PR is opened.
+**Branch / PR:** `claude/timhirt-security-audit-kan0ei` → `fix/production-readiness-r6` (R6 base, created at `a293cb8`). PR #7 (merged, squash `f57d82c`). Closeout records and review fixes: PR #8.
 
 ### Findings
 
@@ -15,8 +15,8 @@ One entry per Work Package (fix plan §0 Rule 10). Status per finding:
 |---|---|---|
 | C-01 (unsigned Telebirr webhook) | **verified-prod** (2026-09-24) · verified-staging n/a (no staging project; owner approved prod-direct) | Repo: gateway removed, `r6_hotfix.sql`, CI guard. Prod: 4 endpoints → 404; settlement EXECUTE false for anon/authenticated/service_role (`prod-drift-2026-09-24.md` §3). |
 | L-06 (Origin-derived redirect) | **verified-prod** | `process-fee-payment` removed from the repo and deleted in prod (404). |
-| RV-05 (anon-callable audit purge) | **verified-prod** | Pre-deploy ACL showed anon/authenticated/service_role EXECUTE. Post-deploy all false. `r6_hotfix.sql` #1–#3, #11. |
-| G-09 (repo ≠ production) | **closed for WP-00 scope** | Production = commit `150f99b`: migrations 106 = 106, functions 28 = 28 with matching `verify_jwt`, frontend built from `150f99b`. Remaining: merge PR #7 so the default branch equals production; full `db diff` needs the DB password. |
+| RV-05 (anon-callable audit purge) | **contained, verified-prod** (WP-00); the ledger part stays open → WP-08 | Pre-deploy ACL showed anon/authenticated/service_role EXECUTE. Post-deploy all false. `r6_hotfix.sql` #1–#3, #11. |
+| G-09 (repo ≠ production) | **closed for WP-00 scope** | Production = commit `150f99b`: migrations 106 = 106, functions 28 = 28 with matching `verify_jwt`, frontend built from `150f99b`. PR #7 merged. Full `db diff` replaced by owner decision D-04 plus a password-free catalog diff (0 differences) and an auth/storage config comparison (see Closeout below). |
 
 ### Implementation
 
@@ -26,7 +26,7 @@ One entry per Work Package (fix plan §0 Rule 10). Status per finding:
 | 1. PITR confirmed + manual backup id | **Not met, owner-accepted** | PITR off, 0 backups at deploy time. The owner approved the deploy anyway; a targeted pre-deploy capture (`audit/evidence/wp00-prod-predeploy-capture-20260924.txt`) was the only recovery record. Tracked in `docs/insa/_pending-changes.md` (D-03) and G-06. |
 | 2. Contain the purge (hotfix migration) | Yes | `supabase/migrations/20260924000001_r6_hotfix_contain.sql` |
 | 3. Remove Telebirr (WP-03.1) | **Yes (repo + prod)** | 4 functions + `_shared/telebirr.ts` deleted in the repo; deleted in prod 2026-09-24 (404 × 4, `audit/evidence/wp00-prod-verification-*.txt`). `config.toml`, `manage-integration-credentials`, `IntegrationsPage`, `InvoiceDetailPage`, `InvoicesPage`, 13 locale keys × 3 locales and `DEPLOYMENT.md` updated. |
-| 4. Reconcile drift | **Yes, except full `db diff`** | Migrations 106 = 106 and functions 28 = 28 with matching `verify_jwt`; frontend commit verified in the served bundle. `supabase db diff --linked` not run: it needs the DB password, which this session doesn't have (D-04). |
+| 4. Reconcile drift | **Yes** | Migrations 106 = 106 and function names/`verify_jwt` 28 = 28; frontend commit verified in the served bundle. `supabase db diff --linked` was replaced (D-04) by a catalog diff (policies, RLS/FORCE, function definitions: 0 differences) and an auth-settings/storage-bucket comparison. Buckets are identical; auth drift is DR-1/DR-2 (`docs/insa/_pending-changes.md`). |
 | 5. Deploy Round 5 + EC-today fix + this WP | **Yes (prod, no staging)** | Owner-approved 2026-09-24; staging doesn't exist (D-02). Details and timeline in `audit/prod-drift-2026-09-24.md` §3. |
 | 6. Install subagent workflow | Yes | 21 agents in `.claude/agents/` (generated from plan Appendix B, B.0 preamble inlined) + `.claude/commands/wp-run.md`; plan copied to `docs/audits/timhirt-production-fix-plan.md`. |
 
@@ -120,7 +120,7 @@ Order matters (SR-1/SR-2): **apply the migration first**. That removes the old `
 2. ~~Drift reconciliation~~: done (`prod-drift-2026-09-24.md` §2, §3).
 3. ~~Deploy + 404 verification~~: done and verified 2026-09-24.
 4. ~~Leftover Vault secrets~~: verified 0.
-5. DNS / domains (F7): (i) confirm there was never email on `edux.et`, or restore MX/SPF/DKIM/DMARC; (ii) attach `*.edux.et` in WP-20.6; (iii) HSTS preload waits for the WP-20 www→apex flip.
+5. DNS / domains (F7): (i) ~~email question~~ answered: auth mail via Resend, but the apex has no MX/SPF, so inbound mail to `info@`/`superadmin@` is not delivered; (ii) attach `*.edux.et` in WP-20.6; (iii) HSTS preload waits for the WP-20 www→apex flip.
 6. Revoke with Ethio Telecom any Telebirr testbed credentials or keypair that were ever issued (SR-4).
 7. **Merge PR #7** so the default branch matches production.
 8. **Rotate `SUPABASE_ACCESS_TOKEN` and `VERCEL_TOKEN`** after the R6 deploys (SR-8, CLAUDE.md).
@@ -189,3 +189,42 @@ Order matters (SR-1/SR-2): **apply the migration first**. That removes the old `
 - **PITR/backups:** not mandatory now (needs a tier upgrade). Recorded as a standing D-03 in `docs/insa/_pending-changes.md`, with compensating controls. This closes GK-4 step 1 as *accepted*, not *met*.
 - **Email (GK-4 step 0 / O-02):** answered. Mail exists on hostns.io. MX, SPF and DKIM are missing from Vercel DNS, and the owner must add them (the token can't write DNS). See `docs/runbooks/domain-edux-et.md`.
 - **Merge PR #7:** instructed by the owner. It is merged with the gatekeeper verdict still **FAIL** on two open items the owner hasn't decided: **O-01** (`db diff` needs the DB password) and **O-03 / GK-1** (10 plan-required reviewers not run for WP-00). Both remain open in `docs/insa/_pending-changes.md`. WP-00 is **not** gatekeeper-PASS until they are resolved or waived.
+
+### WP-00 closeout (2026-09-24, PR #8)
+
+**Owner answers:** "matching counts enough" (O-01 → D-04); "edux.et DNS has been resolved and email is at supabase using resend.com … invite user email sent and received successfully" (O-02); "The 10 reviewers keep them running" (O-03 / GK-1). A "next" arrived while this closeout was running. WP-01 starts after the gatekeeper re-run below.
+
+**The 10 missing reviewers** ran against the merged diff `a293cb8..f57d82c`:
+
+| Reviewer | Verdict | Blocking findings → outcome |
+|---|---|---|
+| tenant-isolation-auditor | PASS | TI-1 (minor): the catalog was not compared → **done**: `audit/evidence/wp00-prod-catalog-diff-*.txt`, 595 = 595 lines, 0 differences |
+| authz-reviewer | FAIL | AZ-1 (major): production policies/grants not compared with the repo → **fixed** by the same catalog diff (policies, RLS/FORCE, function secdef/search_path/source). ACL comparison waits for WP-01's shim (see below). |
+| code-quality-reviewer | PASS | — |
+| conventions-guardian | PASS | — |
+| insa-docs-auditor | FAIL | WP00-1 (major): Resend was missing from the integration list → **fixed** in `_pending-changes.md`. WP00-2 (major): auth/storage reconciliation → **done**: `audit/evidence/wp00-prod-auth-storage-config-*.txt`. Minors WP00-3/5/6/7/8 fixed in this PR. |
+| api-contract-reviewer | FAIL | AC-1 (major): the Integrations page posted AfroMessage's `sender_id` as a secret, so every save got a 400 → **fixed**: one key allow-list `manage-integration-credentials/keys.ts` imported by the Edge Function and `src/features/platform/integrationPayload.ts`. Tests: Vitest `integrationPayload.test.ts` (3; 2 fail on the old payload shape) and Deno `keys.test.ts` (3). Also fixed: AC-2 (`.strict()`), AC-3 (validate before any Vault write), AC-4/CQ-1 (DB errors and a missing row are checked). |
+| frontend-security-reviewer | PASS | FS-1 (pre-existing `javascript:` URL risk in `verification_url`) → backlog **major** for WP-03 §3.11 |
+| i18n-a11y-reviewer | PASS | I18N-1/2 fixed while touching the card: every string translated in en/am/om, `role="alert"`, generic error, no `.slice(0, 10)` on `<EthDate>` |
+| supply-chain-reviewer | PASS | — |
+| payments-integrity-reviewer | PASS | — |
+
+**New live finding from the WP-01 recon (verified on production, read-only):** 46 of 65 `SECURITY DEFINER` functions in `public` are executable by `anon`. Supabase's default privileges grant `anon` an explicit EXECUTE, and `revoke … from public` never removes it. 41 of them are the known H-01 set (WP-02). Five are new:
+- `library_checkout`, `library_return`, `library_renew` and `library_bulk_return` take a caller-supplied `p_tenant_id` and write checkouts, copies, holds and fines. Anyone holding the anon key and the UUIDs could write into any tenant.
+- `get_security_settings()` only reads policy thresholds. It is left to WP-02, because `AcceptInvitePage` reads it.
+
+**Containment:** `supabase/migrations/20260924000002_r6_hotfix_library_anon.sql` revokes EXECUTE on the four library functions from public, anon and authenticated, keeping service_role for `process-library-circulation`. Test: `r6_hotfix_library_anon.sql`, 12 assertions; 8 fail without the migration. **Not yet applied to production: needs owner approval.**
+
+**Auth drift found (owner action):**
+- **DR-1:** public sign-up is **enabled** in production. The repo declares invite-only. 2 auth accounts have no app profile.
+- **DR-2:** the redirect allow-list is missing the `edux.et` hosts.
+- **DR-3:** the password/session policy is weak (→ WP-07).
+
+Details are in `docs/insa/_pending-changes.md`.
+
+**Gate (local, this PR's head):**
+- `tsc`: 0. `eslint src`: 0.
+- `vitest`: 7 files / 53 tests. `check:i18n`: 0. `check:locales`: parity OK.
+- `build`: OK. `no-payment-gateway`: ok. Deno tests: 6/6.
+- `deno check manage-integration-credentials`: OK.
+- pgTAP: 107 migrations, 55/55 suites (`r6_hotfix` 21/21, `r6_hotfix_library_anon` 12/12).

@@ -98,6 +98,15 @@ Staging was skipped because no staging project exists (WP-17 creates it); the ow
 | Fonts served as real TTF | `00010000` | ✅ Tayitu, Jiret, Noto |
 | `supabase db diff` (full schema diff) | empty | ⚠️ Not run: needs the database password, which this session doesn't have. The migration set is equal (106 = 106). |
 
-Timeline: pre-deploy capture ~17:21Z → migration ~17:22Z → function deletes ~17:23Z → function redeploys 17:24–17:25Z → Vercel production deployment created 17:28:38Z. The records commit (`c89ccd4`, 17:30:49Z) came after all of these. **Raw post-deploy evidence, re-captured 2026-09-24T17:37:24Z:** `audit/evidence/wp00-prod-verification-20260924T173724Z.txt` (every check above reproduced).
+Timeline: pre-deploy capture ~17:21Z → migration ~17:22Z → function deletes ~17:23Z → function redeploys 17:24–17:25Z → Vercel production deployment created 17:28:38Z. The records commit (`c89ccd4`, 17:30:49Z) came after all of these. **Raw post-deploy evidence, re-captured 2026-09-24T17:37:24Z:** `audit/evidence/wp00-prod-verification-20260924T173724Z.txt`. It reproduces the migration, privilege, Telebirr-row, Vault, cron, payments, 404 and function/`verify_jwt` rows. The 401 probes, the bundle env/marker checks and the font bytes were observed at deploy time but are not in that file. "Edge Functions deployed vs repo" compares names and `verify_jwt`, not code: 21 functions were not redeployed by WP-00.
 
-**Repo = production** at commit `150f99b` of branch `claude/timhirt-security-audit-kan0ei` (PR #7, not yet merged). Merge PR #7 so the default branch matches what is live.
+**Repo = production** at commit `150f99b` (PR #7, merged as `f57d82c`).
+
+## 4. Closeout reconciliation (2026-09-24 ~22:17–22:21 UTC, read-only)
+
+| Check | Result | Evidence |
+|---|---|---|
+| Policies (public + storage), RLS/FORCE per table, public function definitions (secdef, search_path, md5 of source) | **0 differences**: 595 = 595 lines (407 policies, 112 tables, 76 functions) | `audit/evidence/wp00-prod-catalog-diff-20260924T221703Z.txt` |
+| Storage buckets (id, public, size limit, MIME list) | **0 differences**: 16 = 16 | `audit/evidence/wp00-prod-auth-storage-config-20260924T222047Z.txt` |
+| Auth settings vs `config.toml` | **Drift:** sign-up enabled (repo: invite-only), no `edux.et` redirect URLs, weak password policy, SMTP via Resend | same file; `docs/insa/_pending-changes.md` DR-1..DR-3 |
+| Function ACLs | Not compared: the harness shim lacks Supabase default grants (WP-01). Production read directly: **46/65 definer functions anon-executable**, including 4 tenant-writing `library_*` RPCs | this section; containment migration `20260924000002` |

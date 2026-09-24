@@ -15,42 +15,47 @@ import { Input } from "@/components/ui/Input";
 import { Field, FieldGroup } from "@/components/ui/Field";
 import { Pagination, pageRange } from "@/components/ui/Pagination";
 import { EthDate } from "@/components/EthDate";
+import {
+  buildCredentialsPayload,
+  providerFieldKeys,
+  PROVIDERS,
+  type CredentialsPayload,
+  type Provider,
+} from "./integrationPayload";
 
 type IntegrationRow = {
   provider: string;
   display_name: string;
   configured: boolean;
   updated_at: string | null;
-  config: Record<string, string> | null;
 };
 
 // labelKey rather than label: this map is built at module load, where the
 // i18n `t` from a component hook does not exist and would also freeze the
-// string against later language switches.
-const PROVIDER_FIELDS: Record<string, { key: string; labelKey: string; type?: string }[]> = {
-  sms_smsala: [{ key: "api_key", labelKey: "platformPagesX.apiKey", type: "password" }],
-  sms_geezsms: [{ key: "api_key", labelKey: "platformPagesX.apiKey", type: "password" }],
-  sms_afromessage: [
-    { key: "api_key", labelKey: "platformPagesX.apiKey", type: "password" },
-    { key: "sender_id", labelKey: "platformPagesX.senderId" },
-  ],
+// string against later language switches. Which keys each provider takes, and
+// whether each is a secret, comes from the server's allow-list (keys.ts).
+const FIELD_LABEL_KEYS: Record<string, string> = {
+  api_key: "platformPagesX.apiKey",
+  sender_id: "platformPagesX.senderId",
 };
 
-const SMS_PROVIDERS = ["sms_smsala", "sms_afromessage", "sms_geezsms"] as const;
-
-async function callManageCredentials(body: unknown) {
+async function callManageCredentials(body: CredentialsPayload) {
   const { data: { session } } = await supabase.auth.getSession();
   const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/manage-integration-credentials`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token}` },
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error((await res.json()).error ?? "Failed to save credentials");
+  if (!res.ok) throw new Error(`manage-integration-credentials ${res.status}`);
   return res.json();
 }
 
+function isProvider(p: string): p is Provider {
+  return (PROVIDERS as readonly string[]).includes(p);
+}
+
 function ProviderCard({ provider, displayName, configured, updatedAt }: {
-  provider: string; displayName: string; configured: boolean; updatedAt: string | null;
+  provider: Provider; displayName: string; configured: boolean; updatedAt: string | null;
 }) {
   const { t } = useTranslation();
   const qc = useQueryClient();
@@ -58,7 +63,7 @@ function ProviderCard({ provider, displayName, configured, updatedAt }: {
   const [values, setValues] = useState<Record<string, string>>({});
 
   const save = useMutation({
-    mutationFn: () => callManageCredentials({ provider, credentials: values }),
+    mutationFn: () => callManageCredentials(buildCredentialsPayload(provider, values)),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["platform-integrations"] });
       setOpen(false);
@@ -66,7 +71,7 @@ function ProviderCard({ provider, displayName, configured, updatedAt }: {
     },
   });
 
-  const fields = PROVIDER_FIELDS[provider] ?? [];
+  const fields = providerFieldKeys(provider);
   const allFilled = fields.every((f) => values[f.key]?.trim());
 
   return (
@@ -76,20 +81,20 @@ function ProviderCard({ provider, displayName, configured, updatedAt }: {
           <p className="font-medium">{displayName}</p>
           <p className="text-xs text-ink-faint">
             {configured
-              ? <>Configured{updatedAt && <> · {t("platformPagesX.updated")} <EthDate value={updatedAt.slice(0, 10)} /></>}</>
-              : "Not configured"}
+              ? <>{t("platformPagesX.configured")}{updatedAt && <> · {t("platformPagesX.updated")} <EthDate value={updatedAt} /></>}</>
+              : t("platformPagesX.notConfigured")}
           </p>
         </div>
         <Button variant="ghost" onClick={() => setOpen((v) => !v)}>
-          {open ? "Cancel" : configured ? "Update" : "Configure"}
+          {open ? t("common.cancel") : configured ? t("platformPagesX.update") : t("platformPagesX.configure")}
         </Button>
       </div>
       {open && (
         <div className="mt-4 space-y-3 border-t border-line pt-4">
           {fields.map((f) => (
-            <Field key={f.key} label={t(f.labelKey)}>
+            <Field key={f.key} label={t(FIELD_LABEL_KEYS[f.key] ?? f.key)}>
               <Input
-                type={f.type ?? "text"}
+                type={f.secret ? "password" : "text"}
                 value={values[f.key] ?? ""}
                 maxLength={500}
                 autoComplete="off"
@@ -98,9 +103,9 @@ function ProviderCard({ provider, displayName, configured, updatedAt }: {
             </Field>
           ))}
           <Button onClick={() => save.mutate()} disabled={!allFilled || save.isPending}>
-            {save.isPending ? "Saving…" : "Save"}
+            {save.isPending ? t("platformPagesX.saving") : t("common.save")}
           </Button>
-          {save.isError && <p className="text-sm text-danger">{(save.error as Error).message}</p>}
+          {save.isError && <p role="alert" className="text-sm text-danger">{t("platformPagesX.saveFailed")}</p>}
           <p className="text-xs text-ink-faint">
             {t("help.vaultNote")}
           </p>
@@ -142,7 +147,7 @@ function ActiveSmsProviderSelector() {
               onChange={() => setActive.mutate(null)} />
             {t("platformPagesX.smsProviderNone")}
           </label>
-          {SMS_PROVIDERS.map((p) => (
+          {PROVIDERS.map((p) => (
             <label key={p} className="flex items-center gap-2 text-sm">
               <input type="radio" name="active-sms-provider" checked={row?.value === p}
                 onChange={() => setActive.mutate(p)} />
@@ -162,7 +167,7 @@ export function IntegrationsPage() {
     queryKey: ["platform-integrations"],
     queryFn: async () => {
       const { data, error } = await supabase.from("platform_integrations")
-        .select("provider, display_name, configured, updated_at, config").order("provider");
+        .select("provider, display_name, configured, updated_at").order("provider");
       if (error) throw error;
       return data as IntegrationRow[];
     },
@@ -178,7 +183,7 @@ export function IntegrationsPage() {
         {t("help.integrationsNote")}
       </p>
       <div className="grid gap-3 md:grid-cols-2">
-        {visibleIntegrations.map((i) => (
+        {visibleIntegrations.map((i) => isProvider(i.provider) && (
           <ProviderCard
             key={i.provider}
             provider={i.provider}

@@ -36,15 +36,14 @@ supabase db push
 # app instead of the default http://localhost:3000 fallback.
 supabase secrets set APP_URL=https://your-app.vercel.app
 
-# Deploy all Edge Functions
-supabase functions deploy run-payroll
-supabase functions deploy onboard-tenant
-supabase functions deploy invite-tenant-admin
-supabase functions deploy generate-payslip-pdf
-supabase functions deploy submit-admission --no-verify-jwt
-supabase functions deploy upload-admission-document --no-verify-jwt
-supabase functions deploy verify-id --no-verify-jwt
-supabase functions deploy manage-integration-credentials
+# Deploy every Edge Function (28, including record-fee-payment, the only
+# payment path in this version). verify_jwt comes from supabase/config.toml,
+# which has an entry for every function, so no per-function --no-verify-jwt
+# flag can be forgotten. After shared code (_shared/*) changes, this redeploys
+# every importer too.
+for fn in $(ls supabase/functions | grep -v '^_'); do
+  supabase functions deploy "$fn" --use-api
+done
 
 # R6 WP-00: the Telebirr gateway functions were removed from the repo. On any
 # project where they were ever deployed, delete them so the endpoints 404:

@@ -37,7 +37,7 @@ The two zones hold different data, so answers depend on which server a resolver 
 3. At the registrar, remove `ns1.hostns.io` / `ns2.hostns.io`, leaving only the Vercel nameservers (WP-20 needs Vercel
    DNS for the `*.edux.et` wildcard certificate). Wait for the parent TTL, then re-verify.
 
-## Mail records: state on 2026-09-24 (DNS-over-HTTPS, Cloudflare)
+## Mail records: state on 2026-09-24, before the fix (historical; see "Current state" above)
 
 | Record | Required value (from the owner / mail host) | Live |
 |---|---|---|
