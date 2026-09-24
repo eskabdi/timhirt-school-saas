@@ -4,13 +4,33 @@ DNS for `edux.et` is served by Vercel (`ns1.vercel-dns.com`, `ns2.vercel-dns.com
 Mail is hosted separately (hostns.io, host `91.204.209.21`, PTR `gin.hostns.io`). The owner created
 the mailboxes `superadmin@edux.et`, `noreply@edux.et` and `info@edux.et`.
 
+## ⚠️ Split-brain delegation (found 2026-09-24)
+
+The registrar lists **four** nameservers, from two providers: `ns1.hostns.io`, `ns2.hostns.io`, `ns1.vercel-dns.com`, `ns2.vercel-dns.com`.
+The two zones hold different data, so answers depend on which server a resolver asks:
+
+| Query | Cloudflare resolver (got the Vercel zone) | Google resolver (got the hostns.io zone) |
+|---|---|---|
+| `NS edux.et` | vercel-dns | hostns.io |
+| `MX edux.et` | **none** | `10 entrap-01/02/03.hostns.io` |
+| SPF `TXT edux.et` | none | none |
+| DKIM `default._domainkey` | present | **none** |
+
+**Fix (in this order, or mail breaks):**
+1. Vercel → Domains → edux.et → DNS Records: add `MX @ 10 entrap-01.hostns.io`, `MX @ 10 entrap-02.hostns.io`,
+   `MX @ 10 entrap-03.hostns.io`, and `TXT @ "v=spf1 ip4:91.204.209.21 include:spf.hostns.io +a +mx -all"`.
+   Keep the DKIM and DMARC records already there.
+2. Verify that Cloudflare and Google DoH return identical MX/TXT/DKIM/DMARC answers (commands below).
+3. At the registrar, remove `ns1.hostns.io` / `ns2.hostns.io`, leaving only the Vercel nameservers (WP-20 needs Vercel
+   DNS for the `*.edux.et` wildcard certificate). Wait for the parent TTL, then re-verify.
+
 ## Mail records: state on 2026-09-24 (DNS-over-HTTPS, Cloudflare)
 
 | Record | Required value (from the owner / mail host) | Live |
 |---|---|---|
-| `MX edux.et` | **Value still needed from hostns.io.** Usually `10 <mail host name>` — e.g. `gin.hostns.io`, or `mail.edux.et` with an `A` record → `91.204.209.21`. | ❌ missing: **no inbound mail is delivered** |
+| `MX edux.et` | `10 entrap-01.hostns.io`, `10 entrap-02.hostns.io`, `10 entrap-03.hostns.io` (as served by the hostns.io zone) | ⚠️ only in the hostns.io zone; missing in Vercel |
 | `TXT edux.et` (SPF) | `v=spf1 ip4:91.204.209.21 include:spf.hostns.io +a +mx -all` | ❌ missing |
-| `TXT default._domainkey.edux.et` (DKIM) | `v=DKIM1; k=rsa; p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAuZTsaAGQ9MrZW/n3WsSJeCyYYxcWdV/dL851bZF5it8r7DTlJi7YQZ9tOOQesB6/XySUfMrKKD3sZaFKOVOg3U3HLRBuCUW1XFtlxFFGkC/oMaWs5Oa4KU6KtuQME9eeX7l7tvJsQxixe6leyDHf+dUDVcSQes1zIlF5RAEk7jnKpTB9DLtaGfSRSNVYdY8vBm69lECJiz941kjwGurqS1llAYZ09rTAWaL4Gke3ajDNYAD3w+sutI8VREpZGD7XkgM9iueeKbRgUN59LuTTxG5GCb7K1gKIYgBEvzo3LrazBsXel01umDGVizATTLt1vfT0uLTU7hAIno7eHHsXtwIDAQAB;` | ❌ missing |
+| `TXT default._domainkey.edux.et` (DKIM) — ⚠️ now present in Vercel, missing in hostns.io | `v=DKIM1; k=rsa; p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAuZTsaAGQ9MrZW/n3WsSJeCyYYxcWdV/dL851bZF5it8r7DTlJi7YQZ9tOOQesB6/XySUfMrKKD3sZaFKOVOg3U3HLRBuCUW1XFtlxFFGkC/oMaWs5Oa4KU6KtuQME9eeX7l7tvJsQxixe6leyDHf+dUDVcSQes1zIlF5RAEk7jnKpTB9DLtaGfSRSNVYdY8vBm69lECJiz941kjwGurqS1llAYZ09rTAWaL4Gke3ajDNYAD3w+sutI8VREpZGD7XkgM9iueeKbRgUN59LuTTxG5GCb7K1gKIYgBEvzo3LrazBsXel01umDGVizATTLt1vfT0uLTU7hAIno7eHHsXtwIDAQAB;` | ❌ missing |
 | `TXT _dmarc.edux.et` | `v=DMARC1; p=none;` (tighten to `p=quarantine` once SPF/DKIM pass for a few weeks) | ✅ present |
 | `PTR 21.209.204.91.in-addr.arpa` | `gin.hostns.io` | set by the mail host (not in this zone) |
 
@@ -24,8 +44,10 @@ records (`forbidden: domainRecord create`). Add them in **Vercel → Domains →
 ## Verify after adding
 
 ```bash
-for q in "edux.et MX" "edux.et TXT" "default._domainkey.edux.et TXT" "_dmarc.edux.et TXT" "mail.edux.et A"; do
-  set -- $q; curl -s -H 'accept: application/dns-json' "https://cloudflare-dns.com/dns-query?name=$1&type=$2"; echo; done
+for r in https://cloudflare-dns.com/dns-query https://dns.google/resolve; do
+  for q in "edux.et NS" "edux.et MX" "edux.et TXT" "default._domainkey.edux.et TXT" "_dmarc.edux.et TXT"; do
+    set -- $q; echo "$r $1 $2: $(curl -s -H 'accept: application/dns-json' "$r?name=$1&type=$2")"; done; done
+# Both resolvers must return identical answers before you remove the hostns.io nameservers.
 ```
 Then send a test message to and from `info@edux.et` and check the headers show `spf=pass` and `dkim=pass`.
 Supabase Auth emails (invites, password reset) use Supabase's SMTP unless custom SMTP is configured. If
