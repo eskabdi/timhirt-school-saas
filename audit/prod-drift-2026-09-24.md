@@ -32,7 +32,25 @@ supabase functions list                      # compare with: ls supabase/functio
 #  - Storage: bucket list, public flags, MIME/size limits
 ```
 
-## 2. Record the results here
+## 2. Observed (2026-09-24, Management API + Vercel API, read-only)
+
+The session later found `SUPABASE_ACCESS_TOKEN` and `VERCEL_TOKEN` in its environment. The read-only checks were run with them; no values were printed or stored.
+
+| Check | Expected | Observed |
+|---|---|---|
+| Supabase projects | prod + staging | **Only production** (`livqynxlibmccaycseer`, eu-west-1). No staging project exists (WP-17 creates it). |
+| Migrations applied on prod | all repo migrations | **105/105 repo migrations applied**, including Round 5. The CLAUDE.md "not deployed" note is stale for the DB. Only `20260924000001_r6_hotfix_contain.sql` (this WP) is outstanding. |
+| Edge Functions deployed but not in repo | none | `process-fee-payment` (v7), `telebirr-generate-keypair` (v1), **`telebirr-notify` (v4, verify_jwt=false)**, `telebirr-query-order` (v1) |
+| Edge Functions in repo but not deployed | none | none |
+| Edge Function code drift | none | All functions last deployed ≤ 2026-08-16. Stale vs repo: EC-today fix `93daaab` (`_shared/ethiopian-date.ts` → `onboard-tenant`, `process-export-job`, `process-import-job`, `run-payroll`); R5 `adc20d8` (`enroll-finalize-billing`). |
+| Frontend on Vercel prod | repo HEAD | **`b29ac14`** (2026-08-16, `claude/round5-document-customization`). Missing `adc20d8`, the EC-today fix `93daaab`, and everything after. |
+| Telebirr exposure (C-01) | — | `platform_integrations.telebirr.configured = false`, no config keys, no Telebirr Vault secrets, **0 Telebirr payments** (prod has 6 bank + 4 cash, all succeeded). `process-fee-payment` returns 503 while unconfigured, so no pending gateway order can exist and C-01 is **not currently exploitable**. The endpoint is still publicly reachable and must be deleted. |
+| PITR | enabled | **Disabled.** Management API lists **0 backups** (walg enabled). ⚠️ G-06: no restore point exists. Enable PITR or a paid plan with daily backups before any production write beyond this WP. |
+| Tenants on prod | — | 3 |
+| Vercel domains | `edux.et`, `www`, `*.edux.et` | `edux.et` (308 → `www.edux.et`), `www.edux.et`, `timhirt-school-saas.vercel.app`. **`*.edux.et` is not attached to the project**, so wildcard DNS resolves but the project serves no tenant subdomains yet (WP-20). |
+| Vercel DNS records (MX/TXT) | preserved | Could not list: the Vercel token lacks the `domainRecord:list` scope. DoH shows no MX/SPF/DMARC. |
+
+## 3. Record after deploying this WP
 
 | Check | Expected after WP-00 deploy | Observed | Date |
 |---|---|---|---|
