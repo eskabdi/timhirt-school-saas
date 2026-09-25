@@ -36,7 +36,7 @@ const Payload = z.object({
   reference: z.string().max(100).optional(),
   bank_verification: z.object({
     payment_method: z.enum(["cbe", "awash_bank", "telebirr"]),
-    verification_url: z.string().url().max(2048).refine(isHttpsUrl), // https only (FS-1)
+    verification_url: z.string().trim().url().max(2048).refine(isHttpsUrl), // https only (FS-1)
   }).optional(),
 });
 
@@ -83,7 +83,9 @@ Deno.serve(async (req) => {
           paymentMethod: p.bank_verification.payment_method,
           verificationUrl: p.bank_verification.verification_url,
         });
-        await ctx.adminClient.from("bank_payment_verifications").insert({
+        // A failed write must not be reported as verified (review SR3-1); the
+        // catch below turns it into failed/internal_error.
+        const { error: bvError } = await ctx.adminClient.from("bank_payment_verifications").insert({
           tenant_id: header.tenant_id, payment_id: payment.id,
           payment_method: p.bank_verification.payment_method,
           verification_url: p.bank_verification.verification_url,
@@ -91,6 +93,7 @@ Deno.serve(async (req) => {
           status: result.status, failure_reason: result.status === "failed" ? result.failureReason : null,
           checked_at: new Date().toISOString(),
         });
+        if (bvError) throw bvError;
         bankVerification = result.status === "verified"
           ? { status: "verified" }
           : { status: "failed", failure_reason: result.failureReason };

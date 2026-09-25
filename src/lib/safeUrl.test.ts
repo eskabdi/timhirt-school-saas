@@ -6,7 +6,7 @@ describe("httpsHref (FS-1)", () => {
     expect(httpsHref("https://apps.cbe.com.et/?id=FT1")).toBe("https://apps.cbe.com.et/?id=FT1");
   });
   it("drops every other scheme", () => {
-    for (const v of ["javascript:alert(1)", " javascript:alert(1)", "data:text/html,x", "http://a.et", "", null, undefined]) {
+    for (const v of ["javascript:alert(1)", " javascript:alert(1)", " https://a.et", "data:text/html,x", "http://a.et", "", null, undefined]) {
       expect(httpsHref(v)).toBeNull();
     }
   });

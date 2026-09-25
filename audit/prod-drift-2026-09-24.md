@@ -1,6 +1,6 @@
 # Production drift reconciliation (R6 WP-00 step 4)
 
-**Status: read-only reconciliation DONE (§2); WP-00 deploy DONE and verified 2026-09-24 (§3).**
+**Status: read-only reconciliation DONE (§2); WP-00 deploy DONE and verified 2026-09-24 (§3). §4: the closeout set (PR #8) is undeployed, so G-09 is re-opened.**
 
 **Access record (SR-8).** At first this session had no credentials and this
 runbook was written for the owner to run. Later on 2026-09-24 the owner
@@ -117,3 +117,5 @@ Timeline: pre-deploy capture ~17:21Z → migration ~17:22Z → function deletes 
 - `manage-integration-credentials`: repo has `keys.ts` and the validate-before-write handler, production runs v6;
 - `record-fee-payment` and `verify-admission-bank-url`: https-only verification URL (FS-1);
 - frontend (IntegrationsPage AfroMessage fix and translated strings; https-only links on the invoice and admission pages): production runs `150f99b`.
+
+**Deploy order for this set (review SR3-2):** the https CHECK is added validated. Immediately before applying it, re-count `bank_payment_verifications where verification_url !~* '^https://'` on production (it was 0 on 2026-09-25). The old writers can still store a non-https URL until the new functions ship. If the count is not 0, stop and clean the rows up with the owner first. Apply both migrations in one transaction, then deploy the three functions, then the frontend.

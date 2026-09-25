@@ -32,7 +32,7 @@ import { verifyBankUrl } from "../_shared/bank-verify.ts";
 const Payload = z.object({
   application_id: z.string().uuid(),
   payment_method: z.enum(["cbe", "awash_bank", "telebirr"]),
-  verification_url: z.string().url().max(2048).refine(isHttpsUrl), // https only (FS-1)
+  verification_url: z.string().trim().url().max(2048).refine(isHttpsUrl), // https only (FS-1)
 });
 
 Deno.serve(async (req) => {
@@ -69,11 +69,11 @@ Deno.serve(async (req) => {
       status: result.status, failure_reason: result.status === "failed" ? result.failureReason : null,
       checked_at: new Date().toISOString(),
     };
-    if (existing) {
-      await db.from("bank_payment_verifications").update(row).eq("id", existing.id);
-    } else {
-      await db.from("bank_payment_verifications").insert(row);
-    }
+    // A failed write must not be reported as verified (review SR3-1).
+    const { error: writeError } = existing
+      ? await db.from("bank_payment_verifications").update(row).eq("id", existing.id)
+      : await db.from("bank_payment_verifications").insert(row);
+    if (writeError) throw writeError;
 
     if (result.status === "failed") return json({ ok: false, status: "failed", reason: result.failureReason }, 200);
     return json({ ok: true, status: "verified" }, 200);
