@@ -34,6 +34,26 @@ end $$;
 -- and misreports a real bug as a test failure.
 alter role service_role bypassrls;
 
+-- Supabase's default privileges on `public` (R6 WP-01, finding L-08). Real
+-- projects grant the API roles USAGE on the schema and, through
+-- `ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT ALL ON
+-- {TABLES,SEQUENCES,FUNCTIONS} TO anon, authenticated, service_role`
+-- (supabase/cli initial_schemas, and production's own pg_default_acl, captured
+-- in audit/evidence/), an explicit per-role grant on every object a migration
+-- creates. `revoke … from public` does not remove those per-role grants. The
+-- shim used to grant nothing on `public`, so anon could not even reach the
+-- schema and every "anon cannot call X" probe passed vacuously: that is how
+-- H-01 (46 anon-executable SECURITY DEFINER functions in production) stayed
+-- invisible to a green harness. This must run before any migration creates
+-- objects, and as the role that owns them (postgres), exactly like production.
+grant usage on schema public to anon, authenticated, service_role;
+alter default privileges for role postgres in schema public
+  grant all on tables to anon, authenticated, service_role;
+alter default privileges for role postgres in schema public
+  grant all on sequences to anon, authenticated, service_role;
+alter default privileges for role postgres in schema public
+  grant all on functions to anon, authenticated, service_role;
+
 -- Column set mirrors GoTrue's: the suites insert real-looking rows (aud,
 -- encrypted_password, confirmation_token …), and a narrower table would fail
 -- on the insert rather than on the policy being tested.
