@@ -1,0 +1,54 @@
+# WP-00 step 4: production auth settings and storage buckets vs repo
+# Captured 20260924T222047Z via Management API: GET /v1/projects/livqynxlibmccaycseer/config/auth (curated
+# non-secret keys only; no password, key, token or hook field is kept) and a read_only
+# /database/query on storage.buckets. Repo side: supabase/config.toml [auth] and storage.buckets
+# on the local all-migrations DB (repo f57d82c). Closes insa-docs WP00-2.
+
+## Auth settings
+| prod key | prod value | config.toml key | repo value |
+|---|---|---|---|
+| site_url | "https://www.edux.et" | site_url | http://localhost:5173 (local dev value) |
+| uri_allow_list | "https://timhirt-school-saas.vercel.app/accept-invite,https://timhirt-school-saas.vercel.app/**" | additional_redirect_urls | (not set) |
+| jwt_exp | 3600 | jwt_expiry | 3600 |
+| disable_signup | false | enable_signup | false  -> disable_signup should be true |
+| mailer_autoconfirm | false | auth.email.enable_confirmations | true -> autoconfirm false |
+| refresh_token_rotation_enabled | true | enable_refresh_token_rotation | true |
+| security_refresh_token_reuse_interval | 10 | refresh_token_reuse_interval | 10 |
+| mfa_totp_enroll_enabled | true | auth.mfa.totp.enroll_enabled | true |
+| mfa_totp_verify_enabled | true | auth.mfa.totp.verify_enabled | true |
+| mfa_phone_enroll_enabled | false | - | - |
+| password_min_length | 6 | - | - (WP-07 sets policy) |
+| password_required_characters | null | - | - |
+| password_hibp_enabled | false | - | - |
+| security_update_password_require_reauthentication | false | - | - |
+| security_captcha_enabled | false | - | - (WP-07) |
+| sessions_timebox | 0 | - | - (WP-07) |
+| sessions_inactivity_timeout | 0 | - | - (WP-07) |
+| external_email_enabled | true | - | - |
+| external_phone_enabled | false | - | - |
+| mailer_secure_email_change_enabled | true | - | - |
+| smtp_host | "smtp.resend.com" | - | - (Supabase default mailer) |
+| smtp_port | "465" | - | - |
+| smtp_admin_email | "noreply@edux.et" | - | - |
+| smtp_sender_name | "Edux School Management" | - | - |
+| rate_limit_email_sent | 25 | - | - |
+
+external_*_enabled = true: external_email_enabled
+
+## Storage buckets (prod; the repo DB has the identical 16 rows: 0 differences in id, public, file_size_limit, allowed_mime_types)
+{"id": "admission-documents", "public": false, "file_size_limit": 5242880, "allowed_mime_types": ["application/pdf", "image/webp", "image/png", "image/jpeg"]}
+{"id": "assignment-attachments", "public": false, "file_size_limit": 10485760, "allowed_mime_types": ["application/pdf", "image/png", "image/jpeg", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"]}
+{"id": "avatars", "public": false, "file_size_limit": 5242880, "allowed_mime_types": ["image/webp", "image/png", "image/jpeg"]}
+{"id": "bank-verifications", "public": false, "file_size_limit": 10485760, "allowed_mime_types": ["application/pdf"]}
+{"id": "branding", "public": true, "file_size_limit": 2097152, "allowed_mime_types": ["image/jpeg", "image/png", "image/webp", "image/svg+xml"]}
+{"id": "data-imports", "public": false, "file_size_limit": 5242880, "allowed_mime_types": ["text/csv", "application/vnd.ms-excel", "application/csv", "text/plain"]}
+{"id": "documents", "public": false, "file_size_limit": 5242880, "allowed_mime_types": ["application/pdf", "image/webp", "image/png", "image/jpeg"]}
+{"id": "evidence", "public": false, "file_size_limit": 5242880, "allowed_mime_types": ["image/webp", "image/png", "image/jpeg", "application/pdf"]}
+{"id": "fee-documents", "public": false, "file_size_limit": 2097152, "allowed_mime_types": ["application/pdf"]}
+{"id": "id-card-templates", "public": false, "file_size_limit": 2097152, "allowed_mime_types": ["image/jpeg", "image/png", "image/webp"]}
+{"id": "id-cards", "public": false, "file_size_limit": 5242880, "allowed_mime_types": ["application/pdf"]}
+{"id": "moe-exports", "public": false, "file_size_limit": 10485760, "allowed_mime_types": ["text/csv", "application/pdf"]}
+{"id": "payslips", "public": false, "file_size_limit": 5242880, "allowed_mime_types": ["application/pdf"]}
+{"id": "report-cards", "public": false, "file_size_limit": 5242880, "allowed_mime_types": ["application/pdf"]}
+{"id": "student-photos", "public": false, "file_size_limit": 2097152, "allowed_mime_types": ["image/jpeg", "image/png", "image/webp"]}
+{"id": "submissions", "public": false, "file_size_limit": 5242880, "allowed_mime_types": ["application/pdf", "image/webp", "image/png", "image/jpeg"]}

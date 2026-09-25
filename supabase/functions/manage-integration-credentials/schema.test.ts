@@ -18,3 +18,15 @@ Deno.test("a valid SMS payload is accepted", () => {
   const r = Payload.safeParse({ provider: "sms_smsala", credentials: { api_key: "k" } });
   assert(r.success);
 });
+
+Deno.test("unknown top-level fields are rejected (.strict(), review AC-2)", () => {
+  const r = Payload.safeParse({ provider: "sms_smsala", credentials: { api_key: "k" }, extra: 1 });
+  assertFalse(r.success);
+});
+
+Deno.test("empty config values are rejected (review R2-TV-7)", () => {
+  const r = Payload.safeParse({
+    provider: "sms_afromessage", credentials: { api_key: "k" }, config: { sender_id: "" },
+  });
+  assertFalse(r.success);
+});

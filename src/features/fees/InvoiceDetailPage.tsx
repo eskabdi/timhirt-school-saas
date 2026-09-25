@@ -15,6 +15,7 @@
 // case, it's the common case — the module was incomplete without it.
 // ============================================================================
 import { useState } from "react";
+import { httpsHref } from "@/lib/safeUrl";
 import { Link, useLocation, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -280,9 +281,13 @@ export function InvoiceDetailPage() {
         {previewPaymentId && bankVerifications?.get(previewPaymentId) && (
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <a href={bankVerifications.get(previewPaymentId)!.verification_url} target="_blank" rel="noreferrer" className="truncate text-xs text-navy hover:underline">
-                {bankVerifications.get(previewPaymentId)!.verification_url}
-              </a>
+              {httpsHref(bankVerifications.get(previewPaymentId)!.verification_url) ? (
+                <a href={httpsHref(bankVerifications.get(previewPaymentId)!.verification_url)!} target="_blank" rel="noopener noreferrer" className="truncate text-xs text-navy hover:underline">
+                  {bankVerifications.get(previewPaymentId)!.verification_url}
+                </a>
+              ) : (
+                <span className="truncate text-xs text-ink-faint">{bankVerifications.get(previewPaymentId)!.verification_url}</span>
+              )}
               <Badge tone={bankVerifications.get(previewPaymentId)!.status === "verified" ? "ok" : "danger"}>
                 {t(`admissions.bankVerification.status.${bankVerifications.get(previewPaymentId)!.status}`)}
               </Badge>

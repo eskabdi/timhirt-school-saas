@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { httpsHref } from "@/lib/safeUrl";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -206,9 +207,13 @@ export function AdmissionDetailPage() {
                   {t(`admissions.bankVerification.status.${bankVerification.status}`)}
                 </Badge>
               </div>
-              <a href={bankVerification.verification_url} target="_blank" rel="noreferrer" className="block truncate text-xs text-navy hover:underline">
-                {bankVerification.verification_url}
-              </a>
+              {httpsHref(bankVerification.verification_url) ? (
+                <a href={httpsHref(bankVerification.verification_url)!} target="_blank" rel="noopener noreferrer" className="block truncate text-xs text-navy hover:underline">
+                  {bankVerification.verification_url}
+                </a>
+              ) : (
+                <span className="block truncate text-xs text-ink-faint">{bankVerification.verification_url}</span>
+              )}
               {bankVerification.failure_reason && (
                 <p className="mt-1 text-xs text-danger">{bankVerification.failure_reason}</p>
               )}

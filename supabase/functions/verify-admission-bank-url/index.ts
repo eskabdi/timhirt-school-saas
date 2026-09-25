@@ -24,6 +24,7 @@
 // at the application, so the URL/domain has to actually check out.
 // ============================================================================
 import { z } from "npm:zod@3";
+import { checkAndStoreBankUrl } from "../_shared/bank-verification-record.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { errors, json, rateLimit, corsHeaders } from "../_shared/security.ts";
 import { verifyBankUrl } from "../_shared/bank-verify.ts";
@@ -31,7 +32,7 @@ import { verifyBankUrl } from "../_shared/bank-verify.ts";
 const Payload = z.object({
   application_id: z.string().uuid(),
   payment_method: z.enum(["cbe", "awash_bank", "telebirr"]),
-  verification_url: z.string().url().max(2048),
+  verification_url: z.string().trim().url().max(2048), // https is enforced below (FS-1)
 });
 
 Deno.serve(async (req) => {
@@ -54,27 +55,13 @@ Deno.serve(async (req) => {
       .select("id, tenant_id, stage").eq("id", p.application_id).maybeSingle();
     if (!application || application.stage !== "applied") return errors.badRequest();
 
-    const result = await verifyBankUrl(db, {
-      tenantId: application.tenant_id, pathPrefix: application.id,
+    const result = await checkAndStoreBankUrl({ db, verify: verifyBankUrl }, {
+      tenantId: application.tenant_id,
+      target: { admission_application_id: application.id },
       paymentMethod: p.payment_method, verificationUrl: p.verification_url,
     });
 
-    const { data: existing } = await db.from("bank_payment_verifications")
-      .select("id").eq("admission_application_id", application.id).maybeSingle();
-    const row = {
-      tenant_id: application.tenant_id, admission_application_id: application.id,
-      payment_method: p.payment_method, verification_url: p.verification_url,
-      pdf_path: result.status === "verified" ? result.pdfPath : null,
-      status: result.status, failure_reason: result.status === "failed" ? result.failureReason : null,
-      checked_at: new Date().toISOString(),
-    };
-    if (existing) {
-      await db.from("bank_payment_verifications").update(row).eq("id", existing.id);
-    } else {
-      await db.from("bank_payment_verifications").insert(row);
-    }
-
-    if (result.status === "failed") return json({ ok: false, status: "failed", reason: result.failureReason }, 200);
+    if (result.status === "failed") return json({ ok: false, status: "failed", reason: result.reason }, 200);
     return json({ ok: true, status: "verified" }, 200);
   } catch (err) {
     console.error("verify-admission-bank-url failed", { message: (err as Error).message });

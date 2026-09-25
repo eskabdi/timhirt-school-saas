@@ -1,0 +1,23 @@
+# DR-1: public sign-up disabled in production (owner action, 2026-09-25)
+# Captured 20260925T072554Z. Owner: "I tried to disable the signup but it returns to enabled / Now disabled".
+
+## Management API GET /v1/projects/livqynxlibmccaycseer/config/auth (non-secret keys)
+disable_signup = True
+external_anonymous_users_enabled = False
+mailer_autoconfirm = False
+site_url = https://www.edux.et
+
+## Live probe: POST /auth/v1/signup with the public anon key (throwaway example.com address)
+{"code":422,"error_code":"signup_disabled","msg":"Signups not allowed for this instance"}
+HTTP 422
+probe account created: 0
+
+## Nothing in the repo writes auth config
+grep of .github/, scripts/, supabase/config.toml for disable_signup / enable_signup / config/auth:
+supabase/config.toml:16  enable_signup = false  (local CLI config only; matches production now)
+The owner's first attempt reverted in the dashboard; the second held, and the value was re-read from the API above.
+
+## Auth accounts without a public.users profile (dates only; no PII recorded)
+total auth users 27; without a profile 2:
+- created 2026-08-06, confirmed, last sign-in 2026-08-07, NOT invited: a self-sign-up made while sign-up was open. The owner should identify it in the dashboard and delete it if unknown.
+- created 2026-09-24, unconfirmed, never signed in, invited: a pending invite (owner's invite-email test).

@@ -1,6 +1,6 @@
 # Production drift reconciliation (R6 WP-00 step 4)
 
-**Status: read-only reconciliation DONE (§2); WP-00 deploy DONE and verified 2026-09-24 (§3).**
+**Status: read-only reconciliation DONE (§2); WP-00 deploy DONE and verified 2026-09-24 (§3). §4: closeout reconciliation. §5: closeout set deployed 2026-09-25; repo = production again.**
 
 **Access record (SR-8).** At first this session had no credentials and this
 runbook was written for the owner to run. Later on 2026-09-24 the owner
@@ -98,6 +98,42 @@ Staging was skipped because no staging project exists (WP-17 creates it); the ow
 | Fonts served as real TTF | `00010000` | ✅ Tayitu, Jiret, Noto |
 | `supabase db diff` (full schema diff) | empty | ⚠️ Not run: needs the database password, which this session doesn't have. The migration set is equal (106 = 106). |
 
-Timeline: pre-deploy capture ~17:21Z → migration ~17:22Z → function deletes ~17:23Z → function redeploys 17:24–17:25Z → Vercel production deployment created 17:28:38Z. The records commit (`c89ccd4`, 17:30:49Z) came after all of these. **Raw post-deploy evidence, re-captured 2026-09-24T17:37:24Z:** `audit/evidence/wp00-prod-verification-20260924T173724Z.txt` (every check above reproduced).
+Timeline: pre-deploy capture ~17:21Z → migration ~17:22Z → function deletes ~17:23Z → function redeploys 17:24–17:25Z → Vercel production deployment created 17:28:38Z. The records commit (`c89ccd4`, 17:30:49Z) came after all of these. **Raw post-deploy evidence, re-captured 2026-09-24T17:37:24Z:** `audit/evidence/wp00-prod-verification-20260924T173724Z.txt`. It reproduces the migration, privilege, Telebirr-row, Vault, cron, payments, 404 and function/`verify_jwt` rows. The 401 probes, the bundle env/marker checks and the font bytes were observed at deploy time but are not in that file. "Edge Functions deployed vs repo" compares names and `verify_jwt`, not code: 21 functions were not redeployed by WP-00.
 
-**Repo = production** at commit `150f99b` of branch `claude/timhirt-security-audit-kan0ei` (PR #7, not yet merged). Merge PR #7 so the default branch matches what is live.
+**Repo = production** at commit `150f99b` (PR #7, merged as `f57d82c`).
+
+## 4. Closeout reconciliation (2026-09-24 ~22:17–22:21 UTC, read-only)
+
+| Check | Result | Evidence |
+|---|---|---|
+| Policies (public + storage), RLS/FORCE per table, public function definitions (secdef, search_path, md5 of source) | **0 differences**: 595 = 595 lines (407 policies, 112 tables, 76 functions) | `audit/evidence/wp00-prod-catalog-diff-20260924T221703Z.txt` |
+| Storage buckets (id, public, size limit, MIME list) | **0 differences**: 16 = 16 | `audit/evidence/wp00-prod-auth-storage-config-20260924T222047Z.txt` |
+| Auth settings vs `config.toml` | **Drift:** sign-up enabled (repo: invite-only), no `edux.et` redirect URLs, weak password policy, SMTP via Resend | same file; `docs/insa/_pending-changes.md` DR-1..DR-3 |
+| Triggers and constraints (public) | **0 differences**: 672 = 672 | `audit/evidence/wp00-prod-catalog-diff-triggers-constraints-*.txt` |
+| Function ACLs | Not compared with the repo: the harness shim lacks Supabase default grants (WP-01). Production read directly: **46/65 definer functions anon-executable**, including 4 tenant-writing `library_*` RPCs | `audit/evidence/wp00-prod-definer-acl-*.txt`; containment migration `20260924000002` |
+
+**Undeployed after the closeout (PR #8), so repo ≠ production until the next deploy:**
+- migrations `20260924000002_r6_hotfix_library_anon.sql` and `20260925000001_r6_verification_url_https.sql`: repo 108, production 106;
+- `manage-integration-credentials`: repo has `keys.ts` and the validate-before-write handler, production runs v6;
+- `record-fee-payment` and `verify-admission-bank-url`: https-only verification URL (FS-1);
+- frontend (IntegrationsPage AfroMessage fix and translated strings; https-only links on the invoice and admission pages): production runs `150f99b`.
+
+**Deploy order for this set (review SR3-2):** the https CHECK is added validated. Immediately before applying it, re-count `bank_payment_verifications where verification_url !~* '^https://'` on production (it was 0 on 2026-09-25). The old writers can still store a non-https URL until the new functions ship. If the count is not 0, stop and clean the rows up with the owner first. Apply both migrations in one transaction, then deploy the three functions, then the frontend.
+
+## 5. Closeout deploy (2026-09-25 ~07:20–07:35 UTC, owner approval: "Deploy")
+
+Staging still does not exist (D-02). PITR is still off (D-03). The pre-apply re-count of non-https `bank_payment_verifications` rows was 0 (SR3-2).
+
+| Check | Expected | Observed |
+|---|---|---|
+| Migrations on prod | 108, incl. `20260924000002`, `20260925000001` | ✅ 108; both rows present |
+| `library_checkout/return/renew/bulk_return` proacl | `{postgres=X,service_role=X}` | ✅ all four; anon ✗, authenticated ✗, service_role ✓ |
+| Constraint `bank_payment_verifications_url_https` | present, validated | ✅ `CHECK (verification_url ~* '^https://')`, convalidated true |
+| Edge Functions vs repo | 28 = 28, `verify_jwt` equal | ✅ no missing/extra/mismatch; manage-integration-credentials v7, record-fee-payment v7, verify-admission-bank-url v3 |
+| JWT-protected functions without a token | 401 | ✅ manage-integration-credentials, record-fee-payment |
+| Frontend | built on Vercel, from `da6055e` | ✅ `Running "npm run build"`, aliased www.edux.et |
+| Served bundle | env baked in, closeout markers, no gateway code | ✅ project ref ×21, anon JWT, "Could not save the credentials", `sms_afromessage:["sender_id"]`, the https-only rule, `noopener noreferrer` ×3, gateway identifiers 0 |
+| Fonts | real TTF | ✅ Tayitu, Jiret, Noto `00010000` |
+| Anon-executable definer functions | — | 42 (was 46; the 4 library RPCs are closed; the remaining 42 are WP-02 scope) |
+
+Raw output: `audit/evidence/wp00-closeout-deploy-20260925T072419Z.txt`. **Repo = production at `da6055e`.**

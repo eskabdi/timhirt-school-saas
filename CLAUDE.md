@@ -4,13 +4,14 @@ Timhirt — multi-tenant Ethiopian school management SaaS. React + Vite +
 TanStack Query on Supabase (Postgres + RLS + Edge Functions + Storage), no
 custom API server.
 
-> **Deployed state (verified 2026-09-24):** production runs commit `150f99b`
-> (R6 WP-00: Round 5, the EC-"today" fix, the Telebirr gateway removal and the
-> audit-purge containment). All 106 migrations are applied, and 28/28 Edge
-> Functions match the repo. See `audit/prod-drift-2026-09-24.md`. There is **no
-> staging project** yet (R6 WP-17), and **PITR is off with no backups**. The R6
-> fix plan is `docs/audits/timhirt-production-fix-plan.md`; progress is in
-> `audit/FIXES_VERIFIED_R6.md`.
+> **Deployed state (verified 2026-09-25):** production runs commit `da6055e`
+> (R6 WP-00 and its closeout, PR #8). All 108 migrations are applied, and 28/28
+> Edge Functions match the repo (names and `verify_jwt`). The frontend is built
+> on Vercel from `da6055e`. See `audit/prod-drift-2026-09-24.md` §5 and
+> `audit/evidence/wp00-closeout-deploy-20260925T072419Z.txt`. There is **no staging project** yet (R6 WP-17), and **PITR is off with
+> no backups**. Public sign-up is **disabled** (invite-only, DR-1 closed
+> 2026-09-25). The R6 fix plan is `docs/audits/timhirt-production-fix-plan.md`;
+> progress is in `audit/FIXES_VERIFIED_R6.md`.
 
 The architecture blueprint is [`docs/school-saas-architecture-blueprint.md`](docs/school-saas-architecture-blueprint.md).
 Code comments cite it by section (§6.2 route guards, §17.2 canonical date
@@ -121,7 +122,7 @@ npx vitest run
 npm run check:i18n                  # must be 0
 npm run check:locales               # parity + no wholesale reformat
 npm run build
-PGHOST=… ./supabase/tests/run.sh    # 38 migrations + 5 pgTAP suites
+PGHOST=… ./supabase/tests/run.sh    # 108 migrations + 56 pgTAP suites
 ```
 
 `eslint scripts/` reports `no-undef` on node globals — `scripts/` is outside the

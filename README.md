@@ -30,7 +30,7 @@ see blueprint §21.9 for the reasoning.
 
 ```
 supabase/
-  migrations/     37 migrations: core → academic → attendance/fees → HR/payroll
+  migrations/     108 migrations: core → academic → attendance/fees → HR/payroll
                   → RLS → storage → extended modules → extended RLS
                   → security hardening → base table grants → RLS recursion fix
                   → column-level grants → integration credentials (Vault)
@@ -67,7 +67,7 @@ docs/
 npm install
 cp .env.example .env          # fill in your Supabase project URL/anon key
 supabase start                # local Postgres + Auth + Storage (Docker)
-supabase db push               # apply all 37 migrations
+supabase db push               # apply all migrations
 npm run dev                    # http://localhost:5173
 ```
 
@@ -132,7 +132,7 @@ each one.
 - [ ] Shadow at least one payroll run against the worksheet in `docs/DEPLOYMENT.md`
 - [ ] **Have Amharic/Afaan Oromoo strings reviewed by an education-domain speaker.** 1104 keys are at full parity and none are English placeholders, but parity is not correctness — no automated check can tell you whether the Amharic for "provisionally accepted" reads right to an Ethiopian registrar. Export with `node scripts/i18n-review-export.mjs`.
 - [x] ~~Confirm every staff `auth.users` row has a linked `employees.user_id`~~ **Automated** — Settings → Health Monitoring lists unlinked staff accounts (`check_staff_employee_linkage()`). Payslip and leave policies join through `employees.user_id`, so an unlinked account sees an empty list rather than an error.
-- [x] ~~Run the RLS cross-tenant matrix~~ **Automated in CI** — the `rls-tests` job runs all five suites (42 assertions) on every push. Tenant A vs Tenant B returns zero rows for `students`, `payslips`, `fee_invoices`, `employees` including via embedded relations, and for `student-photos` storage objects.
+- [x] ~~Run the RLS cross-tenant matrix~~ **Automated in CI** — the `rls-tests` job runs every pgTAP suite (56 as of the R6 WP-00 closeout) on every push. Tenant A vs Tenant B returns zero rows for `students`, `payslips`, `fee_invoices`, `employees` including via embedded relations, and for `student-photos` storage objects.
 - [ ] Run the bracket-boundary property test (`npm run test`) against the final gazetted rates — the payroll SoD suite itself is now automated in CI
 - [x] ~~Back the in-memory rate limiter with a shared store~~ **Done** — `public.rate_limits` plus the atomic `consume_rate_limit()` RPC. Verified with 60 concurrent callers against one key at limit 10: exactly 10 allowed. Fails closed.
 - [ ] Configure SMS-gateway credentials through `/platform/integrations` as super_admin (Vault-backed). There are no payment-gateway credentials in this version.
