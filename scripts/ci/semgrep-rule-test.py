@@ -28,9 +28,15 @@ out = subprocess.run(
     ["semgrep", "scan", "--config", str(RULES), "--metrics=off", "--json", "-q", "--no-git-ignore", str(TESTS.relative_to(ROOT))],
     cwd=ROOT, capture_output=True, text=True,
 )
-if out.returncode not in (0, 1):
-    sys.exit(f"semgrep failed ({out.returncode}): {out.stderr[-2000:]}")
-found = {(r["path"], r["start"]["line"], r["check_id"].split(".")[-1]) for r in json.loads(out.stdout)["results"]}
+# Exit 1 is also what a Python crash gives (CI #176: an import error inside
+# semgrep), so a return code alone proves nothing: require a JSON report.
+try:
+    report = json.loads(out.stdout)
+except json.JSONDecodeError:
+    report = None
+if out.returncode not in (0, 1) or not isinstance(report, dict) or "results" not in report:
+    sys.exit(f"semgrep did not produce a report (exit {out.returncode}):\n{out.stderr[-3000:]}")
+found = {(r["path"], r["start"]["line"], r["check_id"].split(".")[-1]) for r in report["results"]}
 
 missing = sorted(expected - found)
 unexpected = sorted((found - expected) | (found & forbidden))
