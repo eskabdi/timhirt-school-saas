@@ -30,6 +30,7 @@ import { issueFeeDocument, notifyBilling, renderReceiptPdf, type FeeLineItem } f
 import { loadDocumentBranding } from "../_shared/branding.ts";
 import { loadDocumentTemplate } from "../_shared/doc-template.ts";
 import { verifyBankUrl } from "../_shared/bank-verify.ts";
+import { fullName } from "../_shared/names.ts";
 
 const Payload = z.object({
   invoice_id: z.string().uuid(), // an invoice_headers id
@@ -100,7 +101,7 @@ Deno.serve(async (req) => {
     let receiptUrl: string | null = null;
     try {
       const { data: student } = await ctx.adminClient.from("students")
-        .select("first_name, last_name, admission_no").eq("id", header.student_id).maybeSingle();
+        .select("first_name, middle_name, last_name, admission_no").eq("id", header.student_id).maybeSingle();
       const { data: tenant } = await ctx.adminClient.from("tenants").select("name").eq("id", header.tenant_id).maybeSingle();
       // Re-read the header's lines: apply_manual_payment_trg has just
       // allocated this payment across them, in the same transaction.
@@ -117,7 +118,7 @@ Deno.serve(async (req) => {
         });
         const refreshedDue = lineItems.reduce((s, l) => s + l.amountDue, 0);
         const refreshedPaid = lineItems.reduce((s, l) => s + l.amountPaid, 0);
-        const studentName = `${student.first_name} ${student.last_name}`.trim();
+        const studentName = fullName(student);
         // R5-B2: gated on branding_extended; UNBRANDED below Standard.
         const branding = await loadDocumentBranding(ctx.adminClient, header.tenant_id);
         const template = await loadDocumentTemplate(ctx.adminClient, header.tenant_id, "receipt");

@@ -16,9 +16,10 @@ import { toIsoDate, formatEth, today } from "@/lib/ethiopian-date";
 import { buildSeatingChartPdf } from "./seating-chart-pdf";
 import { fetchDocumentTemplate } from "@/lib/documentTemplate";
 import { useDocumentSchoolName } from "@/lib/documentBranding";
+import { fullName } from "@/lib/names";
 
 interface SeatAssignmentRow { id: string; student_id: string; seat_label: string }
-interface RosterStudent { id: string; first_name: string; last_name: string }
+interface RosterStudent { id: string; first_name: string; middle_name?: string | null; last_name: string }
 
 function SeatingChartModal({ examId, examLabel, classId, onClose }: {
   examId: string; examLabel: string; classId: string; onClose: () => void;
@@ -35,7 +36,7 @@ function SeatingChartModal({ examId, examLabel, classId, onClose }: {
   const { data: roster } = useQuery({
     queryKey: ["exam-seating-roster", classId],
     queryFn: async () => {
-      const { data, error } = await supabase.from("students").select("id, first_name, last_name").eq("class_id", classId).order("last_name");
+      const { data, error } = await supabase.from("students").select("id, first_name, middle_name, last_name").eq("class_id", classId).order("last_name");
       if (error) throw error;
       return (data ?? []) as RosterStudent[];
     },
@@ -82,7 +83,7 @@ function SeatingChartModal({ examId, examLabel, classId, onClose }: {
       rows, cols, template,
       seats: grid.map((g) => ({
         row: g.row, col: g.col, label: g.seat!.seat_label,
-        studentName: g.seat ? `${studentById.get(g.seat.student_id)?.first_name ?? ""} ${studentById.get(g.seat.student_id)?.last_name ?? ""}`.trim() : null,
+        studentName: g.seat ? fullName(studentById.get(g.seat.student_id)) : null,
       })),
       issuedOn: formatEth(today(), { monthNames: tc("months", { returnObjects: true }) as string[], eraSuffix: tc("eraSuffix") }),
       issuedLabel: t("idCards.issued"),
@@ -128,7 +129,7 @@ function SeatingChartModal({ examId, examLabel, classId, onClose }: {
                     onChange={(e) => reassign.mutate({ seatRowId: cell.seat!.id, studentId: e.target.value })}
                     className="w-full rounded-control border border-line bg-card px-1.5 py-1 text-xs text-ink"
                   >
-                    {eligible.map((s) => <option key={s.id} value={s.id}>{s.first_name} {s.last_name}</option>)}
+                    {eligible.map((s) => <option key={s.id} value={s.id}>{fullName(s)}</option>)}
                   </select>
                 </div>
               );

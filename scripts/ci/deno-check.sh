@@ -34,5 +34,5 @@ for dir in "$ROOT"/supabase/functions/*/; do
   fi
 done
 [ "$checked" -gt 0 ] || { echo "deno-check: no functions found"; exit 2; }
-echo "deno-check: $checked functions, $(wc -l <<<"$known") baselined, $([ $fail -eq 0 ] && echo ok || echo FAILED)"
+echo "deno-check: $checked functions, $(grep -c . <<<"$known") baselined, $([ $fail -eq 0 ] && echo ok || echo FAILED)"
 exit $fail

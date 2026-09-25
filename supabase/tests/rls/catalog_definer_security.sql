@@ -10,7 +10,7 @@
 -- the schema and every "anon cannot execute" check passes vacuously (L-08).
 -- ============================================================================
 begin;
-select plan(6);
+select plan(7);
 \ir ../../security/definer_anon_known.sql
 \ir ../../security/definer_search_path_known.sql
 
@@ -34,6 +34,15 @@ select is(array(select sig from no_search_path except select sig from known_defi
   'every SECURITY DEFINER function outside the WP-02 baseline pins search_path');
 select is(array(select sig from known_definer_no_search_path except select sig from no_search_path order by 1), '{}'::text[],
   'every baselined definer function still lacks search_path: remove fixed ones from definer_search_path_known.sql');
+
+-- The guards above only look at public; a definer function a migration adds
+-- to any other schema would escape them (review AZ-2). The shim's own
+-- auth/storage/vault stand-ins are plain SQL, so the harness count is exact.
+select is(array(select p.oid::regprocedure::text from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+                where p.prosecdef and n.nspname not in ('public', 'pg_catalog', 'information_schema')
+                  and not exists (select 1 from pg_depend d where d.classid = 'pg_proc'::regclass and d.objid = p.oid and d.deptype = 'e')
+                order by 1), '{}'::text[],
+  'no SECURITY DEFINER function outside public (extensions aside)');
 
 select todo('WP-02: revoke EXECUTE from anon on every SECURITY DEFINER function', 1);
 select is((select count(*)::int from anon_exec), 0, 'no SECURITY DEFINER function in public is executable by anon');

@@ -31,3 +31,26 @@ describe("sanitizeRichTextNodes (editor load path, R6 WP-01)", () => {
     expect(html('<img src="https://a.et/logo.png" alt="l">')).toBe('<img src="https://a.et/logo.png" alt="l">');
   });
 });
+
+describe("RichTextEditor load path (R6 WP-01, review FE-1/FE-2)", () => {
+  it("renders stored HTML without handlers and hands the cleaned HTML back", async () => {
+    const { createRoot } = await import("react-dom/client");
+    const { act } = await import("react");
+    const { RichTextEditor } = await import("./RichTextEditor");
+    (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+    const host = document.createElement("div");
+    document.body.append(host);
+    const changes: string[] = [];
+    const root = createRoot(host);
+    await act(async () => {
+      root.render(<RichTextEditor value={'<p>hi</p><img src="x" onerror="alert(1)"><svg onload="alert(2)"></svg>'} onChange={(h) => changes.push(h)} />);
+    });
+    const editor = host.querySelector("[contenteditable]");
+    expect(editor).not.toBeNull();
+    expect(editor!.innerHTML).toContain("<p>hi</p>");
+    expect(host.innerHTML).not.toMatch(/onerror|onload|alert\(/i);
+    expect(changes).toHaveLength(1);
+    expect(changes[0]).not.toMatch(/onerror|onload/i);
+    await act(async () => root.unmount());
+  });
+});

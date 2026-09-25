@@ -87,7 +87,7 @@ Deno.serve(async (req) => {
       tenant_id: tenantId,
       settings: {
         defaultLocale: p.default_locale,
-        calendar: { secondaryVisible: true, geezNumerals: false },
+        calendar: { secondaryVisible: true, numerals: "latn", showHijri: false },
         branding: { primaryColor: "#E8A317" },
       },
     });

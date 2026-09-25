@@ -52,9 +52,12 @@ jobs:
         run: bash scripts/ci/deno-check.sh
       - name: Dependency audit (runtime dependencies, high and above)
         run: npm audit --omit=dev --audit-level=high
-      # Report-only until WP-14 fixes the known findings and adds --strict.
-      - name: Project conventions (report-only)
-        run: python3 scripts/ci/conventions.py
+      # Blocking: no Ge'ez digits, no non-ETB currency, no name without the
+      # middle name. The self-test proves each check still fires.
+      - name: Project conventions
+        run: |
+          python3 scripts/ci/conventions.py --self-test
+          python3 scripts/ci/conventions.py
       - run: npm run build
 
   # RLS + payroll SoD + webhook-settlement pgTAP suites — supabase/tests/rls/*.sql

@@ -59,7 +59,7 @@ export interface StudentFilters {
 
 export async function listStudents(filters: StudentFilters = {}, range?: [number, number]) {
   let q = supabase.from("students")
-    .select("id, admission_no, first_name, last_name, status, gender, date_of_birth, class:classes(id, name, section)", { count: "exact" })
+    .select("id, admission_no, first_name, middle_name, last_name, status, gender, date_of_birth, class:classes(id, name, section)", { count: "exact" })
     .order("last_name");
   if (filters.search) q = q.textSearch("search_vector", filters.search, { type: "websearch" });
   if (filters.classId) q = q.eq("class_id", filters.classId);

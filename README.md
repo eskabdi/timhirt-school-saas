@@ -30,7 +30,7 @@ see blueprint §21.9 for the reasoning.
 
 ```
 supabase/
-  migrations/     108 migrations: core → academic → attendance/fees → HR/payroll
+  migrations/     109 migrations: core → academic → attendance/fees → HR/payroll
                   → RLS → storage → extended modules → extended RLS
                   → security hardening → base table grants → RLS recursion fix
                   → column-level grants → integration credentials (Vault)

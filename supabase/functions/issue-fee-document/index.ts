@@ -27,6 +27,7 @@ import { requireRole, errors, json, rateLimit, corsHeaders } from "../_shared/se
 import { issueFeeDocument, renderInvoicePdf, renderReceiptPdf, type FeeLineItem } from "../_shared/fee-pdf.ts";
 import { loadDocumentBranding } from "../_shared/branding.ts";
 import { loadDocumentTemplate } from "../_shared/doc-template.ts";
+import { fullName } from "../_shared/names.ts";
 
 const Payload = z.object({
   kind: z.enum(["invoice", "receipt"]),
@@ -49,7 +50,7 @@ Deno.serve(async (req) => {
     if (p.kind === "receipt" && !p.payment_id) return errors.badRequest();
 
     const { data: header } = await ctx.userClient.from("invoice_headers")
-      .select("id, tenant_id, due_date, student:students(id, first_name, last_name, admission_no, class:classes(name, section))")
+      .select("id, tenant_id, due_date, student:students(id, first_name, middle_name, last_name, admission_no, class:classes(name, section))")
       .eq("id", p.invoice_id).maybeSingle();
     if (!header) return errors.badRequest();
 
@@ -67,8 +68,8 @@ Deno.serve(async (req) => {
     const amountPaid = lineItems.reduce((s, l) => s + l.amountPaid, 0);
     const status = lineItems.every((l) => l.status === "paid") ? "paid" : amountPaid > 0 ? "partial" : "pending";
 
-    const student = header.student as unknown as { id: string; first_name: string; last_name: string; admission_no: string; class: { name: string; section: string | null } | null };
-    const studentName = `${student.first_name} ${student.last_name}`.trim();
+    const student = header.student as unknown as { id: string; first_name: string; middle_name?: string | null; last_name: string; admission_no: string; class: { name: string; section: string | null } | null };
+    const studentName = fullName(student);
     const classLabel = student.class ? `${student.class.name} ${student.class.section ?? ""}`.trim() : "-";
 
     const { data: tenant } = await ctx.userClient.from("tenants").select("name").eq("id", header.tenant_id).maybeSingle();

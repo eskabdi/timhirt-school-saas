@@ -37,8 +37,16 @@
 | WP-00 DR-1 follow-up | A self-signed-up auth account (created 2026-08-06, no `public.users` profile) exists from when sign-up was open. The owner should identify it and delete it if unknown. | Owner |
 | WP-00 gatekeeper GK-F1 | Re-checked at WP-01 start (2026-09-25): `disable_signup = true`, live probe 422 `signup_disabled`. Still to do: add it to the WP-19 config-drift check. | WP-19 |
 | WP-00 gatekeeper GK-F4 | ~~Embed the commit SHA in the bundle~~ **Done in WP-01**: `<meta name="app-commit">` in `index.html`; `npm run deploy` passes `VITE_COMMIT_SHA`. | — |
-| WP-01 conventions | `CalendarPreferencesPage` offers a per-tenant "Use Ge'ez numerals" option (`EthDate`, `EthDatePicker`, `toGeez`). The owner's rule is Arabic numerals only. 0 of 3 production tenants have it on (2026-09-25). Remove the option and the `toGeez` rendering path. | WP-14 |
-| WP-01 conventions | 13 `first_name … last_name` concatenations drop the middle name (8 pages, `record-fee-payment`, `issue-fee-document`). Use a shared Ethiopian-name formatter (First + Middle + Last; short = First + Middle). | WP-14 |
-| WP-01 deno check | 4 Edge Functions still fail `deno check` (baseline `supabase/security/deno_check_known.txt`): enroll-finalize-billing, generate-payslip-pdf, issue-id-card, run-payroll. | WP-04 / WP-10 / WP-12 / WP-13 |
+| WP-01 conventions | ~~Per-tenant "Use Ge'ez numerals" option~~ **Done (owner ask, 2026-09-25)**: replaced by Eastern Arabic digits and Hijri options; migration `20260925000002`. Native-speaker check of the Amharic/Oromo Hijri month names and era suffix still wanted. | WP-14 (i18n review) |
+| WP-01 conventions | ~~Names without the middle name~~ **Done (owner ask, 2026-09-25)**: 28 call sites use `fullName()`; the conventions gate blocks new ones. | — |
+| WP-01 deno check | 3 Edge Functions still fail `deno check` (baseline `supabase/security/deno_check_known.txt`): generate-payslip-pdf, issue-id-card, run-payroll (enroll-finalize-billing fixed). | WP-10 / WP-12 / WP-13 |
 | WP-01 SAST | semgrep partially parses `integrationPayload.ts` (`unique symbol`) and `timetable-pdf.ts`; those files get partial SAST coverage. | WP-13 |
 | WP-01 | `happy-dom` is now available (`// @vitest-environment happy-dom`), which unblocks the render tests in RG3-5 / TV3-2 (https-only links on the invoice and admission pages). | WP-03 / WP-12 |
+
+| WP-01 review AZ-1 | 39 definer functions pin `search_path=public` without `pg_temp`; tighten the guard to require `pg_temp` (or `""`) when WP-02 rewrites them. | WP-02 |
+| WP-01 review AZ-6 / TI-6 | ACL parity covers `public` EXECUTE/SELECT/INSERT only; add UPDATE/DELETE, schema CREATE and storage grants. Add guards for `security_invoker=false` views and permissive `true` tenant policies. | WP-02 / WP-05 |
+| WP-01 review EF-1 / AZ-3 | No Deno test drives the fixed error paths in `activate-sso-user`, `process-export-job`, `process-import-job`. | WP-12 |
+| WP-01 review EF-2 / EF-3 | No `deno.lock`; `npm:@supabase/supabase-js@2` floats, so `deno check` results can drift. Baselined functions pass on any failure reason. | WP-13 |
+| WP-01 review SC-4 | Upstream moved the gitleaks tag v8.30.1; `go install` builds the sumdb-locked 8d1f98c7 (`h1:PmEvCfVI7ti9dV3s5aMZUY7sS2GxRvG3yzih7E+cS3w=`). Re-verify on any bump. | WP-13 |
+| WP-01 review SC-5 | Dev-dependency audit: 1 critical (vitest ≤4.1.10) and 5 high. | WP-13 |
+| WP-01 review FE-4 | Editor/sanitiser accept any https image; the CSP only allows Supabase storage. Restrict `SAFE_IMG_SRC` to match. | WP-12 |

@@ -11,14 +11,16 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
-  EthDate as Eth, toEthiopian, toGregorian, daysInEthMonth, toGeez, todayEthiopian, formatEth,
+  EthDate as Eth, toEthiopian, toGregorian, daysInEthMonth, todayEthiopian, formatEth, formatDigits, type NumeralSystem,
 } from "@/lib/ethiopian-date";
 import { cn } from "@/lib/utils";
+import { useCalendarPrefs } from "@/features/settings/useCalendarPrefs";
 
 interface Props {
   value: Date | null;
   onChange: (gregorian: Date) => void;
-  geez?: boolean;
+  /** Digit system; defaults to the tenant's calendar preference. */
+  numerals?: NumeralSystem;
   id?: string;
 }
 
@@ -31,8 +33,11 @@ const WEEKDAYS = ["S", "M", "T", "W", "T", "F", "S"];
 // distant birth year is one or two clicks away, not dozens of month steps.
 const YEARS_PER_PAGE = 12;
 
-export function EthDatePicker({ value, onChange, geez = false, id }: Props) {
+export function EthDatePicker({ value, onChange, numerals, id }: Props) {
   const { t } = useTranslation("calendar");
+  const prefs = useCalendarPrefs();
+  const digits = numerals ?? prefs.numerals;
+  const num = (v: number) => formatDigits(v, digits);
   const months = t("months", { returnObjects: true }) as string[];
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -93,7 +98,7 @@ export function EthDatePicker({ value, onChange, geez = false, id }: Props) {
     ? new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }).format(value)
     : "";
 
-  const displayValue = value ? formatEth(value, { monthNames: months, eraSuffix: t("eraSuffix"), geez }) : "";
+  const displayValue = value ? formatEth(value, { monthNames: months, eraSuffix: t("eraSuffix"), numerals: digits }) : "";
 
   const selectDay = (d: number) => {
     onChange(toGregorian({ year: view.year, month: view.month, day: d }));
@@ -138,8 +143,8 @@ export function EthDatePicker({ value, onChange, geez = false, id }: Props) {
               aria-label={mode === "days" ? "Select year" : "Back to days"}
               className="rounded-control px-2 py-1 font-display text-sm font-bold text-ink hover:bg-sidebar">
               {mode === "days"
-                ? `${months[view.month - 1]} ${geez ? toGeez(view.year) : view.year} ${t("eraSuffix")}`
-                : `${geez ? toGeez(yearGridStart) : yearGridStart}–${geez ? toGeez(yearGridStart + YEARS_PER_PAGE - 1) : yearGridStart + YEARS_PER_PAGE - 1} ${t("eraSuffix")}`}
+                ? `${months[view.month - 1]} ${num(view.year)} ${t("eraSuffix")}`
+                : `${num(yearGridStart)}–${num(yearGridStart + YEARS_PER_PAGE - 1)} ${t("eraSuffix")}`}
             </button>
             <button
               type="button"
@@ -167,7 +172,7 @@ export function EthDatePicker({ value, onChange, geez = false, id }: Props) {
                         : "text-ink hover:bg-navy-wash",
                     )}
                   >
-                    {geez ? toGeez(y) : y}
+                    {num(y)}
                   </button>
                 );
               })}
@@ -197,7 +202,7 @@ export function EthDatePicker({ value, onChange, geez = false, id }: Props) {
                           : "text-ink hover:bg-navy-wash",
                       )}
                     >
-                      {geez ? toGeez(d) : d}
+                      {num(d)}
                     </button>
                   );
                 })}

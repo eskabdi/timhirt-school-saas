@@ -10,6 +10,7 @@ import { Card } from "@/components/ui/Card";
 import { Field } from "@/components/ui/Field";
 import { Pagination, pageRange } from "@/components/ui/Pagination";
 import { toIsoDate } from "@/lib/ethiopian-date";
+import { fullName } from "@/lib/names";
 
 const SEVERITIES = ["minor", "moderate", "major"] as const;
 
@@ -24,13 +25,13 @@ export function DisciplineIncidentsPage() {
   const [severity, setSeverity] = useState<typeof SEVERITIES[number]>("minor");
   const [page, setPage] = useState(1);
 
-  const { data: students } = useQuery({ queryKey: ["students-brief"], queryFn: async () => (await supabase.from("students").select("id,first_name,last_name")).data ?? [] });
+  const { data: students } = useQuery({ queryKey: ["students-brief"], queryFn: async () => (await supabase.from("students").select("id,first_name,middle_name,last_name")).data ?? [] });
   const { data: incidents } = useQuery({
     queryKey: ["discipline", page],
     queryFn: async () => {
       const [from, to] = pageRange(page);
       const { data, error, count } = await supabase.from("discipline_incidents")
-        .select("id, incident_date, description, severity, students(first_name,last_name)", { count: "exact" })
+        .select("id, incident_date, description, severity, students(first_name,middle_name,last_name)", { count: "exact" })
         .order("incident_date", { ascending: false })
         .range(from, to);
       if (error) throw error;
@@ -64,7 +65,7 @@ export function DisciplineIncidentsPage() {
           <Field label={t("discipline.student")}>
             <select value={studentId} onChange={(e) => setStudentId(e.target.value)} className="w-full rounded-control border border-line bg-card px-3 py-2 text-sm text-ink">
               <option value="">—</option>
-              {students?.map((s) => <option key={s.id} value={s.id}>{s.first_name} {s.last_name}</option>)}
+              {students?.map((s) => <option key={s.id} value={s.id}>{fullName(s)}</option>)}
             </select>
           </Field>
           <Field label={t("discipline.date")}><EthDatePicker value={date} onChange={setDate} /></Field>
@@ -83,11 +84,11 @@ export function DisciplineIncidentsPage() {
 
       <div className="space-y-2">
         {incidents?.rows.map((i) => {
-          const student = i.students as unknown as { first_name: string; last_name: string } | null;
+          const student = i.students as unknown as { first_name: string; middle_name?: string | null; last_name: string } | null;
           return (
           <Card key={i.id} className="flex items-center justify-between">
             <div>
-              <p className="font-medium text-ink">{student?.first_name} {student?.last_name}</p>
+              <p className="font-medium text-ink">{fullName(student)}</p>
               <p className="text-sm text-ink-faint">{i.description.slice(0, 80)}</p>
             </div>
             <div className="text-right text-sm">

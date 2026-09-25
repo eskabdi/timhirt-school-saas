@@ -318,7 +318,7 @@ Each WP lists: **Findings · Files · Changes · Tests (acceptance) · Docs to u
    - Pin every action by **commit SHA** (comment the tag next to it).
    - Add jobs: `gitleaks` (secret scan), `semgrep --config p/owasp-top-ten --config p/typescript --config p/react` (SAST), `npm audit --omit=dev --audit-level=high`, `deno check supabase/functions/**/index.ts`.
    - Add `.github/dependabot.yml` for `npm` and `github-actions` (weekly).
-   - Add a **conventions gate** script `scripts/ci/conventions.sh` (filled in WP-14): no `$`/`USD` currency, no Ge'ez digits U+1369–U+137C in `src/`, `supabase/functions/`, PDF templates; no `first_name} ${…last_name` concatenations.
+   - Add a **conventions gate** script `scripts/ci/conventions.py` (filled in WP-14): no `$`/`USD` currency, no Ge'ez digits U+1369–U+137C in `src/`, `supabase/functions/`, PDF templates; no `first_name} ${…last_name` concatenations.
 
 **Tests:** CI runs on the PR and fails on a planted secret and a planted `dangerouslySetInnerHTML` (then remove them).
 
@@ -1266,7 +1266,7 @@ Replace every CSV writer (`process-export-job`, `PayrollRunDetailPage`, `Invoice
 **14.1 Arabic numerals only (M-11, G-02)**
 - Remove the `geezNumerals` toggle from `CalendarPreferencesPage`, the `geez` prop from `EthDate`/`EthDatePicker`, and `useGeezNumerals`. `formatEth` always uses Arabic digits. Delete `toGeez` unless another feature needs it (none should).
 - Migration: `update tenant_configs set settings = settings #- '{calendar,geezNumerals}'`.
-- CI gate (`scripts/ci/conventions.sh`): fail on any character U+1369–U+137C in `src/`, `supabase/functions/`, locale JSON, and PDF templates. Runtime test renders every EC date formatter, PDF header, ID card and rank label and asserts `!/[\u1369-\u137C]/.test(output)`.
+- CI gate (`scripts/ci/conventions.py`): fail on any character U+1369–U+137C in `src/`, `supabase/functions/`, locale JSON, and PDF templates. Runtime test renders every EC date formatter, PDF header, ID card and rank label and asserts `!/[\u1369-\u137C]/.test(output)`.
 
 **14.2 Names (M-12)** — `src/lib/names.ts` and `_shared/names.ts`:
 ```ts

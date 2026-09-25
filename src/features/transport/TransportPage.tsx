@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/Input";
 import { Field } from "@/components/ui/Field";
 import { Modal } from "@/components/ui/Modal";
 import { Pagination, pageRange } from "@/components/ui/Pagination";
+import { fullName } from "@/lib/names";
 
 interface Route { id: string; name: string; vehicle_no: string | null; driver_name: string | null; }
 type RouteForm = { name: string; vehicle: string; driver: string };
@@ -41,7 +42,7 @@ export function TransportPage() {
   const routes = routesData?.rows;
   const { data: students } = useQuery({
     queryKey: ["transport_students"],
-    queryFn: async () => (await supabase.from("students").select("id,first_name,last_name").eq("status", "active").order("first_name")).data ?? [],
+    queryFn: async () => (await supabase.from("students").select("id,first_name,middle_name,last_name").eq("status", "active").order("first_name")).data ?? [],
   });
   const { data: assignCounts } = useQuery({
     queryKey: ["transport_assign_counts"],
@@ -139,7 +140,7 @@ export function TransportPage() {
         <Field label={t("clinic.student")}>
           <select value={studentId} onChange={(e) => setStudentId(e.target.value)} className="w-full rounded-control border border-line bg-card px-3 py-2 text-sm text-ink">
             <option value="">{t("modules.selectStudent")}</option>
-            {students?.map((s) => <option key={s.id} value={s.id}>{s.first_name} {s.last_name}</option>)}
+            {students?.map((s) => <option key={s.id} value={s.id}>{fullName(s)}</option>)}
           </select>
         </Field>
         <p className="mt-2 text-xs text-ink-faint">{t("modules.reassignNote")}</p>

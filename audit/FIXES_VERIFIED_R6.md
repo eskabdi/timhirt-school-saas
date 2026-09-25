@@ -425,3 +425,42 @@ The diff since `ebb48a5` is records and evidence only. There is no code change b
 - pgTAP: 108 migrations, 60/60 suites. The catalog guards show their TODOs: definer 2, RLS 1, module gate 1, storage 1.
 
 **Deploy note:** no migration. The fixes to `RichTextEditor` (frontend) and to 3 Edge Functions ship with the next production deploy.
+
+### Round 1 reviews (13 launched on `744f1d4`)
+
+Seven reviewers returned: authz, api-contract, conventions, supply-chain and frontend-security all PASS; tenant-isolation FAIL (one major). Their verdicts are saved unedited in `audit/evidence/reviews/wp01-r1-*.md`. The other six (security, code-quality, test-verifier, regression-guardian, db-migration, infra-config, insa-docs) died on an API rate limit before reporting and are re-run on the fixed head.
+
+| Finding | Severity | Fix | Proof |
+|---|---|---|---|
+| TI-1 storage guard matched exact text only | major | Classify every `storage.objects` policy (all commands, USING and WITH CHECK) by content: it must carry a role/relationship term and a tenant-folder term. | 5 planted policies (unwrapped tenant-only, `auth.role()`, `bucket_id in (…)`, write tenant-only, role-but-cross-tenant) are each caught; the 4 baselined policies are still the only offenders. |
+| TI-2 module gate matched by name only | minor | A gate counts only if restrictive, `polcmd = '*'` and USING calls `has_module(`. | Planted insert-only `with check (true)` gate is not counted; a real gate is. All 56 existing gates still count. |
+| TI-3 anon calls accepted any 42501 | minor | Assert the exact message `permission denied for function …`, plus `has_schema_privilege('anon','public','usage')`. | `r6_hotfix_library_anon.sql` 15/15. |
+| TI-4 shim granted anon/authenticated `SELECT` on `auth.users` | minor | Removed (only service_role reads it, as on Supabase). | All suites still pass. |
+| TI-5 / AZ-5 shim said 46 | info | Comment says 46 before WP-00, 42 now. | — |
+| AZ-2 definer guard ignored other schemas | minor | Hard assertion: no SECURITY DEFINER function outside `public` (extensions aside). | ok. |
+| AZ-1 `search_path=public` without `pg_temp` | minor | Deferred to WP-02 (it rewrites every definer function). | backlog |
+| FE-1 editor kept the unsafe original in form state | minor | After sanitising on load, `onChange(cleaned)` when it differs. | New editor render test mounts `RichTextEditor`; it fails when line 52 is reverted to `innerHTML =`. |
+| FE-2 no editor-level test | minor | Same test. | 5/5. |
+| SC-1 pinned-actions missed flow-style YAML and docker tags | minor | Match `uses:` anywhere; docker needs `@sha256:<64hex>`. | 5 planted cases each exit 1. |
+| SC-2 semgrep deps floated | minor | Hash-locked `scripts/ci/requirements-semgrep.txt`, `--require-hashes`. This was also the **root cause of the red security-scan** (see below). | — |
+| SC-3 happy-dom not in the INSA notes | minor | Added to `_pending-changes.md`. | — |
+| EF-4 empty baseline printed 1 | info | `grep -c .`. | — |
+| CG-1…CG-7 conventions gate | minor | Rewritten: JSX, `+` and `.join` name forms; EUR/GBP, `$${`, Intl `currency:`; `.sql`/`.css`/`.html`/migrations scanned; Ge'ez range written as escapes; fixture self-test; plan text says `conventions.py`. **Now blocking in CI** (0 findings). | `--self-test` ok (19 planted lines). |
+
+**Red security-scan on PR #9 (CI #176), root cause.** `pip install semgrep==1.95.0` let pip pick the newest setuptools (84.0.0). setuptools 81+ no longer ships `pkg_resources`, which semgrep 1.95.0 imports through `opentelemetry-instrumentation` 0.46b0. semgrep died on import with exit 1 and no stdout, and the self-test reported that as a JSON decode error. Reproduced locally with the same install, fixed with a hash-locked dependency file (`setuptools<81`), and the self-test now requires a JSON report and prints semgrep's stderr otherwise. Proven both ways: CI-like install → exit 1 with the `ModuleNotFoundError`; locked install → 10/0/0.
+
+### Owner-directed changes (2026-09-25, pulled forward from WP-14)
+
+| Owner ask | Done | Proof |
+|---|---|---|
+| Show full names (First + Middle + Last) | `src/lib/names.ts` / `supabase/functions/_shared/names.ts` (`fullName`, `shortName`; staff `father_name` counts as middle). 28 call sites in 25 files use it, and every students query that feeds them selects `middle_name`. `enroll-finalize-billing` left the `deno check` baseline. | `names.test.ts` 4/4; conventions name-concat 0 and blocking. |
+| Remove "Use Ge'ez numerals"; add Arabic numerals (٠١٢٣…) and Hijri options | `settings.calendar.numerals` = `latn` (0-9, default) or `arab` (٠-٩); `settings.calendar.showHijri` shows the Hijri (Umm al-Qura) date beside EC dates. `toGeez` and the toggle are gone. Migration `20260925000002_r6_calendar_numerals.sql` moves any Ge'ez tenant to `latn`, and a CHECK stops `geezNumerals` or an unknown digit system being written back. Hijri month names in en/am/om. | `r6_calendar_numerals.sql` 7/7; `ethiopian-date.test.ts` asserts no U+1369–U+137C in any rendered EC date and checks two known Hijri dates. |
+
+### Gate after round-1 fixes (local)
+
+- typecheck 0; `eslint src` 0; Vitest 10 files / 66 tests; `check:i18n` 0; `check:locales` OK; build OK.
+- conventions self-test ok and 0 findings; pinned-actions ok; semgrep self-test 10/0/0 (hash-locked install).
+- `deno-check.sh` OK (28 functions, 3 baselined).
+- pgTAP: 109 migrations, 61/61 suites; catalog TODOs unchanged (definer 2, RLS 1, module gate 1, storage 1).
+
+**Deploy note (updated):** one migration (`20260925000002`), the frontend, and 7 Edge Functions (`activate-sso-user`, `process-export-job`, `process-import-job`, `record-fee-payment`, `issue-fee-document`, `enroll-finalize-billing`, `onboard-tenant`) ship with the next production deploy.

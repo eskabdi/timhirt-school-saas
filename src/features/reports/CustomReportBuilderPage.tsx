@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/Badge";
 import { tField } from "@/lib/i18n";
 import { useTranslation } from "react-i18next";
 import { GRADE_CYCLES, gradeCycleI18nKey } from "@/lib/gradeCycles";
+import { fullName } from "@/lib/names";
 
 const SOURCES = [{ k: "students", icon: "👥" }, { k: "attendance", icon: "🗓" }, { k: "grades", icon: "☆" }, { k: "finance", icon: "▤" }] as const;
 const GRADES = ["G1", "G2", "G3", "G4", "G5", "G6", "G7", "G8", "G9", "G10", "G11", "G12"];
@@ -45,7 +46,7 @@ export function CustomReportBuilderPage() {
   const { data: preview } = useQuery({
     queryKey: ["crb-preview", [...grades].join(), gender],
     queryFn: async () => {
-      let q = supabase.from("students").select("id, admission_no, first_name, last_name, gender, status, class:classes(name, section, grade_level)").limit(5);
+      let q = supabase.from("students").select("id, admission_no, first_name, middle_name, last_name, gender, status, class:classes(name, section, grade_level)").limit(5);
       if (gender) q = q.eq("gender", gender);
       const { data } = await q;
       let rows = data ?? [];
@@ -210,7 +211,7 @@ export function CustomReportBuilderPage() {
             {preview?.length ? preview.map((r) => (
               <tr key={r.id}>
                 <td className="px-4 py-3 text-ink">{r.admission_no}</td>
-                <td className="px-4 py-3 font-medium text-ink">{r.first_name} {r.last_name}</td>
+                <td className="px-4 py-3 font-medium text-ink">{fullName(r)}</td>
                 <td className="px-4 py-3 text-ink-soft">{gradeName(r)}</td>
                 <td className="px-4 py-3 text-ink-soft">—</td>
                 <td className="px-4 py-3 text-ink-soft">—</td>

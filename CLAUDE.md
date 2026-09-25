@@ -137,7 +137,7 @@ npx vitest run
 npm run check:i18n                  # must be 0
 npm run check:locales               # parity + no wholesale reformat
 npm run build
-PGHOST=… ./supabase/tests/run.sh    # 108 migrations + 60 pgTAP suites
+PGHOST=… ./supabase/tests/run.sh    # 109 migrations + 61 pgTAP suites
 bash scripts/ci/deno-check.sh       # Edge Function types (ratchet)
 python3 scripts/ci/semgrep-rule-test.py   # needs semgrep 1.95.0
 ```

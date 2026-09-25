@@ -3,7 +3,6 @@
 # and on any listed one that now passes (delete its line). Type-only errors in
 # code rewritten later: enroll-finalize-billing (WP-04), run-payroll and
 # generate-payslip-pdf (WP-10/WP-13), issue-id-card (WP-12).
-enroll-finalize-billing
 generate-payslip-pdf
 issue-id-card
 run-payroll

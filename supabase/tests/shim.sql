@@ -43,7 +43,8 @@ alter role service_role bypassrls;
 -- creates. `revoke … from public` does not remove those per-role grants. The
 -- shim used to grant nothing on `public`, so anon could not even reach the
 -- schema and every "anon cannot call X" probe passed vacuously: that is how
--- H-01 (46 anon-executable SECURITY DEFINER functions in production) stayed
+-- H-01 (46 anon-executable SECURITY DEFINER functions in production before
+-- WP-00 revoked four; 42 remain, see supabase/security/definer_anon_known.sql) stayed
 -- invisible to a green harness. This must run before any migration creates
 -- objects, and as the role that owns them (postgres), exactly like production.
 grant usage on schema public to anon, authenticated, service_role;
@@ -126,7 +127,10 @@ create or replace view vault.decrypted_secrets as
   select id, name, secret, secret as decrypted_secret, created_at from vault.secrets;
 
 grant usage on schema auth, storage, vault to authenticated, anon, service_role;
-grant select on auth.users to authenticated, anon, service_role;
+-- Only service_role reads auth.users, as on Supabase (auth.users belongs to
+-- supabase_auth_admin; the API roles get no table grant). The shim used to
+-- grant anon/authenticated SELECT, which Supabase never does (review TI-4).
+grant select on auth.users to service_role;
 
 -- Supabase grants the API roles table-level DML on the storage tables and lets
 -- RLS do the actual gating. Without these grants a policy test fails with

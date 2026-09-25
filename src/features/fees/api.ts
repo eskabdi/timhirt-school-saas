@@ -39,7 +39,7 @@ export interface BillingNotification {
   amount: number | null;
   read_at: string | null;
   created_at: string;
-  student: { first_name: string; last_name: string } | null;
+  student: { first_name: string; middle_name?: string | null; last_name: string } | null;
 }
 
 const BILLING_KINDS = ["invoice_issued", "payment_received", "invoice_overdue"] as const;
@@ -50,7 +50,7 @@ export function useBillingNotifications(enabled: boolean) {
     enabled,
     queryFn: async () => {
       const { data, error } = await supabase.from("portal_notifications")
-        .select("id, kind, invoice_id, payment_id, amount, read_at, created_at, student:students(first_name, last_name)")
+        .select("id, kind, invoice_id, payment_id, amount, read_at, created_at, student:students(first_name, middle_name, last_name)")
         .in("kind", BILLING_KINDS)
         .order("created_at", { ascending: false })
         .limit(50);

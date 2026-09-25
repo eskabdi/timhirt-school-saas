@@ -49,7 +49,12 @@ export function RichTextEditor({ value, onChange, placeholder, minHeight = 220 }
   // `innerHTML =`: another author's notice can carry `<img onerror>` (R6 WP-01).
   useEffect(() => {
     const el = ref.current;
-    if (el && el.innerHTML !== value) el.replaceChildren(...sanitizeRichTextNodes(value));
+    if (el && el.innerHTML !== value) {
+      el.replaceChildren(...sanitizeRichTextNodes(value));
+      // Hand the cleaned HTML back, so a stored payload is not saved again
+      // unchanged when the author saves without editing (review FE-1).
+      if (value && el.innerHTML !== value) onChange(el.innerHTML);
+    }
     setEmpty(!(value ?? "").replace(/<[^>]*>/g, "").trim());
   }, [value]);
 

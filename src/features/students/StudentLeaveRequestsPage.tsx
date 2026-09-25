@@ -8,10 +8,11 @@ import { supabase } from "@/lib/supabase";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { EthDate } from "@/components/EthDate";
+import { fullName } from "@/lib/names";
 
 interface PendingLeaveRow {
   id: string; starts_on: string; ends_on: string; reason: string;
-  student: { first_name: string; last_name: string; class: { name: string; section: string | null } | null } | null;
+  student: { first_name: string; middle_name?: string | null; last_name: string; class: { name: string; section: string | null } | null } | null;
 }
 
 export function StudentLeaveRequestsPage() {
@@ -22,7 +23,7 @@ export function StudentLeaveRequestsPage() {
     queryKey: ["student-leave-requests-pending"],
     queryFn: async () => {
       const { data, error } = await supabase.from("student_leave_requests")
-        .select("id, starts_on, ends_on, reason, student:students(first_name, last_name, class:classes(name, section))")
+        .select("id, starts_on, ends_on, reason, student:students(first_name, middle_name, last_name, class:classes(name, section))")
         .eq("status", "pending").order("created_at");
       if (error) throw error;
       return (data ?? []) as unknown as PendingLeaveRow[];
@@ -50,7 +51,7 @@ export function StudentLeaveRequestsPage() {
           <Card key={r.id} className="flex items-center justify-between gap-4 text-sm">
             <div>
               <p className="font-medium text-ink">
-                {r.student?.first_name} {r.student?.last_name}
+                {fullName(r.student)}
                 {r.student?.class ? ` — ${r.student.class.name} ${r.student.class.section ?? ""}` : ""}
               </p>
               <p className="text-ink-faint"><EthDate value={r.starts_on} /> – <EthDate value={r.ends_on} /></p>

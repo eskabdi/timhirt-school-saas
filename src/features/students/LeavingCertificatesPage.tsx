@@ -13,9 +13,10 @@ import { formatEth, today } from "@/lib/ethiopian-date";
 import { buildLeavingCertificatePdf } from "./leaving-certificate-pdf";
 import { fetchDocumentTemplate } from "@/lib/documentTemplate";
 import { useDocumentSchoolName } from "@/lib/documentBranding";
+import { fullName } from "@/lib/names";
 
 interface GraduateRow {
-  id: string; first_name: string; last_name: string; admission_no: string; graduated_ec_year: number;
+  id: string; first_name: string; middle_name?: string | null; last_name: string; admission_no: string; graduated_ec_year: number;
   class: { name: string; section: string | null; grade_level: number | null } | null;
 }
 
@@ -33,7 +34,7 @@ export function LeavingCertificatesPage() {
     enabled: !!profile,
     queryFn: async () => {
       const { data, error: err } = await supabase.from("students")
-        .select("id, first_name, last_name, admission_no, graduated_ec_year, class:classes(name, section, grade_level)")
+        .select("id, first_name, middle_name, last_name, admission_no, graduated_ec_year, class:classes(name, section, grade_level)")
         .eq("status", "graduated").not("graduated_ec_year", "is", null)
         .order("graduated_ec_year", { ascending: false }).order("last_name");
       if (err) throw err;
@@ -62,7 +63,7 @@ export function LeavingCertificatesPage() {
       const blob = await buildLeavingCertificatePdf({
         schoolName,
         template,
-        studentName: `${student.first_name} ${student.last_name}`,
+        studentName: fullName(student),
         admissionNo: student.admission_no,
         gradeLabel,
         graduatedEcYear: student.graduated_ec_year,
@@ -114,7 +115,7 @@ export function LeavingCertificatesPage() {
             <tbody>
               {students.map((s) => (
                 <tr key={s.id} className="border-b border-line last:border-0">
-                  <td className="p-3">{s.first_name} {s.last_name}</td>
+                  <td className="p-3">{fullName(s)}</td>
                   <td className="p-3">{s.admission_no}</td>
                   <td className="p-3">{s.class?.grade_level != null ? `${s.class.grade_level}${s.class.section ? `-${s.class.section}` : ""}` : s.class?.name ?? "—"}</td>
                   <td className="p-3 text-right">

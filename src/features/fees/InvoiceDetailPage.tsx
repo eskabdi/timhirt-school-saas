@@ -31,6 +31,7 @@ import { Modal } from "@/components/ui/Modal";
 import { EthDate } from "@/components/EthDate";
 import { formatETB, tField } from "@/lib/i18n";
 import { issueFeeDocumentUrl, recordFeePayment } from "./api";
+import { fullName } from "@/lib/names";
 
 const STATUS_TONE = { pending: "neutral", partial: "navy", paid: "ok", overdue: "danger" } as const;
 const PAYMENT_STATUS_TONE = { succeeded: "ok", pending: "neutral", failed: "danger", refunded: "late" } as const;
@@ -53,7 +54,7 @@ export function InvoiceDetailPage() {
     queryKey: ["invoice", id],
     queryFn: async () => {
       const { data, error } = await supabase.from("invoice_headers")
-        .select("id, tenant_id, due_date, student:students(id, first_name, last_name, admission_no, class:classes(name, section))")
+        .select("id, tenant_id, due_date, student:students(id, first_name, middle_name, last_name, admission_no, class:classes(name, section))")
         .eq("id", id).single();
       if (error) throw error;
       return data;
@@ -164,7 +165,7 @@ export function InvoiceDetailPage() {
   if (error || !invoice) return <p role="alert" className="text-danger">{t("errors.generic")}</p>;
 
   const student = invoice.student as unknown as {
-    id: string; first_name: string; last_name: string; admission_no: string;
+    id: string; first_name: string; middle_name?: string | null; last_name: string; admission_no: string;
     class: { name: string; section: string } | null;
   };
 
@@ -179,7 +180,7 @@ export function InvoiceDetailPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="font-display text-xl font-bold text-ink">
-              <Link to={`/students/${student?.id}`} className="hover:underline">{student?.first_name} {student?.last_name}</Link>
+              <Link to={`/students/${student?.id}`} className="hover:underline">{fullName(student)}</Link>
             </h1>
             <p className="text-sm text-ink-faint">{student?.admission_no} · {student?.class?.name} {student?.class?.section}</p>
           </div>

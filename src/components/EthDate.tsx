@@ -1,8 +1,8 @@
 // Display-only EC date (§17.4). Ad-hoc toLocaleDateString is banned by lint;
 // every rendered date goes through this component or formatEth.
 import { useTranslation } from "react-i18next";
-import { formatEth } from "@/lib/ethiopian-date";
-import { useGeezNumerals } from "@/features/settings/useGeezNumerals";
+import { formatEth, formatHijri, type NumeralSystem } from "@/lib/ethiopian-date";
+import { useCalendarPrefs } from "@/features/settings/useCalendarPrefs";
 
 /**
  * Coerces whatever a caller has into a valid Date, or null.
@@ -30,22 +30,28 @@ function toDate(value: Date | string | null | undefined): Date | null {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
-export function EthDate({ value, geez }: {
+export function EthDate({ value, numerals }: {
   value: Date | string | null | undefined;
   // Explicit prop still wins (e.g. a caller intentionally forcing one
   // system); omitted, it falls back to the tenant's configured preference.
-  geez?: boolean;
+  numerals?: NumeralSystem;
 }) {
   const { t } = useTranslation("calendar");
-  const tenantGeez = useGeezNumerals();
+  const prefs = useCalendarPrefs();
   const months = t("months", { returnObjects: true }) as string[];
   const d = toDate(value);
   // Missing or unparseable: render the placeholder the tables already use for
   // absent values rather than taking the whole route down.
   if (!d) return <span className="text-ink-faint">—</span>;
+  const digits = numerals ?? prefs.numerals;
+  const iso = d.toISOString().slice(0, 10);
+  const hijri = prefs.showHijri
+    ? formatHijri(d, { monthNames: t("hijriMonths", { returnObjects: true }) as string[], eraSuffix: t("hijriEraSuffix"), numerals: digits })
+    : null;
   return (
-    <time dateTime={d.toISOString().slice(0, 10)}>
-      {formatEth(d, { monthNames: months, eraSuffix: t("eraSuffix"), geez: geez ?? tenantGeez })}
+    <time dateTime={iso} title={prefs.secondaryVisible ? t("gregorianEquivalent", { date: iso }) : undefined}>
+      {formatEth(d, { monthNames: months, eraSuffix: t("eraSuffix"), numerals: digits })}
+      {hijri && <span className="text-ink-faint"> · {hijri}</span>}
     </time>
   );
 }

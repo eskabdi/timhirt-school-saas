@@ -106,12 +106,13 @@ inventory, residual-risk register) and then empties this file.
 ## R6 WP-01 — Secure development pipeline and a truthful test harness (L-08)
 
 **Secure development pipeline (INSA Phase 3/5; ISO 27001 A.8.25, A.8.28, A.8.29).** CI now runs on every PR and every push to main:
-- The existing gates: typecheck, lint, unit tests (Vitest), i18n, locale parity, build, and pgTAP (60 suites).
+- The existing gates: typecheck, lint, unit tests (Vitest), i18n, locale parity, build, and pgTAP (61 suites).
 - **Supply-chain controls:** every GitHub Action is pinned to a full commit SHA, enforced by `scripts/ci/pinned-actions.sh`. Dependabot runs weekly for npm and github-actions. `npm audit --omit=dev --audit-level=high` runs on every build.
 - **Secret scan:** gitleaks v8.30.1 over the full git history. It is built with `go install`, so the binary is checked against the Go checksum database. Reviewed false positives are pinned by exact fingerprint in `.gitleaksignore`.
-- **SAST:** semgrep 1.95.0 runs the repo-owned rules `.semgrep/timhirt-security.yml` plus the OWASP Top 10, TypeScript and React registry packs. The repo rules cover dangerouslySetInnerHTML, HTML-string DOM sinks, eval / new Function, the service-role key in browser code, and plain-http fetch. A fixture self-test (`scripts/ci/semgrep-rule-test.py`) fails CI if a rule stops matching; without a Semgrep login the registry packs alone ran only 4 rules and missed planted sinks.
+- **SAST:** semgrep 1.95.0, installed from a hash-locked requirements file (`scripts/ci/requirements-semgrep.txt`, `pip --require-hashes`), runs the repo-owned rules `.semgrep/timhirt-security.yml` plus the OWASP Top 10, TypeScript and React registry packs. The repo rules cover dangerouslySetInnerHTML, HTML-string DOM sinks, eval / new Function, the service-role key in browser code, and plain-http fetch. A fixture self-test (`scripts/ci/semgrep-rule-test.py`) fails CI if a rule stops matching; without a Semgrep login the registry packs alone ran only 4 rules and missed planted sinks.
 - **Edge Function type check:** `deno check` runs on all 28 entrypoints, as a ratchet (`supabase/security/deno_check_known.txt`, 4 baselined).
-- **Conventions report:** `scripts/ci/conventions.py` covers Ge'ez digits, non-ETB currency, and names that drop the middle name. It is report-only until WP-14.
+- **Conventions gate (blocking):** `scripts/ci/conventions.py` fails CI on Ge'ez digits, non-ETB currency, or a name that drops the middle name, over src/, Edge Functions, migrations and index.html. A fixture self-test proves each check fires.
+- **Dev dependency added:** happy-dom 20.14.5 (MIT; dependencies MIT except entities, BSD-2-Clause). It is the Vitest DOM environment for `RichText.test.tsx` and is not shipped in the bundle.
 - **Build provenance:** the commit SHA is stamped into `index.html` as `<meta name="app-commit">`.
 
 **Test harness truth (L-08).**
@@ -124,11 +125,16 @@ inventory, residual-risk register) and then empties this file.
 
 | Guard | Hard now | Baseline (TODO) → WP |
 |---|---|---|
-| `catalog_definer_security.sql` | no new anon-executable or search_path-less SECURITY DEFINER function | 42 anon-executable, 13 without search_path → WP-02 |
+| `catalog_definer_security.sql` | no new anon-executable or search_path-less SECURITY DEFINER function; no definer function outside `public` | 42 anon-executable, 13 without search_path → WP-02 |
 | `catalog_rls_coverage.sql` | RLS enabled on every table; no new table without FORCE | 11 without FORCE → WP-02 |
-| `catalog_module_gate.sql` | no new ungated tenant table; allow-list entries need a reason | 37 unclassified → WP-06 |
-| `catalog_storage_policies.sql` | no new bucket+tenant-only read policy; allow-list entries need a reason | 4 → WP-05 (branding allow-listed: public bucket) |
+| `catalog_module_gate.sql` | no new ungated tenant table; a gate counts only when it is restrictive, covers every command and calls `has_module(`; allow-list entries need a reason | 37 unclassified → WP-06 |
+| `catalog_storage_policies.sql` | every storage.objects policy (all commands) has a role/relationship term and a tenant-folder term, classified by content; detector proven on 5 planted shapes; allow-list entries need a reason and must name a real policy | 4 → WP-05 (branding allow-listed: public bucket) |
 
 **Security fixes found by the new gates (verified by tests, not yet deployed):**
 - **Stored XSS in the notice/assignment editor** (`RichTextEditor`). Stored HTML was loaded with `el.innerHTML = value`, so `<img onerror>` in another author's notice ran when a staff member opened it for editing. It now loads `sanitizeRichTextNodes()`, which uses the same allow-list as `<RichText/>` and builds nodes with `replaceChildren`. Test: `RichText.test.tsx`, 4 tests; all 4 fail with raw nodes. Control: stored-XSS prevention (OWASP A03).
 - **Error paths that threw instead of recovering** (`activate-sso-user`, `process-export-job`, `process-import-job`). They called `.catch()` on PostgREST builders, which have none. The teacher-row rollback never ran, and failed import/export jobs stayed "running". Fixed, and caught by the `deno check` gate.
+
+## R6 (owner decision 2026-09-25) — Names and calendar display
+
+- **Personal names** are rendered First + Middle + Last everywhere (`fullName()`, `src/lib/names.ts` and `supabase/functions/_shared/names.ts`), including fee receipts and documents generated by Edge Functions. Short form: First + Middle.
+- **Calendar display settings** (`tenant_configs.settings.calendar`, school admin): show Gregorian equivalent; show the Hijri (Islamic, Umm al-Qura) date; digits `0-9` (default) or Eastern Arabic `٠-٩`. Ge'ez numerals are no longer offered. Dates are still stored Gregorian (§17.2); these settings are presentation-only. A CHECK constraint (migration `20260925000002`) rejects the old `geezNumerals` key and unknown digit systems. Data classification: non-sensitive tenant configuration.

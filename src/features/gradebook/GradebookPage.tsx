@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { tField } from "@/lib/i18n";
+import { fullName } from "@/lib/names";
 
 export function GradebookPage() {
   const { t, i18n } = useTranslation();
@@ -25,7 +26,7 @@ export function GradebookPage() {
     queryKey: ["students-brief", selectedExam?.class_id ?? null],
     enabled: !!examId,
     queryFn: async () => {
-      let query = supabase.from("students").select("id,first_name,last_name");
+      let query = supabase.from("students").select("id,first_name,middle_name,last_name");
       if (selectedExam?.class_id) query = query.eq("class_id", selectedExam.class_id);
       const { data } = await query;
       return data ?? [];
@@ -62,7 +63,7 @@ export function GradebookPage() {
             <tbody className="divide-y divide-line">
               {students?.map((s) => (
                 <tr key={s.id}>
-                  <td className="py-2 font-medium text-ink">{s.first_name} {s.last_name}</td>
+                  <td className="py-2 font-medium text-ink">{fullName(s)}</td>
                   <td className="py-2">
                     <input type="number" min={0} className="w-20 rounded-control border border-line bg-card px-2 py-1 text-sm text-ink"
                       value={scores[s.id] ?? ""} onChange={(e) => setScores((sc) => ({ ...sc, [s.id]: Number(e.target.value) }))} />
