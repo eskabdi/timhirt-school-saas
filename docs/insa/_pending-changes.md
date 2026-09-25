@@ -57,8 +57,8 @@ inventory, residual-risk register) and then empties this file.
   top-level fields (`.strict()`), and requires the exact key set per provider:
   `credentials.api_key` for all three, plus `config.sender_id` for AfroMessage.
   The allow-list lives in `manage-integration-credentials/keys.ts`, which the
-  Integrations page also imports (review AC-1). It validates everything before any Vault
-  write, and returns 500 (generic) if the `platform_integrations` row is missing. Classification: Internal
+  Integrations page also imports (review AC-1). It validates the input and checks that the `platform_integrations` row exists before any Vault
+  write, and returns 500 (generic) if the row is missing. Classification: Internal
   (super_admin only).
 - Edge Function `verify_jwt` (now explicit in `config.toml` for every function):
   `upload-admission-document` = false (public admission upload, rate-limited),
@@ -98,4 +98,5 @@ inventory, residual-risk register) and then empties this file.
 **Production drift found in the WP-00 reconciliation (2026-09-24, evidence `audit/evidence/wp00-prod-auth-storage-config-*.txt`):**
 - **DR-1 (High, owner action pending): public sign-up is enabled in production.** `config.toml` declares `enable_signup = false` (invite-only), but production reports `disable_signup = false`. Anyone holding the public anon key can create an auth account, and that account then holds the `authenticated` role that every definer function and policy checks against (H-01 blast radius). No flow in `src/` or `supabase/functions/` calls `signUp`, and SSO is unused (0 providers), so disabling it breaks nothing. Two auth accounts exist with no `public.users` profile (2026-08-06 confirmed, 2026-09-24 unconfirmed); the owner should identify them. **Fix:** Dashboard → Authentication → Sign In / Providers → turn off "Allow new users to sign up", or `PATCH /v1/projects/{ref}/config/auth {"disable_signup": true}`.
 - **DR-2 (Medium): the auth redirect allow-list has only `timhirt-school-saas.vercel.app` URLs.** `site_url` is `https://www.edux.et`, but `https://www.edux.et/**` and `https://*.edux.et/**` are missing, so a `redirectTo` on the real domain falls back to `site_url`. The repo `config.toml` still has the local `site_url` and no `additional_redirect_urls`. Fix in WP-07/WP-20 (auth redirect wildcards), and record the production values in `config.toml`.
+- **DR-4 (High, owner approval pending): anon can write library data in any tenant.** In production, 46/65 SECURITY DEFINER functions are anon-executable (`audit/evidence/wp00-prod-definer-acl-*.txt`). Four take a caller-supplied `p_tenant_id` and write: `library_checkout`, `library_return`, `library_renew`, `library_bulk_return`. Fix ready: migration `20260924000002`, tested. **Exit:** it is applied to production and the proacl evidence is committed. The other 41 (the known H-01 set) and `get_security_settings()` (read-only policy thresholds, left open because `AcceptInvitePage` reads it) are closed by WP-02.
 - **DR-3 (→ WP-07): password policy** is min length 6, no required character classes, HIBP off, no reauthentication on password change, CAPTCHA off, and no session timebox or inactivity timeout. WP-07 sets these.

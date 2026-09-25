@@ -6,7 +6,7 @@
 | WP-00 gate | `deno check` on `enroll-finalize-billing` fails with TS2352 (embedded `class` typed as an object but returned as an array) at `index.ts:66`. Pre-existing on the base commit. | WP-04 (function is rewritten there) |
 | WP-00 gate | ~~CI must set `DENO_NO_PACKAGE_JSON=1 --node-modules-dir=none`~~ (done in WP-00). Remaining: add a `deno check supabase/functions/*/index.ts` job with the same flags (16 errors today, per the WP-01 recon). | WP-01 |
 | WP-00 DNS | `edux.et` apex redirects 308 → `www.edux.et`; the plan (WP-20.2) wants `www` → apex. The apex redirect response also sends HSTS without `includeSubDomains`. | WP-20 |
-| WP-00 gatekeeper | ~~Stale WP-00 records~~ (fixed in the closeout, PR #8). In `audit/FIXES_VERIFIED_R6.md`, Implementation rows 1 and 3–5 still say "Owner" / "no credentials". The drift header (line 3) says "deploy PENDING". The access record is duplicated at drift line 48. The round-3 note calls the cron assertions "#11–#12 of 21"; they are #14–#15. | WP-00 follow-up |
+| WP-00 gatekeeper | ~~Stale WP-00 records (FIXES rows 1 and 3–5, drift header, duplicated access record, cron assertion numbers)~~. Resolved in PR #8. | — |
 | WP-00 gatekeeper (test-verifier F5, second half) | No Vitest render test that `IntegrationsPage` lists only SMS providers. The CI guard's `fabric[-_]?app` pattern only partly covers a re-added Telebirr card. | WP-03 |
 | WP-00 security SR-8 | Rotate `SUPABASE_ACCESS_TOKEN` and `VERCEL_TOKEN` after the R6 deploys (owner action 8). | Owner, now |
 | WP-00 security SR-11 | `no-payment-gateway.sh` is an identifier deny-list. A direct `fetch("https://api.chapa.co/...")` passes. Add provider hosts or an outbound-host allow-list. | WP-03 |

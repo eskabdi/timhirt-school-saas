@@ -111,3 +111,8 @@ Timeline: pre-deploy capture ~17:21Z → migration ~17:22Z → function deletes 
 | Auth settings vs `config.toml` | **Drift:** sign-up enabled (repo: invite-only), no `edux.et` redirect URLs, weak password policy, SMTP via Resend | same file; `docs/insa/_pending-changes.md` DR-1..DR-3 |
 | Triggers and constraints (public) | **0 differences**: 672 = 672 | `audit/evidence/wp00-prod-catalog-diff-triggers-constraints-*.txt` |
 | Function ACLs | Not compared with the repo: the harness shim lacks Supabase default grants (WP-01). Production read directly: **46/65 definer functions anon-executable**, including 4 tenant-writing `library_*` RPCs | `audit/evidence/wp00-prod-definer-acl-*.txt`; containment migration `20260924000002` |
+
+**Undeployed after the closeout (PR #8), so repo ≠ production until the next deploy:**
+- migration `20260924000002_r6_hotfix_library_anon.sql`: repo 107, production 106;
+- `manage-integration-credentials`: repo has `keys.ts` and the validate-before-write handler, production runs v6;
+- frontend `IntegrationsPage` (AfroMessage payload fix, translated strings): production runs `150f99b`.
