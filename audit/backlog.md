@@ -34,3 +34,4 @@
 | WP-00 r3 RG3-3 / TV3-1 | ~~No test covers the writers' https guard~~ **Fixed**: both writers call `_shared/bank-verification-record.ts` (`checkAndStoreBankUrl`), which has its own Deno tests. Removing the https branch fails 6 of them; removing the write-error check fails 1. | — |
 | WP-00 r3 RG3-5 | No render test for the https-only link branches on InvoiceDetailPage / AdmissionDetailPage. There is no DOM test library in the repo yet. | WP-01 / WP-12 |
 | WP-00 gatekeeper G3-3 | No test covers the wiring in `record-fee-payment` / `verify-admission-bank-url` `index.ts` (the call into `checkAndStoreBankUrl`, and that a throw there still leaves the payment recorded). Pair it with RG3-5. | WP-03 |
+| WP-00 DR-1 follow-up | A self-signed-up auth account (created 2026-08-06, no `public.users` profile) exists from when sign-up was open. The owner should identify it and delete it if unknown. | Owner |

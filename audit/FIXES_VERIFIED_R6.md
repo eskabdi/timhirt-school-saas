@@ -331,3 +331,13 @@ WP-00 becomes PASS with no code change once DR-4 and DR-1 are each deployed or a
 - Evidence: `audit/evidence/wp00-closeout-deploy-20260925T072419Z.txt`. Details: `audit/prod-drift-2026-09-24.md` §5.
 
 **Still open (owner decision): DR-1, public sign-up.** The owner approved "Deploy" only, and sign-up was not changed. WP-00 becomes gatekeeper-PASS once DR-1 is either disabled or accepted as a dated D-xx row.
+
+### DR-1 closed (2026-09-25)
+
+The owner disabled public sign-up; the first attempt reverted in the dashboard and the second held. Verified from both sides:
+- the Management API reads `disable_signup = true`;
+- a live `/auth/v1/signup` with the anon key returns **422 `signup_disabled`**, and no account was created.
+
+Evidence: `audit/evidence/wp00-dr1-signup-disabled-20260925T072554Z.txt`. Owner follow-up: identify and delete the self-signed-up account from 2026-08-06 if it is unknown.
+
+**With DR-4 (deployed) and DR-1 (disabled) both closed, no owner-only item remains for WP-00.** The final gatekeeper stated: "WP-00 becomes PASS with no code change once DR-4 and DR-1 are each deployed or accepted."

@@ -9,8 +9,8 @@ custom API server.
 > Edge Functions match the repo (names and `verify_jwt`). The frontend is built
 > on Vercel from `da6055e`. See `audit/prod-drift-2026-09-24.md` §5 and
 > `audit/evidence/wp00-closeout-deploy-20260925T072419Z.txt`. There is **no staging project** yet (R6 WP-17), and **PITR is off with
-> no backups**. **Public sign-up is still enabled** (DR-1, owner decision
-> pending). The R6 fix plan is `docs/audits/timhirt-production-fix-plan.md`;
+> no backups**. Public sign-up is **disabled** (invite-only, DR-1 closed
+> 2026-09-25). The R6 fix plan is `docs/audits/timhirt-production-fix-plan.md`;
 > progress is in `audit/FIXES_VERIFIED_R6.md`.
 
 The architecture blueprint is [`docs/school-saas-architecture-blueprint.md`](docs/school-saas-architecture-blueprint.md).
