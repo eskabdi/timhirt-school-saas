@@ -214,6 +214,9 @@ Order matters (SR-1/SR-2): **apply the migration first**. That removes the old `
 - `get_security_settings()` only reads policy thresholds. It is left to WP-02, because `AcceptInvitePage` reads it.
 
 **Containment:** `supabase/migrations/20260924000002_r6_hotfix_library_anon.sql` revokes EXECUTE on the four library functions from public, anon and authenticated, keeping service_role for `process-library-circulation`. Test: `r6_hotfix_library_anon.sql`, 12 assertions; 8 fail without the migration. **Not yet applied to production: needs owner approval.**
+- **Rollback:** none intended. If it is ever needed, a forward-fix migration re-grants to service_role only, never to anon.
+- **After applying to production:** run `select proname, proacl from pg_proc where proname in ('library_checkout','library_return','library_renew','library_bulk_return')`. It must show `{postgres=X/postgres,service_role=X/postgres}` for all four; commit the output under `audit/evidence/`.
+- **After WP-01** (the shim gives anon schema usage), add a real `set local role anon` call that must raise 42501 (review DM-2).
 
 **Auth drift found (owner action):**
 - **DR-1:** public sign-up is **enabled** in production. The repo declares invite-only. 2 auth accounts have no app profile.
