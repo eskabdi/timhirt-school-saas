@@ -3,7 +3,8 @@
   "eraSuffix": "ALI",
   "hijriMonths": ["Muharram", "Safar", "Rabii Awwal", "Rabii Aakhir", "Jumaada Uulaa", "Jumaada Aakhira", "Rajab", "Sha'baan", "Ramadaan", "Shawwaal", "Zul-Qa'ida", "Zul-Hijja"],
   "hijriEraSuffix": "A.H.",
-  "gregorianEquivalent": "= {date} ALA",
+  "nav": { "prevMonth": "Ji'a darbe", "nextMonth": "Ji'a itti aanu", "prevYears": "Waggoota darban", "nextYears": "Waggoota itti aanan", "selectYear": "Waggaa filadhu", "backToDays": "Gara guyyootaatti deebi'i" },
+  "gregorianEquivalent": "{date} ALA",
   "today": "Har'a",
   "pickDate": "Guyyaa filadhu",
   "placeholder": "Guyyaa filadhu (ALI)"

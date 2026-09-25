@@ -54,3 +54,20 @@ describe("RichTextEditor load path (R6 WP-01, review FE-1/FE-2)", () => {
     await act(async () => root.unmount());
   });
 });
+
+describe("RichTextEditor dirty-state (review m-6)", () => {
+  it("does not hand back HTML that only needed harmless normalising", async () => {
+    const { createRoot } = await import("react-dom/client");
+    const { act } = await import("react");
+    const { RichTextEditor } = await import("./RichTextEditor");
+    (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+    const host = document.createElement("div");
+    const changes: string[] = [];
+    const root = createRoot(host);
+    await act(async () => {
+      root.render(<RichTextEditor value={"<p><b>Bold</b> text</p>"} onChange={(h) => changes.push(h)} />);
+    });
+    expect(changes).toHaveLength(0);
+    await act(async () => root.unmount());
+  });
+});

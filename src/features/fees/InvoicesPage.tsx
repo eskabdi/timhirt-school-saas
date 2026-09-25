@@ -18,6 +18,7 @@ import { useTranslation } from "react-i18next";
 import { issueFeeDocumentUrl, markAllNotificationsRead, markNotificationRead, useBillingNotifications, generateFeeInvoices } from "./api";
 import { IconReceipt, IconCheckCircle, IconWarningTriangle, IconDownload, IconPlusDoc, IconCalendarSmall } from "./icons";
 import { fullName } from "@/lib/names";
+import { csvCell } from "@/lib/csv";
 
 const STATUS_TONE = { pending: "neutral", partial: "navy", paid: "ok", overdue: "danger" } as const;
 const SELECT_CLS = "rounded-control border border-line bg-card px-3 py-2 text-sm text-ink";
@@ -134,10 +135,6 @@ function GenerateInvoicesModal({ open, onClose, onGenerated }: {
   );
 }
 
-function csvCell(value: string | number): string {
-  const s = String(value);
-  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-}
 
 export function InvoicesPage() {
   const { t, i18n } = useTranslation();

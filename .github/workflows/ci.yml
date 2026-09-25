@@ -73,6 +73,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
       # Postgres runs on the runner itself, not in a service container: pgTAP is
       # a server-side extension, so its files have to live where the postmaster
       # can load them — apt-installing it alongside a containerised Postgres
@@ -102,6 +104,9 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           fetch-depth: 0   # gitleaks scans the full history
+          # Third-party code runs in this job (go install, pip, registry
+          # rules); it needs no token, so none is left in .git/config.
+          persist-credentials: false
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
           go-version: "1.24"
@@ -119,7 +124,7 @@ jobs:
       # pulled setuptools 84, which dropped pkg_resources, and semgrep died on
       # import (CI #176). See the header of the requirements file.
       - name: Install semgrep 1.95.0 (hash-locked)
-        run: python -m pip install --disable-pip-version-check --require-hashes -r scripts/ci/requirements-semgrep.txt
+        run: "python -m pip install --disable-pip-version-check --require-hashes --only-binary :all: -r scripts/ci/requirements-semgrep.txt"
       # The repo rules must still match every `ruleid:` line in the fixtures,
       # otherwise the SAST gate below could pass while matching nothing.
       - name: SAST rule self-test

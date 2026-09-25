@@ -70,29 +70,41 @@ export function RichText({ html, className }: { html: string | null | undefined;
 // author's notice for editing (R6 WP-01, found by the new semgrep rule). Nodes
 // are created with createElement/createTextNode and only allow-listed
 // attributes are set, so nothing executable can reach the live document.
-function toDom(node: Node, doc: Document): Node[] {
+/** Set when sanitising dropped something (a tag, an attribute, a node). */
+export interface SanitizeReport { removed: boolean }
+
+function toDom(node: Node, doc: Document, report?: SanitizeReport): Node[] {
   if (node.nodeType === Node.TEXT_NODE) return [doc.createTextNode(node.textContent ?? "")];
-  if (node.nodeType !== Node.ELEMENT_NODE) return [];
+  if (node.nodeType !== Node.ELEMENT_NODE) {
+    if (report) report.removed = true;
+    return [];
+  }
 
   const el = node as Element;
   const raw = el.tagName.toLowerCase();
-  const children = Array.from(el.childNodes).flatMap((c) => toDom(c, doc));
-  if (!ALLOWED_TAGS.has(raw)) return children;
+  const children = Array.from(el.childNodes).flatMap((c) => toDom(c, doc, report));
+  if (!ALLOWED_TAGS.has(raw)) {
+    if (report) report.removed = true;
+    return children;
+  }
 
   const tag = TAG_MAP[raw] ?? raw;
   const attrs = safeAttrs(el, tag);
-  if (tag === "img" && !attrs.src) return [];
+  if (report && Array.from(el.attributes).some((a) => !(a.name in attrs))) report.removed = true;
+  if (tag === "img" && !attrs.src) {
+    if (report) report.removed = true;
+    return [];
+  }
   const out = doc.createElement(tag);
   for (const [name, value] of Object.entries(attrs)) out.setAttribute(name, value);
   if (tag !== "br" && tag !== "img") out.append(...children);
   return [out];
 }
 
-/** Allow-listed DOM nodes for stored rich text, for editors that must hold real nodes. */
-export function sanitizeRichTextNodes(html: string | null | undefined, doc: Document = document): Node[] {
+export function sanitizeRichTextNodes(html: string | null | undefined, doc: Document = document, report?: SanitizeReport): Node[] {
   if (!html) return [];
   const parsed = new DOMParser().parseFromString(html, "text/html");
-  return Array.from(parsed.body.childNodes).flatMap((n) => toDom(n, doc));
+  return Array.from(parsed.body.childNodes).flatMap((n) => toDom(n, doc, report));
 }
 
 /** Plain-text preview for list rows, where the full markup would be noise. */

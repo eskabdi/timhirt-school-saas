@@ -19,6 +19,7 @@ import { EthDatePicker } from "@/components/EthDatePicker";
 import { toIsoDate } from "@/lib/ethiopian-date";
 import { cn } from "@/lib/utils";
 import { STAFF_PHOTO_MIME_TYPES, uploadStaffPhoto } from "./staffApi";
+import { fullName } from "@/lib/names";
 
 const GENDERS = ["male", "female", "other"] as const;
 const QUALIFICATIONS = ["below_grade_12", "high_school", "certificate", "diploma", "bachelor", "masters", "phd", "other"] as const;
@@ -104,12 +105,12 @@ export function EditProfileModal({ employee, open, onClose }: {
 
   const save = useMutation({
     mutationFn: async () => {
-      const fullName = [f.first_name, f.father_name, f.last_name].filter(Boolean).join(" ").trim();
+      const employeeName = fullName(f);
       const { error: eErr } = await supabase.from("employees").update({
         first_name: f.first_name || null, first_name_am: f.first_name_am || null,
         father_name: f.father_name || null, father_name_am: f.father_name_am || null,
         last_name: f.last_name || null, last_name_am: f.last_name_am || null,
-        full_name: fullName || employee.first_name || "—",
+        full_name: employeeName || employee.first_name || "—",
         gender: f.gender || null, date_of_birth: f.dob ? toIsoDate(f.dob) : null,
         nationality: f.nationality || null, national_id: f.national_id || null,
         phone: f.phone || null, personal_email: f.personal_email || null,

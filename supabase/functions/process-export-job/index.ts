@@ -21,6 +21,8 @@ import { z } from "npm:zod@3";
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { requireRole, errors, json, rateLimit, corsHeaders } from "../_shared/security.ts";
 import { toEthiopian } from "../_shared/ethiopian-date.ts";
+import { fullName } from "../_shared/names.ts";
+import { failJobQuietly } from "../_shared/jobs.ts";
 
 const Payload = z.object({ job_id: z.string().uuid() });
 
@@ -129,7 +131,7 @@ async function buildTeachersCsv(admin: SupabaseClient, tenantId: string): Promis
     fetchAll(admin, "employee_subjects", "employee_id, subjects(code)", tenantId),
   ]);
 
-  const nameById = new Map(employees.map((e) => [e.id, [e.first_name, e.father_name, e.last_name].filter(Boolean).join(" ")]));
+  const nameById = new Map(employees.map((e) => [e.id, fullName(e)]));
 
   const contactMap = new Map<string, typeof contacts[number]>();
   for (const c of contacts.sort((a, b) => (a.created_at < b.created_at ? -1 : 1))) {
@@ -243,7 +245,7 @@ Deno.serve(async (req) => {
     const { error: upErr } = await ctx.adminClient.storage.from("data-imports")
       .upload(storagePath, new Blob([csv], { type: "text/csv" }), { contentType: "text/csv", upsert: true });
     if (upErr) {
-      await ctx.adminClient.rpc("fail_job", { p_job_id: job_id, p_error_message: "could_not_upload_file" });
+      await failJobQuietly(ctx.adminClient, job_id, "could_not_upload_file", "process-export-job");
       return json({ ok: false, reason: "upload_failed" }, 200);
     }
 
@@ -264,12 +266,7 @@ Deno.serve(async (req) => {
     // PostgREST builders have no .catch(): the old `.catch(() => {})` threw a
     // TypeError, so the job was never marked failed and stayed "running"
     // (R6 WP-01, found by the new `deno check` gate).
-    try {
-      const { error: failErr } = await ctx.adminClient.rpc("fail_job", { p_job_id: job_id, p_error_message: "internal_error" });
-      if (failErr) console.error("process-export-job: fail_job failed", { message: failErr.message });
-    } catch (failErr) {
-      console.error("process-export-job: fail_job failed", { message: (failErr as Error).message });
-    }
+    await failJobQuietly(ctx.adminClient, job_id, "internal_error", "process-export-job");
     return errors.internal();
   }
 });

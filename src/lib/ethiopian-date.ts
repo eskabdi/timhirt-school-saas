@@ -80,7 +80,7 @@ const ARABIC_INDIC = ["٠", "١", "٢", "٣", "٤", "٥", "٦", "٧", "٨", "٩"
 /** Rewrites every ASCII digit in `s` in the chosen system. */
 export function formatDigits(s: string | number, numerals: NumeralSystem = "latn"): string {
   const str = String(s);
-  return numerals === "arab" ? str.replace(/[0-9]/g, (d) => ARABIC_INDIC[Number(d)]!) : str;
+  return numerals === "arab" ? str.replace(/[0-9]/g, (d) => ARABIC_INDIC[Number(d)] ?? d) : str;
 }
 
 export interface FormatEthOptions {
@@ -100,24 +100,47 @@ export function formatEth(g: Date, opts: FormatEthOptions): string {
 /** A Hijri (Islamic, Umm al-Qura) calendar date. */
 export interface HijriDate { year: number; month: number; day: number }
 
+// One formatter for the whole app (EthDate renders it in large tables):
+// undefined = not built yet, null = the runtime has no Islamic calendar.
+let hijriFormatter: Intl.DateTimeFormat | null | undefined;
+function getHijriFormatter(): Intl.DateTimeFormat | null {
+  if (hijriFormatter === undefined) {
+    try {
+      hijriFormatter = new Intl.DateTimeFormat("en-u-ca-islamic-umalqura-nu-latn", {
+        timeZone: "UTC", year: "numeric", month: "numeric", day: "numeric",
+      });
+    } catch {
+      hijriFormatter = null;
+    }
+  }
+  return hijriFormatter;
+}
+
 /**
  * Gregorian → Hijri through the platform's ICU (`islamic-umalqura`, the
- * tabular-astronomical calendar Saudi Arabia publishes). Reads the Date's UTC
- * calendar day, like toEthiopian (§17.2). Returns null where the runtime has
- * no Islamic calendar support, so callers simply omit the Hijri line.
+ * tabular-astronomical calendar Saudi Arabia publishes; local moon sighting
+ * can differ by a day). Reads the Date's UTC calendar day, like toEthiopian
+ * (§17.2). Returns null where the runtime has no Islamic calendar support, so
+ * callers simply omit the Hijri line.
  */
 export function toHijri(g: Date): HijriDate | null {
-  try {
-    const parts = new Intl.DateTimeFormat("en-u-ca-islamic-umalqura-nu-latn", {
-      timeZone: "UTC", year: "numeric", month: "numeric", day: "numeric",
-    }).formatToParts(g);
-    const get = (type: string) => Number(parts.find((p) => p.type === type)?.value);
-    const out = { year: get("year"), month: get("month"), day: get("day") };
-    const ok = [out.year, out.month, out.day].every(Number.isInteger) && out.month >= 1 && out.month <= 12;
-    return ok ? out : null;
-  } catch {
-    return null;
-  }
+  const fmt = getHijriFormatter();
+  if (!fmt || Number.isNaN(g.getTime())) return null;
+  const parts = fmt.formatToParts(g);
+  const get = (type: string) => Number(parts.find((p) => p.type === type)?.value);
+  const out = { year: get("year"), month: get("month"), day: get("day") };
+  const ok = [out.year, out.month, out.day].every(Number.isInteger) && out.month >= 1 && out.month <= 12;
+  return ok ? out : null;
+}
+
+/**
+ * The Gregorian equivalent as DD/MM/YYYY, the way it is written in Ethiopia,
+ * with no locale month names (so it reads the same in en/am/om) and the
+ * tenant's digit system. Reads UTC fields (§17.2).
+ */
+export function formatGregorian(g: Date, numerals: NumeralSystem = "latn"): string {
+  const pad = (v: number) => String(v).padStart(2, "0");
+  return formatDigits(`${pad(g.getUTCDate())}/${pad(g.getUTCMonth() + 1)}/${g.getUTCFullYear()}`, numerals);
 }
 
 export interface FormatHijriOptions {

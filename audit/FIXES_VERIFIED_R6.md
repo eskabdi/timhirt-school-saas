@@ -384,7 +384,7 @@ The diff since `ebb48a5` is records and evidence only. There is no code change b
 | New (R6-W1-2): `.catch()` on PostgREST builders (3 Edge Functions) | **fixed** (repo; deploy pending) | At runtime, `typeof builder.catch` is `undefined`, confirmed with Deno. The rollback and `fail_job` calls are now awaited, with errors logged. `deno check` passes on all three; restoring the old code turns `scripts/ci/deno-check.sh` red. |
 | DM-2 (WP-00 backlog): real anon calls | **done** | `r6_hotfix_library_anon.sql` #13–#14. Both fail without the migration. |
 | GK-F4 (WP-00): commit SHA in bundle | **done** | `<meta name="app-commit">` equals `git rev-parse HEAD` in `dist/index.html`. An invalid `VITE_COMMIT_SHA` is rejected. |
-| GK-F1 (WP-00): sign-up stays disabled | **re-verified** at WP-01 start | `disable_signup = true`; the live probe returns 422 `signup_disabled`. |
+| GK-F1 (WP-00): sign-up stays disabled | **re-verified** at WP-01 start and again in round 2 | `disable_signup = true` (`audit/evidence/wp01-signup-disabled-20260925T203148Z.txt`, read from the Management API with only that field kept). |
 
 ### Implementation (plan WP-01)
 
@@ -393,12 +393,12 @@ The diff since `ebb48a5` is records and evidence only. There is no code change b
 | 1. Shim mirrors Supabase defaults | Yes | USAGE on `public` and `ALTER DEFAULT PRIVILEGES FOR ROLE postgres … GRANT ALL ON TABLES/SEQUENCES/FUNCTIONS` to anon, authenticated and service_role, set before any migration runs. |
 | 2. Catalog guard suites | Yes, as **ratchets** (recon adjustment 3) | See the four `catalog_*.sql` suites and `supabase/security/*_known.sql`. The allow-lists are `.sql`, not `.txt`, so pgTAP can `\ir` them (adjustment 5). The storage guard also covers `ALL` policies (adjustment 6). |
 | 3a. Pin actions by SHA | Yes | 7 `uses:`, all pinned, enforced by `scripts/ci/pinned-actions.sh`. |
-| 3b. gitleaks | Yes | Full history. 7 reviewed false positives are pinned by fingerprint. The first local scan ran on a **shallow** clone (180 of 256 commits) and missed one, which the first CI run caught; the clone was unshallowed and rescanned (256 commits, clean). |
+| 3b. gitleaks | Yes | Full history. 5 reviewed false positives are pinned by exact fingerprint (round 2 removed 2 stale entries that only a shallow clone produced). The first local scan ran on a **shallow** clone (180 of 256 commits) and missed one, which the first CI run caught; the clone was unshallowed and rescanned (256 commits, clean). |
 | 3c. semgrep | Yes, **plus repo rules** | The registry packs alone ran 4 rules and missed planted sinks. The repo rules come with a fixture self-test. |
 | 3d. `npm audit --omit=dev --audit-level=high` | Yes | Clean (0 high/critical in runtime deps). |
-| 3e. `deno check` | Yes, as a ratchet | 3 of the 7 failing functions were fixed (real bugs). 4 are baselined. |
+| 3e. `deno check` | Yes, as a ratchet | 3 of the 7 failing functions were fixed (real bugs). 4 were baselined; round 1 fixed enroll-finalize-billing, so 3 remain. |
 | 3f. Dependabot | Yes | npm and github-actions, weekly. |
-| 3g. Conventions script | Yes, **report-only** (adjustment 8) | Reports 8 Ge'ez-digit and 13 name-concat findings → WP-14. |
+| 3g. Conventions script | Yes; report-only at first (adjustment 8), **blocking since round 1** | The 8 Ge'ez-digit and 13 name findings were fixed on the owner's request (see below); CI now fails on any finding. |
 | Runner | Yes | TAP TODO support, real-error detection, private temp file. |
 
 ### Tests: each gate proven to fail before it is trusted
@@ -408,7 +408,7 @@ The diff since `ebb48a5` is records and evidence only. There is no code change b
 | `run.sh` | a real failure; an SQL error; plan too short; a TODO that passes | FAIL on each. An open TODO and a description containing "ERROR:" pass. |
 | catalog guards | 9 mutations: new anon definer, fixed baseline entry, new table without FORCE, table without RLS, removed FORCE baseline entry, new ungated table, newly gated table, new tenant-only storage policy, new bucket-only storage policy | each fails the intended hard assertion |
 | gitleaks | planted `sk_live_…` key in a new commit | exit 1 (1 leak) |
-| semgrep repo rules | fixture: 10 `ruleid:` lines and 3 `ok:` lines | 10/10 matched, 0 unexpected. The old `RichTextEditor` is flagged. A rule-nesting bug was caught by the fixture itself. |
+| semgrep repo rules | fixture: 10 `ruleid:` lines and 5 `ok:` lines (16/6 after round 2) | 10/10 matched, 0 unexpected. The old `RichTextEditor` is flagged. A rule-nesting bug was caught by the fixture itself. |
 | pinned actions | `setup-node@v4` | exit 1 |
 | `deno check` ratchet | old `activate-sso-user` restored | FAIL |
 | conventions | planted `"$5"` and `"USD 10"` | 2 currency findings; template literals are not flagged |
@@ -428,7 +428,7 @@ The diff since `ebb48a5` is records and evidence only. There is no code change b
 
 ### Round 1 reviews (13 launched on `744f1d4`)
 
-Seven reviewers returned: authz, api-contract, conventions, supply-chain and frontend-security all PASS; tenant-isolation FAIL (one major). Their verdicts are saved unedited in `audit/evidence/reviews/wp01-r1-*.md`. The other six (security, code-quality, test-verifier, regression-guardian, db-migration, infra-config, insa-docs) died on an API rate limit before reporting and are re-run on the fixed head.
+Six reviewers returned: authz, api-contract, conventions, supply-chain and frontend-security PASS; tenant-isolation FAIL (one major). Their verdicts are saved unedited in `audit/evidence/reviews/wp01-r1-*.md`. The other seven (security, code-quality, test-verifier, regression-guardian, db-migration, infra-config, insa-docs) died on an API rate limit before reporting and are re-run on the fixed head.
 
 | Finding | Severity | Fix | Proof |
 |---|---|---|---|
@@ -453,7 +453,7 @@ Seven reviewers returned: authz, api-contract, conventions, supply-chain and fro
 
 | Owner ask | Done | Proof |
 |---|---|---|
-| Show full names (First + Middle + Last) | `src/lib/names.ts` / `supabase/functions/_shared/names.ts` (`fullName`, `shortName`; staff `father_name` counts as middle). 28 call sites in 25 files use it, and every students query that feeds them selects `middle_name`. `enroll-finalize-billing` left the `deno check` baseline. | `names.test.ts` 4/4; conventions name-concat 0 and blocking. |
+| Show full names (First + Middle + Last) | `src/lib/names.ts` / `supabase/functions/_shared/names.ts` (`fullName`, `shortName`; staff `father_name` counts as middle). every name render uses it (round 2 also moved the 8 remaining hand-rolled joins onto it), and every students query that feeds them selects `middle_name`. `enroll-finalize-billing` left the `deno check` baseline. | `names.test.ts` 4/4; conventions name-concat 0 and blocking. |
 | Remove "Use Ge'ez numerals"; add Arabic numerals (٠١٢٣…) and Hijri options | `settings.calendar.numerals` = `latn` (0-9, default) or `arab` (٠-٩); `settings.calendar.showHijri` shows the Hijri (Umm al-Qura) date beside EC dates. `toGeez` and the toggle are gone. Migration `20260925000002_r6_calendar_numerals.sql` moves any Ge'ez tenant to `latn`, and a CHECK stops `geezNumerals` or an unknown digit system being written back. Hijri month names in en/am/om. | `r6_calendar_numerals.sql` 7/7; `ethiopian-date.test.ts` asserts no U+1369–U+137C in any rendered EC date and checks two known Hijri dates. |
 
 ### Gate after round-1 fixes (local)
@@ -463,4 +463,40 @@ Seven reviewers returned: authz, api-contract, conventions, supply-chain and fro
 - `deno-check.sh` OK (28 functions, 3 baselined).
 - pgTAP: 109 migrations, 61/61 suites; catalog TODOs unchanged (definer 2, RLS 1, module gate 1, storage 1).
 
-**Deploy note (updated):** one migration (`20260925000002`), the frontend, and 7 Edge Functions (`activate-sso-user`, `process-export-job`, `process-import-job`, `record-fee-payment`, `issue-fee-document`, `enroll-finalize-billing`, `onboard-tenant`) ship with the next production deploy.
+**Deploy note (superseded by round 2 below).**
+
+### Round 2 reviews (on `ffe8242`)
+
+Verdicts, unedited: `audit/evidence/reviews/wp01-r2-*.md`. Returned: security PASS, infra-config PASS; tenant-isolation, code-quality, db-migration, regression-guardian, insa-docs and i18n-a11y FAIL (majors below). test-verifier died twice on the API rate limit and is re-run on the fixed head.
+
+| Finding | Severity | Fix | Proof |
+|---|---|---|---|
+| TI-R2-1: the storage text classifier is fooled by an AND/OR precedence slip | major | New suite `catalog_storage_probe.sql`: seeds a tenant-B object in each of the 15 private buckets and, as a tenant-A user of all 10 roles plus anon, tries SELECT, UPDATE, DELETE (without WHERE, so only the command's own policy applies) and INSERT into tenant B; every write in a rolled-back sub-transaction. | 10/10: clean on the real policies; each planted shape (OR precedence, tenant term inside an OR, cross-tenant insert/update/delete) is caught. |
+| M-1 / RG-3: new camelCase jsonb key | major | Calendar keys are `secondary_visible`, `numerals`, `show_hijri`; the reader also accepts legacy camelCase. | `r6_calendar_numerals.sql` 15/15. |
+| DM-1 / RG-1 / SEC-WP01-2 / F5: the CHECK broke the production frontend and onboard-tenant (they write `geezNumerals: false`) | major | CHECK replaced by `normalize_calendar_settings()` plus a BEFORE INSERT/UPDATE trigger: legacy writes are normalised, not rejected, so deploy order no longer matters. onboard-tenant now checks every insert, so a failure rolls the tenant back. | Suite asserts the old settings-page upsert and the old onboard insert both save and are stored normalised. |
+| DM-2 / SEC-WP01-1 / TI-R2-6: scalar/array/null calendar aborted or corrupted the migration; not idempotent on arrays | major | Normaliser handles every shape (non-object → defaults, invalid values → defaults, extra keys kept). | Suite covers scalar, array, null, invalid numerals, non-boolean `showHijri`; a second run changes nothing. Removing the non-object guard makes the suite error (mutation). |
+| DM-3: no rollback, counts or order | major | Migration header: pre-apply production count (3 rows, all `{secondaryVisible: true, geezNumerals: false}`, `audit/evidence/wp01-prod-calendar-and-schema-grants-20260925T154210Z.txt`), expected post-state, forward-fix (drop trigger and function; data stays valid). | — |
+| F-01 (i18n-a11y): Gregorian date only in a `title` tooltip | major | Shown as visible text (DD/MM/YYYY, tenant digits) when enabled; Hijri likewise; `text-ink-soft` for AA contrast (F-02). **Visible change:** all 3 production tenants have this setting on (the onboarding default, which never did anything before), so after deploy every date shows its Gregorian equivalent until an admin unticks it. | `EthDate.test.tsx` 5/5. |
+| F1–F5, F13 (insa-docs): stale counts and an over-broad parity claim | major/minor | Corrected here, in CLAUDE.md, README and `_pending-changes.md`; residual-risk table added. | — |
+| TI-R2-2 / m-10 | minor | Role term must be a role equality, permission/relationship helper or ownership column comparison; string literals blanked; bare EXISTS no longer counts. | 3 planted look-alikes flagged. |
+| TI-R2-3 | minor | A module gate must match the exact generated shapes and apply to authenticated/PUBLIC. | 3 planted bypasses flagged; all 56 real gates still count. |
+| TI-R2-4 | minor | Allow-listed storage policies carry an md5 fingerprint. | Widening 'public read branding' breaks it. |
+| TI-R2-5 / DM-5 | minor | Shim: vault USAGE only for service_role; no API role reads `auth.users` (matches the production capture). | Full harness green. |
+| m-2/F-03, m-3/F-04, m-4, m-5, m-6, m-7, m-8, m-9 (code-quality, i18n-a11y) | minor | Preview uses unsaved prefs; save status/error regions; one `useTenantSettings()` hook that throws on error (own sub-key); cached Hijri formatter; editor hands HTML back only when something was removed; 8 hand-rolled name joins moved to `fullName`; `failJobQuietly()` shared helper; baseline comments. | `RichText.test.tsx` 6/6, `_shared/jobs.test.ts` 3/3, `_shared/names.test.ts` 3/3. |
+| F-06/F-07/F-08/F-09/F-11 (i18n-a11y) | minor | Oromo "Durduuba", Sha'ban / Dhu al-Qa'dah; picker navigation labels translated; each day labelled with its full EC date, `aria-current="date"` on today; one Gregorian formatter (no leading "="). | locales parity ok. |
+| F-10 (i18n-a11y), owner rule | minor | Tayitu (primary) and Jiret (secondary) now render all app Ethiopic text via Ethiopic-only font aliases. | build ok. |
+| SEC-WP01-3 | minor | `src/lib/csv.ts`: CSV formula-injection guard for invoice and payroll exports. | `csv.test.ts` 3/3. |
+| SEC-WP01-4 | minor | semgrep sink rule adds `execCommand("insertHTML")`, `createContextualFragment`, `setHTMLUnsafe`, `parseHTMLUnsafe`, `srcdoc`, `<iframe srcDoc>`. | Rule self-test 16/0/0. |
+| infra F1/F2/F4/F7/F8/F10 | minor | 2 stale gitleaks fingerprints removed (full history still clean); `npm run deploy` refuses a dirty tree; conventions self-test needs a proving fixture per check; `persist-credentials: false`; `--only-binary :all:`; Dependabot pip. | gitleaks 256 commits clean; guard exits 1 on a dirty tree; thinned fixture fails. |
+| DM-7 | info | run.sh matches `psql:<any path>: ERROR:`. | — |
+| Found while testing (new) | — | In Vitest, i18next-icu loaded intl-messageformat's CommonJS build and every ICU message fell back to its raw text, so i18n in tests proved nothing. `vite.config.ts` inlines both packages. The browser bundle was checked separately (`{date} G.C.` → `25/09/2026 G.C.`); production is not affected. | EthDate tests would fail without it. |
+
+### Gate after round 2 (local)
+
+- typecheck 0; `eslint src` 0 errors, 0 warnings; Vitest 12 files / 75 tests; `check:i18n` 0; `check:locales` OK; build OK.
+- conventions self-test ok and 0 findings; pinned-actions ok; semgrep rule test 16/0/0 and full scan (repo rules + 3 packs) 0; gitleaks full history (256 commits) clean.
+- `deno-check.sh` OK (28 functions, 3 baselined); Deno tests 28/28.
+- pgTAP: 109 migrations, 62/62 suites; catalog TODOs unchanged (definer 2, RLS 1, module gate 1, storage 1).
+
+**Deploy note (round 2).** One migration (`20260925000002`), the frontend, and 9 Edge Functions: `activate-sso-user`, `enroll-finalize-billing`, `issue-fee-document`, `issue-id-card`, `onboard-tenant`, `process-export-job`, `process-import-job`, `provision-portal-accounts`, `record-fee-payment`. Order no longer matters (the trigger accepts old and new writers). Pre-apply check: `select jsonb_typeof(settings->'calendar'), count(*) from tenant_configs group by 1` (expect 3 objects). Post-apply check: 0 rows with any camelCase calendar key; `select count(*) from tenant_configs where settings->'calendar' ? 'geezNumerals'` = 0.
+

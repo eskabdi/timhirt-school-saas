@@ -37,6 +37,8 @@
 import { z } from "npm:zod@3";
 import { requireRole, errors, json, rateLimit, corsHeaders } from "../_shared/security.ts";
 import { toGregorian } from "../_shared/ethiopian-date.ts";
+import { fullName } from "../_shared/names.ts";
+import { failJobQuietly } from "../_shared/jobs.ts";
 
 const Payload = z.object({
   job_id: z.string().uuid(),
@@ -183,7 +185,7 @@ async function importTeacherRow(cols: string[], ctx: RowCtx): Promise<void> {
   if (!first_name) throw new Error("First Name (English) is required");
   if (!last_name) throw new Error("Last Name (English) is required");
   const father_name = (fatherEn ?? "").trim() || null;
-  const full_name = [first_name, father_name, last_name].filter(Boolean).join(" ");
+  const full_name = fullName({ first_name, father_name, last_name });
 
   const genderRawTrim = (genderRaw ?? "").trim().toLowerCase();
   if (genderRawTrim && !["male", "female", "other"].includes(genderRawTrim)) {
@@ -330,13 +332,13 @@ Deno.serve(async (req) => {
 
     const { data: fileBlob, error: dlErr } = await ctx.adminClient.storage.from("data-imports").download(storage_path);
     if (dlErr || !fileBlob) {
-      await ctx.adminClient.rpc("fail_job", { p_job_id: job_id, p_error_message: "could_not_download_file" });
+      await failJobQuietly(ctx.adminClient, job_id, "could_not_download_file", "process-import-job");
       return json({ ok: false, reason: "download_failed" }, 200);
     }
 
     const rows = parseCsv(await fileBlob.text());
     if (rows.length < 2) {
-      await ctx.adminClient.rpc("fail_job", { p_job_id: job_id, p_error_message: "empty_or_header_only_csv" });
+      await failJobQuietly(ctx.adminClient, job_id, "empty_or_header_only_csv", "process-import-job");
       return json({ ok: false, reason: "empty_csv" }, 200);
     }
     const dataRows = rows.slice(1); // header row is for humans only, columns are positional
@@ -390,12 +392,7 @@ Deno.serve(async (req) => {
     // PostgREST builders have no .catch(): the old `.catch(() => {})` threw a
     // TypeError, so the job was never marked failed and stayed "running"
     // (R6 WP-01, found by the new `deno check` gate).
-    try {
-      const { error: failErr } = await ctx.adminClient.rpc("fail_job", { p_job_id: job_id, p_error_message: "internal_error" });
-      if (failErr) console.error("process-import-job: fail_job failed", { message: failErr.message });
-    } catch (failErr) {
-      console.error("process-import-job: fail_job failed", { message: (failErr as Error).message });
-    }
+    await failJobQuietly(ctx.adminClient, job_id, "internal_error", "process-import-job");
     return errors.internal();
   }
 });

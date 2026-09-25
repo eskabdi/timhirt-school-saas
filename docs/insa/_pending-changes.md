@@ -108,15 +108,15 @@ inventory, residual-risk register) and then empties this file.
 **Secure development pipeline (INSA Phase 3/5; ISO 27001 A.8.25, A.8.28, A.8.29).** CI now runs on every PR and every push to main:
 - The existing gates: typecheck, lint, unit tests (Vitest), i18n, locale parity, build, and pgTAP (61 suites).
 - **Supply-chain controls:** every GitHub Action is pinned to a full commit SHA, enforced by `scripts/ci/pinned-actions.sh`. Dependabot runs weekly for npm and github-actions. `npm audit --omit=dev --audit-level=high` runs on every build.
-- **Secret scan:** gitleaks v8.30.1 over the full git history. It is built with `go install`, so the binary is checked against the Go checksum database. Reviewed false positives are pinned by exact fingerprint in `.gitleaksignore`.
+- **Secret scan:** gitleaks v8.30.1 over the full git history. It is built with `go install`, so the binary is checked against the Go checksum database. Reviewed false positives (5) are pinned by exact commit:file:rule:line fingerprint in `.gitleaksignore`.
 - **SAST:** semgrep 1.95.0, installed from a hash-locked requirements file (`scripts/ci/requirements-semgrep.txt`, `pip --require-hashes`), runs the repo-owned rules `.semgrep/timhirt-security.yml` plus the OWASP Top 10, TypeScript and React registry packs. The repo rules cover dangerouslySetInnerHTML, HTML-string DOM sinks, eval / new Function, the service-role key in browser code, and plain-http fetch. A fixture self-test (`scripts/ci/semgrep-rule-test.py`) fails CI if a rule stops matching; without a Semgrep login the registry packs alone ran only 4 rules and missed planted sinks.
-- **Edge Function type check:** `deno check` runs on all 28 entrypoints, as a ratchet (`supabase/security/deno_check_known.txt`, 4 baselined).
+- **Edge Function type check:** `deno check` runs on all 28 entrypoints, as a ratchet (`supabase/security/deno_check_known.txt`, 3 baselined).
 - **Conventions gate (blocking):** `scripts/ci/conventions.py` fails CI on Ge'ez digits, non-ETB currency, or a name that drops the middle name, over src/, Edge Functions, migrations and index.html. A fixture self-test proves each check fires.
 - **Dev dependency added:** happy-dom 20.14.5 (MIT; dependencies MIT except entities, BSD-2-Clause). It is the Vitest DOM environment for `RichText.test.tsx` and is not shipped in the bundle.
 - **Build provenance:** the commit SHA is stamped into `index.html` as `<meta name="app-commit">`.
 
 **Test harness truth (L-08).**
-- `supabase/tests/shim.sql` mirrors Supabase's default privileges. Effective privileges for every public function and table match production exactly (`audit/evidence/wp01-acl-parity-20260925T101802Z.txt`: 191 = 191, and 42 = 42 anon-executable definer functions).
+- `supabase/tests/shim.sql` mirrors Supabase's default privileges. EXECUTE on every public function and SELECT/INSERT on every public table and view match production (`audit/evidence/wp01-acl-parity-20260925T101802Z.txt`: 191 = 191, and 42 = 42 anon-executable definer functions). Schema USAGE for auth/storage/vault and access to `auth.users` also match production (`audit/evidence/wp01-prod-calendar-and-schema-grants-*.txt`: anon/authenticated have no USAGE on vault, and no API role reads `auth.users`). UPDATE/DELETE, sequences and schema CREATE are not compared yet (residual risk below).
 - The runner (`run.sh`) supports TAP TODOs. A known gap is reported; a TODO that starts passing fails the run until it is flipped to a hard assertion.
 - Real psql errors fail the run; the word "ERROR:" inside an assertion description no longer does.
 - Each run uses a private temp file.
@@ -131,10 +131,24 @@ inventory, residual-risk register) and then empties this file.
 | `catalog_storage_policies.sql` | every storage.objects policy (all commands) has a role/relationship term and a tenant-folder term, classified by content; detector proven on 5 planted shapes; allow-list entries need a reason and must name a real policy | 4 → WP-05 (branding allow-listed: public bucket) |
 
 **Security fixes found by the new gates (verified by tests, not yet deployed):**
-- **Stored XSS in the notice/assignment editor** (`RichTextEditor`). Stored HTML was loaded with `el.innerHTML = value`, so `<img onerror>` in another author's notice ran when a staff member opened it for editing. It now loads `sanitizeRichTextNodes()`, which uses the same allow-list as `<RichText/>` and builds nodes with `replaceChildren`. Test: `RichText.test.tsx`, 4 tests; all 4 fail with raw nodes. Control: stored-XSS prevention (OWASP A03).
+- **Stored XSS in the notice/assignment editor** (`RichTextEditor`). Stored HTML was loaded with `el.innerHTML = value`, so `<img onerror>` in another author's notice ran when a staff member opened it for editing. It now loads `sanitizeRichTextNodes()`, which uses the same allow-list as `<RichText/>` and builds nodes with `replaceChildren`. Tests: `RichText.test.tsx`, 6 tests (4 sanitiser, 2 mounted-editor); the sanitiser tests fail with raw nodes and the editor test fails if the load path is reverted to `innerHTML =`. The editor hands cleaned HTML back only when the sanitiser removed something, so a stored payload is not saved again. Control: stored-XSS prevention (OWASP A03).
 - **Error paths that threw instead of recovering** (`activate-sso-user`, `process-export-job`, `process-import-job`). They called `.catch()` on PostgREST builders, which have none. The teacher-row rollback never ran, and failed import/export jobs stayed "running". Fixed, and caught by the `deno check` gate.
 
 ## R6 (owner decision 2026-09-25) — Names and calendar display
 
-- **Personal names** are rendered First + Middle + Last everywhere (`fullName()`, `src/lib/names.ts` and `supabase/functions/_shared/names.ts`), including fee receipts and documents generated by Edge Functions. Short form: First + Middle.
-- **Calendar display settings** (`tenant_configs.settings.calendar`, school admin): show Gregorian equivalent; show the Hijri (Islamic, Umm al-Qura) date; digits `0-9` (default) or Eastern Arabic `٠-٩`. Ge'ez numerals are no longer offered. Dates are still stored Gregorian (§17.2); these settings are presentation-only. A CHECK constraint (migration `20260925000002`) rejects the old `geezNumerals` key and unknown digit systems. Data classification: non-sensitive tenant configuration.
+- **Personal names** are rendered First + Middle + Last everywhere (`fullName()`, `src/lib/names.ts` and `supabase/functions/_shared/names.ts`; staff rows use `father_name` as the middle name), including fee receipts, ID cards, portal accounts and documents generated by Edge Functions. The conventions gate blocks any new first+last concatenation.
+- **Calendar display settings** (`tenant_configs.settings.calendar`, school admin only by RLS): `secondary_visible` shows the Gregorian date (DD/MM/YYYY) as visible text beside every EC date; `show_hijri` shows the Hijri date (Umm al-Qura; local moon sighting may differ by a day, stated on the settings page); `numerals` is `latn` (0-9, default) or `arab` (Eastern Arabic ٠-٩). Ge'ez numerals are no longer offered. Dates are still stored Gregorian (§17.2); the settings are presentation-only. Keys are snake_case; migration `20260925000002` adds `normalize_calendar_settings()` and a BEFORE INSERT/UPDATE trigger that maps legacy camelCase keys, drops `geezNumerals`, defaults invalid values and repairs non-object shapes, so older clients keep working. Data classification: non-sensitive tenant configuration.
+- **Amharic typography:** app-wide text uses Tayitu (primary) and Jiret (secondary) for Ethiopic script via Ethiopic-only `@font-face` aliases (`unicode-range`), ahead of Noto Sans Ethiopic.
+- **CSV exports** (invoices, payroll) go through `src/lib/csv.ts`, which neutralises spreadsheet formula injection (CWE-1236).
+- **Deploy guard:** `npm run deploy` refuses a working tree with uncommitted changes, so the `app-commit` stamp always describes what shipped.
+
+### WP-01 residual risks (→ 10-residual-risk-register)
+
+| Risk | Why accepted now | Closed by |
+|---|---|---|
+| Dev-dependency audit: 1 critical (vitest ≤4.1.10) and 5 high; CI audits runtime dependencies only | Build/test tooling, not shipped to users | WP-13 |
+| semgrep registry packs (p/owasp-top-ten, p/typescript, p/react) are fetched live, unpinned; 2 files parse partially | Repo rules are pinned and self-tested; registry rules are additive | WP-13 |
+| No `deno.lock`; `npm:@supabase/supabase-js@2` floats; 3 Edge Functions baselined in `deno check` | The ratchet fails any new type error outside the 3 | WP-10 / WP-12 / WP-13 |
+| 39 SECURITY DEFINER functions set `search_path=public` without `pg_temp` | Growth is blocked by `catalog_definer_security.sql` | WP-02 |
+| ACL parity covers EXECUTE and SELECT/INSERT only | Remaining privileges are exercised by the RLS suites | WP-02 / WP-05 |
+| 4 storage policies let every role in a tenant read a bucket (same tenant only; the cross-tenant probe is clean) | Tenant isolation holds; least privilege within a tenant is WP-05 | WP-05 |

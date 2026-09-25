@@ -3,7 +3,8 @@
   "eraSuffix": "ዓ.ም",
   "hijriMonths": ["ሙሐረም", "ሰፈር", "ረቢዑል አወል", "ረቢዑል አኺር", "ጀማደል ኡላ", "ጀማደል አኺር", "ረጀብ", "ሻዕባን", "ረመዳን", "ሸዋል", "ዙልቀዕዳ", "ዙልሂጃ"],
   "hijriEraSuffix": "ዓ.ሂ",
-  "gregorianEquivalent": "= {date} እ.ኤ.አ",
+  "nav": { "prevMonth": "ያለፈው ወር", "nextMonth": "የሚቀጥለው ወር", "prevYears": "ያለፉት ዓመታት", "nextYears": "የሚቀጥሉት ዓመታት", "selectYear": "ዓመት ይምረጡ", "backToDays": "ወደ ቀናት ይመለሱ" },
+  "gregorianEquivalent": "{date} እ.ኤ.አ",
   "today": "ዛሬ",
   "pickDate": "ቀን ይምረጡ",
   "placeholder": "ቀን ይምረጡ (ዓ.ም)"

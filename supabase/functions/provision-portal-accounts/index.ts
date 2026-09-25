@@ -27,6 +27,7 @@
 // ============================================================================
 import { z } from "npm:zod@3";
 import { requireRole, errors, json, rateLimit, corsHeaders } from "../_shared/security.ts";
+import { fullName } from "../_shared/names.ts";
 
 const Payload = z.object({ student_id: z.string().uuid() });
 
@@ -86,7 +87,7 @@ Deno.serve(async (req) => {
     const alreadyDone = !!student.user_id && (guardians ?? []).every((g) => !!g.user_id);
     if (alreadyDone) return json({ already_provisioned: true, accounts: [] }, 200);
 
-    const fullName = [student.first_name, student.middle_name, student.last_name].filter(Boolean).join(" ");
+    const studentName = fullName(student);
     const appUrl = Deno.env.get("APP_URL") ?? "https://timhirt-school-saas.vercel.app";
     const accounts: AccountResult[] = [];
 
@@ -100,13 +101,13 @@ Deno.serve(async (req) => {
         const tempPassword = generateTempPassword();
         const { data: created, error: cErr } = await db.auth.admin.createUser({
           email, password: tempPassword, email_confirm: true,
-          user_metadata: { full_name: fullName },
+          user_metadata: { full_name: studentName },
         });
         if (cErr) throw cErr;
         createdAuthUserIds.push(created.user.id);
         const { error: profileErr } = await db.from("users").insert({
           id: created.user.id, tenant_id: student.tenant_id, role: "student",
-          full_name: fullName, email, locale: "en",
+          full_name: studentName, email, locale: "en",
         });
         if (profileErr) throw profileErr;
         await db.from("students").update({ user_id: created.user.id }).eq("id", student.id);

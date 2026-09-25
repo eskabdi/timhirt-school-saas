@@ -1,5 +1,5 @@
 -- ============================================================================
--- Known offenders: storage.objects SELECT policies whose only predicate is the bucket plus the tenant folder, so any role in the tenant (student, parent) reads every file (M-xx storage least privilege).
+-- Known offenders: storage.objects policies (any command) whose only predicate is the bucket plus the tenant folder, with no role, permission, relationship or ownership term, so any role in the tenant (student, parent) gets that command on every file (M-xx storage least privilege).
 -- Loaded by supabase/tests/rls/catalog_storage_policies.sql (\ir). This list may only SHRINK:
 -- the suite fails on any offender not listed here (a regression) and on any
 -- listed entry that no longer offends (so the list stays exact). WP-05 fixes

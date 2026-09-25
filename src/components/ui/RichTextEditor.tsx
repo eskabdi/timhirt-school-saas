@@ -47,13 +47,18 @@ export function RichTextEditor({ value, onChange, placeholder, minHeight = 220 }
   // typing; writing on every keystroke would reset the caret to the start.
   // Stored HTML goes through the RichText allow-list as real nodes, never
   // `innerHTML =`: another author's notice can carry `<img onerror>` (R6 WP-01).
+  // Latest onChange without re-running the load effect when its identity changes.
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
   useEffect(() => {
     const el = ref.current;
     if (el && el.innerHTML !== value) {
-      el.replaceChildren(...sanitizeRichTextNodes(value));
-      // Hand the cleaned HTML back, so a stored payload is not saved again
-      // unchanged when the author saves without editing (review FE-1).
-      if (value && el.innerHTML !== value) onChange(el.innerHTML);
+      const report = { removed: false };
+      el.replaceChildren(...sanitizeRichTextNodes(value, document, report));
+      // Hand the cleaned HTML back only when something unsafe was dropped, so
+      // a stored payload is not saved again unchanged (review FE-1) while a
+      // harmless rewrite (<b> → <strong>) does not mark the form dirty (m-6).
+      if (report.removed) onChangeRef.current(el.innerHTML);
     }
     setEmpty(!(value ?? "").replace(/<[^>]*>/g, "").trim());
   }, [value]);

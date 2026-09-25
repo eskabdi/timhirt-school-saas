@@ -1,9 +1,10 @@
 {
   "months": ["Meskerem", "Tikimt", "Hidar", "Tahsas", "Tir", "Yekatit", "Megabit", "Miyazya", "Ginbot", "Sene", "Hamle", "Nehase", "Pagume"],
   "eraSuffix": "E.C.",
-  "hijriMonths": ["Muharram", "Safar", "Rabi al-Awwal", "Rabi al-Thani", "Jumada al-Ula", "Jumada al-Akhirah", "Rajab", "Shaban", "Ramadan", "Shawwal", "Dhu al-Qadah", "Dhu al-Hijjah"],
+  "hijriMonths": ["Muharram", "Safar", "Rabi al-Awwal", "Rabi al-Thani", "Jumada al-Ula", "Jumada al-Akhirah", "Rajab", "Sha'ban", "Ramadan", "Shawwal", "Dhu al-Qa'dah", "Dhu al-Hijjah"],
   "hijriEraSuffix": "AH",
-  "gregorianEquivalent": "= {date} G.C.",
+  "nav": { "prevMonth": "Previous month", "nextMonth": "Next month", "prevYears": "Previous years", "nextYears": "Next years", "selectYear": "Select year", "backToDays": "Back to days" },
+  "gregorianEquivalent": "{date} G.C.",
   "today": "Today",
   "pickDate": "Pick a date",
   "placeholder": "Select date (EC)"

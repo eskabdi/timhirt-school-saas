@@ -11,7 +11,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
-  EthDate as Eth, toEthiopian, toGregorian, daysInEthMonth, todayEthiopian, formatEth, formatDigits, type NumeralSystem,
+  EthDate as Eth, toEthiopian, toGregorian, daysInEthMonth, todayEthiopian, formatEth, formatDigits, formatGregorian, type NumeralSystem,
 } from "@/lib/ethiopian-date";
 import { cn } from "@/lib/utils";
 import { useCalendarPrefs } from "@/features/settings/useCalendarPrefs";
@@ -94,9 +94,7 @@ export function EthDatePicker({ value, onChange, numerals, id }: Props) {
     setView({ year: y, month: m });
   };
 
-  const gcPreview = value
-    ? new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }).format(value)
-    : "";
+  const gcPreview = value ? formatGregorian(value, digits) : "";
 
   const displayValue = value ? formatEth(value, { monthNames: months, eraSuffix: t("eraSuffix"), numerals: digits }) : "";
 
@@ -135,12 +133,12 @@ export function EthDatePicker({ value, onChange, numerals, id }: Props) {
             <button
               type="button"
               onClick={() => (mode === "days" ? move(-1) : setYearGridStart((s) => s - YEARS_PER_PAGE))}
-              aria-label={mode === "days" ? "Previous month" : "Previous years"}
+              aria-label={mode === "days" ? t("nav.prevMonth") : t("nav.prevYears")}
               className="rounded-control px-2 py-1 text-ink-faint hover:bg-sidebar">‹</button>
             <button
               type="button"
               onClick={() => (mode === "days" ? openYearGrid() : setMode("days"))}
-              aria-label={mode === "days" ? "Select year" : "Back to days"}
+              aria-label={mode === "days" ? t("nav.selectYear") : t("nav.backToDays")}
               className="rounded-control px-2 py-1 font-display text-sm font-bold text-ink hover:bg-sidebar">
               {mode === "days"
                 ? `${months[view.month - 1]} ${num(view.year)} ${t("eraSuffix")}`
@@ -149,7 +147,7 @@ export function EthDatePicker({ value, onChange, numerals, id }: Props) {
             <button
               type="button"
               onClick={() => (mode === "days" ? move(1) : setYearGridStart((s) => s + YEARS_PER_PAGE))}
-              aria-label={mode === "days" ? "Next month" : "Next years"}
+              aria-label={mode === "days" ? t("nav.nextMonth") : t("nav.nextYears")}
               className="rounded-control px-2 py-1 text-ink-faint hover:bg-sidebar">›</button>
           </div>
 
@@ -194,6 +192,8 @@ export function EthDatePicker({ value, onChange, numerals, id }: Props) {
                       type="button"
                       role="gridcell"
                       aria-selected={isSelected}
+                      aria-current={isToday ? "date" : undefined}
+                      aria-label={formatEth(toGregorian({ year: view.year, month: view.month, day: d }), { monthNames: months, eraSuffix: t("eraSuffix"), numerals: digits })}
                       onClick={() => selectDay(d)}
                       className={cn(
                         "flex h-9 w-9 items-center justify-center rounded-full text-sm tabular-nums transition-colors",

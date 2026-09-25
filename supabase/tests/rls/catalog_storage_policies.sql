@@ -17,16 +17,21 @@
 -- proven on planted policies at the end. TODO WP-05: zero offenders.
 -- ============================================================================
 begin;
-select plan(11);
+select plan(16);
 \ir ../../security/storage_tenant_only_known.sql
 \ir ../../security/storage_policy_allowlist.sql
 
--- The tenant-folder call itself contains auth.uid(); strip it before looking
--- for an ownership comparison so it cannot count as a role term.
-create function pg_temp.storage_has_role_term(e text) returns boolean language sql immutable as $$
-  select regexp_replace(e, 'get_tenant_id_for_user\(auth\.uid\(\)\)', '', 'g')
-         ~* '(get_role_for_user|has_permission|has_resource_permission|is_teacher_of_class|\mEXISTS\M|=\s*auth\.uid\(\)|auth\.uid\(\)\s*=)'
-$$;
+-- A role term narrows access: an equality against a role literal or list, a
+-- permission helper, a relationship helper, or an ownership comparison on a
+-- user_id/owner column. A bare EXISTS, `auth.uid() = auth.uid()`,
+-- `get_role_for_user(…) <> 'x'` or a string literal does not count (review
+-- TI-R2-2). String literals are blanked first so 'has_permission(' in a
+-- literal cannot pass. Cross-tenant exposure is proven behaviourally by
+-- catalog_storage_probe.sql; this classifier is about least privilege.
+create function pg_temp.storage_has_role_term(e text) returns boolean language sql immutable as $fn$
+  select regexp_replace(e, $q$'[^']*'$q$, $q$''$q$, 'g')
+         ~ $re$(AS get_role_for_user\) = |\mhas_permission\(|\mhas_resource_permission\(|\mis_teacher_of_class\(|\mis_guardian_of\(|\m(user_id|owner|owner_id)\s*=\s*auth\.uid\(\)|auth\.uid\(\)\s*=\s*[a-z_]+\.(user_id|owner|owner_id)\M)$re$
+$fn$;
 create function pg_temp.storage_has_tenant_term(e text) returns boolean language sql immutable as $$
   select e ~ 'storage\.foldername\(name\)\)\[1\] = .*get_tenant_id_for_user\(auth\.uid\(\)\)'
 $$;
@@ -57,6 +62,16 @@ select is(array(select polname from storage_policy_allowlist where coalesce(btri
   'every storage policy allow-list entry states a reason');
 select is(array(select polname from storage_policy_allowlist except select polname::text from pg_policy where polrelid = 'storage.objects'::regclass order by 1), '{}'::text[],
   'every storage policy allow-list entry names a real policy');
+create function pg_temp.storage_policy_fingerprint(p pg_policy) returns text language sql stable as $fn$
+  select md5(coalesce(pg_get_expr(p.polqual, p.polrelid), '') || '|' || coalesce(pg_get_expr(p.polwithcheck, p.polrelid), '')
+             || '|' || p.polcmd::text || '|'
+             || array_to_string(array(select case when r = 0 then 'public' else r::regrole::text end from unnest(p.polroles) r order by 1), ','))
+$fn$;
+select is(array(select a.polname || ' is now ' || pg_temp.storage_policy_fingerprint(p)
+                from storage_policy_allowlist a
+                join pg_policy p on p.polname = a.polname and p.polrelid = 'storage.objects'::regclass
+                where a.fingerprint <> pg_temp.storage_policy_fingerprint(p) order by 1), '{}'::text[],
+  'every allow-listed storage policy is unchanged since it was reviewed (fingerprint)');
 
 select todo('WP-05: add role/relationship predicates to tenant-only storage policies', 1);
 select is((select count(*)::int from storage_no_role), 0, 'no storage policy checks only bucket + tenant folder');
@@ -85,6 +100,27 @@ select ok(not ('zz tenant only unwrapped' in (select polname from storage_no_ten
   'detector: an unwrapped tenant-folder check still counts as tenant-scoped');
 select ok(not ('zz role but cross tenant' in (select polname from storage_no_role)),
   'detector: a get_role_for_user check counts as a role term');
+
+-- Review TI-R2-2: terms that look like role checks but narrow nothing.
+create policy "zz bare exists" on storage.objects for select to authenticated
+  using (bucket_id = 'documents' and (storage.foldername(name))[1] = (select public.get_tenant_id_for_user(auth.uid()))::text
+         and exists (select 1 from public.users p where p.id = auth.uid()));
+create policy "zz uid tautology" on storage.objects for select to authenticated
+  using (bucket_id = 'documents' and (storage.foldername(name))[1] = (select public.get_tenant_id_for_user(auth.uid()))::text
+         and auth.uid() = auth.uid());
+create policy "zz role not equal" on storage.objects for select to authenticated
+  using (bucket_id = 'documents' and (storage.foldername(name))[1] = (select public.get_tenant_id_for_user(auth.uid()))::text
+         and (select public.get_role_for_user(auth.uid())) <> 'nobody' and name <> 'has_permission(');
+select ok('zz bare exists' in (select polname from storage_no_role), 'detector: a bare EXISTS on users is not a role term');
+select ok('zz uid tautology' in (select polname from storage_no_role), 'detector: auth.uid() = auth.uid() is not a role term');
+select ok('zz role not equal' in (select polname from storage_no_role),
+  'detector: get_role_for_user(…) <> literal, and a helper name inside a string literal, are not role terms');
+
+-- Review TI-R2-4: widening an allow-listed policy breaks its fingerprint.
+alter policy "public read branding" on storage.objects using (bucket_id in ('branding', 'documents'));
+select ok(exists (select 1 from storage_policy_allowlist a join pg_policy p on p.polname = a.polname and p.polrelid = 'storage.objects'::regclass
+                  where a.fingerprint <> pg_temp.storage_policy_fingerprint(p)),
+  'detector: editing an allow-listed policy changes its fingerprint');
 
 select * from finish();
 rollback;

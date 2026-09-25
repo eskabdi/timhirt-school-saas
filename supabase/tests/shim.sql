@@ -126,11 +126,14 @@ $$ insert into vault.secrets(name, secret) values (name, secret)
 create or replace view vault.decrypted_secrets as
   select id, name, secret, secret as decrypted_secret, created_at from vault.secrets;
 
-grant usage on schema auth, storage, vault to authenticated, anon, service_role;
--- Only service_role reads auth.users, as on Supabase (auth.users belongs to
--- supabase_auth_admin; the API roles get no table grant). The shim used to
--- grant anon/authenticated SELECT, which Supabase never does (review TI-4).
-grant select on auth.users to service_role;
+-- Schema USAGE and auth.users access exactly as production has them
+-- (audit/evidence/wp01-prod-calendar-and-schema-grants-*.txt): every API role
+-- reaches auth and storage; only service_role reaches vault; no API role, not
+-- even service_role, can SELECT auth.users (it belongs to supabase_auth_admin;
+-- Edge Functions use the Auth admin API). The shim used to grant more
+-- (reviews TI-4, TI-R2-5, DM-5).
+grant usage on schema auth, storage to authenticated, anon, service_role;
+grant usage on schema vault to service_role;
 
 -- Supabase grants the API roles table-level DML on the storage tables and lets
 -- RLS do the actual gating. Without these grants a policy test fails with

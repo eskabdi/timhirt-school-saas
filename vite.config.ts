@@ -32,5 +32,12 @@ export default defineConfig({
   // Vitest covers the frontend only. Edge Function tests under
   // supabase/functions are Deno tests (jsr:/npm: imports) and run via
   // `deno test` in CI, not here.
-  test: { include: ["src/**/*.{test,spec}.{ts,tsx}"] },
+  test: {
+    include: ["src/**/*.{test,spec}.{ts,tsx}"],
+    // Run i18next-icu and intl-messageformat through Vite, as the browser build
+    // does. Externalised, Node loads intl-messageformat's CommonJS entry, the
+    // default import is not a constructor, and every ICU message silently
+    // falls back to its raw text ("{date} G.C."), so i18n in tests proved nothing.
+    server: { deps: { inline: ["i18next-icu", "intl-messageformat"] } },
+  },
 });

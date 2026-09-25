@@ -5,7 +5,8 @@ TanStack Query on Supabase (Postgres + RLS + Edge Functions + Storage), no
 custom API server.
 
 > **Deployed state (verified 2026-09-25):** production runs commit `da6055e`
-> (R6 WP-00 and its closeout, PR #8). All 108 migrations are applied, and 28/28
+> (R6 WP-00 and its closeout, PR #8). 108 of the repo's 109 migrations are applied
+> (`20260925000002`, R6 WP-01, is pending its deploy), and 28/28
 > Edge Functions match the repo (names and `verify_jwt`). The frontend is built
 > on Vercel from `da6055e`. See `audit/prod-drift-2026-09-24.md` §5 and
 > `audit/evidence/wp00-closeout-deploy-20260925T072419Z.txt`. There is **no staging project** yet (R6 WP-17), and **PITR is off with
@@ -108,7 +109,10 @@ Insert into the existing line. `npm run check:locales` fails the build on this.
 Supabase's default privileges (USAGE on `public` and per-role grants on every new
 table, sequence and function for `anon`, `authenticated`, `service_role`); that
 is what production has, and `audit/evidence/wp01-acl-parity-*.txt` shows the
-harness and production agree on every effective privilege. Before R6 WP-01 anon
+harness and production agree on EXECUTE for every public function and
+SELECT/INSERT on every public table and view (191 = 191); schema USAGE and
+`auth.users` access match `audit/evidence/wp01-prod-calendar-and-schema-grants-*.txt`.
+UPDATE/DELETE, sequences and schema CREATE are not compared yet. Before R6 WP-01 anon
 could not reach `public` at all, so every "anon cannot call X" probe passed
 vacuously and H-01 hid behind a green run. Don't add a grant to the shim that
 Supabase doesn't make.
@@ -132,12 +136,12 @@ Run the gates — CI runs all of them, so a miss here is a red build later:
 
 ```bash
 npx tsc --noEmit
-npx eslint src                      # 0 errors; ~41 pre-existing `any` warnings
+npx eslint src                      # 0 errors, 0 warnings
 npx vitest run
 npm run check:i18n                  # must be 0
 npm run check:locales               # parity + no wholesale reformat
 npm run build
-PGHOST=… ./supabase/tests/run.sh    # 109 migrations + 61 pgTAP suites
+PGHOST=… ./supabase/tests/run.sh    # 109 migrations + 62 pgTAP suites
 bash scripts/ci/deno-check.sh       # Edge Function types (ratchet)
 python3 scripts/ci/semgrep-rule-test.py   # needs semgrep 1.95.0
 ```

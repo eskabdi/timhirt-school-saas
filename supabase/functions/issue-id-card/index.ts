@@ -28,6 +28,7 @@ import fontkit from "npm:@pdf-lib/fontkit@1";
 import { toDataURL as qrToDataURL } from "npm:qrcode@1";
 import bwipjs from "npm:bwip-js@4";
 import { requireRole, errors, json, rateLimit, corsHeaders, type AuthContext } from "../_shared/security.ts";
+import { fullName } from "../_shared/names.ts";
 
 const Payload = z.object({ student_id: z.string().uuid() });
 
@@ -306,8 +307,8 @@ Deno.serve(async (req) => {
 
     const data: CardData = {
       tenantName: tenant?.name ?? "School",
-      fullName: [student.first_name, student.middle_name, student.last_name].filter(Boolean).join(" ") || "Student",
-      fullNameAm: [student.first_name_am, student.middle_name_am, student.last_name_am].filter(Boolean).join(" "),
+      fullName: fullName(student) || "Student",
+      fullNameAm: fullName({ first_name: student.first_name_am, middle_name: student.middle_name_am, last_name: student.last_name_am }),
       admissionNo: student.admission_no,
       classLabel: student.class ? `${student.class.name} ${student.class.section ?? ""}`.trim() : "-",
       dob: student.date_of_birth,

@@ -56,8 +56,8 @@ export default {
         warn: "rgb(var(--brand-accent) / <alpha-value>)",
       },
       fontFamily: {
-        display: ["'Public Sans'", "'Noto Sans Ethiopic'", "system-ui", "sans-serif"],
-        sans: ["'Inter'", "'Noto Sans Ethiopic'", "system-ui", "sans-serif"],
+        display: ["'Public Sans'", "'Tayitu Ethiopic'", "'Jiret Ethiopic'", "'Noto Sans Ethiopic'", "system-ui", "sans-serif"],
+        sans: ["'Inter'", "'Tayitu Ethiopic'", "'Jiret Ethiopic'", "'Noto Sans Ethiopic'", "system-ui", "sans-serif"],
       },
       borderRadius: {
         panel: "16px",

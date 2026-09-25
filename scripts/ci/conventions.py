@@ -57,13 +57,22 @@ def scan_line(line):
 def self_test(root):
     path = os.path.join(root, "scripts", "ci", "conventions_fixtures.txt")
     bad = 0
+    proven = set()
     for i, line in enumerate(open(path, encoding="utf-8"), 1):
         if not line.startswith(("BAD ", "OK ")):
             continue
         kind, text = line.split(" ", 1)
         hits = scan_line(text)
+        if kind == "BAD":
+            proven.update(hits)
         if (kind == "BAD") != bool(hits):
             print(f"self-test line {i}: expected {kind}, got {hits or 'no finding'}: {text.strip()}")
+            bad += 1
+    # An emptied or thinned fixture must not pass: every check needs at least
+    # one planted BAD line that it flags (review infra F4).
+    for name in CHECKS:
+        if name not in proven:
+            print(f"self-test: no BAD fixture proves the {name} check fires")
             bad += 1
     print(f"conventions self-test: {'ok' if not bad else f'{bad} FAILED'}")
     return 1 if bad else 0

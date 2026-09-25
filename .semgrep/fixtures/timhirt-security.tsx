@@ -1,4 +1,4 @@
-// Fixture for `semgrep --test .semgrep`. Not compiled or bundled (outside src/).
+// Fixture for scripts/ci/semgrep-rule-test.py. Not compiled or bundled (outside src/).
 declare const el: HTMLElement;
 declare const html: string;
 declare const nodes: Node[];
@@ -6,6 +6,11 @@ declare const nodes: Node[];
 export function A() {
   // ruleid: timhirt-no-dangerously-set-inner-html
   return <div dangerouslySetInnerHTML={{ __html: html }} />;
+}
+
+export function F() {
+  // ruleid: timhirt-no-html-string-sink
+  return <iframe srcDoc={html} />;
 }
 
 export function sinks() {
@@ -17,6 +22,19 @@ export function sinks() {
   el.insertAdjacentHTML("beforeend", html);
   // ruleid: timhirt-no-html-string-sink
   document.write(html);
+  // ruleid: timhirt-no-html-string-sink
+  document.execCommand("insertHTML", false, html);
+  // ok: timhirt-no-html-string-sink
+  document.execCommand("bold");
+  // ruleid: timhirt-no-html-string-sink
+  document.createRange().createContextualFragment(html);
+  // ruleid: timhirt-no-html-string-sink
+  el.setHTMLUnsafe(html);
+  // ruleid: timhirt-no-html-string-sink
+  Document.parseHTMLUnsafe(html);
+  const frame = document.createElement("iframe");
+  // ruleid: timhirt-no-html-string-sink
+  frame.srcdoc = html;
   // ok: timhirt-no-html-string-sink
   el.replaceChildren(...nodes);
   // ok: timhirt-no-html-string-sink

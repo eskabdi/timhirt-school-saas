@@ -29,7 +29,7 @@
 | WP-00 review WP00-4 | Record per-function `updated_at` against commit times, so the "deployed = repo" check covers code, not only names. | WP-17 |
 | WP-00 closeout | Supabase Auth: set `config.toml` `site_url` and `additional_redirect_urls` to the production values (DR-2). | WP-07 / WP-20 |
 | WP-00 review R2-2 | `manage-integration-credentials` merges `platform_integrations.config` read-modify-write; two concurrent super-admin saves can lose an update. Merge in SQL (`config = config || $1`) or move the Vault + config write into one definer RPC transaction. | WP-12 |
-| WP-00 review DM-2 | ~~Real anon calls in `r6_hotfix_library_anon.sql`~~ **Done in WP-01** (assertions 13–14; both fail without the migration). | — |
+| WP-00 review DM-2 | ~~Real anon calls in `r6_hotfix_library_anon.sql`~~ **Done in WP-01** (assertions 14–15, after the schema-usage precondition at 13; both fail without the migration). | — |
 | WP-00 r3 AZ-R3-4 | `manage-integration-credentials` (Vault writer) must move to `requireAccess` with a fresh aal2 challenge and an `imp_mode=read` rejection when WP-06 introduces them (plan WP-06 item 5). | WP-06 |
 | WP-00 r3 RG3-3 / TV3-1 | ~~No test covers the writers' https guard~~ **Fixed**: both writers call `_shared/bank-verification-record.ts` (`checkAndStoreBankUrl`), which has its own Deno tests. Removing the https branch fails 6 of them; removing the write-error check fails 1. | — |
 | WP-00 r3 RG3-5 | No render test for the https-only link branches on InvoiceDetailPage / AdmissionDetailPage. There is no DOM test library in the repo yet. | WP-01 / WP-12 |
@@ -42,7 +42,6 @@
 | WP-01 deno check | 3 Edge Functions still fail `deno check` (baseline `supabase/security/deno_check_known.txt`): generate-payslip-pdf, issue-id-card, run-payroll (enroll-finalize-billing fixed). | WP-10 / WP-12 / WP-13 |
 | WP-01 SAST | semgrep partially parses `integrationPayload.ts` (`unique symbol`) and `timetable-pdf.ts`; those files get partial SAST coverage. | WP-13 |
 | WP-01 | `happy-dom` is now available (`// @vitest-environment happy-dom`), which unblocks the render tests in RG3-5 / TV3-2 (https-only links on the invoice and admission pages). | WP-03 / WP-12 |
-
 | WP-01 review AZ-1 | 39 definer functions pin `search_path=public` without `pg_temp`; tighten the guard to require `pg_temp` (or `""`) when WP-02 rewrites them. | WP-02 |
 | WP-01 review AZ-6 / TI-6 | ACL parity covers `public` EXECUTE/SELECT/INSERT only; add UPDATE/DELETE, schema CREATE and storage grants. Add guards for `security_invoker=false` views and permissive `true` tenant policies. | WP-02 / WP-05 |
 | WP-01 review EF-1 / AZ-3 | No Deno test drives the fixed error paths in `activate-sso-user`, `process-export-job`, `process-import-job`. | WP-12 |
@@ -50,3 +49,9 @@
 | WP-01 review SC-4 | Upstream moved the gitleaks tag v8.30.1; `go install` builds the sumdb-locked 8d1f98c7 (`h1:PmEvCfVI7ti9dV3s5aMZUY7sS2GxRvG3yzih7E+cS3w=`). Re-verify on any bump. | WP-13 |
 | WP-01 review SC-5 | Dev-dependency audit: 1 critical (vitest ≤4.1.10) and 5 high. | WP-13 |
 | WP-01 review FE-4 | Editor/sanitiser accept any https image; the CSP only allows Supabase storage. Restrict `SAFE_IMG_SRC` to match. | WP-12 |
+| WP-01 round 2 | Cache-key collision (pre-existing): several pages cache different `tenant_configs` columns under the same `["tenant-config", tenantId]` key (ClassesPage selects `operational_mode_key` only; BrandingPage adds two columns), so whichever loads first decides what the others read until a refetch. Give each query its own sub-key or one shared hook. | WP-12 |
+| WP-01 round 2 (F-08) | `scripts/i18n-audit.mjs` misses strings in ternaries and `aria-label={cond ? "…" : "…"}`; the date picker's weekday initials are fixed English letters (a native-speaker decision on Amharic/Oromo initials is needed); `IdCardTemplateDesignerPage` shows a hard-coded "Saved.". | WP-14 |
+| WP-01 round 2 (F-13) | Hijri dates follow Umm al-Qura; Ethiopia's Islamic Affairs Supreme Council uses local moon sighting, which can differ by a day or two around month starts. Consider a per-tenant ±1/±2 day adjustment. | WP-14 |
+| WP-01 round 2 (infra F3, SEC-4) | Pin or vendor the semgrep registry packs (p/owasp-top-ten, p/typescript, p/react); they are fetched live. | WP-13 |
+| WP-01 round 2 (infra F6) | `setup-go` "1.24" installs an older 1.24.x than gitleaks v8.30.1 needs, so `go install` downloads a second (checksum-verified) toolchain. Match go-version to gitleaks' go.mod. The rls-tests job apt-installs Postgres and pgTAP unpinned. | WP-13 |
+| WP-01 round 2 (SEC-5/6) | The editor has no `onPaste` sanitiser (self-XSS only; render path re-sanitises); images may come from any https host (beacon risk). | WP-12 |

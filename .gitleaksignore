@@ -4,8 +4,6 @@
 #  - blueprint: a truncated Stripe-style placeholder (pi_3PqX..._secret_9aB)
 #  - migration: the words 'audience/visibility' in a SQL comment
 # A new match anywhere, including these files at another line or commit, still fails CI.
-0188d860f8a8be0d83d6b4013890b5835894d29a:docs/school-saas-architecture-blueprint.md:generic-api-key:854
-0188d860f8a8be0d83d6b4013890b5835894d29a:supabase/migrations/20260817000004_resource_permissions_fees_comms_library_misc.sql:generic-api-key:7
 8e520ab626642dfc2d352719e6382b9d8bbeba92:docs/school-saas-architecture-blueprint.md:generic-api-key:854
 dc5a5a3f6af7e6b654f0863b7ae0dce124e7680d:docs/school-saas-architecture-blueprint.md:generic-api-key:854
 dc5a5a3f6af7e6b654f0863b7ae0dce124e7680d:supabase/migrations/20260817000004_resource_permissions_fees_comms_library_misc.sql:generic-api-key:7

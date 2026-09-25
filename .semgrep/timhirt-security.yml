@@ -1,9 +1,9 @@
 # Repo-owned SAST rules (R6 WP-01). The registry packs (p/owasp-top-ten,
 # p/typescript, p/react) run only a handful of rules without a Semgrep login and
 # did not flag a planted dangerouslySetInnerHTML, innerHTML write or eval, so CI
-# also runs these, which are proven by `semgrep --test .semgrep` against
-# .semgrep/timhirt-security.tsx (every `ruleid:` line must match, every `ok:`
-# line must not).
+# also runs these. scripts/ci/semgrep-rule-test.py proves them against
+# .semgrep/fixtures/ (every `ruleid:` line must match, every `ok:` line must
+# not); `semgrep --test` crashes on this layout.
 rules:
   - id: timhirt-no-dangerously-set-inner-html
     languages: [typescript]
@@ -25,6 +25,12 @@ rules:
       - pattern: $X.insertAdjacentHTML(...)
       - pattern: document.write(...)
       - pattern: document.writeln(...)
+      - pattern: document.execCommand("insertHTML", ...)
+      - pattern: $R.createContextualFragment(...)
+      - pattern: $X.setHTMLUnsafe(...)
+      - pattern: Document.parseHTMLUnsafe(...)
+      - pattern: $X.srcdoc = $V
+      - pattern: <iframe srcDoc={...} />
 
   - id: timhirt-no-dynamic-code
     languages: [typescript]

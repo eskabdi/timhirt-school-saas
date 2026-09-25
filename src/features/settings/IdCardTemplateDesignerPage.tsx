@@ -19,12 +19,13 @@
 // ============================================================================
 import { useTranslation } from "react-i18next";
 import { useEffect, useRef, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useSession } from "@/features/auth/useSession";
 import { convertImageToPng } from "@/lib/image";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { useTenantSettings } from "./useCalendarPrefs";
 
 type FieldKey =
   | "photo" | "full_name" | "full_name_am" | "admission_no" | "class_label" | "dob"
@@ -109,19 +110,16 @@ export function IdCardTemplateDesignerPage() {
   const dragState = useRef<{ id: string; startX: number; startY: number; origX: number; origY: number } | null>(null);
   const resizeState = useRef<{ id: string; corner: ResizeCorner; startX: number; startY: number; origX: number; origY: number; origW: number; origH: number } | null>(null);
 
-  const { data: config } = useQuery({
-    queryKey: ["tenant-config"],
-    enabled: !!profile?.tenant_id,
-    queryFn: async () => (await supabase.from("tenant_configs").select("settings").eq("tenant_id", profile!.tenant_id!).maybeSingle()).data,
-  });
+  const { data: settings } = useTenantSettings();
   useEffect(() => {
-    if (config?.settings?.idCardTemplate) {
+    const saved = settings?.idCardTemplate as Partial<typeof template> | undefined;
+    if (saved) {
       setTemplate({
-        front: config.settings.idCardTemplate.front ?? EMPTY_SIDE,
-        back: config.settings.idCardTemplate.back ?? EMPTY_SIDE,
+        front: saved.front ?? EMPTY_SIDE,
+        back: saved.back ?? EMPTY_SIDE,
       });
     }
-  }, [config]);
+  }, [settings]);
 
   const current = template[side];
 
@@ -250,8 +248,8 @@ export function IdCardTemplateDesignerPage() {
 
   const save = useMutation({
     mutationFn: async () => {
-      const settings = { ...(config?.settings ?? {}), idCardTemplate: template };
-      const { error } = await supabase.from("tenant_configs").upsert({ tenant_id: profile!.tenant_id, settings });
+      const next = { ...(settings ?? {}), idCardTemplate: template };
+      const { error } = await supabase.from("tenant_configs").upsert({ tenant_id: profile!.tenant_id, settings: next });
       if (error) throw error;
     },
     onSuccess: () => {

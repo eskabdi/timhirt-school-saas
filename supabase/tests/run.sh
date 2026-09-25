@@ -65,11 +65,11 @@ for t in $(ls "$ROOT"/supabase/tests/rls/*.sql | sort); do
   seen=$((passed + todo_open + todo_closed + failed))
   # Only real psql errors count. Matching any line that merely contains
   # "ERROR:" failed suites whose test descriptions mention an error.
-  errored=$(echo "$output" | grep -cE "^(psql:[^ ]+: )?ERROR:")
+  errored=$(echo "$output" | grep -cE "^(psql:.*: )?ERROR:")
 
   if [ $status -ne 0 ] || [ "$failed" -gt 0 ] || [ "$errored" -gt 0 ]; then
     echo "--- FAIL: $name"
-    echo "$output" | grep -E "^not ok|^(psql:[^ ]+: )?ERROR:|^#" | grep -vE "# TODO" | head -20
+    echo "$output" | grep -E "^not ok|^(psql:.*: )?ERROR:|^#" | grep -vE "# TODO" | head -20
     fail=1
   elif [ "$todo_closed" -gt 0 ]; then
     echo "--- FAIL: $name — $todo_closed TODO assertion(s) now pass; flip them to hard assertions"
