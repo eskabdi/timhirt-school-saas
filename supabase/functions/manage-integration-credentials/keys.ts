@@ -4,6 +4,9 @@
 // module, so the browser can never post a key the server rejects. That drift is
 // how AfroMessage became unconfigurable: the page sent `sender_id` as a secret
 // while the server expected it as config (R6 WP-00 review, AC-1).
+//
+// Keep this file import-free: Vite bundles it into the browser app, so an
+// `npm:`/`jsr:` specifier or a Deno global here breaks the frontend build.
 
 export const PROVIDERS = ["sms_smsala", "sms_afromessage", "sms_geezsms"] as const;
 export type Provider = (typeof PROVIDERS)[number];

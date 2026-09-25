@@ -174,7 +174,9 @@ export function IntegrationsPage() {
   });
 
   const [from, to] = pageRange(page);
-  const visibleIntegrations = (integrations ?? []).slice(from, to + 1);
+  // Only providers the credentials endpoint accepts are listed (and counted).
+  const providerRows = (integrations ?? []).filter((i) => isProvider(i.provider));
+  const visibleIntegrations = providerRows.slice(from, to + 1);
 
   return (
     <div className="space-y-4">
@@ -193,7 +195,7 @@ export function IntegrationsPage() {
           />
         ))}
       </div>
-      <Pagination page={page} totalCount={integrations?.length ?? 0} onPageChange={setPage} />
+      <Pagination page={page} totalCount={providerRows.length} onPageChange={setPage} />
       <ActiveSmsProviderSelector />
     </div>
   );
