@@ -28,3 +28,4 @@
 | WP-00 review CQ-3 / CQ-4 | ~~Duplicate provider list; AfroMessage unconfigurable~~ (fixed in the closeout, AC-1). | — |
 | WP-00 review WP00-4 | Record per-function `updated_at` against commit times, so the "deployed = repo" check covers code, not only names. | WP-17 |
 | WP-00 closeout | Supabase Auth: set `config.toml` `site_url` and `additional_redirect_urls` to the production values (DR-2). | WP-07 / WP-20 |
+| WP-00 review R2-2 | `manage-integration-credentials` merges `platform_integrations.config` read-modify-write; two concurrent super-admin saves can lose an update. Merge in SQL (`config = config || $1`) or move the Vault + config write into one definer RPC transaction. | WP-12 |

@@ -39,6 +39,13 @@ Deno.serve(async (req) => {
 
     const db = ctx.adminClient;
 
+    // The provider row must exist before anything is written, so a missing row
+    // never leaves an orphan Vault secret behind (review R2-1).
+    const { data: row, error: rowError } = await db.from("platform_integrations")
+      .select("config").eq("provider", provider).maybeSingle();
+    if (rowError) throw rowError;
+    if (!row) throw new Error(`platform_integrations row missing for ${provider}`);
+
     // ---- secrets (Vault) ----
     for (const key of secretKeys) {
       const secretName = `${provider}_${key}`;
@@ -63,11 +70,6 @@ Deno.serve(async (req) => {
     }
 
     // ---- config (platform_integrations.config jsonb) ----
-    const { data: row, error: rowError } = await db.from("platform_integrations")
-      .select("config").eq("provider", provider).maybeSingle();
-    if (rowError) throw rowError;
-    if (!row) throw new Error(`platform_integrations row missing for ${provider}`);
-
     // The full secret/config set has been written (the exact-key check above
     // guarantees it), so the provider is configured.
     const { data: updated, error: updateError } = await db.from("platform_integrations").update({
