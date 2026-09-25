@@ -24,7 +24,7 @@
 // at the application, so the URL/domain has to actually check out.
 // ============================================================================
 import { z } from "npm:zod@3";
-import { isHttpsUrl } from "../_shared/https-url.ts";
+import { checkAndStoreBankUrl } from "../_shared/bank-verification-record.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { errors, json, rateLimit, corsHeaders } from "../_shared/security.ts";
 import { verifyBankUrl } from "../_shared/bank-verify.ts";
@@ -55,34 +55,13 @@ Deno.serve(async (req) => {
       .select("id, tenant_id, stage").eq("id", p.application_id).maybeSingle();
     if (!application || application.stage !== "applied") return errors.badRequest();
 
-    // A non-https URL is never stored (FS-1: it would be rendered as a link;
-    // the DB CHECK also refuses it). The applicant still gets the specific,
-    // translated https_required reason rather than a bare 400 (review RG3-2).
-    if (!isHttpsUrl(p.verification_url)) {
-      return json({ ok: false, status: "failed", reason: "https_required" }, 200);
-    }
-
-    const result = await verifyBankUrl(db, {
-      tenantId: application.tenant_id, pathPrefix: application.id,
+    const result = await checkAndStoreBankUrl({ db, verify: verifyBankUrl }, {
+      tenantId: application.tenant_id,
+      target: { admission_application_id: application.id },
       paymentMethod: p.payment_method, verificationUrl: p.verification_url,
     });
 
-    const { data: existing } = await db.from("bank_payment_verifications")
-      .select("id").eq("admission_application_id", application.id).maybeSingle();
-    const row = {
-      tenant_id: application.tenant_id, admission_application_id: application.id,
-      payment_method: p.payment_method, verification_url: p.verification_url,
-      pdf_path: result.status === "verified" ? result.pdfPath : null,
-      status: result.status, failure_reason: result.status === "failed" ? result.failureReason : null,
-      checked_at: new Date().toISOString(),
-    };
-    // A failed write must not be reported as verified (review SR3-1).
-    const { error: writeError } = existing
-      ? await db.from("bank_payment_verifications").update(row).eq("id", existing.id)
-      : await db.from("bank_payment_verifications").insert(row);
-    if (writeError) throw writeError;
-
-    if (result.status === "failed") return json({ ok: false, status: "failed", reason: result.failureReason }, 200);
+    if (result.status === "failed") return json({ ok: false, status: "failed", reason: result.reason }, 200);
     return json({ ok: true, status: "verified" }, 200);
   } catch (err) {
     console.error("verify-admission-bank-url failed", { message: (err as Error).message });

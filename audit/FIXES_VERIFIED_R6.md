@@ -273,3 +273,23 @@ The code fixes were verified in code and tests (AC-1..AC-4, R2-1, R2-TV-1/2/3/7,
 - tsc 0; eslint 0; Vitest 56; Deno 13/13.
 - `deno check` on both functions: OK.
 - pgTAP on a fresh DB: 108 migrations, 56/56 suites.
+
+### WP-00 closeout, review round 3 (final, 2026-09-25)
+
+Round-3 verdicts are saved as written under `audit/evidence/reviews/wp00-r3-*.md` (GK-9).
+
+| Reviewer | Verdict | Outcome |
+|---|---|---|
+| authz-reviewer | FAIL: owner-only (DR-4, DR-1). No implementer defects | AZ-R3-4 → backlog (WP-06 `requireAccess` for the Vault writer) |
+| security-reviewer | PASS | SR3-1 fixed: the JS https rule now matches the DB CHECK exactly (literal prefix, no whitespace), both writers `.trim()`, and write errors are checked. SR3-2: a pre-apply re-count step added to the deploy order |
+| insa-docs-auditor | PASS (docs) | WP00-R3-1, R3-3 and R3-4 fixed. R3-2: this directory now exists |
+| regression-guardian | PASS (code) | RG3-1/RG3-2 fixed: a non-https URL returns failed/`https_required` again (no bare 400); the fee payment is still recorded, and the URL is never stored. RG3-3 fixed with TV3-1. RG3-5 → backlog |
+| test-verifier | FAIL | TV3-1 (major) fixed: both writers now use `checkAndStoreBankUrl`, covered by `bank-verification-record.test.ts` (10 tests; mutations fail 6 and 1). TV3-2 → backlog (no DOM test library yet). TV3-3: a `typecheck` script was added. TV3-4: noted; reviewers now judge the frozen final SHA |
+
+**Gate (local, after all fixes):**
+- `tsc` 0; `eslint src` 0.
+- Vitest: 8 files / 56 tests. `check:i18n` 0; `check:locales` OK; build OK; guard ok.
+- Deno: 22/22. `deno check` OK on all three touched functions.
+- pgTAP on a fresh DB: 108 migrations, 56/56 suites.
+
+The §0A.1 review cap (3 rounds) is now reached. The TV3-1 fix after round 3 goes to the release gatekeeper directly, together with the owner items.

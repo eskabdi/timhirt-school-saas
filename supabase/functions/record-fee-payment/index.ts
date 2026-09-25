@@ -24,7 +24,7 @@
 // (R6 FS-1); the payment itself is still recorded.
 // ============================================================================
 import { z } from "npm:zod@3";
-import { isHttpsUrl } from "../_shared/https-url.ts";
+import { checkAndStoreBankUrl } from "../_shared/bank-verification-record.ts";
 import { requireRole, errors, json, rateLimit, corsHeaders } from "../_shared/security.ts";
 import { issueFeeDocument, notifyBilling, renderReceiptPdf, type FeeLineItem } from "../_shared/fee-pdf.ts";
 import { loadDocumentBranding } from "../_shared/branding.ts";
@@ -78,31 +78,18 @@ Deno.serve(async (req) => {
     if (payErr) throw payErr;
 
     let bankVerification: { status: string; failure_reason?: string } | null = null;
-    if (p.bank_verification && !isHttpsUrl(p.bank_verification.verification_url)) {
-      // Never stored (FS-1), but the payment is still recorded: same outcome
-      // as bank-verify's https_required before FS-1 (review RG3-1).
-      bankVerification = { status: "failed", failure_reason: "https_required" };
-    } else if (p.bank_verification) {
+    if (p.bank_verification) {
+      // Non-fatal: the payment is already recorded. A non-https URL comes back
+      // as failed/https_required and is never stored (FS-1).
       try {
-        const result = await verifyBankUrl(ctx.adminClient, {
-          tenantId: header.tenant_id, pathPrefix: payment.id,
+        const check = await checkAndStoreBankUrl({ db: ctx.adminClient, verify: verifyBankUrl }, {
+          tenantId: header.tenant_id, target: { payment_id: payment.id },
           paymentMethod: p.bank_verification.payment_method,
           verificationUrl: p.bank_verification.verification_url,
         });
-        // A failed write must not be reported as verified (review SR3-1); the
-        // catch below turns it into failed/internal_error.
-        const { error: bvError } = await ctx.adminClient.from("bank_payment_verifications").insert({
-          tenant_id: header.tenant_id, payment_id: payment.id,
-          payment_method: p.bank_verification.payment_method,
-          verification_url: p.bank_verification.verification_url,
-          pdf_path: result.status === "verified" ? result.pdfPath : null,
-          status: result.status, failure_reason: result.status === "failed" ? result.failureReason : null,
-          checked_at: new Date().toISOString(),
-        });
-        if (bvError) throw bvError;
-        bankVerification = result.status === "verified"
+        bankVerification = check.status === "verified"
           ? { status: "verified" }
-          : { status: "failed", failure_reason: result.failureReason };
+          : { status: "failed", failure_reason: check.reason };
       } catch (err) {
         console.error("record-fee-payment: bank verification failed (non-fatal)", { message: (err as Error).message });
         bankVerification = { status: "failed", failure_reason: "internal_error" };
