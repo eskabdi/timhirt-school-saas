@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { buildCredentialsPayload, providerFieldKeys, PROVIDERS } from "./integrationPayload";
+import { buildCredentialsPayload, providerFieldKeys, PROVIDERS, type CredentialsPayload } from "./integrationPayload";
 
 describe("buildCredentialsPayload", () => {
+  it("is the only way to make a request body (branded type, review R2-TV-1)", () => {
+    // @ts-expect-error -- a hand-built body is not a CredentialsPayload
+    const bypass: CredentialsPayload = { provider: "sms_afromessage", credentials: { api_key: "k", sender_id: "S" } };
+    expect(bypass.provider).toBe("sms_afromessage");
+  });
+
   it("sends AfroMessage's sender_id as config, not as a secret (AC-1)", () => {
     expect(buildCredentialsPayload("sms_afromessage", { api_key: " k ", sender_id: "TIMHIRT" })).toEqual({
       provider: "sms_afromessage",

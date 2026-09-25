@@ -11,5 +11,5 @@ export { PROVIDERS };
 export const Payload = z.object({
   provider: z.enum(PROVIDERS),
   credentials: z.record(z.string().min(1).max(500)).optional(),
-  config: z.record(z.string().max(2000)).optional(),
+  config: z.record(z.string().min(1).max(2000)).optional(),
 }).strict();

@@ -231,3 +231,18 @@ Details are in `docs/insa/_pending-changes.md`.
 - `build`: OK. `no-payment-gateway`: ok. Deno tests: 6/6.
 - `deno check manage-integration-credentials`: OK.
 - pgTAP: 107 migrations, 55/55 suites (`r6_hotfix` 21/21, `r6_hotfix_library_anon` 12/12).
+
+### WP-00 closeout, review round 2 (2026-09-25)
+
+| Reviewer | Verdict | Outcome |
+|---|---|---|
+| db-migration-reviewer | PASS | DM-1 (rollback and verification plan) and DM-3 (INSA entry) added. DM-2 (real anon call) is queued for after WP-01. |
+| api-contract-reviewer | PASS | R2-1 fixed: the row check now runs before any Vault write (43a0551). R2-2 (concurrent config merge) → backlog, WP-12. |
+| authz-reviewer | FAIL | F1 = library migration not deployed (**owner decision**, DR-4). F2: trigger/constraint parity added (672 = 672, 0 differences). F3: production definer-ACL evidence committed. F4 = DR-1 sign-up (**owner decision**). |
+| insa-docs-auditor | FAIL | R2-1: DR-4 and a library entry added. R2-2: undeployed changes marked, G-09 reopened, counts 107/55. R2-3: code fixed. R2-4: backlog wording. |
+| regression-guardian | FAIL | RG-1/RG-2 are the same two **owner decisions**. RG-3/RG-4 were already fixed. RG-7: pagination counts only listed providers. RG-8: `keys.ts` must stay import-free. |
+| test-verifier | FAIL | R2-TV-1: `CredentialsPayload` is a branded type, so a hand-built page body fails `tsc` (TS2345, proven by mutation). R2-TV-2: the handler is split into `handler.ts` (injectable) and covered by `handler.test.ts` (4 tests). Removing the pre-write validation fails 2 of them, and moving the row check back after the Vault writes fails 1. R2-TV-3: a `.strict()` test was added; removing `.strict()` fails 1. R2-TV-7: config values must be non-empty. R2-TV-4 = DR-4 (**owner decision**). |
+
+**Gate (local):** `tsc` 0; `eslint src` 0; Vitest 7 files / 54 tests; `check:i18n` 0; `check:locales` OK; build OK; guard ok; Deno 12/12; `deno check` OK. pgTAP last run: 107 migrations, 55/55 suites. No SQL has changed since then, and CI rls-tests is green on 037edbf.
+
+**Open blockers, owner only:** DR-4 (apply `20260924000002` and deploy the function and frontend) and DR-1 (disable public sign-up). Each is either done or accepted as a D-xx row.

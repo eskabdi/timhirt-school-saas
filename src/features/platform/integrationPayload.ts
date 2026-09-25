@@ -12,11 +12,15 @@ import {
 
 export { PROVIDERS, type Provider };
 
+// Branded so the only way to obtain one is buildCredentialsPayload(): a page
+// that hand-builds `{ provider, credentials: values }` (the AC-1 bug) fails
+// `tsc`, which CI runs (review R2-TV-1).
+declare const built: unique symbol;
 export type CredentialsPayload = {
   provider: Provider;
   credentials: Record<string, string>;
   config?: Record<string, string>;
-};
+} & { readonly [built]: true };
 
 /** Every form field for a provider: secrets first, then config. */
 export function providerFieldKeys(provider: Provider): { key: string; secret: boolean }[] {
@@ -37,5 +41,5 @@ export function buildCredentialsPayload(
     provider,
     credentials: pick(PROVIDER_SECRET_KEYS[provider]),
     ...(configKeys.length > 0 ? { config: pick(configKeys) } : {}),
-  };
+  } as CredentialsPayload;
 }
