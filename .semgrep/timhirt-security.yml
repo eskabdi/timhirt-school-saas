@@ -1,0 +1,63 @@
+# Repo-owned SAST rules (R6 WP-01). The registry packs (p/owasp-top-ten,
+# p/typescript, p/react) run only a handful of rules without a Semgrep login and
+# did not flag a planted dangerouslySetInnerHTML, innerHTML write or eval, so CI
+# also runs these, which are proven by `semgrep --test .semgrep` against
+# .semgrep/timhirt-security.tsx (every `ruleid:` line must match, every `ok:`
+# line must not).
+rules:
+  - id: timhirt-no-dangerously-set-inner-html
+    languages: [typescript]
+    severity: ERROR
+    message: >-
+      dangerouslySetInnerHTML is banned (CLAUDE.md, blueprint §10.4). Render stored
+      HTML through components/ui/RichText.tsx, which rebuilds it from an allow-list.
+    pattern: <$EL dangerouslySetInnerHTML={...} />
+
+  - id: timhirt-no-html-string-sink
+    languages: [typescript]
+    severity: ERROR
+    message: >-
+      Writing an HTML string into the DOM executes inline handlers (<img onerror>).
+      Build nodes instead, e.g. el.replaceChildren(...sanitizeRichTextNodes(html)).
+    pattern-either:
+      - pattern: $X.innerHTML = $V
+      - pattern: $X.outerHTML = $V
+      - pattern: $X.insertAdjacentHTML(...)
+      - pattern: document.write(...)
+      - pattern: document.writeln(...)
+
+  - id: timhirt-no-dynamic-code
+    languages: [typescript]
+    severity: ERROR
+    message: eval/new Function/string timers run arbitrary code (OWASP A03).
+    pattern-either:
+      - pattern: eval(...)
+      - pattern: new Function(...)
+      - pattern: setTimeout("...", ...)
+      - pattern: setInterval("...", ...)
+
+  - id: timhirt-no-service-role-in-browser
+    languages: [typescript]
+    severity: ERROR
+    message: >-
+      The service-role key bypasses RLS and must never reach the browser bundle
+      (blueprint §3.7). Only Edge Functions (Deno) may read it.
+    paths:
+      include: ["src/**"]
+    patterns:
+      - pattern-either:
+          - pattern: import.meta.env.$KEY
+          - pattern: process.env.$KEY
+      - metavariable-regex:
+          metavariable: $KEY
+          regex: (?i).*service_?role.*
+
+  - id: timhirt-no-plain-http-fetch
+    languages: [typescript]
+    severity: ERROR
+    message: Outbound calls must use https (FS-1, SSRF/TLS). Plain http:// is refused.
+    patterns:
+      - pattern: fetch("$URL", ...)
+      - metavariable-regex:
+          metavariable: $URL
+          regex: ^http://

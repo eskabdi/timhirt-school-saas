@@ -29,11 +29,16 @@
 | WP-00 review WP00-4 | Record per-function `updated_at` against commit times, so the "deployed = repo" check covers code, not only names. | WP-17 |
 | WP-00 closeout | Supabase Auth: set `config.toml` `site_url` and `additional_redirect_urls` to the production values (DR-2). | WP-07 / WP-20 |
 | WP-00 review R2-2 | `manage-integration-credentials` merges `platform_integrations.config` read-modify-write; two concurrent super-admin saves can lose an update. Merge in SQL (`config = config || $1`) or move the Vault + config write into one definer RPC transaction. | WP-12 |
-| WP-00 review DM-2 | After WP-01 gives the shim `anon` usage on `public`, add a real `set local role anon` call to each library RPC in `r6_hotfix_library_anon.sql`, expecting 42501. | WP-01 |
+| WP-00 review DM-2 | ~~Real anon calls in `r6_hotfix_library_anon.sql`~~ **Done in WP-01** (assertions 13–14; both fail without the migration). | — |
 | WP-00 r3 AZ-R3-4 | `manage-integration-credentials` (Vault writer) must move to `requireAccess` with a fresh aal2 challenge and an `imp_mode=read` rejection when WP-06 introduces them (plan WP-06 item 5). | WP-06 |
 | WP-00 r3 RG3-3 / TV3-1 | ~~No test covers the writers' https guard~~ **Fixed**: both writers call `_shared/bank-verification-record.ts` (`checkAndStoreBankUrl`), which has its own Deno tests. Removing the https branch fails 6 of them; removing the write-error check fails 1. | — |
 | WP-00 r3 RG3-5 | No render test for the https-only link branches on InvoiceDetailPage / AdmissionDetailPage. There is no DOM test library in the repo yet. | WP-01 / WP-12 |
 | WP-00 gatekeeper G3-3 | No test covers the wiring in `record-fee-payment` / `verify-admission-bank-url` `index.ts` (the call into `checkAndStoreBankUrl`, and that a throw there still leaves the payment recorded). Pair it with RG3-5. | WP-03 |
 | WP-00 DR-1 follow-up | A self-signed-up auth account (created 2026-08-06, no `public.users` profile) exists from when sign-up was open. The owner should identify it and delete it if unknown. | Owner |
-| WP-00 gatekeeper GK-F1 | The owner's first sign-up change reverted in the dashboard. At WP-01 start, re-read `disable_signup` and re-run the 422 `/auth/v1/signup` probe; add both to the WP-19 config-drift check. | WP-01 / WP-19 |
-| WP-00 gatekeeper GK-F4 | Embed the git commit SHA in the frontend bundle (e.g. `VITE_COMMIT_SHA`) so deploy verification can grep for the exact commit. | WP-01 |
+| WP-00 gatekeeper GK-F1 | Re-checked at WP-01 start (2026-09-25): `disable_signup = true`, live probe 422 `signup_disabled`. Still to do: add it to the WP-19 config-drift check. | WP-19 |
+| WP-00 gatekeeper GK-F4 | ~~Embed the commit SHA in the bundle~~ **Done in WP-01**: `<meta name="app-commit">` in `index.html`; `npm run deploy` passes `VITE_COMMIT_SHA`. | — |
+| WP-01 conventions | `CalendarPreferencesPage` offers a per-tenant "Use Ge'ez numerals" option (`EthDate`, `EthDatePicker`, `toGeez`). The owner's rule is Arabic numerals only. 0 of 3 production tenants have it on (2026-09-25). Remove the option and the `toGeez` rendering path. | WP-14 |
+| WP-01 conventions | 13 `first_name … last_name` concatenations drop the middle name (8 pages, `record-fee-payment`, `issue-fee-document`). Use a shared Ethiopian-name formatter (First + Middle + Last; short = First + Middle). | WP-14 |
+| WP-01 deno check | 4 Edge Functions still fail `deno check` (baseline `supabase/security/deno_check_known.txt`): enroll-finalize-billing, generate-payslip-pdf, issue-id-card, run-payroll. | WP-04 / WP-10 / WP-12 / WP-13 |
+| WP-01 SAST | semgrep partially parses `integrationPayload.ts` (`unique symbol`) and `timetable-pdf.ts`; those files get partial SAST coverage. | WP-13 |
+| WP-01 | `happy-dom` is now available (`// @vitest-environment happy-dom`), which unblocks the render tests in RG3-5 / TV3-2 (https-only links on the invoice and admission pages). | WP-03 / WP-12 |

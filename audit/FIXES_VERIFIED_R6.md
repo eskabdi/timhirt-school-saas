@@ -368,3 +368,60 @@ The diff since `ebb48a5` is records and evidence only. There is no code change b
 - RV-05: the ledger part (WP-08).
 
 **WP-00: PASS.**
+
+---
+
+## WP-01 — Make the harness and CI tell the truth (L-08)
+
+**Branch / PR:** `claude/timhirt-security-audit-kan0ei` → `fix/production-readiness-r6` (base `bae3bfd`). PR link added when opened.
+
+### Findings
+
+| ID | Status | Evidence |
+|---|---|---|
+| L-08 (harness lacked Supabase grants, so anon probes passed vacuously) | **fixed** (harness/CI; nothing to deploy) | The shim mirrors Supabase default privileges. Effective-privilege parity with production is 191 = 191, 0 differences, and 42 = 42 anon-executable definer functions (`audit/evidence/wp01-acl-parity-*.txt`). All 56 existing suites still pass. |
+| New (R6-W1-1): stored XSS in the rich-text editor load path | **fixed** (repo; deploy pending) | `RichTextEditor` loads `sanitizeRichTextNodes()` via `replaceChildren`. `RichText.test.tsx` has 4 tests, and all 4 fail with raw nodes. The repo semgrep rule flags the old line 49. |
+| New (R6-W1-2): `.catch()` on PostgREST builders (3 Edge Functions) | **fixed** (repo; deploy pending) | At runtime, `typeof builder.catch` is `undefined`, confirmed with Deno. The rollback and `fail_job` calls are now awaited, with errors logged. `deno check` passes on all three; restoring the old code turns `scripts/ci/deno-check.sh` red. |
+| DM-2 (WP-00 backlog): real anon calls | **done** | `r6_hotfix_library_anon.sql` #13–#14. Both fail without the migration. |
+| GK-F4 (WP-00): commit SHA in bundle | **done** | `<meta name="app-commit">` equals `git rev-parse HEAD` in `dist/index.html`. An invalid `VITE_COMMIT_SHA` is rejected. |
+| GK-F1 (WP-00): sign-up stays disabled | **re-verified** at WP-01 start | `disable_signup = true`; the live probe returns 422 `signup_disabled`. |
+
+### Implementation (plan WP-01)
+
+| Plan item | Done | Notes |
+|---|---|---|
+| 1. Shim mirrors Supabase defaults | Yes | USAGE on `public` and `ALTER DEFAULT PRIVILEGES FOR ROLE postgres … GRANT ALL ON TABLES/SEQUENCES/FUNCTIONS` to anon, authenticated and service_role, set before any migration runs. |
+| 2. Catalog guard suites | Yes, as **ratchets** (recon adjustment 3) | See the four `catalog_*.sql` suites and `supabase/security/*_known.sql`. The allow-lists are `.sql`, not `.txt`, so pgTAP can `\ir` them (adjustment 5). The storage guard also covers `ALL` policies (adjustment 6). |
+| 3a. Pin actions by SHA | Yes | 7 `uses:`, all pinned, enforced by `scripts/ci/pinned-actions.sh`. |
+| 3b. gitleaks | Yes | Full history. 6 reviewed false positives are pinned by fingerprint. |
+| 3c. semgrep | Yes, **plus repo rules** | The registry packs alone ran 4 rules and missed planted sinks. The repo rules come with a fixture self-test. |
+| 3d. `npm audit --omit=dev --audit-level=high` | Yes | Clean (0 high/critical in runtime deps). |
+| 3e. `deno check` | Yes, as a ratchet | 3 of the 7 failing functions were fixed (real bugs). 4 are baselined. |
+| 3f. Dependabot | Yes | npm and github-actions, weekly. |
+| 3g. Conventions script | Yes, **report-only** (adjustment 8) | Reports 8 Ge'ez-digit and 13 name-concat findings → WP-14. |
+| Runner | Yes | TAP TODO support, real-error detection, private temp file. |
+
+### Tests: each gate proven to fail before it is trusted
+
+| Gate | Planted / mutation | Result |
+|---|---|---|
+| `run.sh` | a real failure; an SQL error; plan too short; a TODO that passes | FAIL on each. An open TODO and a description containing "ERROR:" pass. |
+| catalog guards | 9 mutations: new anon definer, fixed baseline entry, new table without FORCE, table without RLS, removed FORCE baseline entry, new ungated table, newly gated table, new tenant-only storage policy, new bucket-only storage policy | each fails the intended hard assertion |
+| gitleaks | planted `sk_live_…` key in a new commit | exit 1 (1 leak) |
+| semgrep repo rules | fixture: 10 `ruleid:` lines and 3 `ok:` lines | 10/10 matched, 0 unexpected. The old `RichTextEditor` is flagged. A rule-nesting bug was caught by the fixture itself. |
+| pinned actions | `setup-node@v4` | exit 1 |
+| `deno check` ratchet | old `activate-sso-user` restored | FAIL |
+| conventions | planted `"$5"` and `"USD 10"` | 2 currency findings; template literals are not flagged |
+
+### Gate (local, 2026-09-25)
+
+- typecheck 0; `eslint src` 0.
+- Vitest: 9 files / 60 tests.
+- `check:i18n` 0; `check:locales` OK; build OK.
+- no-payment-gateway, pinned-actions, `npm audit` (runtime): all OK.
+- Deno tests 22/22; `deno-check.sh` OK (28 functions, 4 baselined).
+- semgrep: rule self-test OK; full scan (repo rules + 3 packs) 0 findings.
+- gitleaks: history clean.
+- pgTAP: 108 migrations, 60/60 suites. The catalog guards show their TODOs: definer 2, RLS 1, module gate 1, storage 1.
+
+**Deploy note:** no migration. The fixes to `RichTextEditor` (frontend) and to 3 Edge Functions ship with the next production deploy.

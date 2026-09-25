@@ -1,0 +1,21 @@
+# R6 WP-01: weekly dependency updates, grouped so the queue stays reviewable.
+# Every Dependabot PR runs the full CI (build, tests, SAST, secret scan, audit).
+# Deno `npm:`/`jsr:` specifiers in supabase/functions are not covered by
+# Dependabot; pinning them with a deno.lock is WP-13.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      npm-minor-patch:
+        update-types: [minor, patch]
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5

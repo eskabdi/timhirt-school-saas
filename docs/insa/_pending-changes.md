@@ -102,3 +102,33 @@ inventory, residual-risk register) and then empties this file.
 - **DR-2 (Medium): the auth redirect allow-list has only `timhirt-school-saas.vercel.app` URLs.** `site_url` is `https://www.edux.et`, but `https://www.edux.et/**` and `https://*.edux.et/**` are missing, so a `redirectTo` on the real domain falls back to `site_url`. The repo `config.toml` still has the local `site_url` and no `additional_redirect_urls`. Fix in WP-07/WP-20 (auth redirect wildcards), and record the production values in `config.toml`.
 - ~~**DR-4**~~ **closed 2026-09-25 (deployed, verified-prod; `audit/evidence/wp00-closeout-deploy-20260925T072419Z.txt`).** Before: anon could write library data in any tenant. In production, 46/65 SECURITY DEFINER functions are anon-executable (`audit/evidence/wp00-prod-definer-acl-*.txt`). Four take a caller-supplied `p_tenant_id` and write: `library_checkout`, `library_return`, `library_renew`, `library_bulk_return`. Fix ready: migration `20260924000002`, tested. **Exit:** it is applied to production (with the rest of the undeployed closeout set: `20260925000001`, the three Edge Functions and the frontend) and the proacl evidence is committed. The other 41 (the known H-01 set) and `get_security_settings()` (read-only policy thresholds, left open because `AcceptInvitePage` reads it) are closed by WP-02.
 - **DR-3 (→ WP-07): password policy** is min length 6, no required character classes, HIBP off, no reauthentication on password change, CAPTCHA off, and no session timebox or inactivity timeout. WP-07 sets these.
+
+## R6 WP-01 — Secure development pipeline and a truthful test harness (L-08)
+
+**Secure development pipeline (INSA Phase 3/5; ISO 27001 A.8.25, A.8.28, A.8.29).** CI now runs on every PR and every push to main:
+- The existing gates: typecheck, lint, unit tests (Vitest), i18n, locale parity, build, and pgTAP (60 suites).
+- **Supply-chain controls:** every GitHub Action is pinned to a full commit SHA, enforced by `scripts/ci/pinned-actions.sh`. Dependabot runs weekly for npm and github-actions. `npm audit --omit=dev --audit-level=high` runs on every build.
+- **Secret scan:** gitleaks v8.30.1 over the full git history. It is built with `go install`, so the binary is checked against the Go checksum database. Reviewed false positives are pinned by exact fingerprint in `.gitleaksignore`.
+- **SAST:** semgrep 1.95.0 runs the repo-owned rules `.semgrep/timhirt-security.yml` plus the OWASP Top 10, TypeScript and React registry packs. The repo rules cover dangerouslySetInnerHTML, HTML-string DOM sinks, eval / new Function, the service-role key in browser code, and plain-http fetch. A fixture self-test (`scripts/ci/semgrep-rule-test.py`) fails CI if a rule stops matching; without a Semgrep login the registry packs alone ran only 4 rules and missed planted sinks.
+- **Edge Function type check:** `deno check` runs on all 28 entrypoints, as a ratchet (`supabase/security/deno_check_known.txt`, 4 baselined).
+- **Conventions report:** `scripts/ci/conventions.py` covers Ge'ez digits, non-ETB currency, and names that drop the middle name. It is report-only until WP-14.
+- **Build provenance:** the commit SHA is stamped into `index.html` as `<meta name="app-commit">`.
+
+**Test harness truth (L-08).**
+- `supabase/tests/shim.sql` mirrors Supabase's default privileges. Effective privileges for every public function and table match production exactly (`audit/evidence/wp01-acl-parity-20260925T101802Z.txt`: 191 = 191, and 42 = 42 anon-executable definer functions).
+- The runner (`run.sh`) supports TAP TODOs. A known gap is reported; a TODO that starts passing fails the run until it is flipped to a hard assertion.
+- Real psql errors fail the run; the word "ERROR:" inside an assertion description no longer does.
+- Each run uses a private temp file.
+
+**Catalog guards (ratchets, `supabase/security/`).**
+
+| Guard | Hard now | Baseline (TODO) → WP |
+|---|---|---|
+| `catalog_definer_security.sql` | no new anon-executable or search_path-less SECURITY DEFINER function | 42 anon-executable, 13 without search_path → WP-02 |
+| `catalog_rls_coverage.sql` | RLS enabled on every table; no new table without FORCE | 11 without FORCE → WP-02 |
+| `catalog_module_gate.sql` | no new ungated tenant table; allow-list entries need a reason | 37 unclassified → WP-06 |
+| `catalog_storage_policies.sql` | no new bucket+tenant-only read policy; allow-list entries need a reason | 4 → WP-05 (branding allow-listed: public bucket) |
+
+**Security fixes found by the new gates (verified by tests, not yet deployed):**
+- **Stored XSS in the notice/assignment editor** (`RichTextEditor`). Stored HTML was loaded with `el.innerHTML = value`, so `<img onerror>` in another author's notice ran when a staff member opened it for editing. It now loads `sanitizeRichTextNodes()`, which uses the same allow-list as `<RichText/>` and builds nodes with `replaceChildren`. Test: `RichText.test.tsx`, 4 tests; all 4 fail with raw nodes. Control: stored-XSS prevention (OWASP A03).
+- **Error paths that threw instead of recovering** (`activate-sso-user`, `process-export-job`, `process-import-job`). They called `.catch()` on PostgREST builders, which have none. The teacher-row rollback never ran, and failed import/export jobs stayed "running". Fixed, and caught by the `deno check` gate.

@@ -207,7 +207,16 @@ super-admin console to a pre-redesign layout and blanking the app.
 ### Verify a deploy before calling it done
 
 A `READY` state means Vercel accepted an upload, not that your code shipped.
-Grep the served bundle for something only the new code contains:
+First compare the served commit with the one you meant to ship. Since R6 WP-01
+every build stamps it into `index.html` (`npm run deploy` passes it in, because
+a CLI upload carries no `.git`):
+
+```bash
+curl -s https://your-app.vercel.app/ | grep -o '<meta name="app-commit" content="[0-9a-f]*"'
+git rev-parse HEAD   # must match
+```
+
+Then grep the served bundle for something only the new code contains:
 
 ```bash
 BUNDLE=$(curl -s https://your-app.vercel.app/ | grep -o 'assets/index-[A-Za-z0-9_-]*\.js' | head -1)

@@ -104,6 +104,21 @@ debugging rounds. Select them by another attribute.
 `JSON.stringify(…, null, 2)` produces a 1500-line diff that changes no keys.
 Insert into the existing line. `npm run check:locales` fails the build on this.
 
+**The harness grants what Supabase grants.** `supabase/tests/shim.sql` mirrors
+Supabase's default privileges (USAGE on `public` and per-role grants on every new
+table, sequence and function for `anon`, `authenticated`, `service_role`); that
+is what production has, and `audit/evidence/wp01-acl-parity-*.txt` shows the
+harness and production agree on every effective privilege. Before R6 WP-01 anon
+could not reach `public` at all, so every "anon cannot call X" probe passed
+vacuously and H-01 hid behind a green run. Don't add a grant to the shim that
+Supabase doesn't make.
+
+**Known gaps are TAP TODOs, not skipped tests.** A `todo('WP-xx: …')` assertion
+that fails is reported and tolerated; one that passes fails the suite, so
+whoever closes the gap must flip it to a hard assertion. The catalog guards
+(`catalog_*.sql`) are ratchets against `supabase/security/*_known.sql`: a new
+offender fails, and a fixed one must be deleted from the baseline.
+
 **psql pads its output.** An anchored `grep '^not ok'` over raw `psql` output
 matches nothing, so a pgTAP runner can report green while every assertion
 fails. `supabase/tests/run.sh` uses `-qtA` and counts assertions against each
@@ -122,7 +137,9 @@ npx vitest run
 npm run check:i18n                  # must be 0
 npm run check:locales               # parity + no wholesale reformat
 npm run build
-PGHOST=… ./supabase/tests/run.sh    # 108 migrations + 56 pgTAP suites
+PGHOST=… ./supabase/tests/run.sh    # 108 migrations + 60 pgTAP suites
+bash scripts/ci/deno-check.sh       # Edge Function types (ratchet)
+python3 scripts/ci/semgrep-rule-test.py   # needs semgrep 1.95.0
 ```
 
 `eslint scripts/` reports `no-undef` on node globals — `scripts/` is outside the

@@ -387,7 +387,15 @@ Deno.serve(async (req) => {
     return json({ ok: true, total_rows: dataRows.length, processed_rows: processed, error_count: errorLog.length }, 200);
   } catch (err) {
     console.error("process-import-job failed", { message: (err as Error).message });
-    await ctx.adminClient.rpc("fail_job", { p_job_id: job_id, p_error_message: "internal_error" }).catch(() => {});
+    // PostgREST builders have no .catch(): the old `.catch(() => {})` threw a
+    // TypeError, so the job was never marked failed and stayed "running"
+    // (R6 WP-01, found by the new `deno check` gate).
+    try {
+      const { error: failErr } = await ctx.adminClient.rpc("fail_job", { p_job_id: job_id, p_error_message: "internal_error" });
+      if (failErr) console.error("process-import-job: fail_job failed", { message: failErr.message });
+    } catch (failErr) {
+      console.error("process-import-job: fail_job failed", { message: (failErr as Error).message });
+    }
     return errors.internal();
   }
 });
