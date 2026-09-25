@@ -6,7 +6,7 @@
 // reveals that day's events inline; it never navigates to or opens an editor.
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { daysInEthMonth, toEthiopian, toGregorian, toIsoDate, type EthDate } from "@/lib/ethiopian-date";
+import { daysInEthMonth, toEthiopian, toGregorian, toIsoDate, todayEthiopian, today as todayGregorian, type EthDate } from "@/lib/ethiopian-date";
 import { tField } from "@/lib/i18n";
 import { IconChevronLeft, IconChevronRight } from "./icons";
 import { cn } from "@/lib/utils";
@@ -31,8 +31,8 @@ export function MiniCalendar({ events }: { events: DayEvent[] }) {
   const weekdaysShort = t("weekdaysShort", { returnObjects: true }) as string[];
   const locale = i18n.resolvedLanguage ?? "en";
 
-  const today = useMemo(() => toEthiopian(new Date()), []);
-  const todayIso = useMemo(() => toIsoDate(new Date()), []);
+  const today = useMemo(() => todayEthiopian(), []);
+  const todayIso = useMemo(() => toIsoDate(todayGregorian()), []);
   const [cursor, setCursor] = useState<EthDate>({ ...today, day: 1 });
   const [selectedIso, setSelectedIso] = useState<string | null>(null);
 

@@ -2,18 +2,21 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { useSession } from "@/features/auth/useSession";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-import { formatEth } from "@/lib/ethiopian-date";
+import { formatEth, today } from "@/lib/ethiopian-date";
 import { buildTranscriptPdf } from "../students/transcript-pdf";
+import { fetchDocumentTemplate } from "@/lib/documentTemplate";
+import { useDocumentSchoolName } from "@/lib/documentBranding";
 import { fetchAcademicRecord } from "../students/academic-record";
 import { fetchConductSummary } from "../students/conduct-summary";
 
 export function ReportCardBatchPage() {
   const { t, i18n } = useTranslation();
   const { t: tc } = useTranslation("calendar");
-  const { profile } = useSession();
+  // R5-B2: shared accessor, replacing the branding lookup this batch job
+  // used to re-fetch and re-derive on every run.
+  const schoolName = useDocumentSchoolName();
   const { data: classes } = useQuery({ queryKey: ["classes"], queryFn: async () => (await supabase.from("classes").select("id,name,section,grade_level").order("grade_level").order("section")).data ?? [] });
   const [selected, setSelected] = useState<string[]>([]);
   const toggle = (id: string) => setSelected((s) => s.includes(id) ? s.filter((x) => x !== id) : [...s, id]);
@@ -34,14 +37,8 @@ export function ReportCardBatchPage() {
         .eq("status", "active");
       if (studentsError) throw studentsError;
 
-      const { data: brand } = await supabase.from("tenant_configs").select("settings").eq("tenant_id", profile!.tenant_id!).maybeSingle();
-      const branding = brand?.settings?.branding as { nameEn?: string; nameAm?: string; nameOm?: string } | undefined;
-      const lang = i18n.resolvedLanguage;
-      const schoolName =
-        (lang === "am" ? branding?.nameAm : lang === "om" ? branding?.nameOm : branding?.nameEn) ||
-        branding?.nameEn || t("app.name");
       const dateOpts = { monthNames: tc("months", { returnObjects: true }) as string[], eraSuffix: tc("eraSuffix") };
-      const issuedOn = formatEth(new Date(), dateOpts);
+      const issuedOn = formatEth(today(), dateOpts);
       const labels = {
         title: t("academicRecord.title"), student: t("clinic.student"), studentNo: t("students.admissionNo"),
         grade: t("students.profile.grade"), period: t("academicRecord.period"),
@@ -54,6 +51,10 @@ export function ReportCardBatchPage() {
         conductTitle: t("academicRecord.conductTitle"), noIncidents: t("academicRecord.conductNone"),
         meritPointsTotal: t("academicRecord.meritPointsTotal"),
       };
+
+      // R5-C6: fetched once for the whole batch rather than per student --
+      // it is the same tenant-level row for every report card in the run.
+      const template = await fetchDocumentTemplate("report_card");
 
       const roster = students ?? [];
       setProgress({ done: 0, total: roster.length });
@@ -70,7 +71,7 @@ export function ReportCardBatchPage() {
           const record = await fetchAcademicRecord(s.id, i18n.resolvedLanguage!, cls?.grade_level ?? undefined);
           const conductSummary = await fetchConductSummary(s.id);
           const blob = await buildTranscriptPdf({
-            schoolName, studentName: fullName, admissionNo: s.admission_no,
+            schoolName, template, studentName: fullName, admissionNo: s.admission_no,
             gradeLabel, academicPeriod: gradeLabel,
             rows: record.rows,
             gpa: record.totals.gpa, totalScore: record.totals.sum, maxScore: record.totals.max,

@@ -6,8 +6,10 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { useTranslation } from "react-i18next";
-import { formatEth } from "@/lib/ethiopian-date";
+import { formatEth, today } from "@/lib/ethiopian-date";
 import { buildTranscriptPdf } from "../transcript-pdf";
+import { fetchDocumentTemplate } from "@/lib/documentTemplate";
+import { useDocumentSchoolName } from "@/lib/documentBranding";
 import { fetchAcademicRecord, fetchClassRank, fetchGradeHistory } from "../academic-record";
 import { fetchConductSummary } from "../conduct-summary";
 
@@ -19,6 +21,9 @@ export function AcademicRecordTab({ studentId, studentName, admissionNo, classId
   // uses — the transcript's issue date must read identically to the UI.
   const { t: tc } = useTranslation("calendar");
   const { profile } = useSession();
+  // R5-B2: one shared accessor instead of the branding lookup this file used
+  // to inline. Ungated — the transcript letterhead is a Basic-tier floor.
+  const schoolName = useDocumentSchoolName();
   const [gradeTab, setGradeTab] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -57,8 +62,8 @@ export function AcademicRecordTab({ studentId, studentName, admissionNo, classId
     queryFn: () => fetchClassRank(studentId, classId!),
   });
 
-  // School name for the transcript letterhead — same branding record the nav
-  // and ID cards read, so all three stay consistent.
+  // Tenant settings for the billing gate below. The letterhead name comes
+  // from useDocumentSchoolName(), which shares this query key and cache.
   const { data: brand } = useQuery({
     queryKey: ["tenant-config", profile?.tenant_id],
     enabled: !!profile?.tenant_id,
@@ -89,15 +94,13 @@ export function AcademicRecordTab({ studentId, studentName, admissionNo, classId
     if (downloadBlocked) { setError(t("academicRecord.unpaidBalanceBlock")); return; }
     setBusy(true);
     try {
-      const branding = brand?.settings?.branding as { nameEn?: string; nameAm?: string; nameOm?: string } | undefined;
-      const lang = i18n.resolvedLanguage;
-      const schoolName =
-        (lang === "am" ? branding?.nameAm : lang === "om" ? branding?.nameOm : branding?.nameEn) ||
-        branding?.nameEn || t("app.name");
       const dateOpts = { monthNames: tc("months", { returnObjects: true }) as string[], eraSuffix: tc("eraSuffix") };
       const conduct = await fetchConductSummary(studentId);
+      // R5-C6: null when unconfigured -> the fixed layout, unchanged.
+      const template = await fetchDocumentTemplate("transcript");
       const blob = await buildTranscriptPdf({
         schoolName,
+        template,
         studentName: studentName ?? "—",
         admissionNo: admissionNo ?? "—",
         // Always reflects the SELECTED tab, not the student's current class
@@ -109,7 +112,7 @@ export function AcademicRecordTab({ studentId, studentName, admissionNo, classId
         gpa: totals.gpa,
         totalScore: totals.sum,
         maxScore: totals.max,
-        issuedOn: formatEth(new Date(), dateOpts),
+        issuedOn: formatEth(today(), dateOpts),
         conduct: {
           incidents: conduct.incidents.map((i) => ({
             dateEc: formatEth(new Date(i.date + "T00:00:00Z"), dateOpts),

@@ -13,6 +13,8 @@
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "npm:pdf-lib@1";
 import { toDataURL as qrToDataURL } from "npm:qrcode@1";
 import type { AuthContext } from "./security.ts";
+import type { DocumentBranding } from "./branding.ts";
+import { drawWatermark, drawHeaderText, drawFooterText, type DocTemplate } from "./doc-template.ts";
 
 const NAVY: [number, number, number] = [0.118, 0.165, 0.439]; // #1E2A70
 const BLACK: [number, number, number] = [0, 0, 0];
@@ -58,6 +60,11 @@ export interface FeeLineItem {
 }
 interface InvoiceRenderData {
   tenantName: string;
+  /** R5-B2: omit (or pass UNBRANDED) to render exactly as before this round. */
+  branding?: DocumentBranding;
+  /** R5-C6: omit (or pass null) to render the fixed layout. Per C3's matrix
+   *  this document type takes header/footer/watermark but NOT a signature. */
+  template?: DocTemplate | null;
   docNo: string; verifyCode: string; issuedOn: string;
   studentName: string; admissionNo: string; classLabel: string;
   lineItems: FeeLineItem[];
@@ -66,6 +73,11 @@ interface InvoiceRenderData {
 }
 interface ReceiptRenderData {
   tenantName: string;
+  /** R5-B2: omit (or pass UNBRANDED) to render exactly as before this round. */
+  branding?: DocumentBranding;
+  /** R5-C6: omit (or pass null) to render the fixed layout. Per C3's matrix
+   *  this document type takes header/footer/watermark but NOT a signature. */
+  template?: DocTemplate | null;
   docNo: string; verifyCode: string; issuedOn: string;
   studentName: string; admissionNo: string;
   receivedFrom: string;
@@ -81,11 +93,49 @@ function formatETB(n: number): string {
   return `ETB ${n.toFixed(2)}`;
 }
 
-async function renderHeader(pdfDoc: PDFDocument, page: PDFPage, font: PDFFont, boldFont: PDFFont, tenantName: string, title: string) {
-  page.drawRectangle({ x: 0, y: H - 70, width: W, height: 70, color: rgb(...NAVY) });
-  drawText(page, boldFont, tenantName, 40, H - 42, 16, [1, 1, 1]);
+/**
+ * Letterhead. `branding` is R5-B2's accessor output: when the tenant is below
+ * Standard tier (or has branding_extended overridden off) it arrives as
+ * UNBRANDED and every branch below falls through to exactly the fixed NAVY
+ * bar + raw tenant name this rendered before that round -- unchanged output,
+ * not a re-styled approximation of it.
+ */
+async function renderHeader(
+  pdfDoc: PDFDocument, page: PDFPage, font: PDFFont, boldFont: PDFFont,
+  tenantName: string, title: string, branding?: DocumentBranding,
+) {
+  const barColor = branding?.primaryColor ?? NAVY;
+  page.drawRectangle({ x: 0, y: H - 70, width: W, height: 70, color: rgb(...barColor) });
+
+  let textX = 40;
+  if (branding?.logoBytes) {
+    try {
+      const img = await embedImageAuto(pdfDoc, branding.logoBytes);
+      if (img) {
+        // Fit inside the 70pt bar with padding, preserving aspect ratio.
+        const maxH = 44, maxW = 120;
+        const scale = Math.min(maxH / img.height, maxW / img.width);
+        const w = img.width * scale, h = img.height * scale;
+        page.drawImage(img, { x: 40, y: H - 70 + (70 - h) / 2, width: w, height: h });
+        textX = 40 + w + 12;
+      }
+    } catch (err) {
+      // A broken logo must not cost the whole document.
+      console.error("renderHeader: logo embed failed", { message: (err as Error).message });
+    }
+  }
+
+  drawText(page, boldFont, branding?.schoolName || tenantName, textX, H - 42, 16, [1, 1, 1]);
   drawRightText(page, boldFont, title, W - 40, H - 42, 16, [1, 1, 1]);
   return pdfDoc;
+}
+
+/** PNG or JPEG, sniffed by magic bytes -- tenants upload either. */
+async function embedImageAuto(pdfDoc: PDFDocument, bytes: Uint8Array) {
+  if (bytes.length > 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) {
+    return await pdfDoc.embedJpg(bytes);
+  }
+  return await pdfDoc.embedPng(bytes);
 }
 
 export async function renderInvoicePdf(data: InvoiceRenderData): Promise<Uint8Array> {
@@ -94,9 +144,13 @@ export async function renderInvoicePdf(data: InvoiceRenderData): Promise<Uint8Ar
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
   const page = pdfDoc.addPage([W, H]);
-  await renderHeader(pdfDoc, page, font, boldFont, data.tenantName, "INVOICE");
+  await renderHeader(pdfDoc, page, font, boldFont, data.tenantName, "INVOICE", data.branding);
+  // Painted before the body: pdf-lib has no z-index, paint order is the
+  // only control, so this must sit underneath the content.
+  drawWatermark(page, font, data.template ?? null, W, H);
 
   let y = H - 110;
+  y = drawHeaderText(page, font, data.template ?? null, 40, y);
   drawText(page, font, `Invoice No: ${data.docNo}`, 40, y, 10); y -= 16;
   drawText(page, font, `Issued: ${data.issuedOn} (GC)`, 40, y, 10); y -= 16;
   drawText(page, font, `Due: ${data.dueDate} (GC)`, 40, y, 10); y -= 30;
@@ -134,6 +188,7 @@ export async function renderInvoicePdf(data: InvoiceRenderData): Promise<Uint8Ar
   if (qr) page.drawImage(qr, { x: 40, y: 60, width: 70, height: 70 });
   drawText(page, font, "Scan to verify this invoice", 120, 110, 8, GREY);
   drawText(page, font, `Code: ${data.verifyCode}`, 120, 96, 8, GREY);
+  drawFooterText(page, font, data.template ?? null, W);
   drawText(page, font, "This document is system-generated and does not require a signature.", 40, 30, 7, GREY);
 
   return pdfDoc.save();
@@ -145,9 +200,13 @@ export async function renderReceiptPdf(data: ReceiptRenderData): Promise<Uint8Ar
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
   const page = pdfDoc.addPage([W, H]);
-  await renderHeader(pdfDoc, page, font, boldFont, data.tenantName, "RECEIPT");
+  await renderHeader(pdfDoc, page, font, boldFont, data.tenantName, "RECEIPT", data.branding);
+  // Painted before the body: pdf-lib has no z-index, paint order is the
+  // only control, so this must sit underneath the content.
+  drawWatermark(page, font, data.template ?? null, W, H);
 
   let y = H - 110;
+  y = drawHeaderText(page, font, data.template ?? null, 40, y);
   drawText(page, font, `Receipt No: ${data.docNo}`, 40, y, 10); y -= 16;
   drawText(page, font, `Issued: ${data.issuedOn} (GC)`, 40, y, 10); y -= 16;
   drawText(page, font, `Paid on: ${data.paidAt} (GC)`, 40, y, 10); y -= 30;
@@ -189,6 +248,7 @@ export async function renderReceiptPdf(data: ReceiptRenderData): Promise<Uint8Ar
   if (qr) page.drawImage(qr, { x: 40, y: 60, width: 70, height: 70 });
   drawText(page, font, "Scan to verify this receipt", 120, 110, 8, GREY);
   drawText(page, font, `Code: ${data.verifyCode}`, 120, 96, 8, GREY);
+  drawFooterText(page, font, data.template ?? null, W);
   drawText(page, font, "This document is system-generated and does not require a signature.", 40, 30, 7, GREY);
 
   return pdfDoc.save();

@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/Input";
 import { Field } from "@/components/ui/Field";
 import { Modal } from "@/components/ui/Modal";
 import { Pagination, pageRange } from "@/components/ui/Pagination";
-import { toIsoDate } from "@/lib/ethiopian-date";
+import { toIsoDate, today } from "@/lib/ethiopian-date";
 
 interface Item {
   id: string;
@@ -69,7 +69,7 @@ export function InventoryPage() {
     mutationFn: async () => {
       const { error } = await supabase.from("inventory_movements").insert({
         tenant_id: profile!.tenant_id, item_id: moving!.id, movement_type: moveForm.type,
-        quantity: Number(moveForm.qty), movement_date: toIsoDate(new Date()), recorded_by: profile!.id, notes: moveForm.notes || null,
+        quantity: Number(moveForm.qty), movement_date: toIsoDate(today()), recorded_by: profile!.id, notes: moveForm.notes || null,
       });
       if (error) throw error;
     },

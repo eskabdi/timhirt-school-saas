@@ -2,6 +2,9 @@
 // (navy letterhead, pdf-lib dynamic import, Ethiopic fallback fetched only
 // when needed) but a room grid of seats rather than a row table.
 
+// R5-C6. Static import is bundle-safe (documentTemplate.ts uses `import type`).
+import { templateRenderer, type DocTemplate } from "@/lib/documentTemplate";
+
 export interface SeatingChartPdfSeat { row: number; col: number; label: string; studentName: string | null }
 
 export interface SeatingChartPdfInput {
@@ -11,6 +14,8 @@ export interface SeatingChartPdfInput {
   cols: number;
   seats: SeatingChartPdfSeat[];
   issuedOn: string;
+  /** R5-C6: per C3's matrix a seating chart takes header/footer only. */
+  template?: DocTemplate | null;
   issuedLabel: string;
 }
 
@@ -18,7 +23,8 @@ const NON_LATIN = /[Ā-￿]/;
 const hasNonLatin = (s: string) => NON_LATIN.test(s);
 
 export async function buildSeatingChartPdf(input: SeatingChartPdfInput): Promise<Blob> {
-  const { PDFDocument, StandardFonts, rgb } = await import("pdf-lib");
+  const { PDFDocument, StandardFonts, rgb, degrees } = await import("pdf-lib");
+  const tpl = templateRenderer({ rgb, degrees }, input.template ?? null);
   const doc = await PDFDocument.create();
 
   const NAVY = rgb(0.016, 0.086, 0.208);
@@ -57,6 +63,9 @@ export async function buildSeatingChartPdf(input: SeatingChartPdfInput): Promise
   const titleFont = pick(input.title);
   page.drawText(safe(input.title, titleFont), { x: M, y: PAGE_H - 42, size: 9, font: titleFont ?? regular, color: rgb(0.85, 0.87, 0.96) });
 
+  // Configured header line, just under the letterhead. No-op when unset.
+  tpl.header(page, regular, M, PAGE_H - 70);
+
   const gridTop = PAGE_H - 90;
   const gridBottom = 40;
   const gridLeft = M;
@@ -88,6 +97,7 @@ export async function buildSeatingChartPdf(input: SeatingChartPdfInput): Promise
   const issued = `${input.issuedLabel}: ${input.issuedOn}`;
   const isf = pick(issued);
   page.drawText(safe(issued, isf), { x: M, y: 18, size: 7, font: isf ?? regular, color: FAINT });
+  tpl.footer(page, regular, PAGE_W, 32);
 
   const bytes = await doc.save();
   const buf = new ArrayBuffer(bytes.byteLength);

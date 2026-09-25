@@ -14,7 +14,7 @@ import { PrintIDCardModal } from "./PrintIDCardModal";
 import { EditProfileModal } from "./EditProfileModal";
 import { TransferStudentModal } from "./TransferStudentModal";
 import { buildStudentProfilePdf } from "./student-profile-pdf";
-import { formatEth } from "@/lib/ethiopian-date";
+import { formatEth, toIsoDate, today } from "@/lib/ethiopian-date";
 import { gradeCycleKeyFor, gradeCycleI18nKey } from "@/lib/gradeCycles";
 import { fetchAcademicRecord, fetchClassRank } from "./academic-record";
 
@@ -140,7 +140,7 @@ export function StudentDetailPage() {
         gradeLabel,
         status: t(`students.${student.status}`),
         admissionDateEc: fmt(student.admission_date),
-        issuedOn: fmt(new Date().toISOString().slice(0, 10)),
+        issuedOn: fmt(toIsoDate(today())),
         demographics: [
           [t("students.profile.dobGc"), gc(student.date_of_birth)],
           [t("students.profile.dobEc"), fmt(student.date_of_birth)],

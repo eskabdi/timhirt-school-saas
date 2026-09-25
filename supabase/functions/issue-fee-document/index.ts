@@ -25,6 +25,8 @@
 import { z } from "npm:zod@3";
 import { requireRole, errors, json, rateLimit, corsHeaders } from "../_shared/security.ts";
 import { issueFeeDocument, renderInvoicePdf, renderReceiptPdf, type FeeLineItem } from "../_shared/fee-pdf.ts";
+import { loadDocumentBranding } from "../_shared/branding.ts";
+import { loadDocumentTemplate } from "../_shared/doc-template.ts";
 
 const Payload = z.object({
   kind: z.enum(["invoice", "receipt"]),
@@ -71,12 +73,17 @@ Deno.serve(async (req) => {
 
     const { data: tenant } = await ctx.userClient.from("tenants").select("name").eq("id", header.tenant_id).maybeSingle();
     const tenantName = tenant?.name ?? "School";
+    // R5-B2: gated on branding_extended -- below Standard this resolves to
+    // UNBRANDED and the PDF renders exactly as it did before that round.
+    const branding = await loadDocumentBranding(ctx.adminClient, header.tenant_id);
+    // R5-C6: null when the school has configured nothing -> fixed layout.
+    const template = await loadDocumentTemplate(ctx.adminClient, header.tenant_id, p.kind === "invoice" ? "invoice" : "receipt");
 
     if (p.kind === "invoice") {
       const doc = await issueFeeDocument(ctx.adminClient, {
         kind: "invoice", tenantId: header.tenant_id, invoiceId: header.id, amount: amountDue,
         render: ({ docNo, verifyCode }) => renderInvoicePdf({
-          tenantName, docNo, verifyCode, issuedOn: new Date().toISOString().slice(0, 10),
+          tenantName, branding, template, docNo, verifyCode, issuedOn: new Date().toISOString().slice(0, 10),
           studentName, admissionNo: student.admission_no, classLabel,
           lineItems, amountDue, amountPaid, status, dueDate: header.due_date,
         }),
@@ -101,7 +108,7 @@ Deno.serve(async (req) => {
     const doc = await issueFeeDocument(ctx.adminClient, {
       kind: "receipt", tenantId: header.tenant_id, invoiceId: header.id, paymentId: payment.id, amount: payment.amount,
       render: ({ docNo, verifyCode }) => renderReceiptPdf({
-        tenantName, docNo, verifyCode, issuedOn: new Date().toISOString().slice(0, 10),
+        tenantName, branding, template, docNo, verifyCode, issuedOn: new Date().toISOString().slice(0, 10),
         studentName, admissionNo: student.admission_no, receivedFrom: studentName,
         lineItems,
         amount: Number(payment.amount), provider: payment.provider, providerRef: payment.provider_ref,

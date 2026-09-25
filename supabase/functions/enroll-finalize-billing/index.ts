@@ -27,6 +27,8 @@
 import { z } from "npm:zod@3";
 import { requireRole, errors, json, rateLimit, corsHeaders } from "../_shared/security.ts";
 import { issueFeeDocument, notifyBilling, renderInvoicePdf, renderReceiptPdf, type FeeLineItem } from "../_shared/fee-pdf.ts";
+import { loadDocumentBranding } from "../_shared/branding.ts";
+import { loadDocumentTemplate } from "../_shared/doc-template.ts";
 
 const Payload = z.object({
   application_id: z.string().uuid(),
@@ -141,11 +143,21 @@ Deno.serve(async (req) => {
           billingCycle: structure.billing_cycle,
           amountDue: Number(invoice.amount_due), amountPaid: Number(invoice.amount_paid), status: invoice.status,
         }];
+        // R5-B2/C6: the enrollment path issues the same two documents as
+        // issue-fee-document, so it reads the same two accessors. Branding is
+        // gated on branding_extended and resolves to UNBRANDED below Standard;
+        // the template is null unless the school configured one, which leaves
+        // the fixed layout untouched. Both fail closed.
+        const branding = await loadDocumentBranding(ctx.adminClient, application.tenant_id);
+        const invoiceTemplate = await loadDocumentTemplate(ctx.adminClient, application.tenant_id, "invoice");
+        const receiptTemplate = await loadDocumentTemplate(ctx.adminClient, application.tenant_id, "receipt");
+
         const invoiceDoc = await issueFeeDocument(ctx.adminClient, {
           kind: "invoice", tenantId: application.tenant_id, invoiceId: headerId,
           amount: invoice.amount_due,
           render: ({ docNo, verifyCode }) => renderInvoicePdf({
-            tenantName, docNo, verifyCode, issuedOn: new Date().toISOString().slice(0, 10),
+            tenantName, branding, template: invoiceTemplate,
+            docNo, verifyCode, issuedOn: new Date().toISOString().slice(0, 10),
             studentName, admissionNo: student.admission_no, classLabel,
             lineItems,
             amountDue: Number(invoice.amount_due), amountPaid: Number(invoice.amount_paid), status: invoice.status,
@@ -166,7 +178,8 @@ Deno.serve(async (req) => {
               kind: "receipt", tenantId: application.tenant_id, invoiceId: headerId,
               paymentId: payment.id, amount: payment.amount,
               render: ({ docNo, verifyCode }) => renderReceiptPdf({
-                tenantName, docNo, verifyCode, issuedOn: new Date().toISOString().slice(0, 10),
+                tenantName, branding, template: receiptTemplate,
+                docNo, verifyCode, issuedOn: new Date().toISOString().slice(0, 10),
                 studentName, admissionNo: student.admission_no, receivedFrom: studentName,
                 lineItems,
                 amount: Number(payment.amount), provider: "bank", providerRef: payment.provider_ref,

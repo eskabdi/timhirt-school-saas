@@ -3,6 +3,7 @@ import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { EthDate } from "@/components/EthDate";
+import { today as todayGregorian } from "@/lib/ethiopian-date";
 import { Avatar } from "@/components/ui/Avatar";
 import { useSession } from "@/features/auth/useSession";
 import { useEnabledModules } from "@/features/auth/useEnabledModules";
@@ -119,6 +120,7 @@ const NAV: NavSection[] = [
         items: [
           { to: "/settings/calendar", key: "nav.calendarSettings", roles: ["school_admin"] },
           { to: "/settings/branding", key: "nav.branding", roles: ["school_admin"] },
+          { to: "/settings/document-templates", key: "nav.documentTemplates", roles: ["school_admin"], module: "document_templates" },
           { to: "/settings/import-export", key: "nav.importExport", roles: ["school_admin"] },
           { to: "/settings/id-card-template", key: "nav.idCardTemplate", roles: ["school_admin"] },
           { to: "/settings/library", key: "nav.librarySettings", roles: LIBRARY, module: "library" },
@@ -317,7 +319,7 @@ export function DashboardShell() {
           </div>
         </div>
         <div className="hidden shrink-0 text-sm text-white/70 md:block">
-          {t("dashboard.today")}: <span className="font-semibold text-gold-bright"><EthDate value={new Date()} /></span>
+          {t("dashboard.today")}: <span className="font-semibold text-gold-bright"><EthDate value={todayGregorian()} /></span>
         </div>
         <div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
           <LanguageSwitcher variant="dark" />
