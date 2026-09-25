@@ -20,6 +20,8 @@
 // human attesting a real transaction happened, and the URL is supplementary
 // evidence, not a hard gate on their own entry. This asymmetry with the
 // public admission path (where failure DOES block) is deliberate.
+// A non-https URL is reported as failed/https_required and is not stored
+// (R6 FS-1); the payment itself is still recorded.
 // ============================================================================
 import { z } from "npm:zod@3";
 import { isHttpsUrl } from "../_shared/https-url.ts";
@@ -36,7 +38,7 @@ const Payload = z.object({
   reference: z.string().max(100).optional(),
   bank_verification: z.object({
     payment_method: z.enum(["cbe", "awash_bank", "telebirr"]),
-    verification_url: z.string().trim().url().max(2048).refine(isHttpsUrl), // https only (FS-1)
+    verification_url: z.string().trim().url().max(2048), // https is enforced below (FS-1)
   }).optional(),
 });
 
@@ -76,7 +78,11 @@ Deno.serve(async (req) => {
     if (payErr) throw payErr;
 
     let bankVerification: { status: string; failure_reason?: string } | null = null;
-    if (p.bank_verification) {
+    if (p.bank_verification && !isHttpsUrl(p.bank_verification.verification_url)) {
+      // Never stored (FS-1), but the payment is still recorded: same outcome
+      // as bank-verify's https_required before FS-1 (review RG3-1).
+      bankVerification = { status: "failed", failure_reason: "https_required" };
+    } else if (p.bank_verification) {
       try {
         const result = await verifyBankUrl(ctx.adminClient, {
           tenantId: header.tenant_id, pathPrefix: payment.id,

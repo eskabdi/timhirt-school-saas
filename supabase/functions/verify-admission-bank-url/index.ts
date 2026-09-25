@@ -32,7 +32,7 @@ import { verifyBankUrl } from "../_shared/bank-verify.ts";
 const Payload = z.object({
   application_id: z.string().uuid(),
   payment_method: z.enum(["cbe", "awash_bank", "telebirr"]),
-  verification_url: z.string().trim().url().max(2048).refine(isHttpsUrl), // https only (FS-1)
+  verification_url: z.string().trim().url().max(2048), // https is enforced below (FS-1)
 });
 
 Deno.serve(async (req) => {
@@ -54,6 +54,13 @@ Deno.serve(async (req) => {
     const { data: application } = await db.from("admission_applications")
       .select("id, tenant_id, stage").eq("id", p.application_id).maybeSingle();
     if (!application || application.stage !== "applied") return errors.badRequest();
+
+    // A non-https URL is never stored (FS-1: it would be rendered as a link;
+    // the DB CHECK also refuses it). The applicant still gets the specific,
+    // translated https_required reason rather than a bare 400 (review RG3-2).
+    if (!isHttpsUrl(p.verification_url)) {
+      return json({ ok: false, status: "failed", reason: "https_required" }, 200);
+    }
 
     const result = await verifyBankUrl(db, {
       tenantId: application.tenant_id, pathPrefix: application.id,
