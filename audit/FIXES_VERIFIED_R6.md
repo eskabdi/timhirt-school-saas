@@ -393,7 +393,7 @@ The diff since `ebb48a5` is records and evidence only. There is no code change b
 | 1. Shim mirrors Supabase defaults | Yes | USAGE on `public` and `ALTER DEFAULT PRIVILEGES FOR ROLE postgres … GRANT ALL ON TABLES/SEQUENCES/FUNCTIONS` to anon, authenticated and service_role, set before any migration runs. |
 | 2. Catalog guard suites | Yes, as **ratchets** (recon adjustment 3) | See the four `catalog_*.sql` suites and `supabase/security/*_known.sql`. The allow-lists are `.sql`, not `.txt`, so pgTAP can `\ir` them (adjustment 5). The storage guard also covers `ALL` policies (adjustment 6). |
 | 3a. Pin actions by SHA | Yes | 7 `uses:`, all pinned, enforced by `scripts/ci/pinned-actions.sh`. |
-| 3b. gitleaks | Yes | Full history. 6 reviewed false positives are pinned by fingerprint. |
+| 3b. gitleaks | Yes | Full history. 7 reviewed false positives are pinned by fingerprint. The first local scan ran on a **shallow** clone (180 of 256 commits) and missed one, which the first CI run caught; the clone was unshallowed and rescanned (256 commits, clean). |
 | 3c. semgrep | Yes, **plus repo rules** | The registry packs alone ran 4 rules and missed planted sinks. The repo rules come with a fixture self-test. |
 | 3d. `npm audit --omit=dev --audit-level=high` | Yes | Clean (0 high/critical in runtime deps). |
 | 3e. `deno check` | Yes, as a ratchet | 3 of the 7 failing functions were fixed (real bugs). 4 are baselined. |
