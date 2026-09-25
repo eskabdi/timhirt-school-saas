@@ -8,8 +8,9 @@ custom API server.
 > (R6 WP-00: Round 5, the EC-"today" fix, the Telebirr gateway removal and the
 > audit-purge containment). 106 migrations are applied and 28/28 Edge Functions
 > matched the repo at that commit. **Not yet deployed** (R6 WP-00 closeout, PR #8):
-> migration `20260924000002` (library RPC anon revoke), `manage-integration-credentials`
-> (AfroMessage fix) and the matching `IntegrationsPage`. See `audit/prod-drift-2026-09-24.md`. There is **no
+> migrations `20260924000002` (library RPC anon revoke) and `20260925000001`
+> (https-only verification URLs), Edge Functions `manage-integration-credentials`,
+> `record-fee-payment` and `verify-admission-bank-url`, and the frontend. See `audit/prod-drift-2026-09-24.md`. There is **no
 > staging project** yet (R6 WP-17), and **PITR is off with no backups**. The R6
 > fix plan is `docs/audits/timhirt-production-fix-plan.md`; progress is in
 > `audit/FIXES_VERIFIED_R6.md`.
@@ -123,7 +124,7 @@ npx vitest run
 npm run check:i18n                  # must be 0
 npm run check:locales               # parity + no wholesale reformat
 npm run build
-PGHOST=… ./supabase/tests/run.sh    # 107 migrations + 55 pgTAP suites
+PGHOST=… ./supabase/tests/run.sh    # 108 migrations + 56 pgTAP suites
 ```
 
 `eslint scripts/` reports `no-undef` on node globals — `scripts/` is outside the

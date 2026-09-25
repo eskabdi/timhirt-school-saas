@@ -246,3 +246,30 @@ Details are in `docs/insa/_pending-changes.md`.
 **Gate (local):** `tsc` 0; `eslint src` 0; Vitest 7 files / 54 tests; `check:i18n` 0; `check:locales` OK; build OK; guard ok; Deno 12/12; `deno check` OK. pgTAP last run: 107 migrations, 55/55 suites. No SQL has changed since then, and CI rls-tests is green on 037edbf.
 
 **Open blockers, owner only:** DR-4 (apply `20260924000002` and deploy the function and frontend) and DR-1 (disable public sign-up). Each is either done or accepted as a D-xx row.
+
+### Release gatekeeper — WP-00 closeout (2026-09-25, HEAD `ae40d09`): FAIL
+
+The code fixes were verified in code and tests (AC-1..AC-4, R2-1, R2-TV-1/2/3/7, RG-7/8, the library migration with a non-vacuous suite). Gatekeeper re-run: tsc 0, Vitest 54/54, Deno 12/12, i18n and locales OK, build OK.
+
+| Item | Owner of the fix | Status |
+|---|---|---|
+| GK-5, DR-4: library anon write live in production | owner | open. Deploy `20260924000002` together with the rest of the undeployed set, or accept it as a D-xx |
+| GK-6, DR-1: public sign-up enabled | owner | open. Disable it, or accept it |
+| GK-7, FS-1: stored `javascript:` verification URL rendered as a link | implementer | **fixed**, see "FS-1 fix" below |
+| GK-8: round-2 fixes not re-reviewed | implementer | round 3 run next (test-verifier, regression-guardian, insa-docs-auditor, authz-reviewer, security-reviewer) |
+| GK-9: closeout verdicts not on disk | implementer | round-3 verdicts are saved verbatim under `audit/evidence/reviews/` |
+| Minors: stale `keys.ts` comment; DM-2 not in the backlog | implementer | fixed |
+
+#### FS-1 fix
+
+**Change:** `_shared/https-url.ts` (`isHttpsUrl`) is shared by `record-fee-payment`, `verify-admission-bank-url` (Zod `.refine`) and `src/lib/safeUrl.ts` (`httpsHref`). The invoice and admission pages render a link only for https, with `rel="noopener noreferrer"`; anything else renders as plain text. Migration `20260925000001` adds CHECK `verification_url ~* '^https://'`. Production had 0 rows, checked read-only.
+
+**Tests:**
+- Deno `https-url.test.ts`: javascript, data, http, protocol-relative and garbage URLs are all rejected.
+- Vitest `safeUrl.test.ts` (2).
+- pgTAP `verification_url_https.sql` (5): 4 fail without the migration.
+
+**Gate:**
+- tsc 0; eslint 0; Vitest 56; Deno 13/13.
+- `deno check` on both functions: OK.
+- pgTAP on a fresh DB: 108 migrations, 56/56 suites.

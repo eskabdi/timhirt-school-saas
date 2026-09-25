@@ -13,7 +13,7 @@
 | WP-00 security SR-12 | `upload-admission-document` keys its rate limit on the leftmost `X-Forwarded-For` and trusts the client `file.type`. Both are pre-existing. | WP-12 |
 | WP-00 infra F7 | `*.edux.et` is not attached to the Vercel project, and the wildcard certificate is unverified. HSTS preload waits for the www→apex flip. | WP-20 |
 | WP-00 security SR-4 | Revoke any Telebirr testbed credentials or keypair ever issued, with Ethio Telecom (owner action 6). | Owner |
-| WP-00 review FS-1 (**major**, pre-existing) | `bank_payment_verifications.verification_url` accepts any URL scheme (`z.string().url()`), is stored even when verification fails, and is rendered as `<a href>` in `InvoiceDetailPage.tsx:283`. A `javascript:` URL is a stored XSS aimed at parents and super_admin. Fix: https-only in Zod and a DB CHECK, render only https as a link, `rel="noopener noreferrer"`. | WP-03 §3.11 |
+| WP-00 review FS-1 | ~~Stored `javascript:` verification URL rendered as a link~~ **Fixed in the closeout** (gatekeeper GK-7): https-only in both writers, a DB CHECK (`20260925000001`), links rendered only for https with `rel="noopener noreferrer"`. | — |
 | WP-00 review FS-2 | `window.open(url, "_blank")` without `noopener`, and `rel="noreferrer"` without `noopener` (InvoiceDetailPage, InvoicesPage). | WP-12 |
 | WP-00 review CG-3 / CQ-6 / FS-3 / PI-5 | `fees.payFailed` ("Could not start the payment") is the fallback for failed invoice *generation*. Add `fees.errors.generateFailed`. | WP-14 |
 | WP-00 review CG-4 / I18N-6 | Oromo `help.integrationsNote` says "Gosti kun" (this type), not "this version". A native speaker should confirm. | WP-14 |
@@ -29,3 +29,4 @@
 | WP-00 review WP00-4 | Record per-function `updated_at` against commit times, so the "deployed = repo" check covers code, not only names. | WP-17 |
 | WP-00 closeout | Supabase Auth: set `config.toml` `site_url` and `additional_redirect_urls` to the production values (DR-2). | WP-07 / WP-20 |
 | WP-00 review R2-2 | `manage-integration-credentials` merges `platform_integrations.config` read-modify-write; two concurrent super-admin saves can lose an update. Merge in SQL (`config = config || $1`) or move the Vault + config write into one definer RPC transaction. | WP-12 |
+| WP-00 review DM-2 | After WP-01 gives the shim `anon` usage on `public`, add a real `set local role anon` call to each library RPC in `r6_hotfix_library_anon.sql`, expecting 42501. | WP-01 |

@@ -113,6 +113,7 @@ Timeline: pre-deploy capture ~17:21Z → migration ~17:22Z → function deletes 
 | Function ACLs | Not compared with the repo: the harness shim lacks Supabase default grants (WP-01). Production read directly: **46/65 definer functions anon-executable**, including 4 tenant-writing `library_*` RPCs | `audit/evidence/wp00-prod-definer-acl-*.txt`; containment migration `20260924000002` |
 
 **Undeployed after the closeout (PR #8), so repo ≠ production until the next deploy:**
-- migration `20260924000002_r6_hotfix_library_anon.sql`: repo 107, production 106;
+- migrations `20260924000002_r6_hotfix_library_anon.sql` and `20260925000001_r6_verification_url_https.sql`: repo 108, production 106;
 - `manage-integration-credentials`: repo has `keys.ts` and the validate-before-write handler, production runs v6;
-- frontend `IntegrationsPage` (AfroMessage payload fix, translated strings): production runs `150f99b`.
+- `record-fee-payment` and `verify-admission-bank-url`: https-only verification URL (FS-1);
+- frontend (IntegrationsPage AfroMessage fix and translated strings; https-only links on the invoice and admission pages): production runs `150f99b`.

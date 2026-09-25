@@ -22,6 +22,7 @@
 // public admission path (where failure DOES block) is deliberate.
 // ============================================================================
 import { z } from "npm:zod@3";
+import { isHttpsUrl } from "../_shared/https-url.ts";
 import { requireRole, errors, json, rateLimit, corsHeaders } from "../_shared/security.ts";
 import { issueFeeDocument, notifyBilling, renderReceiptPdf, type FeeLineItem } from "../_shared/fee-pdf.ts";
 import { loadDocumentBranding } from "../_shared/branding.ts";
@@ -35,7 +36,7 @@ const Payload = z.object({
   reference: z.string().max(100).optional(),
   bank_verification: z.object({
     payment_method: z.enum(["cbe", "awash_bank", "telebirr"]),
-    verification_url: z.string().url().max(2048),
+    verification_url: z.string().url().max(2048).refine(isHttpsUrl), // https only (FS-1)
   }).optional(),
 });
 

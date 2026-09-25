@@ -19,8 +19,8 @@ export const PROVIDER_SECRET_KEYS: Record<Provider, readonly string[]> = {
 };
 
 // Config: non-secret, platform_integrations.config jsonb. Also all-or-nothing
-// per provider (a value may be an empty string, but the KEY must be present so
-// a client can't silently omit a field it forgot about).
+// per provider: every key must be present (so a client can't silently omit a
+// field it forgot about), and schema.ts requires each value to be non-empty.
 export const PROVIDER_CONFIG_KEYS: Record<Provider, readonly string[]> = {
   sms_smsala: [],
   sms_afromessage: ["sender_id"],

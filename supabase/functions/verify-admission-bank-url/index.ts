@@ -24,6 +24,7 @@
 // at the application, so the URL/domain has to actually check out.
 // ============================================================================
 import { z } from "npm:zod@3";
+import { isHttpsUrl } from "../_shared/https-url.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { errors, json, rateLimit, corsHeaders } from "../_shared/security.ts";
 import { verifyBankUrl } from "../_shared/bank-verify.ts";
@@ -31,7 +32,7 @@ import { verifyBankUrl } from "../_shared/bank-verify.ts";
 const Payload = z.object({
   application_id: z.string().uuid(),
   payment_method: z.enum(["cbe", "awash_bank", "telebirr"]),
-  verification_url: z.string().url().max(2048),
+  verification_url: z.string().url().max(2048).refine(isHttpsUrl), // https only (FS-1)
 });
 
 Deno.serve(async (req) => {
