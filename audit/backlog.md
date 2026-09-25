@@ -30,3 +30,4 @@
 | WP-00 closeout | Supabase Auth: set `config.toml` `site_url` and `additional_redirect_urls` to the production values (DR-2). | WP-07 / WP-20 |
 | WP-00 review R2-2 | `manage-integration-credentials` merges `platform_integrations.config` read-modify-write; two concurrent super-admin saves can lose an update. Merge in SQL (`config = config || $1`) or move the Vault + config write into one definer RPC transaction. | WP-12 |
 | WP-00 review DM-2 | After WP-01 gives the shim `anon` usage on `public`, add a real `set local role anon` call to each library RPC in `r6_hotfix_library_anon.sql`, expecting 42501. | WP-01 |
+| WP-00 r3 AZ-R3-4 | `manage-integration-credentials` (Vault writer) must move to `requireAccess` with a fresh aal2 challenge and an `imp_mode=read` rejection when WP-06 introduces them (plan WP-06 item 5). | WP-06 |
