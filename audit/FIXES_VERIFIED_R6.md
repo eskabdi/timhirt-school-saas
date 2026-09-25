@@ -16,7 +16,7 @@ One entry per Work Package (fix plan §0 Rule 10). Status per finding:
 | C-01 (unsigned Telebirr webhook) | **verified-prod** (2026-09-24) · verified-staging n/a (no staging project; owner approved prod-direct) | Repo: gateway removed, `r6_hotfix.sql`, CI guard. Prod: 4 endpoints → 404; settlement EXECUTE false for anon/authenticated/service_role (`prod-drift-2026-09-24.md` §3). |
 | L-06 (Origin-derived redirect) | **verified-prod** | `process-fee-payment` removed from the repo and deleted in prod (404). |
 | RV-05 (anon-callable audit purge) | **contained, verified-prod** (WP-00); the ledger part stays open → WP-08 | Pre-deploy ACL showed anon/authenticated/service_role EXECUTE. Post-deploy all false. `r6_hotfix.sql` #1–#3, #11. |
-| G-09 (repo ≠ production) | **re-opened by the closeout (PR #8)**. Not deployed: migrations `20260924000002` and `20260925000001`; Edge Functions `manage-integration-credentials` (v6 in prod), `record-fee-payment` and `verify-admission-bank-url`; the frontend (IntegrationsPage, and the invoice and admission pages). It closes again once all of that is deployed and verified by: the library proacl query, the constraint `bank_payment_verifications_url_https` present in prod, a 401 probe, and a bundle marker (`platformPagesX.saveFailed` text). Before the closeout: | Production = commit `150f99b`: migrations 106 = 106, functions 28 = 28 with matching `verify_jwt`, frontend built from `150f99b`. PR #7 merged. Full `db diff` replaced by owner decision D-04 plus a password-free catalog diff (0 differences) and an auth/storage config comparison (see Closeout below). |
+| G-09 (repo ≠ production) | **closed again, verified-prod 2026-09-25** (closeout deploy, `audit/evidence/wp00-closeout-deploy-20260925T072419Z.txt`). History: it was re-opened by the closeout (PR #8). Not deployed: migrations `20260924000002` and `20260925000001`; Edge Functions `manage-integration-credentials` (v6 in prod), `record-fee-payment` and `verify-admission-bank-url`; the frontend (IntegrationsPage, and the invoice and admission pages). It closes again once all of that is deployed and verified by: the library proacl query, the constraint `bank_payment_verifications_url_https` present in prod, a 401 probe, and a bundle marker (`platformPagesX.saveFailed` text). Before the closeout: | Production = commit `150f99b`: migrations 106 = 106, functions 28 = 28 with matching `verify_jwt`, frontend built from `150f99b`. PR #7 merged. Full `db diff` replaced by owner decision D-04 plus a password-free catalog diff (0 differences) and an auth/storage config comparison (see Closeout below). |
 
 ### Implementation
 
@@ -320,3 +320,14 @@ The §0A.1 review cap (3 rounds) is now reached. The TV3-1 fix after round 3 goe
 - D-02: no staging.
 
 WP-00 becomes PASS with no code change once DR-4 and DR-1 are each deployed or accepted.
+
+### Closeout deploy to production (2026-09-25, owner: "Deploy")
+
+**DR-4 closed, verified-prod.**
+- The four library RPCs are service_role-only; anon and authenticated have no EXECUTE.
+- FS-1 is live in prod: the https CHECK is present and validated, both writers are deployed, and the frontend renders https-only links.
+- AC-1 (AfroMessage configurable) is live.
+- G-09 closed: repo = production at `da6055e` (108 migrations, 28/28 functions, frontend bundle verified).
+- Evidence: `audit/evidence/wp00-closeout-deploy-20260925T072419Z.txt`. Details: `audit/prod-drift-2026-09-24.md` §5.
+
+**Still open (owner decision): DR-1, public sign-up.** The owner approved "Deploy" only, and sign-up was not changed. WP-00 becomes gatekeeper-PASS once DR-1 is either disabled or accepted as a dated D-xx row.

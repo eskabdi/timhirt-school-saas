@@ -1,0 +1,44 @@
+# WP-00 closeout deploy to production (owner approval 2026-09-25: "Deploy")
+# Repo commit: da6055e (PR #8 head). Captured 20260925T072419Z.
+
+## Pre-deploy (07:20Z, read-only)
+migrations: 106 (latest 20260924000001); bank_payment_verifications non-https rows: 0 of 0 (SR3-2 re-count)
+library_* proacl: {postgres=X,anon=X,service_role=X} on all four; constraint bank_payment_verifications_url_https: absent
+
+## Steps
+1. Migrations 20260924000002 and 20260925000001 applied, each in its own transaction with its schema_migrations row (Management API).
+2. Edge Functions deployed (supabase CLI 2, --use-api, verify_jwt from config.toml): manage-integration-credentials v7, record-fee-payment v7, verify-admission-bank-url v3.
+3. Frontend: vercel deploy --prod, built on Vercel (log: Running "npm run build"). The first upload hit 'fetch failed' (nothing shipped); the retry succeeded: timhirt-school-saas-77y08s3f5, aliased to www.edux.et.
+
+## Post-deploy (database)
+migrations: 108
+applied: 20260924000002 r6_hotfix_library_anon
+applied: 20260925000001 r6_verification_url_https
+proacl: {'proname': 'library_bulk_return', 'acl': '{postgres=X/postgres,service_role=X/postgres}', 'anon_x': False, 'auth_x': False, 'svc_x': True}
+proacl: {'proname': 'library_checkout', 'acl': '{postgres=X/postgres,service_role=X/postgres}', 'anon_x': False, 'auth_x': False, 'svc_x': True}
+proacl: {'proname': 'library_renew', 'acl': '{postgres=X/postgres,service_role=X/postgres}', 'anon_x': False, 'auth_x': False, 'svc_x': True}
+proacl: {'proname': 'library_return', 'acl': '{postgres=X/postgres,service_role=X/postgres}', 'anon_x': False, 'auth_x': False, 'svc_x': True}
+constraint: {'conname': 'bank_payment_verifications_url_https', 'convalidated': True, 'def': "CHECK ((verification_url ~* '^https://'::text))"}
+bank_payment_verifications non-https rows: 0
+anon-executable definer functions (WP-02 scope): 42
+
+## Post-deploy (functions)
+deployed 28 / repo 28; missing []; extra []; verify_jwt mismatches []
+manage-integration-credentials: version 7, verify_jwt True
+record-fee-payment: version 7, verify_jwt True
+verify-admission-bank-url: version 3, verify_jwt False
+POST manage-integration-credentials (no token) -> 401
+POST record-fee-payment (no token) -> 401
+POST verify-admission-bank-url (malformed body) -> 400
+
+## Post-deploy (served frontend, https://www.edux.et)
+main bundle: assets/index-D12qi3Cv.js; chunks fetched: 4
+project-ref hits: 21; anon JWT present: yes
+marker 'Could not save the credentials': 1
+marker sms_afromessage:["sender_id"]: 1
+marker https-only rule (isHttpsUrl, literal from the bundle): function oU(e){if(!/^https:\/\/[^\s]+$/i.test(e)
+marker 'noopener noreferrer': 3
+gateway identifiers (process-fee-payment|telebirr-notify|checkout_url): 0
+font Tayitu.ttf magic:  00 01 00 00
+font Jiret.ttf magic:  00 01 00 00
+font NotoSerifEthiopic-Regular.ttf magic:  00 01 00 00

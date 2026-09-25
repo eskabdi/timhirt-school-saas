@@ -1,6 +1,6 @@
 # Production drift reconciliation (R6 WP-00 step 4)
 
-**Status: read-only reconciliation DONE (§2); WP-00 deploy DONE and verified 2026-09-24 (§3). §4: the closeout set (PR #8) is undeployed, so G-09 is re-opened.**
+**Status: read-only reconciliation DONE (§2); WP-00 deploy DONE and verified 2026-09-24 (§3). §4: closeout reconciliation. §5: closeout set deployed 2026-09-25; repo = production again.**
 
 **Access record (SR-8).** At first this session had no credentials and this
 runbook was written for the owner to run. Later on 2026-09-24 the owner
@@ -119,3 +119,21 @@ Timeline: pre-deploy capture ~17:21Z → migration ~17:22Z → function deletes 
 - frontend (IntegrationsPage AfroMessage fix and translated strings; https-only links on the invoice and admission pages): production runs `150f99b`.
 
 **Deploy order for this set (review SR3-2):** the https CHECK is added validated. Immediately before applying it, re-count `bank_payment_verifications where verification_url !~* '^https://'` on production (it was 0 on 2026-09-25). The old writers can still store a non-https URL until the new functions ship. If the count is not 0, stop and clean the rows up with the owner first. Apply both migrations in one transaction, then deploy the three functions, then the frontend.
+
+## 5. Closeout deploy (2026-09-25 ~07:20–07:35 UTC, owner approval: "Deploy")
+
+Staging still does not exist (D-02). PITR is still off (D-03). The pre-apply re-count of non-https `bank_payment_verifications` rows was 0 (SR3-2).
+
+| Check | Expected | Observed |
+|---|---|---|
+| Migrations on prod | 108, incl. `20260924000002`, `20260925000001` | ✅ 108; both rows present |
+| `library_checkout/return/renew/bulk_return` proacl | `{postgres=X,service_role=X}` | ✅ all four; anon ✗, authenticated ✗, service_role ✓ |
+| Constraint `bank_payment_verifications_url_https` | present, validated | ✅ `CHECK (verification_url ~* '^https://')`, convalidated true |
+| Edge Functions vs repo | 28 = 28, `verify_jwt` equal | ✅ no missing/extra/mismatch; manage-integration-credentials v7, record-fee-payment v7, verify-admission-bank-url v3 |
+| JWT-protected functions without a token | 401 | ✅ manage-integration-credentials, record-fee-payment |
+| Frontend | built on Vercel, from `da6055e` | ✅ `Running "npm run build"`, aliased www.edux.et |
+| Served bundle | env baked in, closeout markers, no gateway code | ✅ project ref ×21, anon JWT, "Could not save the credentials", `sms_afromessage:["sender_id"]`, the https-only rule, `noopener noreferrer` ×3, gateway identifiers 0 |
+| Fonts | real TTF | ✅ Tayitu, Jiret, Noto `00010000` |
+| Anon-executable definer functions | — | 42 (was 46; the 4 library RPCs are closed; the remaining 42 are WP-02 scope) |
+
+Raw output: `audit/evidence/wp00-closeout-deploy-20260925T072419Z.txt`. **Repo = production at `da6055e`.**
