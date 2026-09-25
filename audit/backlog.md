@@ -42,7 +42,7 @@
 | WP-01 deno check | 3 Edge Functions still fail `deno check` (baseline `supabase/security/deno_check_known.txt`): generate-payslip-pdf, issue-id-card, run-payroll (enroll-finalize-billing fixed). | WP-10 / WP-12 / WP-13 |
 | WP-01 SAST | semgrep partially parses `integrationPayload.ts` (`unique symbol`) and `timetable-pdf.ts`; those files get partial SAST coverage. | WP-13 |
 | WP-01 | `happy-dom` is now available (`// @vitest-environment happy-dom`), which unblocks the render tests in RG3-5 / TV3-2 (https-only links on the invoice and admission pages). | WP-03 / WP-12 |
-| WP-01 review AZ-1 | 39 definer functions pin `search_path=public` without `pg_temp`; tighten the guard to require `pg_temp` (or `""`) when WP-02 rewrites them. | WP-02 |
+| WP-01 review AZ-1 | ~~39 definer functions pin `search_path=public` without `pg_temp`~~ **Done in WP-02**: every definer pins `public, pg_temp`; the guard requires pg_temp last. | — |
 | WP-01 review AZ-6 / TI-6 | ACL parity covers `public` EXECUTE/SELECT/INSERT only; add UPDATE/DELETE, schema CREATE and storage grants. Add guards for `security_invoker=false` views and permissive `true` tenant policies. | WP-02 / WP-05 |
 | WP-01 review EF-1 / AZ-3 | No Deno test drives the fixed error paths in `activate-sso-user`, `process-export-job`, `process-import-job`. | WP-12 |
 | WP-01 review EF-2 / EF-3 | No `deno.lock`; `npm:@supabase/supabase-js@2` floats, so `deno check` results can drift. Baselined functions pass on any failure reason. | WP-13 |
@@ -66,3 +66,5 @@
 | WP-01 state review (SC-2) | `fail_job` / `complete_job` accept any current status (a late failure can flip a completed job); no claim lease, so a timed-out run leaves a job `processing` forever. Guard both with `where status = 'processing'` and add a `started_at` staleness sweep. | WP-10 |
 | WP-01 state review (SC-4) | Settings sections are last-writer-wins: two admins editing the same section overwrite each other (billing is built client-side from the cache). Add an expected-`updated_at` check or server-side key merges. | WP-12 |
 | WP-01 privacy review (4) | `process-export-job` writes national ID, personal email, kebele/house number, minors' ethnicity and DOB in plaintext with no formula guard; needs a data-minimisation decision and `csvCell`. | WP-12 / WP-04 / WP-10 |
+| WP-02 | Policies that apply to PUBLIC (backup_jobs, restore_jobs, roles, user_roles, system_config, feature_flags, data_jobs, system_health, health_alerts) call helpers anon can no longer execute, so an anon query on those tables now fails with 42501 instead of returning no rows. Scope those policies `to authenticated`. | WP-06 |
+| WP-02 | `verify_id_card(text)` is superseded by the `verify-id` Edge Function (verify_document) and now service_role-only; drop it with its dependants. | WP-12 |

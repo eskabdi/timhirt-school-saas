@@ -1,53 +1,53 @@
 -- ============================================================================
--- R6 WP-01 catalog guard: SECURITY DEFINER functions in public (H-01, L-07).
--- Ratchet against supabase/security/definer_*_known.sql:
---   * hard: no definer function outside the baseline is anon-executable or
---     lacks a pinned search_path (a new one is a regression, fail now);
---   * hard: every baselined entry still offends (the list only shrinks);
---   * TODO WP-02: zero offenders. When WP-02 lands these pass, the runner fails
---     on the passing TODO, and WP-02 flips them to hard assertions.
+-- R6 catalog guard: SECURITY DEFINER functions (H-01, L-07). Hard since WP-02:
+--   * EXECUTE for anon, authenticated and timhirt_view_owner matches
+--     supabase/security/definer_allowlist.sql exactly (a new definer function,
+--     which Supabase's default privileges make authenticated-executable, fails
+--     until it is reviewed and listed);
+--   * every definer function pins search_path, with pg_temp last (review AZ-1);
+--   * no definer function exists outside public (review AZ-2).
 -- Needs the Supabase-faithful grants in shim.sql, otherwise anon cannot reach
 -- the schema and every "anon cannot execute" check passes vacuously (L-08).
 -- ============================================================================
 begin;
-select plan(7);
-\ir ../../security/definer_anon_known.sql
-\ir ../../security/definer_search_path_known.sql
+select plan(6);
+\ir ../../security/definer_allowlist.sql
 
 create temp view definer_fn as
-  select p.oid, p.oid::regprocedure::text as sig, p.proconfig
+  select p.oid, regexp_replace(p.oid::regprocedure::text, '^public\.|, ', '', 'g') as sig_raw,
+         p.oid::regprocedure::text as sig, p.proconfig
   from pg_proc p join pg_namespace n on n.oid = p.pronamespace
   where n.nspname = 'public' and p.prosecdef
     and not exists (select 1 from pg_depend d
                     where d.classid = 'pg_proc'::regclass and d.objid = p.oid and d.deptype = 'e');
-create temp view anon_exec as
-  select sig from definer_fn where has_function_privilege('anon', oid, 'execute');
-create temp view no_search_path as
-  select sig from definer_fn
-  where not exists (select 1 from unnest(coalesce(proconfig, '{}')) c where c like 'search_path=%');
+-- regprocedure prints "public.f(uuid, text)" only when public is not on the
+-- search_path; normalise to "f(uuid,text)" to compare with the allow-list.
+create temp view definer_grant as
+  select replace(regexp_replace(f.sig, '^public\.', ''), ', ', ',') as sig, r.rolname::text as grantee
+  from definer_fn f cross join (values ('anon'), ('authenticated'), ('timhirt_view_owner')) r(rolname)
+  where exists (select 1 from pg_roles x where x.rolname = r.rolname)
+    and has_function_privilege(r.rolname, f.oid, 'execute');
 
-select is(array(select sig from anon_exec except select sig from known_definer_anon order by 1), '{}'::text[],
-  'no SECURITY DEFINER function outside the WP-02 baseline is executable by anon');
-select is(array(select sig from known_definer_anon except select sig from anon_exec order by 1), '{}'::text[],
-  'every baselined anon-executable definer function still is: remove fixed ones from definer_anon_known.sql');
-select is(array(select sig from no_search_path except select sig from known_definer_no_search_path order by 1), '{}'::text[],
-  'every SECURITY DEFINER function outside the WP-02 baseline pins search_path');
-select is(array(select sig from known_definer_no_search_path except select sig from no_search_path order by 1), '{}'::text[],
-  'every baselined definer function still lacks search_path: remove fixed ones from definer_search_path_known.sql');
-
--- The guards above only look at public; a definer function a migration adds
--- to any other schema would escape them (review AZ-2). The shim's own
--- auth/storage/vault stand-ins are plain SQL, so the harness count is exact.
+select is(array(select sig || ' -> ' || grantee from definer_grant
+                except select sig || ' -> ' || grantee from definer_allowlist order by 1), '{}'::text[],
+  'no SECURITY DEFINER function is executable by anon/authenticated/view owner unless allow-listed');
+select is(array(select sig || ' -> ' || grantee from definer_allowlist
+                except select sig || ' -> ' || grantee from definer_grant order by 1), '{}'::text[],
+  'every allow-list entry is a real grant (remove stale entries)');
+select is(array(select replace(regexp_replace(sig, '^public\.', ''), ', ', ',') from definer_fn
+                where has_function_privilege('anon', oid, 'execute') order by 1),
+  array['get_security_settings()'], 'anon can execute exactly one SECURITY DEFINER function (the password policy)');
+select is(array(select sig from definer_fn
+                where not exists (select 1 from unnest(coalesce(proconfig, '{}')) c
+                                  where c ~ '^search_path=(""|.*\mpg_temp)$') order by 1), '{}'::text[],
+  'every SECURITY DEFINER function pins search_path with pg_temp last');
 select is(array(select p.oid::regprocedure::text from pg_proc p join pg_namespace n on n.oid = p.pronamespace
                 where p.prosecdef and n.nspname not in ('public', 'pg_catalog', 'information_schema')
                   and not exists (select 1 from pg_depend d where d.classid = 'pg_proc'::regclass and d.objid = p.oid and d.deptype = 'e')
                 order by 1), '{}'::text[],
   'no SECURITY DEFINER function outside public (extensions aside)');
-
-select todo('WP-02: revoke EXECUTE from anon on every SECURITY DEFINER function', 1);
-select is((select count(*)::int from anon_exec), 0, 'no SECURITY DEFINER function in public is executable by anon');
-select todo('WP-02: pin search_path on every SECURITY DEFINER function', 1);
-select is((select count(*)::int from no_search_path), 0, 'every SECURITY DEFINER function in public pins search_path');
+select is(array(select reason from definer_allowlist where coalesce(btrim(reason), '') = ''), '{}'::text[],
+  'every allow-list entry states a reason');
 
 select * from finish();
 rollback;

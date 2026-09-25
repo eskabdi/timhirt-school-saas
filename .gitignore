@@ -18,3 +18,4 @@ i18n-review*.csv
 # Deploy tokens staged transiently during a deploy, shredded immediately after use
 .deploy-secrets/
 __pycache__/
+node_modules
