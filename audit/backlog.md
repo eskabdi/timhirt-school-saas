@@ -35,3 +35,5 @@
 | WP-00 r3 RG3-5 | No render test for the https-only link branches on InvoiceDetailPage / AdmissionDetailPage. There is no DOM test library in the repo yet. | WP-01 / WP-12 |
 | WP-00 gatekeeper G3-3 | No test covers the wiring in `record-fee-payment` / `verify-admission-bank-url` `index.ts` (the call into `checkAndStoreBankUrl`, and that a throw there still leaves the payment recorded). Pair it with RG3-5. | WP-03 |
 | WP-00 DR-1 follow-up | A self-signed-up auth account (created 2026-08-06, no `public.users` profile) exists from when sign-up was open. The owner should identify it and delete it if unknown. | Owner |
+| WP-00 gatekeeper GK-F1 | The owner's first sign-up change reverted in the dashboard. At WP-01 start, re-read `disable_signup` and re-run the 422 `/auth/v1/signup` probe; add both to the WP-19 config-drift check. | WP-01 / WP-19 |
+| WP-00 gatekeeper GK-F4 | Embed the git commit SHA in the frontend bundle (e.g. `VITE_COMMIT_SHA`) so deploy verification can grep for the exact commit. | WP-01 |

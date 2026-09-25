@@ -341,3 +341,30 @@ The owner disabled public sign-up; the first attempt reverted in the dashboard a
 Evidence: `audit/evidence/wp00-dr1-signup-disabled-20260925T072554Z.txt`. Owner follow-up: identify and delete the self-signed-up account from 2026-08-06 if it is unknown.
 
 **With DR-4 (deployed) and DR-1 (disabled) both closed, no owner-only item remains for WP-00.** The final gatekeeper stated: "WP-00 becomes PASS with no code change once DR-4 and DR-1 are each deployed or accepted."
+
+### Release gatekeeper — WP-00 final verdict (2026-09-25, HEAD `91fcdc7`): **PASS**
+
+The diff since `ebb48a5` is records and evidence only. There is no code change between the deployed commit `da6055e` and HEAD.
+- **DR-4 closed, verified-prod.** `library_*` proacl is service_role-only. Anon-executable definer functions went from 46 to 42. The https CHECK is validated. Evidence: `wp00-closeout-deploy-20260925T072419Z.txt`.
+- **G-09 closed.** All four exit checks are in the evidence: proacl, the constraint, the 401 probes and the `platformPagesX.saveFailed` bundle marker. Production has 108 migrations and 28/28 functions with matching `verify_jwt`.
+- **DR-1 closed.** The Management API reads back `disable_signup = true`, and a live sign-up probe returned 422 `signup_disabled`. Evidence: `wp00-dr1-signup-disabled-20260925T072554Z.txt`.
+
+**Gates re-run:** typecheck 0, Vitest 56/56, Deno 22/22. pgTAP was not re-run (no SQL change since the last run).
+
+**New minors:**
+- GK-F1: re-check `disable_signup` and the 422 probe when WP-01 starts.
+- GK-F2: the profile-less self-signed-up account from 2026-08-06; the owner should delete it.
+
+**Info:**
+- GK-F3: the two migrations were applied in separate transactions, not one.
+- GK-F4: the frontend's commit identity is inferred from bundle markers; embed the SHA from WP-01 on.
+- GK-F5: production claims were verified from the committed evidence only.
+- GK-F6: the plan's gap table still shows G-09 as open.
+
+**Residual risks:**
+- H-01: 42 anon-executable definer functions (WP-02).
+- D-02: no staging. D-03: no PITR.
+- DR-2 and DR-3.
+- RV-05: the ledger part (WP-08).
+
+**WP-00: PASS.**
