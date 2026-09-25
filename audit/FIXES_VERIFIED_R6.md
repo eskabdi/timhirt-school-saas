@@ -284,7 +284,7 @@ Round-3 verdicts are saved as written under `audit/evidence/reviews/wp00-r3-*.md
 | security-reviewer | PASS | SR3-1 fixed: the JS https rule now matches the DB CHECK exactly (literal prefix, no whitespace), both writers `.trim()`, and write errors are checked. SR3-2: a pre-apply re-count step added to the deploy order |
 | insa-docs-auditor | PASS (docs) | WP00-R3-1, R3-3 and R3-4 fixed. R3-2: this directory now exists |
 | regression-guardian | PASS (code) | RG3-1/RG3-2 fixed: a non-https URL returns failed/`https_required` again (no bare 400); the fee payment is still recorded, and the URL is never stored. RG3-3 fixed with TV3-1. RG3-5 → backlog |
-| test-verifier | FAIL | TV3-1 (major) fixed: both writers now use `checkAndStoreBankUrl`, covered by `bank-verification-record.test.ts` (10 tests; mutations fail 6 and 1). TV3-2 → backlog (no DOM test library yet). TV3-3: a `typecheck` script was added. TV3-4: noted; reviewers now judge the frozen final SHA |
+| test-verifier | FAIL | TV3-1 (major) fixed: both writers now use `checkAndStoreBankUrl`, covered by `bank-verification-record.test.ts` (9 tests; mutations fail 6 and 1). TV3-2 → backlog (no DOM test library yet). TV3-3: a `typecheck` script was added. TV3-4: noted; reviewers now judge the frozen final SHA |
 
 **Gate (local, after all fixes):**
 - `tsc` 0; `eslint src` 0.
@@ -293,3 +293,30 @@ Round-3 verdicts are saved as written under `audit/evidence/reviews/wp00-r3-*.md
 - pgTAP on a fresh DB: 108 migrations, 56/56 suites.
 
 The §0A.1 review cap (3 rounds) is now reached. The TV3-1 fix after round 3 goes to the release gatekeeper directly, together with the owner items.
+
+### Release gatekeeper — WP-00 final consolidation (2026-09-25, HEAD `ebb48a5`): FAIL (owner-only)
+
+**Verified in code and tests:**
+- TV3-1: both writers call `_shared/bank-verification-record.ts`. Mutation check: removing the https branch fails 6/9 tests; removing the write-error throw fails 1/9.
+- SR3-1 and RG3-1/2.
+- GK-7 FS-1: two renderers, both via `httpsHref`; the DB CHECK has a 5-assertion suite.
+- GK-8: 5 round-3 verdicts. The post-cap TV3-1 fix was verified by the gatekeeper's own mutation check.
+- GK-9.
+
+**Gates re-run:** typecheck 0, Vitest 56/56, Deno 22/22, deno check OK on 3 functions. pgTAP was not re-run by the gatekeeper; the 108 migrations / 56 suites figure is the implementer's.
+
+**Implementer items open:** none (blocker/major). New minors: G3-1 (the record said 10 Deno tests; the actual count is 9, now corrected), G3-2 (implementer annotations inside "verbatim" verdicts; see the note in `audit/evidence/reviews/`), G3-3 (writer `index.ts` wiring untested; → backlog with RG3-5).
+
+**Owner items blocking PASS:**
+- DR-4: after a zero-row non-https re-count, deploy the undeployed set (20260924000002, 20260925000001, the three Edge Functions, the frontend), then commit the proacl and constraint evidence. Or record a D-xx acceptance.
+- DR-1: disable public sign-up, commit the auth-config evidence, and identify the 2 profile-less accounts. Or record a D-xx acceptance.
+
+**Residual risks live today:**
+- DR-4: anon library writes across tenants.
+- FS-1: stored XSS in prod (fix not yet deployed).
+- DR-1: open sign-up.
+- 46/65 definer functions anon-executable (WP-02).
+- D-03: no PITR.
+- D-02: no staging.
+
+WP-00 becomes PASS with no code change once DR-4 and DR-1 are each deployed or accepted.

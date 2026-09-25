@@ -33,3 +33,4 @@
 | WP-00 r3 AZ-R3-4 | `manage-integration-credentials` (Vault writer) must move to `requireAccess` with a fresh aal2 challenge and an `imp_mode=read` rejection when WP-06 introduces them (plan WP-06 item 5). | WP-06 |
 | WP-00 r3 RG3-3 / TV3-1 | ~~No test covers the writers' https guard~~ **Fixed**: both writers call `_shared/bank-verification-record.ts` (`checkAndStoreBankUrl`), which has its own Deno tests. Removing the https branch fails 6 of them; removing the write-error check fails 1. | — |
 | WP-00 r3 RG3-5 | No render test for the https-only link branches on InvoiceDetailPage / AdmissionDetailPage. There is no DOM test library in the repo yet. | WP-01 / WP-12 |
+| WP-00 gatekeeper G3-3 | No test covers the wiring in `record-fee-payment` / `verify-admission-bank-url` `index.ts` (the call into `checkAndStoreBankUrl`, and that a throw there still leaves the payment recorded). Pair it with RG3-5. | WP-03 |
