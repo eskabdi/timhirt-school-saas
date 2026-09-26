@@ -5,7 +5,7 @@
 -- for its school_admin.
 -- ============================================================================
 begin;
-select plan(9);
+select plan(10);
 
 insert into public.tenants (id, name, slug) values
   ('00000000-0000-0000-0000-00000000d5a0', 'Merge A', 'merge-a'),
@@ -43,6 +43,14 @@ select throws_ok($$ select public.merge_tenant_settings('branding', '{"schoolNam
 reset role;
 select is((select settings -> 'branding' ->> 'schoolName' from public.tenant_configs where tenant_id = '00000000-0000-0000-0000-00000000d5a0'), 'A',
   '... and nothing changed');
+
+-- Release gate GK-4: a malformed (non-object) settings value becomes an object.
+update public.tenant_configs set settings = '[1]' where tenant_id = '00000000-0000-0000-0000-00000000d5b0';
+set local role authenticated;
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-00000000d5b1';
+select is(public.merge_tenant_settings('billing', '{"blockUnpaidBalance": false}'), '{"billing": {"blockUnpaidBalance": false}}'::jsonb,
+  'a non-object settings value is replaced by an object, not turned into an array');
+reset role;
 
 set local role anon;
 set local request.jwt.claim.sub = '';

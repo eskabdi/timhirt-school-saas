@@ -71,10 +71,16 @@ export function FeeStructuresPage() {
   // from the portal (AcademicRecordTab.tsx). Staff are never blocked; this
   // never restricts what data is visible, only the PDF download action, so
   // it lives in tenant_configs.settings rather than requiring an RLS change.
+  // A load error is thrown, not swallowed into "no row", so the toggle stays
+  // disabled after a failed load (release gate GK-1/GK-5).
   const { data: brandConfig, isSuccess: brandConfigLoaded } = useQuery({
     queryKey: ["tenant-config", profile?.tenant_id],
     enabled: !!profile?.tenant_id,
-    queryFn: async () => (await supabase.from("tenant_configs").select("settings").eq("tenant_id", profile!.tenant_id!).maybeSingle()).data,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("tenant_configs").select("settings").eq("tenant_id", profile!.tenant_id!).maybeSingle();
+      if (error) throw error;
+      return data;
+    },
   });
   const blockUnpaidBalance = !!(brandConfig?.settings as { billing?: { blockUnpaidBalance?: boolean } } | undefined)?.billing?.blockUnpaidBalance;
   const toggleBlockUnpaid = useMutation({

@@ -35,7 +35,10 @@ begin
   end if;
 
   update public.tenant_configs
-     set settings = coalesce(settings, '{}'::jsonb) || jsonb_build_object(p_section, p_value),
+     -- A non-object settings value (never written by the app) is replaced, not
+     -- concatenated into an array (release gate GK-4).
+     set settings = (case when jsonb_typeof(settings) = 'object' then settings else '{}'::jsonb end)
+                    || jsonb_build_object(p_section, p_value),
          updated_at = now()
    where tenant_id = v_tenant
   returning settings into v_settings;

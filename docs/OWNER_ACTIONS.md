@@ -53,6 +53,15 @@ Last updated: 2026-09-26 (WP-01 round 3; WP-02 and WP-09 in progress).
   initials, now per language (Sunday first): am `እ ሰ ማ ረ ሐ ዓ ቅ`,
   om `D W K R K J S`. Reply with corrections or "OK".
 
+- [ ] **B4. WP-01 review limit (release gate finding GK-2).** The fix plan
+  allows 3 review rounds per work package. Round 3's fixes added a new
+  database function (`merge_tenant_settings`, migration `20260925000003`)
+  that only the final gatekeeper has reviewed; it found and Claude fixed one
+  more bug in it. Choose: **A)** accept the gatekeeper's review for that
+  code (PR #9 can then be merged), or **B)** authorise one targeted re-review
+  of just the round-3 changes (database, permissions and tenant isolation
+  reviewers). Tell Claude "B4 A" or "B4 B".
+
 ## C. Accounts, services and money (Claude cannot create these)
 
 - [ ] **C1. Staging environment (plan WP-17 / WP-19).** Create a second

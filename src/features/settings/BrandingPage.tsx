@@ -38,12 +38,20 @@ export function BrandingPage() {
   const logoInput = useRef<HTMLInputElement>(null);
   const sealInput = useRef<HTMLInputElement>(null);
 
-  const { data: config, isSuccess: configLoaded } = useQuery({
-    queryKey: ["tenant-config", profile?.tenant_id],
+  // Own cache key: the sidebar caches settings-only rows under
+  // ["tenant-config", id], and reading one of those here would show an empty
+  // school type that Save would then write back. A load error is thrown, not
+  // swallowed into "no row", so Save stays disabled (release gate GK-1).
+  const { data: config, isSuccess: configLoaded, isError: configLoadFailed } = useQuery({
+    queryKey: ["tenant-config", profile?.tenant_id, "branding-page"],
     enabled: !!profile?.tenant_id,
-    queryFn: async () => (await supabase.from("tenant_configs")
-      .select("settings, school_type_key, operational_mode_key")
-      .eq("tenant_id", profile!.tenant_id!).maybeSingle()).data,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("tenant_configs")
+        .select("settings, school_type_key, operational_mode_key")
+        .eq("tenant_id", profile!.tenant_id!).maybeSingle();
+      if (error) throw error;
+      return data;
+    },
   });
   // Platform-wide reference catalogs (§ school_types/operational_modes,
   // 20260810000001) -- same shape as the modules/subscription_tiers pattern,
@@ -132,6 +140,7 @@ export function BrandingPage() {
           <h1 className="font-display text-3xl font-bold text-ink">{t("branding.title")}</h1>
           <p className="text-ink-faint">{t("branding.subtitle")}</p>
           <p className="mt-1 text-xs text-ink-faint">{t("branding.breadcrumb")}</p>
+          {configLoadFailed && <p role="alert" className="mt-2 text-sm text-danger">{t("calendarPrefs.loadFailed")}</p>}
         </div>
         <div className="flex gap-2">
           <Button variant="ghost" className="border border-line" onClick={() => { setB(DEFAULTS); setSchoolTypeKey(""); setOperationalModeKey(""); }}>{t("branding.resetDefault")}</Button>

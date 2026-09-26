@@ -525,9 +525,22 @@ Verdicts in `audit/evidence/reviews/wp01-r3-*.md`. db-migration and regression-g
 
 ### Gate after round 3 (local)
 
-- typecheck 0; `eslint src` 0 errors, 0 warnings; Vitest 13 files / 86 tests; `check:i18n` 0; `check:locales` OK (common 2189, apply 135, calendar 44); build OK.
+- typecheck 0; `eslint src` 0 errors, 0 warnings; Vitest 14 files / 88 tests (after the release-gate fix); `check:i18n` 0; `check:locales` OK (common 2189, apply 135, calendar 44); build OK.
 - conventions self-test ok and 0 findings; pinned-actions ok (7 uses, 1 pip install hash-locked); semgrep rule test 16/0/0; gitleaks clean; no-payment-gateway ok.
 - `deno-check.sh` OK (28 functions, 3 baselined); Deno tests 31/31.
 - pgTAP: 110 migrations, 63/63 suites; catalog TODOs unchanged (definer 2, RLS 1, module gate 1, storage 1).
 
 **Deploy note (round 3).** Two migrations (`20260925000002`, `20260925000003`), then the frontend straight after (the old settings page reads only camelCase), and the same 9 Edge Functions as round 2 (`onboard-tenant` now also imports `_shared/onboard-rollback.ts`). Pre/post checks as in round 2, plus: `select has_function_privilege('authenticated', 'public.merge_tenant_settings(text,jsonb)', 'execute')` = true and for `anon` = false.
+
+### Release gate (at 5829420): FAIL, and what followed
+
+Verdict: `audit/evidence/reviews/wp01-r3-release-gatekeeper.md`. The gatekeeper re-ran every gate (all green) and confirmed every round-3 major closed by mutation or planted policies. It failed the WP on:
+
+| Finding | Severity | Status |
+|---|---|---|
+| GK-1: Branding and Fee structures swallowed a failed settings load (`.data` without checking `error`), so the "Save waits for the load" gate never engaged and Save could write default branding over a school's own | major | **Fixed.** Both queries throw on error; Branding shows the load-error alert; Branding and Classes get their own cache sub-keys (the old shared key could hand Branding a settings-only row and blank the school type on Save). `BrandingPage.test.tsx` 2/2; the pre-fix page fails it. |
+| GK-4: `merge_tenant_settings` turned a non-object `settings` into an array | minor | **Fixed** in `20260925000003` (non-object is replaced). `tenant_settings_merge.sql` 10/10. |
+| GK-5: Fee structures toggle after a failed load | minor | Fixed with GK-1. |
+| GK-7: open minors missing from the backlog | minor | Added to `audit/backlog.md`. GK-6 (Branding's two writes) is there for WP-12. |
+| GK-3: path-triggered reviewers (payments-integrity, privacy-guardian, state-concurrency) never ran | major (process) | Run after this fix; verdicts in `audit/evidence/reviews/wp01-r3-*.md`. |
+| GK-2: nobody but the gatekeeper reviewed the round-3 fix commit (new migration and RPC), and §0A.1 allows no 4th round | major (process) | **Owner decision**: `docs/OWNER_ACTIONS.md` B4. |
