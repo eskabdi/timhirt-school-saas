@@ -95,6 +95,14 @@ jobs:
           PGPASSWORD: postgres
           PGDATABASE: postgres
         run: bash supabase/tests/run.sh
+      - name: Every app RPC is executable by authenticated (R6 WP-02)
+        env:
+          PGHOST: localhost
+          PGPORT: "5432"
+          PGUSER: postgres
+          PGPASSWORD: postgres
+          PGDATABASE: postgres
+        run: python3 scripts/ci/app-rpc-grants.py
 
   # Secret scan and SAST (R6 WP-01). Both tools are proven to fail on planted
   # findings; see audit/FIXES_VERIFIED_R6.md (WP-01).

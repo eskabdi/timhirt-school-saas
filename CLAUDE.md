@@ -128,8 +128,19 @@ reason, in `supabase/security/definer_allowlist.sql`;
 migration that adds a definer function must `revoke execute … from public,
 anon, authenticated`, pin `set search_path = public, pg_temp`, and re-grant
 only what the allow-list says. Helpers that take a user or tenant id must
-answer only for the caller when `current_setting('role')` is `authenticated`
-or `anon` (see `20260926000001_r6_definer_lockdown.sql`).
+answer only for the caller unless `current_setting('role')` is one of the
+trusted contexts (`none`, `service_role`, `postgres`, `supabase_admin`) — an
+allow-list, so an unexpected role is treated as an end user (see
+`20260926000001_r6_definer_lockdown.sql`).
+
+**Every new function starts closed (R6 WP-02).** postgres's default
+privileges no longer grant EXECUTE to PUBLIC, anon or authenticated in
+`public`, so a function a migration creates — definer or invoker — is callable
+only by service_role until the migration grants it. An RPC the app calls
+needs `grant execute … to authenticated`; `scripts/ci/app-rpc-grants.py`
+fails CI when an app `supabase.rpc()` target is not executable by
+authenticated. A pgTAP helper created in `pg_temp` and called while acting as
+a user needs a grant too.
 
 **Known gaps are TAP TODOs, not skipped tests.** A `todo('WP-xx: …')` assertion
 that fails is reported and tolerated; one that passes fails the suite, so
@@ -156,6 +167,7 @@ npm run check:i18n                  # must be 0
 npm run check:locales               # parity + no wholesale reformat
 npm run build
 PGHOST=… ./supabase/tests/run.sh    # 113 migrations + 65 pgTAP suites
+python3 scripts/ci/app-rpc-grants.py      # after run.sh, same PG* env
 bash scripts/ci/deno-check.sh       # Edge Function types (ratchet)
 python3 scripts/ci/semgrep-rule-test.py   # needs semgrep 1.95.0
 ```

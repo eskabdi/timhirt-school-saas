@@ -66,6 +66,9 @@ begin
   perform set_config('request.jwt.claim.sub', coalesce(p::text, ''), true);
   execute 'set local role ' || case when p is null then 'anon' else 'authenticated' end;
 end $$;
+-- New functions start closed since R6 WP-02; the switcher is called again
+-- while already acting as a user.
+grant execute on function pg_temp.act_as(uuid) to anon, authenticated;
 
 -- =============================================== manual_payment_accept ======
 select pg_temp.act_as('0000000e-0000-0000-0000-0000000a0003');   -- accountant 1 (maker)

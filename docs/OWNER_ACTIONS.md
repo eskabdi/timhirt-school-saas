@@ -109,6 +109,12 @@ Last updated: 2026-09-26 (WP-01 round 3; WP-02 and WP-09 in progress).
   API key or webhook through the environment secrets.
 - [ ] **C4. Operator MFA.** Turn on MFA for every person with access to the
   production Supabase dashboard, the Vercel team and GitHub.
+- [ ] **C5. Make CI a required check (review WP-02 AZ-6).** In GitHub →
+  Settings → Branches, protect `main` and `fix/production-readiness-r6`:
+  require a pull request, and require the three CI jobs `build-and-test`,
+  `rls-tests` and `security-scan` to pass before merging. Claude cannot see or change
+  branch protection from this session. Without it, a red database-security
+  check can still be merged.
 
 ## D. Legal, people and external parties
 

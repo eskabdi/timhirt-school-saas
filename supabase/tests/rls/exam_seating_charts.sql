@@ -100,7 +100,7 @@ set local request.jwt.claim.sub = 'e5f00001-0000-0000-0000-000000000001'; -- ten
 
 select throws_ok(
   $$ select public.auto_assign_exam_seats('e5e50000-0000-0000-0000-000000000001', 2, 2) $$,
-  'P0001', 'cross_tenant_denied', 'a tenant B admin cannot auto-assign seats for a tenant A exam'
+  'P0001', 'exam_not_found', 'a tenant B admin cannot auto-assign seats for a tenant A exam (it reads as not found)'
 );
 
 reset role;

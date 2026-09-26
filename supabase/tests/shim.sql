@@ -44,7 +44,7 @@ alter role service_role bypassrls;
 -- shim used to grant nothing on `public`, so anon could not even reach the
 -- schema and every "anon cannot call X" probe passed vacuously: that is how
 -- H-01 (46 anon-executable SECURITY DEFINER functions in production before
--- WP-00 revoked four; 42 remain, see supabase/security/definer_anon_known.sql) stayed
+-- WP-00 revoked four; R6 WP-02 closed the other 42, see definer_allowlist.sql) stayed
 -- invisible to a green harness. This must run before any migration creates
 -- objects, and as the role that owns them (postgres), exactly like production.
 -- Global defaults are stored per role, not per schema, so they outlive the

@@ -169,7 +169,7 @@ declare
   v_cfg jsonb;
   v_threshold numeric := 0;
 begin
-  if coalesce(current_setting('role', true), 'none') in ('authenticated', 'anon')
+  if coalesce(current_setting('role', true), 'none') not in ('none', 'service_role', 'postgres', 'supabase_admin')
      and p_tenant is distinct from public.get_tenant_id_for_user(auth.uid()) then
     return null;
   end if;
@@ -198,7 +198,7 @@ returns boolean language sql stable security definer set search_path = public, p
   select coalesce(t.results_published, false)
   from public.exams e join public.academic_terms t on t.id = e.academic_term_id
   where e.id = p_exam_id
-    and (coalesce(current_setting('role', true), 'none') not in ('authenticated', 'anon')
+    and (coalesce(current_setting('role', true), 'none') in ('none', 'service_role', 'postgres', 'supabase_admin')
          or e.tenant_id = public.get_tenant_id_for_user(auth.uid()))
 $$;
 

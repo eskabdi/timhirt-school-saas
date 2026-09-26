@@ -22,17 +22,21 @@
 --      matches it exactly):
 --        authenticated — RLS helpers called by policies, and the RPCs the app
 --                        calls directly;
---        anon          — get_security_settings() only (the password policy is
---                        shown on the invite page before a session exists);
+--        anon          — nothing;
 --        timhirt_view_owner — the three helpers its view policies call.
 --      service_role keeps its explicit grant on everything (Edge Functions).
 --      Trigger functions need no grant: EXECUTE is checked at CREATE TRIGGER.
 --   3. Makes the helpers that take a user or tenant id answer only for the
---      caller (or for any id when there is no end-user JWT, i.e. service_role
---      and cron), and scopes the job/alert RPCs to the caller's tenant.
---   4. Leaves default privileges alone (see step 4); CI guards new functions.
+--      caller (or for any id in a trusted context: service_role, cron,
+--      migrations), scopes the job/alert RPCs to the caller's tenant and
+--      validates their input, keeps the login thresholds from end users, and
+--      drops the three table policies that let any role write what the
+--      locked-down RPCs guard (health_alerts, system_health, data_jobs).
+--   4. Makes future functions start closed: postgres's default privileges no
+--      longer grant EXECUTE to PUBLIC, anon or authenticated in public.
 --   5. FORCE ROW LEVEL SECURITY on the 11 tables that lacked it (their owner,
---      postgres, has BYPASSRLS, so migrations and cron are unaffected).
+--      postgres, has BYPASSRLS in production, so migrations and cron are
+--      unaffected; audit/evidence/wp02-prod-owners-bypassrls-defacl-*.txt).
 --
 -- Validated on the harness (Supabase-faithful grants, R6 WP-01): the full
 -- pgTAP run stays green, which proves the allow-list is complete for every
@@ -64,10 +68,13 @@ end $$;
 -- End users reach the database as the `authenticated` or `anon` role (PostgREST
 -- SET ROLE). Inside a SECURITY DEFINER function current_user is the owner, but
 -- the `role` setting still names the invoking role, so it tells an end user
--- apart from service_role (Edge Functions), postgres and cron, which are
--- trusted with any id. An end user only ever gets answers about themselves,
--- or (role/tenant) about a user in their own tenant, which is what the
--- messages recipient policy needs.
+-- apart from the trusted contexts: service_role (Edge Functions), and a
+-- session that never SET ROLE ('none': migrations, cron, direct postgres
+-- connections) or runs as postgres/supabase_admin. The trusted set is an
+-- allow-list (review TI-5/SEC-6): any other role, including one added later,
+-- gets the end-user answer. An end user only ever gets answers about
+-- themselves, or (role/tenant) about a user in their own tenant, which is what
+-- the messages recipient policy needs.
 
 create or replace function public.get_email_for_user(user_id uuid)
 returns text
@@ -78,7 +85,7 @@ set search_path = public, pg_temp
 as $$
   select u.email from public.users u
   where u.id = user_id
-    and (user_id = auth.uid() or coalesce(current_setting('role', true), 'none') not in ('authenticated', 'anon'))
+    and (user_id = auth.uid() or coalesce(current_setting('role', true), 'none') in ('none', 'service_role', 'postgres', 'supabase_admin'))
 $$;
 
 create or replace function public.get_tenant_id_for_user(user_id uuid)
@@ -100,7 +107,7 @@ as $$
     )
     and (
       user_id = auth.uid()
-      or coalesce(current_setting('role', true), 'none') not in ('authenticated', 'anon')
+      or coalesce(current_setting('role', true), 'none') in ('none', 'service_role', 'postgres', 'supabase_admin')
       or u.tenant_id = (select c.tenant_id from public.users c where c.id = auth.uid())
     )
 $$;
@@ -117,7 +124,7 @@ as $$
   where u.id = user_id
     and (
       user_id = auth.uid()
-      or coalesce(current_setting('role', true), 'none') not in ('authenticated', 'anon')
+      or coalesce(current_setting('role', true), 'none') in ('none', 'service_role', 'postgres', 'supabase_admin')
       or u.tenant_id = (select c.tenant_id from public.users c where c.id = auth.uid())
     )
 $$;
@@ -132,7 +139,7 @@ stable
 security definer
 set search_path = public, pg_temp
 as $$
-  select case when coalesce(current_setting('role', true), 'none') in ('authenticated', 'anon') and p_user_id is distinct from auth.uid() then null else coalesce(
+  select case when coalesce(current_setting('role', true), 'none') not in ('none', 'service_role', 'postgres', 'supabase_admin') and p_user_id is distinct from auth.uid() then null else coalesce(
     (select upo.granted
      from public.user_permission_overrides upo
      join public.permissions p on p.id = upo.permission_id
@@ -175,7 +182,7 @@ security definer
 set search_path = public, pg_temp
 as $$
   select case
-    when coalesce(current_setting('role', true), 'none') in ('authenticated', 'anon')
+    when coalesce(current_setting('role', true), 'none') not in ('none', 'service_role', 'postgres', 'supabase_admin')
          and p_tenant_id is distinct from public.get_tenant_id_for_user(auth.uid())
          and public.get_role_for_user(auth.uid()) is distinct from 'super_admin'
       then false
@@ -205,6 +212,10 @@ begin
      or public.get_role_for_user(auth.uid()) is distinct from 'school_admin' then
     raise exception 'permission denied for tenant' using errcode = '42501';
   end if;
+  -- The entity types process-export-job knows (review AC-6).
+  if p_entity_type is null or p_entity_type not in ('students', 'teachers', 'fees') then
+    raise exception 'invalid entity type' using errcode = '22023';
+  end if;
   insert into public.data_jobs (tenant_id, user_id, job_type, entity_type, total_rows)
   values (p_tenant_id, auth.uid(), 'export', p_entity_type, 0)
   returning id into v_job_id;
@@ -224,6 +235,14 @@ begin
   if p_tenant_id is distinct from public.get_tenant_id_for_user(auth.uid())
      or public.get_role_for_user(auth.uid()) is distinct from 'school_admin' then
     raise exception 'permission denied for tenant' using errcode = '42501';
+  end if;
+  -- The entity types process-import-job knows, and the data-imports bucket's
+  -- 5 MB object limit (review AC-6).
+  if p_entity_type is null or p_entity_type not in ('students', 'teachers', 'fees') then
+    raise exception 'invalid entity type' using errcode = '22023';
+  end if;
+  if p_file_size is null or p_file_size < 0 or p_file_size > 5242880 then
+    raise exception 'invalid file size' using errcode = '22023';
   end if;
   insert into public.data_jobs (tenant_id, user_id, job_type, entity_type, file_size)
   values (p_tenant_id, auth.uid(), 'import', p_entity_type, p_file_size)
@@ -250,9 +269,12 @@ begin
 end;
 $$;
 
--- Anyone may read the password policy (the invite page shows it before a
--- session exists); login thresholds and the session timeout only for a
--- signed-in user.
+-- Signed-in users only (no anon grant: every page that shows the password
+-- policy, invite acceptance included, has a session; reviews SEC-2/AZ-5). A
+-- signed-in user gets what the app uses, the password policy and the session
+-- timeout. The login lockout thresholds are an oracle for pacing a
+-- password-guessing run (L-07), so only super_admin (who sets them) and the
+-- trusted contexts get those (reviews SEC-3/AZ-4/AC-2/TI-4).
 create or replace function public.get_security_settings()
 returns jsonb
 language sql
@@ -270,8 +292,86 @@ as $$
       'password_min_length', 'password_require_uppercase',
       'password_require_numbers', 'password_require_special'
     )
-    and (coalesce(current_setting('role', true), 'none') <> 'anon' or key like 'password\_%')
+    and (key like 'password\_%'
+         or key = 'session_timeout_minutes'
+         or coalesce(current_setting('role', true), 'none') in ('none', 'service_role', 'postgres', 'supabase_admin')
+         or public.get_role_for_user(auth.uid()) = 'super_admin')
 $$;
+
+-- attendance_retroactive_edit_gate passes the row's tenant, which is always
+-- the caller's own. Called directly with another tenant's id it answered with
+-- that tenant's setting (review TI-1); an end user now gets the platform
+-- default (7) for any tenant but their own.
+create or replace function public.attendance_retroactive_edit_window_days(p_tenant_id uuid)
+returns int
+language sql
+stable
+security definer
+set search_path = public, pg_temp
+as $$
+  select coalesce(
+    (select (tc.settings->>'attendance_retroactive_edit_days')::int
+     from public.tenant_configs tc
+     where tc.tenant_id = p_tenant_id
+       and (coalesce(current_setting('role', true), 'none') in ('none', 'service_role', 'postgres', 'supabase_admin')
+            or p_tenant_id = public.get_tenant_id_for_user(auth.uid()))),
+    7
+  );
+$$;
+
+-- auto_assign_exam_seats (20260825000001) answered 'exam_not_found' for a
+-- missing id and 'cross_tenant_denied' for another tenant's, which confirmed
+-- that the other tenant's exam exists (review TI-2/AC-7). Both are now
+-- 'exam_not_found'; the body is otherwise unchanged.
+create or replace function public.auto_assign_exam_seats(p_exam_id uuid, p_rows integer, p_cols integer)
+returns integer
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_tenant_id uuid; v_class_id uuid; v_role text;
+  v_student record; v_seq int := 0; v_assigned int := 0;
+begin
+  select tenant_id, class_id into v_tenant_id, v_class_id from public.exams where id = p_exam_id;
+  if v_tenant_id is null
+     or v_tenant_id is distinct from (select public.get_tenant_id_for_user(auth.uid())) then
+    raise exception 'exam_not_found';
+  end if;
+  v_role := (select public.get_role_for_user(auth.uid()));
+  if v_role is distinct from 'school_admin' and not public.is_teacher_of_class(v_class_id) then
+    raise exception 'not_authorized';
+  end if;
+  if v_class_id is null then raise exception 'exam_has_no_class'; end if;
+  if p_rows < 1 or p_cols < 1 then raise exception 'invalid_grid'; end if;
+
+  delete from public.exam_seat_assignments where exam_id = p_exam_id;
+
+  for v_student in
+    select id from public.students where class_id = v_class_id
+    order by nullif(roll_number, '')::int nulls last, last_name, first_name
+  loop
+    if v_seq >= p_rows * p_cols then exit; end if;
+    insert into public.exam_seat_assignments (tenant_id, exam_id, student_id, seat_label)
+    values (v_tenant_id, p_exam_id, v_student.id, format('R%sC%s', v_seq / p_cols + 1, v_seq % p_cols + 1));
+    v_seq := v_seq + 1;
+    v_assigned := v_assigned + 1;
+  end loop;
+
+  return v_assigned;
+end;
+$$;
+
+-- RLS/RPC parity (review AZ-1/AC-5): the job and health RPCs are service_role
+-- or school_admin only, but three table policies let any role in a tenant
+-- write the same rows directly (a student could plant a "critical" alert, or
+-- a "completed" export job pointing at any storage path the school admin's
+-- page would then sign). Nothing in the app writes these tables directly:
+-- create_*_job is the only client path for data_jobs, and alerts and metrics
+-- come from service_role (which bypasses RLS).
+drop policy if exists health_alerts_insert on public.health_alerts;
+drop policy if exists system_health_insert on public.system_health;
+drop policy if exists data_jobs_write on public.data_jobs;
 
 -- CREATE OR REPLACE keeps existing grants, but step 1 already ran, so the
 -- replaced functions are closed too. Re-close in case a body above was new.
@@ -279,7 +379,8 @@ revoke execute on function
   public.get_email_for_user(uuid), public.get_tenant_id_for_user(uuid), public.get_role_for_user(uuid),
   public.has_module(uuid, text), public.has_resource_permission(uuid, text, text), public.create_export_job(uuid, text),
   public.create_import_job(uuid, text, integer), public.acknowledge_alert(uuid),
-  public.get_security_settings()
+  public.get_security_settings(), public.attendance_retroactive_edit_window_days(uuid),
+  public.auto_assign_exam_seats(uuid, integer, integer)
 from public, anon, authenticated;
 
 -- 2. Re-grant from the allow-list (keep in step with
@@ -313,23 +414,36 @@ grant execute on function
   public.get_student_grade_history(uuid)
 to authenticated;
 
-grant execute on function public.get_security_settings() to anon;
-
 -- The definer-rights HR/clinic views run their policies as their owner.
 grant execute on function
   public.get_tenant_id_for_user(uuid), public.get_role_for_user(uuid), public.jwt_user_id()
 to timhirt_view_owner;
 
--- 4. Future functions: guarded in CI, not by default privileges -----------
--- PostgreSQL grants EXECUTE to PUBLIC on every new function unless the
--- *global* default privileges say otherwise, and a schema-scoped
--- `ALTER DEFAULT PRIVILEGES … IN SCHEMA public REVOKE … FROM public` cannot
--- remove a global default. Revoking it globally for postgres would also close
--- every future function postgres creates in other schemas (extensions), so
--- this migration does not. Instead catalog_definer_security.sql fails CI on
--- any SECURITY DEFINER function whose EXECUTE for anon, authenticated or the
--- view owner is not in supabase/security/definer_allowlist.sql, so a new one
--- cannot ship open. Every new definer migration must revoke and re-grant.
+-- 4. Future functions start closed (plan item 3; review SEC-1/TI-6) ----------
+-- Production (audit/evidence/wp02-prod-owners-bypassrls-defacl-*.txt) grants
+-- EXECUTE on every function postgres creates twice over: to PUBLIC through
+-- the built-in global default, and to anon/authenticated/service_role through
+-- Supabase's `ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public`.
+-- A schema-scoped default cannot remove the global PUBLIC grant, so:
+--   * the global default for postgres stops granting EXECUTE to PUBLIC;
+--   * the public-schema default stops granting it to anon and authenticated
+--     (service_role keeps it, for Edge Functions);
+--   * the `extensions` schema gets PUBLIC back explicitly, so an extension
+--     postgres installs there later (pgcrypto, uuid-ossp and
+--     pg_stat_statements are postgres-owned today) behaves exactly as before.
+-- Every function postgres creates in public from now on, definer or invoker,
+-- is callable only by service_role until its migration grants it; a definer
+-- grant must also be in definer_allowlist.sql (catalog_definer_security.sql),
+-- and catalog_definer_security.sql also asserts these defaults stay closed.
+-- Functions that already exist keep their grants (step 1 handled definers).
+alter default privileges for role postgres revoke execute on functions from public;
+alter default privileges for role postgres in schema public revoke execute on functions from anon, authenticated;
+do $$
+begin
+  if exists (select 1 from pg_namespace where nspname = 'extensions') then
+    execute 'alter default privileges for role postgres in schema extensions grant execute on functions to public';
+  end if;
+end $$;
 
 -- 5. FORCE RLS everywhere ----------------------------------------------------
 alter table public.backup_jobs      force row level security;
