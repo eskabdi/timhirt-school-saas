@@ -6,7 +6,7 @@
 -- learn another tenant's modules; service_role (no end-user JWT) still can.
 -- ============================================================================
 begin;
-select plan(51);
+select plan(57);
 
 insert into public.tenants (id, name, slug) values
   ('00000000-0000-0000-0000-0000000d0a00', 'Lockdown A', 'lockdown-a'),
@@ -118,11 +118,20 @@ reset role;
 -- caller-only answer, not the service answer.
 create role wp02_probe_role nologin;
 grant usage on schema public to wp02_probe_role;
-grant execute on function public.get_email_for_user(uuid), public.attendance_retroactive_edit_window_days(uuid) to wp02_probe_role;
+grant execute on function public.get_email_for_user(uuid), public.attendance_retroactive_edit_window_days(uuid),
+  public.has_module(uuid, text), public.get_tenant_id_for_user(uuid), public.get_role_for_user(uuid),
+  public.has_resource_permission(uuid, text, text), public.get_security_settings(),
+  public.approval_required(uuid, text, numeric) to wp02_probe_role;
 set local role wp02_probe_role;
 set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000d0a01';
 select is(public.get_email_for_user('00000000-0000-0000-0000-0000000d0b01'), null, 'an unexpected role cannot read another user''s email');
 select is(public.attendance_retroactive_edit_window_days('00000000-0000-0000-0000-0000000d0b00'), 7, 'an unexpected role gets the default attendance window for another tenant');
+select is(public.has_module('00000000-0000-0000-0000-0000000d0b00', 'library'), false, 'an unexpected role cannot learn another tenant''s modules');
+select is(public.get_tenant_id_for_user('00000000-0000-0000-0000-0000000d0b01'), null, 'an unexpected role cannot read a tenant-B user''s tenant');
+select is(public.get_role_for_user('00000000-0000-0000-0000-0000000d0b01'), null, 'an unexpected role cannot read a tenant-B user''s role');
+select is(public.has_resource_permission('00000000-0000-0000-0000-0000000d0b01', 'students', 'read'), null, 'an unexpected role cannot learn another user''s permissions');
+select ok(not (public.get_security_settings() ? 'login_max_attempts'), 'an unexpected role does not get the login thresholds');
+select is(public.approval_required('00000000-0000-0000-0000-0000000d0b00', 'invoice_void', null), null, 'an unexpected role cannot read another tenant''s approval rules');
 reset role;
 
 -- ------------------------------------------- service_role (Edge Functions) ----
