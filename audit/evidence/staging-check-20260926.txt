@@ -1,0 +1,39 @@
+Staging project check, 2026-09-26 (Supabase Management API, read-only except the one auth PATCH below)
+No key or secret values were printed or recorded; API keys and secrets are listed by name only.
+
+Projects visible to SUPABASE_ACCESS_TOKEN (org jwwqnemnwgibhjbcaqsl, plan: free)
+  timhirt-saas-staging  ref ekebibapffrhzibidbnr  eu-west-1  ACTIVE_HEALTHY  created 2026-09-26T08:53:50Z  pg 17.6.1.166
+  timhirt-saas          ref livqynxlibmccaycseer  eu-west-1  ACTIVE_HEALTHY  created 2026-07-14T17:26:52Z  pg 17.6.1.141
+
+                               staging            production
+public tables                  0                  112
+public functions               0                  76
+public RLS policies            0                  374
+storage policies               0                  33
+supabase_migrations table      absent             present
+storage buckets                0                  16
+auth users                     0                  27
+Edge Functions                 0                  28
+function secrets (names)       none               12
+extensions                     identical: pg_stat_statements 1.11, pgcrypto 1.3, plpgsql 1.0, supabase_vault 0.3.1, uuid-ossp 1.1
+PostgREST                      identical: db_schema public,graphql_public; max_rows 1000
+API keys (names)               identical: anon/service_role (legacy), default publishable, default secret
+PITR / backups                 off / 0            off / 0          (Free plan: no daily backups; see OWNER_ACTIONS C2)
+DB SSL enforcement             off                off              (backlog: WP-19 hardening)
+DB network restrictions        0.0.0.0/0, ::/0    0.0.0.0/0, ::/0  (backlog: WP-19 hardening)
+
+Auth config
+  disable_signup               false -> TRUE      true
+  site_url                     http://localhost:3000   https://www.edux.et
+  uri_allow_list               (empty)            timhirt-school-saas.vercel.app/**
+  smtp_host                    none (Supabase default mailer, 2 mails/h)   smtp.resend.com
+  password_min_length          6                  6                (backlog: INSA wants >= 8)
+  MFA TOTP enroll/verify       on/on              on/on
+  refresh token rotation       on, reuse 10s      on, reuse 10s
+
+Change made: PATCH /v1/projects/ekebibapffrhzibidbnr/config/auth {"disable_signup": true} -> 200
+Proof: POST https://ekebibapffrhzibidbnr.supabase.co/auth/v1/signup (anon key, fresh address)
+       -> error_code signup_disabled "Signups not allowed for this instance"; auth.users count still 0.
+
+Open for WP-17: apply the 113 migrations and 28 Edge Functions, set site_url/redirects to the staging frontend,
+seed synthetic tenants only (never production data), then run the RPC/rollback checks listed in backlog GK-8.

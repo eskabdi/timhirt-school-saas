@@ -10,8 +10,11 @@ custom API server.
 > `20260927000001`/`…02` R6 WP-09 are pending deploy), and 28/28
 > Edge Functions match the repo (names and `verify_jwt`). The frontend is built
 > on Vercel from `da6055e`. See `audit/prod-drift-2026-09-24.md` §5 and
-> `audit/evidence/wp00-closeout-deploy-20260925T072419Z.txt`. There is **no staging project** yet (R6 WP-17), and **PITR is off with
-> no backups**. Public sign-up is **disabled** (invite-only, DR-1 closed
+> `audit/evidence/wp00-closeout-deploy-20260925T072419Z.txt`. A staging project
+> exists but is **empty** (`timhirt-saas-staging`, ref `ekebibapffrhzibidbnr`,
+> created 2026-09-26, sign-up disabled). R6 WP-17 loads the schema into it.
+> Production has **PITR off and no backups**, because the org is on the Free
+> plan. Public sign-up is **disabled** (invite-only, DR-1 closed
 > 2026-09-25). The R6 fix plan is `docs/audits/timhirt-production-fix-plan.md`;
 > progress is in `audit/FIXES_VERIFIED_R6.md`.
 

@@ -83,11 +83,21 @@ Last updated: 2026-09-26 (WP-01 round 3; WP-02 and WP-09 in progress).
 
 ## C. Accounts, services and money (Claude cannot create these)
 
-- [ ] **C1. Staging environment (plan WP-17 / WP-19).** Create a second
-  Supabase project (for example `timhirt-staging`) and a Vercel preview or
-  staging environment on `staging.edux.et`, then put the staging project ref
-  and keys in the session environment. Staging never gets a copy of
-  production data.
+- [ ] **C1. Staging environment (plan WP-17 / WP-19). Supabase part done
+  2026-09-26.** You created `timhirt-saas-staging` (ref
+  `ekebibapffrhzibidbnr`, eu-west-1, Postgres 17.6, same org as production).
+  Claude checked it the same day (`audit/evidence/staging-check-20260926.txt`).
+  It is reachable with the existing `SUPABASE_ACCESS_TOKEN`, so no new keys
+  are needed. The database is empty: no migrations, tables, buckets, Edge
+  Functions or users. Public sign-up was on, and Claude switched it off to
+  match production (a sign-up probe now gets `signup_disabled`). Claude loads
+  the schema and functions as part of WP-17. Staging never gets a copy of
+  production data. Still yours:
+  - a Vercel staging environment on `staging.edux.et` pointed at this project;
+  - be aware the org is on the **Free plan**. A Free project pauses after
+    about a week without traffic and has no backups. That is fine for
+    staging, but production is on the same plan, which is why C2 needs the
+    Pro plan.
 - [ ] **C2. Backups (plan WP-19, item 3). This is the most urgent in this
   section.** Production runs with **PITR off and no backups**. Enable
   Point-in-Time Recovery (a paid Supabase add-on, on the Pro plan or above)
