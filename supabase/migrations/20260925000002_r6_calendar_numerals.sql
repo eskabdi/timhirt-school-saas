@@ -21,8 +21,11 @@
 -- Expected after: 3 rows {secondary_visible, numerals:'latn', show_hijri:false},
 -- 0 rows with any camelCase key. Idempotent: a second run updates 0 rows.
 -- Forward-fix: drop trigger tenant_configs_normalize_calendar and function
--- normalize_calendar_settings; the data stays valid for both old and new
--- readers. Restoring Ge'ez numerals is intentionally not supported.
+-- normalize_calendar_settings; the data stays valid for the new reader. The
+-- old (da6055e) settings page reads only camelCase, so until the frontend
+-- ships it shows the default "Gregorian visible" and would save the defaults
+-- back (review DM3-2): deploy the frontend right after this migration.
+-- Restoring Ge'ez numerals is intentionally not supported.
 -- ============================================================================
 
 create or replace function public.normalize_calendar_settings(p_settings jsonb)
@@ -63,10 +66,6 @@ comment on function public.normalize_calendar_settings(jsonb) is
 -- Pure function over its argument; no table access, nothing to protect.
 revoke execute on function public.normalize_calendar_settings(jsonb) from public, anon;
 
-update public.tenant_configs
-set settings = public.normalize_calendar_settings(settings)
-where settings is distinct from public.normalize_calendar_settings(settings);
-
 create or replace function public.tenant_configs_normalize_calendar()
 returns trigger
 language plpgsql
@@ -83,3 +82,15 @@ drop trigger if exists tenant_configs_normalize_calendar on public.tenant_config
 create trigger tenant_configs_normalize_calendar
   before insert or update of settings on public.tenant_configs
   for each row execute function public.tenant_configs_normalize_calendar();
+
+-- Backfill after the trigger exists, under a lock that blocks concurrent
+-- writers until commit (review DM3-1): a settings save racing the deploy is
+-- either normalised by the trigger or waits for the backfill.
+do $$
+begin
+  lock table public.tenant_configs in share row exclusive mode;
+  update public.tenant_configs
+  set settings = public.normalize_calendar_settings(settings)
+  where settings is distinct from public.normalize_calendar_settings(settings);
+end
+$$;

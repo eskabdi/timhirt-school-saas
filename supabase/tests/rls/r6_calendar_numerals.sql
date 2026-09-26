@@ -29,7 +29,7 @@ insert into public.tenant_configs (tenant_id, settings) values
 
 \ir ../../migrations/20260925000002_r6_calendar_numerals.sql
 
-create temp table cal_after_first as select tenant_id, settings from public.tenant_configs where tenant_id::text like '00000000-0000-0000-0000-00000000c00%';
+create temp table cal_after_first as select tenant_id, settings, ctid::text as tid from public.tenant_configs where tenant_id::text like '00000000-0000-0000-0000-00000000c00%';
 create function pg_temp.cal(p text) returns jsonb language sql as
   $$ select settings from public.tenant_configs where tenant_id = ('00000000-0000-0000-0000-00000000c00' || p)::uuid $$;
 
@@ -49,8 +49,9 @@ select is(pg_temp.cal('7')->'calendar', '{"secondary_visible": true, "numerals":
 
 -- Idempotent: a second run changes nothing.
 \ir ../../migrations/20260925000002_r6_calendar_numerals.sql
-select is((select count(*)::int from public.tenant_configs t join cal_after_first a using (tenant_id) where t.settings is distinct from a.settings), 0,
-  'running the migration twice changes nothing');
+select is((select count(*)::int from public.tenant_configs t join cal_after_first a using (tenant_id)
+            where t.settings is distinct from a.settings or t.ctid::text <> a.tid), 0,
+  'running the migration twice changes nothing and rewrites no row (review DM3-5)');
 
 -- Old clients still live in production keep working (normalised, not rejected).
 select lives_ok($$ update public.tenant_configs set settings = '{"calendar": {"secondaryVisible": true, "geezNumerals": false}}'

@@ -3,15 +3,20 @@
 --
 -- catalog_storage_policies.sql classifies policy text; text can lie (an
 -- AND/OR precedence slip passes any "does the predicate mention the tenant
--- folder" check). This suite does not read policies at all. It seeds one
--- tenant-B object in every non-public bucket, then, as a tenant-A user of
--- every role (and as anon), tries to read, update, delete and insert tenant-B
--- objects. Any success is a cross-tenant path, whatever the policy says.
+-- folder" check). This suite does not trust policy text. It seeds tenant-B
+-- objects in every bucket (public ones too, for update/delete) at realistic
+-- paths: `<B>/<bucket>/…`, `<B>/staff/<id>/…`, three id segments deep, the
+-- literal segments the app uses (front/, back/), and every literal
+-- `foldername(name)[k] = '…'` found in the current policies (review TI-R3-1:
+-- a leak keyed on a path segment only shows up if an object sits there).
+-- Then, as a tenant-A user of every role (and as anon), it tries to read
+-- (non-public buckets), update, delete and insert tenant-B objects at those
+-- paths. Any success is a cross-tenant path, whatever the policy says.
 -- Each write attempt runs in a rolled-back sub-transaction, so roles cannot
 -- disturb each other. The probe is proven on planted policies at the end.
 -- ============================================================================
 begin;
-select plan(10);
+select plan(14);
 
 insert into public.tenants (id, name, slug) values
   ('0000000a-0000-0000-0000-00000000aaaa', 'Probe Tenant A', 'probe-a'),
@@ -22,21 +27,52 @@ insert into public.users (id, tenant_id, role, full_name, email)
 select gen_random_uuid(), '0000000a-0000-0000-0000-00000000aaaa', r, 'Probe ' || r::text, 'probe-' || r::text || '@example.test'
 from unnest(enum_range(null::public.user_role)) r;
 
--- One tenant-B object in every non-public bucket (inserted as the table owner,
--- so RLS does not apply to the seed).
-insert into storage.objects (bucket_id, name)
-select b.id, '0000000b-0000-0000-0000-00000000bbbb/' || b.id || '/secret.pdf'
-from storage.buckets b where not coalesce(b.public, false);
+-- Probe paths under the tenant-B folder (the bucket-named path is added per
+-- bucket). Recomputed on every probe run, so literals in policies planted by
+-- the self-tests below are covered too.
+create function pg_temp.storage_probe_paths() returns setof text language sql stable as $fn$
+  select p from (values
+    ('staff/00000000-0000-0000-0000-0000000000e1/national_id.pdf'),
+    ('00000000-0000-0000-0000-0000000000e1/00000000-0000-0000-0000-0000000000e2/00000000-0000-0000-0000-0000000000e3/secret.png'),
+    ('front/secret.png'),
+    ('back/secret.jpg')) v(p)
+  union
+  select repeat('00000000-0000-0000-0000-0000000000e1/', greatest(m[1]::int - 2, 0)) || m[2] || '/secret.pdf'
+  from pg_policy pol
+  cross join lateral regexp_matches(
+    coalesce(pg_get_expr(pol.polqual, pol.polrelid), '') || ' ' || coalesce(pg_get_expr(pol.polwithcheck, pol.polrelid), ''),
+    $re$foldername\((?:objects\.)?name\)\)\[(\d+)\] = '([^'/]+)'$re$, 'g') m
+  where pol.polrelid = 'storage.objects'::regclass and m[1]::int >= 2
+$fn$;
+
+-- Seed as the table owner (RLS does not apply): one tenant-B object per bucket
+-- and probe path, public buckets included.
+create function pg_temp.storage_seed_tenant_b() returns void language sql as $fn$
+  insert into storage.objects (bucket_id, name)
+  select b.id, x.name
+  from storage.buckets b
+  cross join lateral (
+    select '0000000b-0000-0000-0000-00000000bbbb/' || b.id || '/secret.pdf' as name
+    union select '0000000b-0000-0000-0000-00000000bbbb/' || p from pg_temp.storage_probe_paths() p) x
+  where not exists (select 1 from storage.objects o where o.bucket_id = b.id and o.name = x.name);
+$fn$;
+select pg_temp.storage_seed_tenant_b();
 
 create function pg_temp.storage_cross_tenant_probe() returns text[] language plpgsql as $$
 declare
   b_folder constant text := '0000000b-0000-0000-0000-00000000bbbb';
   v text[] := '{}';
+  v_public text[];
+  v_paths text[];
   who record;
   bkt record;
+  pth text;
   hit text;
   n bigint;
 begin
+  perform pg_temp.storage_seed_tenant_b();
+  v_public := array(select id from storage.buckets where coalesce(public, false));
+  v_paths := array(select 'probe/x.pdf' union select p from pg_temp.storage_probe_paths() p);
   for who in
     select u.id, u.role::text as label from public.users u where u.tenant_id = '0000000a-0000-0000-0000-00000000aaaa'
     union all select null::uuid, 'anon'
@@ -52,8 +88,10 @@ begin
       perform set_config('request.jwt.claims', json_build_object('sub', who.id, 'role', 'authenticated')::text, true);
     end if;
 
+    -- Public buckets are readable by design (allow-listed); every other
+    -- bucket must hide tenant B entirely.
     select string_agg(distinct bucket_id, ',' order by bucket_id) into hit
-      from storage.objects where (storage.foldername(name))[1] = b_folder;
+      from storage.objects where (storage.foldername(name))[1] = b_folder and bucket_id <> all (v_public);
     if hit is not null then v := v || format('%s reads tenant B in %s', who.label, hit); end if;
 
     -- No WHERE and no RETURNING: then only the UPDATE/DELETE policy applies,
@@ -79,15 +117,19 @@ begin
     if n > 0 then v := v || format('%s deletes tenant B objects', who.label); end if;
 
     for bkt in select id from storage.buckets order by id loop
-      begin
-        insert into storage.objects (bucket_id, name, owner)
-        values (bkt.id, b_folder || '/probe/' || who.label || '.pdf', who.id);
-        v := v || format('%s writes into tenant B in %s', who.label, bkt.id);
-        raise exception using errcode = 'P0R01';
-      exception
-        when sqlstate 'P0R01' then null;
-        when insufficient_privilege or check_violation or foreign_key_violation then null;
-      end;
+      foreach pth in array v_paths || array[bkt.id || '/probe.pdf'] loop
+        begin
+          insert into storage.objects (bucket_id, name, owner)
+          values (bkt.id, b_folder || '/' || pth, who.id);
+          if not (format('%s writes into tenant B in %s', who.label, bkt.id) = any(v)) then
+            v := v || format('%s writes into tenant B in %s', who.label, bkt.id);
+          end if;
+          raise exception using errcode = 'P0R01';
+        exception
+          when sqlstate 'P0R01' then null;
+          when insufficient_privilege or check_violation or foreign_key_violation then null;
+        end;
+      end loop;
     end loop;
 
     execute 'reset role';
@@ -98,8 +140,8 @@ begin
 end $$;
 
 select is((select count(*)::int from storage.objects where name like '0000000b-%'),
-  (select count(*)::int from storage.buckets where not coalesce(public, false)),
-  'the probe has a tenant-B object in every non-public bucket (it is not vacuous)');
+  (select count(*)::int from storage.buckets) * (1 + (select count(*)::int from pg_temp.storage_probe_paths())),
+  'the probe has a tenant-B object in every bucket at every probe path (it is not vacuous)');
 select is((select count(*)::int from storage.objects where name not like '0000000b-%'), 0,
   'tenant-B objects are the only objects, so any row an update/delete touches is cross-tenant');
 select is((select count(*)::int from public.users where tenant_id = '0000000a-0000-0000-0000-00000000aaaa'),
@@ -138,6 +180,35 @@ create policy "zz delete anywhere" on storage.objects for delete to authenticate
 select ok('registrar deletes tenant B objects' = any(pg_temp.storage_cross_tenant_probe()),
   'probe: a cross-tenant delete is caught');
 drop policy "zz delete anywhere" on storage.objects;
+
+-- Review TI-R3-1: a leak keyed on a real path segment (an unparenthesised
+-- "add an HR branch" slip), for reads and for writes.
+create policy "zz hr staff read slip" on storage.objects for select to authenticated
+  using (bucket_id = 'documents' and (storage.foldername(name))[1] = (select public.get_tenant_id_for_user(auth.uid()))::text
+         and (select public.get_role_for_user(auth.uid())) = 'school_admin'
+         or (storage.foldername(name))[2] = 'staff' and (select public.get_role_for_user(auth.uid())) = 'hr_officer');
+select ok(exists (select 1 from unnest(pg_temp.storage_cross_tenant_probe()) x where x like 'hr_officer reads tenant B in %'),
+  'probe: a path-keyed OR slip is caught as a cross-tenant read');
+drop policy "zz hr staff read slip" on storage.objects;
+
+create policy "zz hr staff write slip" on storage.objects for insert to authenticated
+  with check (bucket_id = 'documents' and (storage.foldername(name))[1] = (select public.get_tenant_id_for_user(auth.uid()))::text
+              and (select public.get_role_for_user(auth.uid())) = 'school_admin'
+              or (storage.foldername(name))[2] = 'staff' and (select public.get_role_for_user(auth.uid())) = 'hr_officer');
+select ok('hr_officer writes into tenant B in documents' = any(pg_temp.storage_cross_tenant_probe()),
+  'probe: a path-keyed OR slip is caught as a cross-tenant write');
+drop policy "zz hr staff write slip" on storage.objects;
+
+-- Review TI-R3-2: the public bucket is readable, but not writable across tenants.
+create policy "zz branding update anywhere" on storage.objects for update to authenticated using (bucket_id = 'branding');
+select ok('school_admin updates tenant B objects' = any(pg_temp.storage_cross_tenant_probe()),
+  'probe: a cross-tenant update in the public branding bucket is caught');
+drop policy "zz branding update anywhere" on storage.objects;
+
+create policy "zz branding delete anywhere" on storage.objects for delete to authenticated using (bucket_id = 'branding');
+select ok('teacher deletes tenant B objects' = any(pg_temp.storage_cross_tenant_probe()),
+  'probe: a cross-tenant delete in the public branding bucket is caught');
+drop policy "zz branding delete anywhere" on storage.objects;
 
 select is(pg_temp.storage_cross_tenant_probe(), '{}'::text[], 'after dropping the planted policies the probe is clean again');
 

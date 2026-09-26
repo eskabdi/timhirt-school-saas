@@ -11,12 +11,19 @@ index.html) for:
   name-concat  A person name built from first + last without the middle name
                (Ethiopian names are First + Middle + Last): template
                `${a.first_name} ${a.last_name}`, JSX `{a.first_name} {a.last_name}`,
-               `first_name + " " + last_name`, or `[first_name, last_name].join`.
+               `first_name + " " + last_name`, `first_name.concat(…last_name)` or
+               `[first_name, last_name].join`, on one line or split over up to
+               four lines (review TV-1).
                Use fullName() from src/lib/names.ts or _shared/names.ts.
+  name-render  A .tsx file that renders a first name as JSX text
+               (`<td>{s.first_name}</td>`) but never renders a middle name
+               (middle_name/father_name, fullName(), shortName()): the
+               separate-columns form of the same bug (review TV-1).
 
 Exit 1 on any finding. `--self-test` runs the checks against
 scripts/ci/conventions_fixtures.txt, where every line starting `BAD` must be
-flagged and every line starting `OK` must not.
+flagged and every line starting `OK` must not. A literal `\\n` in a fixture
+line stands for a line break; each fixture line is scanned as its own file.
 """
 import os, re, sys
 
@@ -35,8 +42,13 @@ CHECKS = {
         rf"{NAME}\}}?\s*\$\{{[^}}]*{LAST}"            # template literal
         rf"|{NAME}\}}\s*\{{[^}}]*{LAST}\}}"           # JSX
         rf"|{NAME}\s*\+\s*[\"'] [\"']\s*\+[^;\n]*{LAST}"  # string concat
+        rf"|{NAME}\s*\.concat\([^)\n]*{LAST}"              # .concat
         rf"|\[[^\]\n]*{NAME}[^\]\n]*{LAST}[^\]\n]*\]\s*\.(?:filter|join)"),
 }
+ALL_CHECKS = list(CHECKS) + ["name-render"]
+# JSX text that is just `{something.first_name}`.
+RENDER = re.compile(rf"[>}}]\s*\{{\s*[\w.?!]+\.{NAME}\s*\}}|\{{\s*[\w.?!]+\.{NAME}\s*\}}\s*<")
+MIDDLE = re.compile(r"middle_name|middleName|father_name|fatherName|\bfullName\(|\bshortName\(")
 # `.replace(/x/, "$1")` back-references are not money.
 REPLACE_BACKREF = re.compile(r"\.replace\(.*[\"']\$\d")
 
@@ -54,6 +66,23 @@ def scan_line(line):
     return hits
 
 
+def scan_file(text, is_tsx):
+    """(check, line) findings for one file: every line, then name-concat over
+    windows of four lines (a name split across lines), then name-render."""
+    lines = text.split("\n")
+    hits = [(n, i + 1) for i, line in enumerate(lines) for n in scan_line(line)]
+    for i in range(len(lines)):
+        window = " ".join(l.strip() for l in lines[i:i + 4])
+        if "name-concat" not in scan_line(window):
+            continue
+        if any(("name-concat", j) in hits for j in range(i - 2, i + 5)):
+            continue
+        hits.append(("name-concat", i + 1))
+    if is_tsx and not MIDDLE.search(text):
+        hits += [("name-render", i + 1) for i, line in enumerate(lines) if RENDER.search(line)]
+    return hits
+
+
 def self_test(root):
     path = os.path.join(root, "scripts", "ci", "conventions_fixtures.txt")
     bad = 0
@@ -62,7 +91,7 @@ def self_test(root):
         if not line.startswith(("BAD ", "OK ")):
             continue
         kind, text = line.split(" ", 1)
-        hits = scan_line(text)
+        hits = sorted({n for n, _ in scan_file(text.rstrip("\n").replace("\\n", "\n"), True)})
         if kind == "BAD":
             proven.update(hits)
         if (kind == "BAD") != bool(hits):
@@ -70,7 +99,7 @@ def self_test(root):
             bad += 1
     # An emptied or thinned fixture must not pass: every check needs at least
     # one planted BAD line that it flags (review infra F4).
-    for name in CHECKS:
+    for name in ALL_CHECKS:
         if name not in proven:
             print(f"self-test: no BAD fixture proves the {name} check fires")
             bad += 1
@@ -92,10 +121,11 @@ def main():
     for p in sorted(paths):
         rel = os.path.relpath(p, root)
         with open(p, encoding="utf-8") as fh:
-            for i, line in enumerate(fh, 1):
-                for name in scan_line(line):
-                    findings.append((name, rel, i, line.strip()[:120]))
-    for name in CHECKS:
+            text = fh.read()
+        lines = text.split("\n")
+        for name, i in scan_file(text, p.endswith(".tsx")):
+            findings.append((name, rel, i, lines[i - 1].strip()[:120]))
+    for name in ALL_CHECKS:
         hits = [x for x in findings if x[0] == name]
         print(f"{name:12} {len(hits)}")
         for _, rel, i, text in hits:

@@ -18,8 +18,8 @@ see blueprint §21.9 for the reasoning.
 | Area | Highlights |
 |---|---|
 | **Multi-tenancy** | Shared schema + fail-closed RLS; every table `tenant_id`-scoped; `FORCE ROW LEVEL SECURITY`; explicit super_admin policy clause |
-| **Ethiopian calendar** | `lib/ethiopian-date.ts` — pure Beyene–Kudlek EC↔GC facade (zero runtime deps), `<EthDatePicker/>` 13-month grid, Geez numerals, holiday-aware attendance blocking. **Gregorian is canonical storage; EC is presentation-only.** |
-| **Trilingual i18n** | `react-i18next` + ICU; English / Amharic (አማርኛ) / Afaan Oromoo, 2,318 keys at full parity across all three; `jsonb` i18n columns for tenant-authored labels; `t_field()` SQL helper. `scripts/i18n-audit.mjs` fails the build on untranslated user-facing copy |
+| **Ethiopian calendar** | `lib/ethiopian-date.ts` — pure Beyene–Kudlek EC↔GC facade (zero runtime deps), `<EthDatePicker/>` 13-month grid, Arabic digits (0-9, or Eastern Arabic ٠-٩ per school), optional Hijri date, holiday-aware attendance blocking. **Gregorian is canonical storage; EC is presentation-only.** |
+| **Trilingual i18n** | `react-i18next` + ICU; English / Amharic (አማርኛ) / Afaan Oromoo, 2,368 keys at full parity across all three; `jsonb` i18n columns for tenant-authored labels; `t_field()` SQL helper. `scripts/i18n-audit.mjs` fails the build on untranslated user-facing copy |
 | **HR & Payroll** | Effective-dated tax brackets (Proclamation No. 1395/2025) & pension rates (Proc. 715/2011, basic-salary-only base); `run-payroll` Edge Function computes gross→tax→pension→net; segregation of duties enforced by a DB state-machine trigger (`approved_by <> prepared_by`, forward-only transitions, immutable once `paid`) |
 | **Payments** | **Manual bank transfer only** in this version (fix plan WP-03: school bank accounts, payment proof, staff verification with dual control). Staff record cash/bank payments today via `record-fee-payment`. No online gateway: Chapa and Stripe were canceled, and the Telebirr gateway was decommissioned in R6 WP-00 (C-01). |
 | **18 modules** | SIS, Attendance, Timetable, Gradebook, Fees, Communication, Reporting, Library, Transport, HR & Payroll, Admissions, Assignments, Hostel, Inventory, Discipline, Clinic, ID Cards/Certificates, Events, MoE Reporting |
@@ -30,7 +30,7 @@ see blueprint §21.9 for the reasoning.
 
 ```
 supabase/
-  migrations/     109 migrations: core → academic → attendance/fees → HR/payroll
+  migrations/     110 migrations: core → academic → attendance/fees → HR/payroll
                   → RLS → storage → extended modules → extended RLS
                   → security hardening → base table grants → RLS recursion fix
                   → column-level grants → integration credentials (Vault)
@@ -130,9 +130,9 @@ each one.
 - [x] ~~Self-host Noto Sans Ethiopic (don't depend on a font CDN in production)~~ **Done** — Noto Serif Ethiopic, Jiret and Tayitu ship from `public/fonts/`. Both loaders now validate the sfnt magic before embedding: a missing asset returns the SPA's `index.html` with a 200, which `embedFont` rejects and both callers used to swallow, silently rendering Ethiopic in Helvetica.
 - [x] ~~Verify the Chapa webhook signature scheme~~ **Obsolete** — no online payment gateway in this version (R6 WP-00).
 - [ ] Shadow at least one payroll run against the worksheet in `docs/DEPLOYMENT.md`
-- [ ] **Have Amharic/Afaan Oromoo strings reviewed by an education-domain speaker.** 2,318 keys are at full parity and none are English placeholders, but parity is not correctness — no automated check can tell you whether the Amharic for "provisionally accepted" reads right to an Ethiopian registrar. Export with `node scripts/i18n-review-export.mjs`.
+- [ ] **Have Amharic/Afaan Oromoo strings reviewed by an education-domain speaker.** 2,368 keys are at full parity and none are English placeholders, but parity is not correctness — no automated check can tell you whether the Amharic for "provisionally accepted" reads right to an Ethiopian registrar. Export with `node scripts/i18n-review-export.mjs`.
 - [x] ~~Confirm every staff `auth.users` row has a linked `employees.user_id`~~ **Automated** — Settings → Health Monitoring lists unlinked staff accounts (`check_staff_employee_linkage()`). Payslip and leave policies join through `employees.user_id`, so an unlinked account sees an empty list rather than an error.
-- [x] ~~Run the RLS cross-tenant matrix~~ **Automated in CI** — the `rls-tests` job runs every pgTAP suite (62 as of R6 WP-01, including the catalog guards) on every push. Tenant A vs Tenant B returns zero rows for `students`, `payslips`, `fee_invoices`, `employees` including via embedded relations, and for `student-photos` storage objects.
+- [x] ~~Run the RLS cross-tenant matrix~~ **Automated in CI** — the `rls-tests` job runs every pgTAP suite (63 as of R6 WP-01, including the catalog guards) on every push. Tenant A vs Tenant B returns zero rows for `students`, `payslips`, `fee_invoices`, `employees` including via embedded relations, and for `student-photos` storage objects.
 - [ ] Run the bracket-boundary property test (`npm run test`) against the final gazetted rates — the payroll SoD suite itself is now automated in CI
 - [x] ~~Back the in-memory rate limiter with a shared store~~ **Done** — `public.rate_limits` plus the atomic `consume_rate_limit()` RPC. Verified with 60 concurrent callers against one key at limit 10: exactly 10 allowed. Fails closed.
 - [ ] Configure SMS-gateway credentials through `/platform/integrations` as super_admin (Vault-backed). There are no payment-gateway credentials in this version.

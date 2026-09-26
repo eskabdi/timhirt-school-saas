@@ -1,5 +1,6 @@
 {
   "months": ["Fulbaana", "Onkololeessa", "Sadaasa", "Muddee", "Amajjii", "Guraandhala", "Bitootessa", "Ebla", "Caamsaa", "Waxabajjii", "Adoolessa", "Hagayya", "Qaammee"],
+  "weekdaysShort": ["D", "W", "K", "R", "K", "J", "S"],
   "eraSuffix": "ALI",
   "hijriMonths": ["Muharram", "Safar", "Rabii Awwal", "Rabii Aakhir", "Jumaada Uulaa", "Jumaada Aakhira", "Rajab", "Sha'baan", "Ramadaan", "Shawwaal", "Zul-Qa'ida", "Zul-Hijja"],
   "hijriEraSuffix": "A.H.",

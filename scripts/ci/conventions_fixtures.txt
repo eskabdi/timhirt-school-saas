@@ -20,3 +20,11 @@ BAD const n = [s.first_name, s.last_name].filter(Boolean).join(" ");
 OK const n = [s.first_name, s.middle_name, s.last_name].filter(Boolean).join(" ");
 OK const n = [e.first_name, e.father_name, e.last_name].filter(Boolean).join(" ");
 OK <td>{fullName(s)}</td>
+# Review TV-1 (round 3): multi-line joins, .concat and separate columns.
+BAD const n = [\n  s.first_name,\n  s.last_name,\n].join(" ");
+BAD const n = `${s.first_name}\n ${s.last_name}`;
+BAD const n = s.first_name.concat(" ", s.last_name);
+BAD <td className="px-5 py-3">{s.first_name}</td>\n<td className="px-5 py-3">{s.last_name}</td>
+OK <td>{s.first_name}</td>\n<td>{s.middle_name ?? "—"}</td>\n<td>{s.last_name}</td>
+OK <td>{fullName(s)}</td>
+OK <Input value={s1.first_name} onChange={(e) => setF({ ...f, first_name: e.target.value })} />

@@ -10,6 +10,7 @@
 // ============================================================================
 import { z } from "npm:zod@3";
 import { requireRole, errors, json, rateLimit, corsHeaders } from "../_shared/security.ts";
+import { rollbackTenant, type RollbackClient } from "../_shared/onboard-rollback.ts";
 import { toEthiopian, toGregorian, todayAddis } from "../_shared/ethiopian-date.ts";
 
 const Payload = z.object({
@@ -23,6 +24,7 @@ const Payload = z.object({
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   let tenantId: string | undefined;
+  let invitedUserId: string | undefined;
   const ctxOrRes = await requireRole(req, ["super_admin"]);
   if (ctxOrRes instanceof Response) return ctxOrRes;
   const ctx = ctxOrRes;
@@ -54,6 +56,7 @@ Deno.serve(async (req) => {
       redirectTo: `${appUrl}/accept-invite`,
     });
     if (uErr) throw uErr;
+    invitedUserId = invited.user.id;
 
     // Every write is checked: an ignored error used to leave a half-built
     // tenant (e.g. no tenant_configs row) that reported success and skipped
@@ -122,7 +125,8 @@ Deno.serve(async (req) => {
   } catch (err) {
     console.error("onboard-tenant failed", { message: (err as Error).message });
     if (tenantId) {
-      await ctx.adminClient.from("tenants").delete().eq("id", tenantId); // rollback
+      const failed = await rollbackTenant(ctx.adminClient as unknown as RollbackClient, tenantId, invitedUserId);
+      if (failed.length) console.error("onboard-tenant: rollback incomplete", { steps: failed });
     }
     return errors.internal();
   }

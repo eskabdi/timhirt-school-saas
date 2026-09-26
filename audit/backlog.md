@@ -38,7 +38,7 @@
 | WP-00 gatekeeper GK-F1 | Re-checked at WP-01 start (2026-09-25): `disable_signup = true`, live probe 422 `signup_disabled`. Still to do: add it to the WP-19 config-drift check. | WP-19 |
 | WP-00 gatekeeper GK-F4 | ~~Embed the commit SHA in the bundle~~ **Done in WP-01**: `<meta name="app-commit">` in `index.html`; `npm run deploy` passes `VITE_COMMIT_SHA`. | — |
 | WP-01 conventions | ~~Per-tenant "Use Ge'ez numerals" option~~ **Done (owner ask, 2026-09-25)**: replaced by Eastern Arabic digits and Hijri options; migration `20260925000002`. Native-speaker check of the Amharic/Oromo Hijri month names and era suffix still wanted. | WP-14 (i18n review) |
-| WP-01 conventions | ~~Names without the middle name~~ **Done (owner ask, 2026-09-25)**: 28 call sites use `fullName()`; the conventions gate blocks new ones. | — |
+| WP-01 conventions | ~~Names without the middle name~~ **Done (owner ask, 2026-09-25)**: every name render uses `fullName()` or shows a middle-name column; the conventions gate blocks new single-line, multi-line and separate-column forms (round 3). | — |
 | WP-01 deno check | 3 Edge Functions still fail `deno check` (baseline `supabase/security/deno_check_known.txt`): generate-payslip-pdf, issue-id-card, run-payroll (enroll-finalize-billing fixed). | WP-10 / WP-12 / WP-13 |
 | WP-01 SAST | semgrep partially parses `integrationPayload.ts` (`unique symbol`) and `timetable-pdf.ts`; those files get partial SAST coverage. | WP-13 |
 | WP-01 | `happy-dom` is now available (`// @vitest-environment happy-dom`), which unblocks the render tests in RG3-5 / TV3-2 (https-only links on the invoice and admission pages). | WP-03 / WP-12 |

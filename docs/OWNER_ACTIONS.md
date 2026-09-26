@@ -5,7 +5,7 @@ authority, or a decision that is yours to make. Claude keeps this file current
 as the fix plan runs. Each item says what to do, why, and how to tell Claude
 it is done. Tick the box when finished.
 
-Last updated: 2026-09-25 (during WP-01).
+Last updated: 2026-09-26 (WP-01 round 3; WP-02 and WP-09 in progress).
 
 ---
 
@@ -33,8 +33,9 @@ Last updated: 2026-09-25 (during WP-01).
 - [ ] **B1. Approve production deploys.** Claude prepares each release and
   verifies it, but a production deploy (migrations, Edge Functions, frontend)
   waits for your explicit "deploy". Pending right now: WP-01, which includes
-  migration `20260925000002` (calendar settings), the frontend, and 9 Edge
-  Functions. **Heads-up for this deploy:** all 3 schools have "Show Gregorian
+  migrations `20260925000002` (calendar settings) and `20260925000003` (safe
+  settings saves), the frontend right after them, and 9 Edge Functions.
+  **Heads-up for this deploy:** all 3 schools have "Show Gregorian
   date alongside Ethiopian dates" switched on (it was the onboarding default
   and did nothing before). It now works, so every date will also show its
   Gregorian equivalent. A school admin can switch it off in Settings →
@@ -48,9 +49,9 @@ Last updated: 2026-09-25 (during WP-01).
 - [ ] **B3. Native-speaker check** of the new Amharic and Afaan Oromoo text:
   Hijri month names, the Hijri era suffix (am `ዓ.ሂ`, om `A.H.`), the calendar
   settings labels and messages, the date-picker navigation labels, and the
-  Oromo `help.integrationsNote` wording. Also: should the date picker's
-  weekday initials (now S M T W T F S in every language) be Amharic/Oromo
-  letters? Reply with corrections or "OK".
+  Oromo `help.integrationsNote` wording, and the date picker's weekday
+  initials, now per language (Sunday first): am `እ ሰ ማ ረ ሐ ዓ ቅ`,
+  om `D W K R K J S`. Reply with corrections or "OK".
 
 ## C. Accounts, services and money (Claude cannot create these)
 

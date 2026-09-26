@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/Input";
 import { Field } from "@/components/ui/Field";
 import { Modal } from "@/components/ui/Modal";
 import { formatETB, tField } from "@/lib/i18n";
+import { mergeTenantSettings } from "@/features/settings/useCalendarPrefs";
 import { useGradeCycles } from "@/lib/gradeCycles";
 import { generateFeeInvoices } from "./api";
 import { useTranslation } from "react-i18next";
@@ -70,19 +71,19 @@ export function FeeStructuresPage() {
   // from the portal (AcademicRecordTab.tsx). Staff are never blocked; this
   // never restricts what data is visible, only the PDF download action, so
   // it lives in tenant_configs.settings rather than requiring an RLS change.
-  const { data: brandConfig } = useQuery({
+  const { data: brandConfig, isSuccess: brandConfigLoaded } = useQuery({
     queryKey: ["tenant-config", profile?.tenant_id],
     enabled: !!profile?.tenant_id,
     queryFn: async () => (await supabase.from("tenant_configs").select("settings").eq("tenant_id", profile!.tenant_id!).maybeSingle()).data,
   });
   const blockUnpaidBalance = !!(brandConfig?.settings as { billing?: { blockUnpaidBalance?: boolean } } | undefined)?.billing?.blockUnpaidBalance;
   const toggleBlockUnpaid = useMutation({
+    // Only the billing section is written (merge_tenant_settings).
     mutationFn: async (next: boolean) => {
-      const settings = { ...(brandConfig?.settings as Record<string, unknown> ?? {}) };
-      settings.billing = { ...(settings.billing as Record<string, unknown> ?? {}), blockUnpaidBalance: next };
-      const { error: err } = await supabase.from("tenant_configs")
-        .update({ settings }).eq("tenant_id", profile!.tenant_id!);
-      if (err) throw err;
+      const billing = (brandConfig?.settings as Record<string, unknown> | undefined)?.billing;
+      await mergeTenantSettings("billing", {
+        ...(billing && typeof billing === "object" ? billing as Record<string, unknown> : {}), blockUnpaidBalance: next,
+      });
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["tenant-config", profile?.tenant_id] }),
   });
@@ -246,7 +247,7 @@ export function FeeStructuresPage() {
         </div>
         <label className="flex items-center gap-2 text-sm text-ink">
           <input type="checkbox" checked={blockUnpaidBalance}
-            onChange={(e) => toggleBlockUnpaid.mutate(e.target.checked)} disabled={toggleBlockUnpaid.isPending} />
+            onChange={(e) => toggleBlockUnpaid.mutate(e.target.checked)} disabled={!brandConfigLoaded || toggleBlockUnpaid.isPending} />
           {t("fees.blockUnpaid.toggle")}
         </label>
       </Card>

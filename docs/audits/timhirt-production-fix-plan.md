@@ -1208,6 +1208,8 @@ verify_enabled = true
 ### WP-12 — Input/output hardening (M-05, M-09, L-03, L-04, L-12, G-03)
 
 **12.1 CSV (M-05)** — `src/lib/csv.ts` and `supabase/functions/_shared/csv.ts` (same logic):
+
+> *Amendment (R6 WP-01 round 3, review CQ m-2):* `src/lib/csv.ts` already exists with `csvCell(value: string | number)` (formula guard, numeric strings exempt) and is used by the invoice and payroll exports. WP-12 widens it to `csvCell(value: unknown)`, adds `toCsv` and the Deno twin, and moves the remaining ad-hoc writers (`ClassesPage`, `ImportExportPage`, `process-export-job`) onto it.
 ```ts
 const FORMULA_START = /^[=+\-@\t\r]/;
 

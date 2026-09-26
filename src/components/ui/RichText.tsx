@@ -90,7 +90,7 @@ function toDom(node: Node, doc: Document, report?: SanitizeReport): Node[] {
 
   const tag = TAG_MAP[raw] ?? raw;
   const attrs = safeAttrs(el, tag);
-  if (report && Array.from(el.attributes).some((a) => !(a.name in attrs))) report.removed = true;
+  if (report && Array.from(el.attributes).some((a) => !Object.hasOwn(attrs, a.name))) report.removed = true;
   if (tag === "img" && !attrs.src) {
     if (report) report.removed = true;
     return [];

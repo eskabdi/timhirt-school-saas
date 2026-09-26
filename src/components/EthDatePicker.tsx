@@ -27,7 +27,6 @@ interface Props {
 // Fixed English weekday initials regardless of active locale, matching the
 // reference design — there's no standard single-letter Amharic/Afaan Oromoo
 // weekday abbreviation to fall back on without risking an invented one.
-const WEEKDAYS = ["S", "M", "T", "W", "T", "F", "S"];
 
 // Year-grid page size — clicking the header opens a grid of years so a
 // distant birth year is one or two clicks away, not dozens of month steps.
@@ -39,6 +38,7 @@ export function EthDatePicker({ value, onChange, numerals, id }: Props) {
   const digits = numerals ?? prefs.numerals;
   const num = (v: number) => formatDigits(v, digits);
   const months = t("months", { returnObjects: true }) as string[];
+  const weekdays = t("weekdaysShort", { returnObjects: true }) as string[];
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -152,7 +152,7 @@ export function EthDatePicker({ value, onChange, numerals, id }: Props) {
           </div>
 
           {mode === "years" ? (
-            <div className="grid grid-cols-3 gap-1" role="grid">
+            <div className="grid grid-cols-3 gap-1">
               {Array.from({ length: YEARS_PER_PAGE }, (_, i) => yearGridStart + i).map((y) => {
                 const isSelectedYear = selected?.year === y;
                 const isCurrentYear = today.year === y;
@@ -160,8 +160,7 @@ export function EthDatePicker({ value, onChange, numerals, id }: Props) {
                   <button
                     key={y}
                     type="button"
-                    role="gridcell"
-                    aria-selected={isSelectedYear}
+                    aria-pressed={isSelectedYear}
                     onClick={() => selectYear(y)}
                     className={cn(
                       "flex h-10 items-center justify-center rounded-control text-sm tabular-nums transition-colors",
@@ -177,11 +176,12 @@ export function EthDatePicker({ value, onChange, numerals, id }: Props) {
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-7 gap-1 text-center text-xs font-medium text-ink-faint">
-                {WEEKDAYS.map((w, i) => <div key={i} className="py-1">{w}</div>)}
+              {/* Visual column heads only: each day button carries its full date label. */}
+              <div className="grid grid-cols-7 gap-1 text-center text-xs font-medium text-ink-faint" aria-hidden="true">
+                {weekdays.map((w, i) => <div key={i} className="py-1">{w}</div>)}
               </div>
 
-              <div className="grid grid-cols-7 gap-1" role="grid">
+              <div className="grid grid-cols-7 gap-1">
                 {Array.from({ length: leadingBlanks }, (_, i) => <div key={`blank-${i}`} />)}
                 {days.map((d) => {
                   const isSelected = selected?.year === view.year && selected?.month === view.month && selected?.day === d;
@@ -190,8 +190,7 @@ export function EthDatePicker({ value, onChange, numerals, id }: Props) {
                     <button
                       key={d}
                       type="button"
-                      role="gridcell"
-                      aria-selected={isSelected}
+                      aria-pressed={isSelected}
                       aria-current={isToday ? "date" : undefined}
                       aria-label={formatEth(toGregorian({ year: view.year, month: view.month, day: d }), { monthNames: months, eraSuffix: t("eraSuffix"), numerals: digits })}
                       onClick={() => selectDay(d)}

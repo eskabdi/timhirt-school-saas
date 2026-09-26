@@ -5,8 +5,8 @@ TanStack Query on Supabase (Postgres + RLS + Edge Functions + Storage), no
 custom API server.
 
 > **Deployed state (verified 2026-09-25):** production runs commit `da6055e`
-> (R6 WP-00 and its closeout, PR #8). 108 of the repo's 109 migrations are applied
-> (`20260925000002`, R6 WP-01, is pending its deploy), and 28/28
+> (R6 WP-00 and its closeout, PR #8). 108 of the repo's 110 migrations are applied
+> (`20260925000002` and `20260925000003`, R6 WP-01, are pending their deploy), and 28/28
 > Edge Functions match the repo (names and `verify_jwt`). The frontend is built
 > on Vercel from `da6055e`. See `audit/prod-drift-2026-09-24.md` §5 and
 > `audit/evidence/wp00-closeout-deploy-20260925T072419Z.txt`. There is **no staging project** yet (R6 WP-17), and **PITR is off with
@@ -141,7 +141,7 @@ npx vitest run
 npm run check:i18n                  # must be 0
 npm run check:locales               # parity + no wholesale reformat
 npm run build
-PGHOST=… ./supabase/tests/run.sh    # 109 migrations + 62 pgTAP suites
+PGHOST=… ./supabase/tests/run.sh    # 110 migrations + 63 pgTAP suites
 bash scripts/ci/deno-check.sh       # Edge Function types (ratchet)
 python3 scripts/ci/semgrep-rule-test.py   # needs semgrep 1.95.0
 ```

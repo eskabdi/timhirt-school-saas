@@ -70,3 +70,17 @@ export function useCalendarPrefs(): CalendarPrefs {
   const { data } = useTenantSettings();
   return parseCalendarPrefs(data?.calendar);
 }
+
+export type TenantSettingsSection = "calendar" | "branding" | "idCardTemplate" | "billing";
+
+/**
+ * Saves one top-level section of tenant_configs.settings on the server
+ * (merge_tenant_settings, 20260925000003) and leaves every other section as
+ * it is. Never write the whole settings object from the client: a save made
+ * before the settings loaded used to erase every other section (reviews
+ * CQ M-1, i18n N-01).
+ */
+export async function mergeTenantSettings(section: TenantSettingsSection, value: Record<string, unknown>): Promise<void> {
+  const { error } = await supabase.rpc("merge_tenant_settings", { p_section: section, p_value: value });
+  if (error) throw error;
+}

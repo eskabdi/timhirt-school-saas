@@ -106,7 +106,7 @@ inventory, residual-risk register) and then empties this file.
 ## R6 WP-01 — Secure development pipeline and a truthful test harness (L-08)
 
 **Secure development pipeline (INSA Phase 3/5; ISO 27001 A.8.25, A.8.28, A.8.29).** CI now runs on every PR and every push to main:
-- The existing gates: typecheck, lint, unit tests (Vitest), i18n, locale parity, build, and pgTAP (61 suites).
+- The existing gates: typecheck, lint, unit tests (Vitest), i18n, locale parity, build, and pgTAP (63 suites).
 - **Supply-chain controls:** every GitHub Action is pinned to a full commit SHA, enforced by `scripts/ci/pinned-actions.sh`. Dependabot runs weekly for npm and github-actions. `npm audit --omit=dev --audit-level=high` runs on every build.
 - **Secret scan:** gitleaks v8.30.1 over the full git history. It is built with `go install`, so the binary is checked against the Go checksum database. Reviewed false positives (5) are pinned by exact commit:file:rule:line fingerprint in `.gitleaksignore`.
 - **SAST:** semgrep 1.95.0, installed from a hash-locked requirements file (`scripts/ci/requirements-semgrep.txt`, `pip --require-hashes`), runs the repo-owned rules `.semgrep/timhirt-security.yml` plus the OWASP Top 10, TypeScript and React registry packs. The repo rules cover dangerouslySetInnerHTML, HTML-string DOM sinks, eval / new Function, the service-role key in browser code, and plain-http fetch. A fixture self-test (`scripts/ci/semgrep-rule-test.py`) fails CI if a rule stops matching; without a Semgrep login the registry packs alone ran only 4 rules and missed planted sinks.
@@ -141,6 +141,9 @@ inventory, residual-risk register) and then empties this file.
 - **Amharic typography:** app-wide text uses Tayitu (primary) and Jiret (secondary) for Ethiopic script via Ethiopic-only `@font-face` aliases (`unicode-range`), ahead of Noto Sans Ethiopic.
 - **CSV exports** (invoices, payroll) go through `src/lib/csv.ts`, which neutralises spreadsheet formula injection (CWE-1236).
 - **Deploy guard:** `npm run deploy` refuses a working tree with uncommitted changes, so the `app-commit` stamp always describes what shipped.
+- **Settings writes (round 3):** pages save one section of `tenant_configs.settings` through `merge_tenant_settings(section, value)` (migration `20260925000003`; SECURITY INVOKER, so RLS `configs_write` — the tenant's school_admin — is the authorization; known sections only: calendar, branding, idCardTemplate, billing). A page can no longer erase sections it did not load, and Save waits for the stored settings. API classification: Private.
+- **Storage guards (round 3):** the text guard requires the tenant-folder check to be a top-level AND conjunct; the behavioural probe seeds tenant-B objects at realistic paths in every bucket (public ones for update/delete) and tries every role at those paths.
+- **Accessibility (round 3):** `<html lang>` follows the UI language; date-picker weekday initials are translated; day buttons carry their full date label.
 
 ### WP-01 residual risks (→ 10-residual-risk-register)
 
@@ -152,3 +155,5 @@ inventory, residual-risk register) and then empties this file.
 | 39 SECURITY DEFINER functions set `search_path=public` without `pg_temp` | Growth is blocked by `catalog_definer_security.sql` | WP-02 |
 | ACL parity covers EXECUTE and SELECT/INSERT only | Remaining privileges are exercised by the RLS suites | WP-02 / WP-05 |
 | 4 storage policies let every role in a tenant read a bucket (same tenant only; the cross-tenant probe is clean) | Tenant isolation holds; least privilege within a tenant is WP-05 | WP-05 |
+| No webfont covers Eastern Arabic digits (٠-٩); the opt-in relies on the device's fallback font | Opt-in only; Android and current desktop systems ship one | WP-14 |
+| The calendar form is not yet on Zod/React Hook Form (convention) | The server trigger normalises every write | WP-12 |

@@ -52,14 +52,17 @@ export function EthDate({ value, numerals, prefs: prefsOverride }: {
     : null;
   // Secondary calendars are visible text (not a tooltip): touch and keyboard
   // users and screen readers get them too (review F-01). text-ink-soft keeps
-  // WCAG AA contrast (F-02).
+  // WCAG AA contrast (F-02). <time> wraps only the EC date its dateTime
+  // describes (N-09); each date stays on one line in dense tables (N-02).
   return (
-    <time dateTime={d.toISOString().slice(0, 10)}>
-      {formatEth(d, { monthNames: months, eraSuffix: t("eraSuffix"), numerals: digits })}
+    <span>
+      <time dateTime={d.toISOString().slice(0, 10)} className="whitespace-nowrap">
+        {formatEth(d, { monthNames: months, eraSuffix: t("eraSuffix"), numerals: digits })}
+      </time>
       {prefs.secondaryVisible && (
-        <span className="text-ink-soft"> · {t("gregorianEquivalent", { date: formatGregorian(d, digits) })}</span>
+        <span className="whitespace-nowrap text-ink-soft"> · {t("gregorianEquivalent", { date: formatGregorian(d, digits) })}</span>
       )}
-      {hijri && <span className="text-ink-soft"> · {hijri}</span>}
-    </time>
+      {hijri && <span className="whitespace-nowrap text-ink-soft"> · {hijri}</span>}
+    </span>
   );
 }

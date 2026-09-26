@@ -6,6 +6,7 @@ import { useSession } from "@/features/auth/useSession";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { applyBrandPalette } from "@/lib/brand-theme";
+import { mergeTenantSettings } from "./useCalendarPrefs";
 
 interface Branding {
   nameEn: string; nameAm: string; nameOm: string; motto: string;
@@ -37,7 +38,7 @@ export function BrandingPage() {
   const logoInput = useRef<HTMLInputElement>(null);
   const sealInput = useRef<HTMLInputElement>(null);
 
-  const { data: config } = useQuery({
+  const { data: config, isSuccess: configLoaded } = useQuery({
     queryKey: ["tenant-config", profile?.tenant_id],
     enabled: !!profile?.tenant_id,
     queryFn: async () => (await supabase.from("tenant_configs")
@@ -86,14 +87,16 @@ export function BrandingPage() {
   };
 
   const save = useMutation({
+    // Only the branding section is written (merge_tenant_settings, which also
+    // creates the row if missing); the two catalog columns are then updated.
+    // Save waits for the stored config to load (review CQ M-1).
     mutationFn: async () => {
-      const settings = { ...(config?.settings ?? {}), branding: b };
-      const { error } = await supabase.from("tenant_configs").upsert({
-        tenant_id: profile!.tenant_id,
-        settings,
+      if (!profile?.tenant_id) throw new Error("no tenant");
+      await mergeTenantSettings("branding", b as unknown as Record<string, unknown>);
+      const { error } = await supabase.from("tenant_configs").update({
         school_type_key: schoolTypeKey || null,
         operational_mode_key: operationalModeKey || null,
-      });
+      }).eq("tenant_id", profile.tenant_id);
       if (error) throw error;
     },
     // Shares the ["tenant-config", …] key with the sidebar, so the nav name +
@@ -132,7 +135,7 @@ export function BrandingPage() {
         </div>
         <div className="flex gap-2">
           <Button variant="ghost" className="border border-line" onClick={() => { setB(DEFAULTS); setSchoolTypeKey(""); setOperationalModeKey(""); }}>{t("branding.resetDefault")}</Button>
-          <Button onClick={() => save.mutate()} disabled={save.isPending}>▣ {t("branding.saveChanges")}</Button>
+          <Button onClick={() => save.mutate()} disabled={!configLoaded || save.isPending}>▣ {t("branding.saveChanges")}</Button>
         </div>
       </div>
 
