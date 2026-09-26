@@ -155,7 +155,7 @@ create function public.approval_payload_hash(p jsonb) returns text
 language sql immutable set search_path = public, pg_temp as $$
   select encode(sha256(convert_to(p::text, 'UTF8')), 'hex')
 $$;
-revoke execute on function public.approval_payload_hash(jsonb) from public, anon;
+revoke execute on function public.approval_payload_hash(jsonb) from public, anon, authenticated;
 
 -- Does this tenant require approval for this action (and amount)? Platform
 -- minimums always do. Otherwise settings.approvals.actions.<action> = false

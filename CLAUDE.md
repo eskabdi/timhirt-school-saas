@@ -140,7 +140,10 @@ only by service_role until the migration grants it. An RPC the app calls
 needs `grant execute … to authenticated`; `scripts/ci/app-rpc-grants.py`
 fails CI when an app `supabase.rpc()` target is not executable by
 authenticated. A pgTAP helper created in `pg_temp` and called while acting as
-a user needs a grant too.
+a user needs a grant too. So does an invoker helper that only a policy or
+view calls (`catalog_definer_security.sql` #8 fails CI if a policy, view,
+default or CHECK calls a function its role cannot execute), and an extension
+created outside the `extensions` schema starts closed as well.
 
 **Known gaps are TAP TODOs, not skipped tests.** A `todo('WP-xx: …')` assertion
 that fails is reported and tolerated; one that passes fails the suite, so

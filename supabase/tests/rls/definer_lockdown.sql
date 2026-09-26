@@ -6,7 +6,7 @@
 -- learn another tenant's modules; service_role (no end-user JWT) still can.
 -- ============================================================================
 begin;
-select plan(57);
+select plan(58);
 
 insert into public.tenants (id, name, slug) values
   ('00000000-0000-0000-0000-0000000d0a00', 'Lockdown A', 'lockdown-a'),
@@ -77,6 +77,10 @@ select throws_ok($$ select public.create_export_job('00000000-0000-0000-0000-000
 select throws_ok($$ insert into public.data_jobs (tenant_id, user_id, job_type, entity_type, status, storage_path)
                     values ('00000000-0000-0000-0000-0000000d0a00', '00000000-0000-0000-0000-0000000d0a01', 'export', 'students', 'completed', 'x/evil.csv') $$,
   '42501', null, 'even a school admin cannot insert a data_jobs row directly (the RPC is the only path)');
+update public.data_jobs set status = 'completed', storage_path = '00000000-0000-0000-0000-0000000d0b00/x.csv', processed_rows = 999
+where tenant_id = '00000000-0000-0000-0000-0000000d0a00';
+select is((select count(*)::int from public.data_jobs where status = 'completed'), 0,
+  'a school admin cannot mark a job completed by a direct update (complete_job is service_role only)');
 select throws_ok($$ select public.create_export_job('00000000-0000-0000-0000-0000000d0b00', 'students') $$, '42501', null, 'admin A cannot create a job in tenant B');
 select isnt(public.create_export_job('00000000-0000-0000-0000-0000000d0a00', 'students'), null, 'admin A creates a job in their own tenant');
 select lives_ok($$ select public.acknowledge_alert('00000000-0000-0000-0000-0000000d0b0a') $$, 'acknowledging a tenant-B alert does not error ...');

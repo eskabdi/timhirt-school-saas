@@ -45,10 +45,10 @@ The reviewed grant list is `definer_allowlist.sql`; `catalog_definer_security.sq
 | `get_class_rank(uuid,uuid)` | Private (authenticated) | authenticated service_role | 0 | 0 | academic-record.ts | — | `search_path=public, pg_temp` |
 | `get_config(text,uuid)` | Internal (service_role) | service_role | 0 | 0 | — | — | `search_path=public, pg_temp` |
 | `get_email_for_user(uuid)` | Private (authenticated) | authenticated service_role | 1 | 0 | — | — | `search_path=public, pg_temp` |
-| `get_role_for_user(uuid)` | Private (authenticated) | authenticated timhirt_view_owner service_role | 216 | 0 | — | — | `search_path=public, pg_temp` |
+| `get_role_for_user(uuid)` | Private (authenticated) | authenticated timhirt_view_owner service_role | 215 | 0 | — | — | `search_path=public, pg_temp` |
 | `get_security_settings()` | Private (authenticated) | authenticated service_role | 0 | 0 | useSecuritySettings.ts | — | `search_path=public, pg_temp` |
 | `get_student_grade_history(uuid)` | Private (authenticated) | authenticated service_role | 0 | 0 | academic-record.ts | — | `search_path=public, pg_temp` |
-| `get_tenant_id_for_user(uuid)` | Private (authenticated) | authenticated timhirt_view_owner service_role | 318 | 0 | — | — | `search_path=public, pg_temp` |
+| `get_tenant_id_for_user(uuid)` | Private (authenticated) | authenticated timhirt_view_owner service_role | 317 | 0 | — | — | `search_path=public, pg_temp` |
 | `grade_guard()` | Trigger-only | service_role | 0 | 1 | — | — | `search_path=public, pg_temp` |
 | `grade_point_for(uuid,numeric)` | Internal (service_role) | service_role | 0 | 0 | — | — | `search_path=public, pg_temp` |
 | `guardians_lock_user_id()` | Trigger-only | service_role | 0 | 1 | — | — | `search_path=public, pg_temp` |

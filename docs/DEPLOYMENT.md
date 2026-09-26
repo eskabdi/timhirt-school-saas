@@ -260,4 +260,4 @@ order by 1, 2;
 
 Also confirm new functions still start closed:
 `select defaclnamespace::regnamespace, defaclacl from pg_default_acl where defaclrole = 'postgres'::regrole and defaclobjtype = 'f';`
-must show no `anon=`/`authenticated=` entry for `public` (expected `{service_role=X/postgres}`), and a global row (namespace `-`) with no PUBLIC entry, i.e. no item that starts with `=X/` (expected `{postgres=X/postgres}`). The `extensions` row should read `{=X/postgres}`.
+must show no `anon=`/`authenticated=` entry for `public` (expected `{service_role=X/postgres}`), and a global row (namespace `-`) with no PUBLIC entry, i.e. no item that starts with `=X/` (expected `{postgres=X/postgres}`). The `extensions` row should read `{=X/postgres}`. After any `create extension` that lands outside the `extensions` schema, check EXECUTE on its functions: they start closed like every other new function.

@@ -372,6 +372,11 @@ $$;
 drop policy if exists health_alerts_insert on public.health_alerts;
 drop policy if exists system_health_insert on public.system_health;
 drop policy if exists data_jobs_write on public.data_jobs;
+-- The same for UPDATE (review AZ2-1): data_jobs_admin_update let a school
+-- admin mark a job completed with any storage_path and row counts, which is
+-- what the service_role-only complete_job/fail_job/update_job_progress guard.
+-- Nothing in the app updates data_jobs; the processors use service_role.
+drop policy if exists data_jobs_admin_update on public.data_jobs;
 
 -- CREATE OR REPLACE keeps existing grants, but step 1 already ran, so the
 -- replaced functions are closed too. Re-close in case a body above was new.

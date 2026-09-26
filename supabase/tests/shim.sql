@@ -12,6 +12,14 @@
 -- project, where Supabase owns all of these objects.
 -- ============================================================================
 
+-- Global defaults are stored per role, not per schema, so they outlive the
+-- schema reset in run.sh. Restore PostgreSQL's built-in default (EXECUTE for
+-- PUBLIC on new functions, which Supabase keeps), so a local run cannot
+-- inherit a default a previous run left behind (R6 WP-02's migration closes
+-- it). This runs first: pgtap and pgcrypto are recreated below after the reset
+-- and must get PUBLIC EXECUTE like on a fresh database (review AZ2-2).
+alter default privileges for role postgres grant execute on functions to public;
+
 create extension if not exists pgcrypto;
 create extension if not exists pgtap;
 
@@ -47,11 +55,6 @@ alter role service_role bypassrls;
 -- WP-00 revoked four; R6 WP-02 closed the other 42, see definer_allowlist.sql) stayed
 -- invisible to a green harness. This must run before any migration creates
 -- objects, and as the role that owns them (postgres), exactly like production.
--- Global defaults are stored per role, not per schema, so they outlive the
--- schema reset in run.sh. Restore PostgreSQL's built-in default (EXECUTE for
--- PUBLIC on new functions, which Supabase keeps), so a local run cannot
--- inherit a default a previous run's migration experiment left behind.
-alter default privileges for role postgres grant execute on functions to public;
 grant usage on schema public to anon, authenticated, service_role;
 alter default privileges for role postgres in schema public
   grant all on tables to anon, authenticated, service_role;

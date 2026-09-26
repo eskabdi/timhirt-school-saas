@@ -9,12 +9,14 @@
 --   * no definer function exists outside public (review AZ-2);
 --   * postgres's default privileges keep new functions closed: no EXECUTE to
 --     PUBLIC globally, none to anon/authenticated/PUBLIC in public (review
---     SEC-1).
+--     SEC-1);
+--   * nothing a policy, view, default or constraint calls is closed to the
+--     role that evaluates it (review SEC-R2-3).
 -- Needs the Supabase-faithful grants in shim.sql, otherwise anon cannot reach
 -- the schema and every "anon cannot execute" check passes vacuously (L-08).
 -- ============================================================================
 begin;
-select plan(7);
+select plan(8);
 \ir ../../security/definer_allowlist.sql
 
 create temp view definer_fn as
@@ -71,6 +73,40 @@ select is(array(
       and (a.grantee = 0 or a.grantee::regrole::text in ('anon', 'authenticated'))
     order by 1), '{}'::text[],
   'new functions postgres creates in public start closed to PUBLIC, anon and authenticated');
+
+-- Every function a policy, view, column default or CHECK calls is executable
+-- by the role that evaluates it (review SEC-R2-3): new functions start
+-- closed, and app-rpc-grants.py only sees the app's .rpc() calls. Policies
+-- are checked for authenticated (anon on the 9 PUBLIC-scoped admin tables is
+-- the known WP-06 backlog row, so anon is not checked here).
+select is((with deps as (
+  select 'policy ' || c.relname || '.' || p.polname as what, f.oid as fn,
+         case when p.polroles @> array[0::oid] or p.polroles @> array['authenticated'::regrole::oid] then 'authenticated' end as needs
+  from pg_depend d join pg_policy p on p.oid = d.objid join pg_class c on c.oid = p.polrelid
+  join pg_proc f on f.oid = d.refobjid
+  where d.classid = 'pg_policy'::regclass and d.refclassid = 'pg_proc'::regclass and f.pronamespace = 'public'::regnamespace
+  union all
+  select 'view ' || v.relname, f.oid,
+         case when coalesce(v.reloptions::text, '') like '%security_invoker=true%' then 'authenticated' else v.relowner::regrole::text end
+  from pg_depend d join pg_rewrite r on r.oid = d.objid join pg_class v on v.oid = r.ev_class
+  join pg_proc f on f.oid = d.refobjid
+  where d.classid = 'pg_rewrite'::regclass and d.refclassid = 'pg_proc'::regclass and f.pronamespace = 'public'::regnamespace
+    and v.relnamespace = 'public'::regnamespace
+  union all
+  select 'default ' || c.relname || '.' || a.attname, f.oid, 'authenticated'
+  from pg_depend d join pg_attrdef ad on ad.oid = d.objid join pg_class c on c.oid = ad.adrelid
+  join pg_attribute a on a.attrelid = ad.adrelid and a.attnum = ad.adnum
+  join pg_proc f on f.oid = d.refobjid
+  where d.classid = 'pg_attrdef'::regclass and d.refclassid = 'pg_proc'::regclass and f.pronamespace = 'public'::regnamespace
+  union all
+  select 'constraint ' || con.conname, f.oid, 'authenticated'
+  from pg_depend d join pg_constraint con on con.oid = d.objid join pg_proc f on f.oid = d.refobjid
+  where d.classid = 'pg_constraint'::regclass and d.refclassid = 'pg_proc'::regclass and f.pronamespace = 'public'::regnamespace
+)
+select array(select distinct what || ' -> ' || fn::regprocedure::text || ' (' || needs || ')'
+             from deps where needs is not null and needs <> 'postgres' and not has_function_privilege(needs, fn, 'execute')
+             order by 1)), '{}'::text[],
+  'every function a policy, view, default or constraint calls is executable by the role that evaluates it');
 
 select * from finish();
 rollback;
