@@ -9,6 +9,7 @@ import { useAttendanceNotifications } from "@/features/attendance/notifications"
 import { markNotificationRead, markAllNotificationsRead } from "@/features/fees/api";
 import { StudentDashboardView } from "./StudentDashboardView";
 import { StudentLeaveRequestPanel } from "./StudentLeaveRequestPanel";
+import { fullName } from "@/lib/names";
 
 function AttendanceNotificationsBanner() {
   const { t } = useTranslation();
@@ -40,7 +41,7 @@ function AttendanceNotificationsBanner() {
           <div key={n.id} className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm">
             <p className="text-ink">
               {t(`attendance.notifications.${n.kind}`, {
-                student: n.student ? `${n.student.first_name} ${n.student.last_name}` : "",
+                student: n.student ? fullName(n.student) : "",
                 date: n.attendance ? <EthDate value={n.attendance.attendance_date} /> : "",
               })}
             </p>

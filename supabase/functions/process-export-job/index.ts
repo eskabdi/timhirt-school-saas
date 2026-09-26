@@ -21,6 +21,8 @@ import { z } from "npm:zod@3";
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { requireRole, errors, json, rateLimit, corsHeaders } from "../_shared/security.ts";
 import { toEthiopian } from "../_shared/ethiopian-date.ts";
+import { fullName } from "../_shared/names.ts";
+import { claimJob, failJobQuietly, type ClaimJobClient } from "../_shared/jobs.ts";
 
 const Payload = z.object({ job_id: z.string().uuid() });
 
@@ -129,7 +131,7 @@ async function buildTeachersCsv(admin: SupabaseClient, tenantId: string): Promis
     fetchAll(admin, "employee_subjects", "employee_id, subjects(code)", tenantId),
   ]);
 
-  const nameById = new Map(employees.map((e) => [e.id, [e.first_name, e.father_name, e.last_name].filter(Boolean).join(" ")]));
+  const nameById = new Map(employees.map((e) => [e.id, fullName(e)]));
 
   const contactMap = new Map<string, typeof contacts[number]>();
   for (const c of contacts.sort((a, b) => (a.created_at < b.created_at ? -1 : 1))) {
@@ -231,8 +233,11 @@ Deno.serve(async (req) => {
     if (job.status !== "queued") return errors.badRequest();
     if (!["students", "teachers", "fees"].includes(job.entity_type)) return errors.badRequest();
 
-    await ctx.adminClient.from("data_jobs")
-      .update({ status: "processing", started_at: new Date().toISOString() }).eq("id", job_id);
+    // Atomic claim: a second invocation for the same job stops here (409)
+    // instead of processing it again (state-concurrency review, WP-01).
+    if (!(await claimJob(ctx.adminClient as unknown as ClaimJobClient, job_id))) {
+      return json({ error: "job_already_claimed" }, 409);
+    }
 
     const rows = job.entity_type === "students" ? await buildStudentsCsv(ctx.adminClient, ctx.tenantId!)
       : job.entity_type === "teachers" ? await buildTeachersCsv(ctx.adminClient, ctx.tenantId!)
@@ -243,7 +248,7 @@ Deno.serve(async (req) => {
     const { error: upErr } = await ctx.adminClient.storage.from("data-imports")
       .upload(storagePath, new Blob([csv], { type: "text/csv" }), { contentType: "text/csv", upsert: true });
     if (upErr) {
-      await ctx.adminClient.rpc("fail_job", { p_job_id: job_id, p_error_message: "could_not_upload_file" });
+      await failJobQuietly(ctx.adminClient, job_id, "could_not_upload_file", "process-export-job");
       return json({ ok: false, reason: "upload_failed" }, 200);
     }
 
@@ -261,7 +266,10 @@ Deno.serve(async (req) => {
     return json({ ok: true, total_rows: rows.length }, 200);
   } catch (err) {
     console.error("process-export-job failed", { message: (err as Error).message });
-    await ctx.adminClient.rpc("fail_job", { p_job_id: job_id, p_error_message: "internal_error" }).catch(() => {});
+    // PostgREST builders have no .catch(): the old `.catch(() => {})` threw a
+    // TypeError, so the job was never marked failed and stayed "running"
+    // (R6 WP-01, found by the new `deno check` gate).
+    await failJobQuietly(ctx.adminClient, job_id, "internal_error", "process-export-job");
     return errors.internal();
   }
 });

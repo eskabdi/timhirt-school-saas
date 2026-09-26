@@ -14,6 +14,11 @@
 // line items exactly as it did for a single invoice before this function
 // existed -- no RLS/trigger changes needed here.
 //
+// R6 WP-09 (maker-checker): the database may park the payment as 'pending'
+// (tenant threshold, settings.approvals); the response is then 202
+// { status: "pending_approval" } with no receipt, and the invoice is credited
+// only when a different user with invoices:approve accepts it.
+//
 // Optionally accepts a bank-generated verification URL (Part 3). Unlike
 // verify-admission-bank-url, a failed verification here does NOT block
 // recording the payment: the accountant/school_admin is already a trusted
@@ -30,6 +35,7 @@ import { issueFeeDocument, notifyBilling, renderReceiptPdf, type FeeLineItem } f
 import { loadDocumentBranding } from "../_shared/branding.ts";
 import { loadDocumentTemplate } from "../_shared/doc-template.ts";
 import { verifyBankUrl } from "../_shared/bank-verify.ts";
+import { fullName } from "../_shared/names.ts";
 
 const Payload = z.object({
   invoice_id: z.string().uuid(), // an invoice_headers id
@@ -74,8 +80,12 @@ Deno.serve(async (req) => {
       tenant_id: header.tenant_id, invoice_id: header.id,
       amount: p.amount, provider: p.provider, provider_ref: p.reference?.trim() || null,
       status: "succeeded",
-    }).select("id, amount, provider, provider_ref, paid_at").single();
+    }).select("id, amount, provider, provider_ref, paid_at, status").single();
     if (payErr) throw payErr;
+    // R6 WP-09: above the tenant's threshold the database parks the payment
+    // as 'pending' and files a manual_payment_accept request; it credits the
+    // invoice only when a second person approves it.
+    const awaitingApproval = payment.status === "pending";
 
     let bankVerification: { status: string; failure_reason?: string } | null = null;
     if (p.bank_verification) {
@@ -96,11 +106,17 @@ Deno.serve(async (req) => {
       }
     }
 
+    // No receipt or "payment received" notice for a payment that is still
+    // waiting on approval; the approver's inbox issues the receipt.
+    if (awaitingApproval) {
+      return json({ payment_id: payment.id, status: "pending_approval", receipt_url: null, bank_verification: bankVerification }, 202);
+    }
+
     // Receipt + notification -- non-fatal, the payment is already recorded.
     let receiptUrl: string | null = null;
     try {
       const { data: student } = await ctx.adminClient.from("students")
-        .select("first_name, last_name, admission_no").eq("id", header.student_id).maybeSingle();
+        .select("first_name, middle_name, last_name, admission_no").eq("id", header.student_id).maybeSingle();
       const { data: tenant } = await ctx.adminClient.from("tenants").select("name").eq("id", header.tenant_id).maybeSingle();
       // Re-read the header's lines: apply_manual_payment_trg has just
       // allocated this payment across them, in the same transaction.
@@ -117,7 +133,7 @@ Deno.serve(async (req) => {
         });
         const refreshedDue = lineItems.reduce((s, l) => s + l.amountDue, 0);
         const refreshedPaid = lineItems.reduce((s, l) => s + l.amountPaid, 0);
-        const studentName = `${student.first_name} ${student.last_name}`.trim();
+        const studentName = fullName(student);
         // R5-B2: gated on branding_extended; UNBRANDED below Standard.
         const branding = await loadDocumentBranding(ctx.adminClient, header.tenant_id);
         const template = await loadDocumentTemplate(ctx.adminClient, header.tenant_id, "receipt");
@@ -145,7 +161,7 @@ Deno.serve(async (req) => {
       console.error("record-fee-payment: receipt generation failed (non-fatal)", { message: (err as Error).message });
     }
 
-    return json({ payment_id: payment.id, receipt_url: receiptUrl, bank_verification: bankVerification }, 201);
+    return json({ payment_id: payment.id, status: "succeeded", receipt_url: receiptUrl, bank_verification: bankVerification }, 201);
   } catch (err) {
     console.error("record-fee-payment failed", { message: (err as Error).message });
     return errors.internal();

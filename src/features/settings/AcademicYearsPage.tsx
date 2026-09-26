@@ -43,11 +43,9 @@ export function AcademicYearsPage() {
   });
 
   const togglePublish = useMutation({
-    mutationFn: async ({ termId, publish }: { termId: string; publish: boolean }) => {
+    mutationFn: async ({ termId }: { termId: string; publish: true }) => {
       const { error } = await supabase.from("academic_terms").update(
-        publish
-          ? { results_published: true, results_published_at: new Date().toISOString(), results_published_by: profile!.id }
-          : { results_published: false, results_published_at: null, results_published_by: null },
+        { results_published: true, results_published_at: new Date().toISOString(), results_published_by: profile!.id },
       ).eq("id", termId);
       if (error) throw error;
     },
@@ -151,11 +149,18 @@ export function AcademicYearsPage() {
                           </Badge>
                         </div>
                         <p className="text-xs text-ink-faint"><EthDate value={tr.starts_on} /> — <EthDate value={tr.ends_on} /></p>
-                        <button type="button" className="mt-1 text-xs text-navy hover:underline"
-                          onClick={() => togglePublish.mutate({ termId: tr.id, publish: !tr.results_published })}
-                          disabled={togglePublish.isPending}>
-                          {tr.results_published ? t("settingsPages.unpublishResults") : t("settingsPages.publishResults")}
-                        </button>
+                        {/* R6 WP-09: published results stay published (the database
+                            refuses an unpublish); corrections go through a
+                            grade-change approval from the gradebook. */}
+                        {tr.results_published ? (
+                          <p className="mt-1 text-xs text-ink-faint">{t("settingsPages.resultsLocked")}</p>
+                        ) : (
+                          <button type="button" className="mt-1 text-xs text-navy hover:underline"
+                            onClick={() => togglePublish.mutate({ termId: tr.id, publish: true })}
+                            disabled={togglePublish.isPending}>
+                            {t("settingsPages.publishResults")}
+                          </button>
+                        )}
                       </div>
                     ))}
                   </div>

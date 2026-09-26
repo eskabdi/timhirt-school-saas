@@ -5,11 +5,16 @@ TanStack Query on Supabase (Postgres + RLS + Edge Functions + Storage), no
 custom API server.
 
 > **Deployed state (verified 2026-09-25):** production runs commit `da6055e`
-> (R6 WP-00 and its closeout, PR #8). All 108 migrations are applied, and 28/28
+> (R6 WP-00 and its closeout, PR #8). 108 of the repo's 113 migrations are applied
+> (`20260925000002`, `20260925000003` R6 WP-01, `20260926000001` R6 WP-02 and
+> `20260927000001`/`…02` R6 WP-09 are pending deploy), and 28/28
 > Edge Functions match the repo (names and `verify_jwt`). The frontend is built
 > on Vercel from `da6055e`. See `audit/prod-drift-2026-09-24.md` §5 and
-> `audit/evidence/wp00-closeout-deploy-20260925T072419Z.txt`. There is **no staging project** yet (R6 WP-17), and **PITR is off with
-> no backups**. Public sign-up is **disabled** (invite-only, DR-1 closed
+> `audit/evidence/wp00-closeout-deploy-20260925T072419Z.txt`. A staging project
+> exists but is **empty** (`timhirt-saas-staging`, ref `ekebibapffrhzibidbnr`,
+> created 2026-09-26, sign-up disabled). R6 WP-17 loads the schema into it.
+> Production has **PITR off and no backups**, because the org is on the Free
+> plan. Public sign-up is **disabled** (invite-only, DR-1 closed
 > 2026-09-25). The R6 fix plan is `docs/audits/timhirt-production-fix-plan.md`;
 > progress is in `audit/FIXES_VERIFIED_R6.md`.
 
@@ -104,6 +109,45 @@ debugging rounds. Select them by another attribute.
 `JSON.stringify(…, null, 2)` produces a 1500-line diff that changes no keys.
 Insert into the existing line. `npm run check:locales` fails the build on this.
 
+**The harness grants what Supabase grants.** `supabase/tests/shim.sql` mirrors
+Supabase's default privileges (USAGE on `public` and per-role grants on every new
+table, sequence and function for `anon`, `authenticated`, `service_role`); that
+is what production has, and `audit/evidence/wp01-acl-parity-*.txt` shows the
+harness and production agree on EXECUTE for every public function and
+SELECT/INSERT on every public table and view (191 = 191); schema USAGE and
+`auth.users` access match `audit/evidence/wp01-prod-calendar-and-schema-grants-*.txt`.
+UPDATE/DELETE, sequences and schema CREATE are not compared yet. Before R6 WP-01 anon
+could not reach `public` at all, so every "anon cannot call X" probe passed
+vacuously and H-01 hid behind a green run. Don't add a grant to the shim that
+Supabase doesn't make.
+
+**SECURITY DEFINER functions are closed by default (R6 WP-02).** Every one in
+`public` is EXECUTE-able only by service_role unless it is listed, with a
+reason, in `supabase/security/definer_allowlist.sql`;
+`catalog_definer_security.sql` fails CI on any drift in either direction. A
+migration that adds a definer function must `revoke execute … from public,
+anon, authenticated`, pin `set search_path = public, pg_temp`, and re-grant
+only what the allow-list says. Helpers that take a user or tenant id must
+answer only for the caller unless `current_setting('role')` is one of the
+trusted contexts (`none`, `service_role`, `postgres`, `supabase_admin`) — an
+allow-list, so an unexpected role is treated as an end user (see
+`20260926000001_r6_definer_lockdown.sql`).
+
+**Every new function starts closed (R6 WP-02).** postgres's default
+privileges no longer grant EXECUTE to PUBLIC, anon or authenticated in
+`public`, so a function a migration creates — definer or invoker — is callable
+only by service_role until the migration grants it. An RPC the app calls
+needs `grant execute … to authenticated`; `scripts/ci/app-rpc-grants.py`
+fails CI when an app `supabase.rpc()` target is not executable by
+authenticated. A pgTAP helper created in `pg_temp` and called while acting as
+a user needs a grant too.
+
+**Known gaps are TAP TODOs, not skipped tests.** A `todo('WP-xx: …')` assertion
+that fails is reported and tolerated; one that passes fails the suite, so
+whoever closes the gap must flip it to a hard assertion. The catalog guards
+(`catalog_*.sql`) are ratchets against `supabase/security/*_known.sql`: a new
+offender fails, and a fixed one must be deleted from the baseline.
+
 **psql pads its output.** An anchored `grep '^not ok'` over raw `psql` output
 matches nothing, so a pgTAP runner can report green while every assertion
 fails. `supabase/tests/run.sh` uses `-qtA` and counts assertions against each
@@ -117,12 +161,15 @@ Run the gates — CI runs all of them, so a miss here is a red build later:
 
 ```bash
 npx tsc --noEmit
-npx eslint src                      # 0 errors; ~41 pre-existing `any` warnings
+npx eslint src                      # 0 errors, 0 warnings
 npx vitest run
 npm run check:i18n                  # must be 0
 npm run check:locales               # parity + no wholesale reformat
 npm run build
-PGHOST=… ./supabase/tests/run.sh    # 108 migrations + 56 pgTAP suites
+PGHOST=… ./supabase/tests/run.sh    # 113 migrations + 65 pgTAP suites
+python3 scripts/ci/app-rpc-grants.py      # after run.sh, same PG* env
+bash scripts/ci/deno-check.sh       # Edge Function types (ratchet)
+python3 scripts/ci/semgrep-rule-test.py   # needs semgrep 1.95.0
 ```
 
 `eslint scripts/` reports `no-undef` on node globals — `scripts/` is outside the
@@ -147,4 +194,12 @@ measuring nothing. Prove a gate fails before trusting that it passed.
   exist and only the harness caught it.
 - **Edge Functions** share `_shared/security.ts`. `rateLimit()` is async and
   Postgres-backed (`consume_rate_limit`); it fails closed.
+- **Dual control (R6 WP-09).** Recording a manual payment above the school's
+  threshold, voiding an invoice, changing a grade after results are published
+  and transferring a student out go through `approval_requests`
+  (`submit_approval` → `decide_approval`); the database refuses the direct
+  write from a client. The enforcement triggers are SECURITY INVOKER and test
+  `current_user` (a definer RPC or service_role path is trusted). A new
+  sensitive action is registered in `approval_actions` and wired the same way,
+  never gated only in the UI.
 - Deploy tokens: never commit, never echo, shred after use.

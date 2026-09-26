@@ -79,7 +79,16 @@ Deno.serve(async (req) => {
       // retryable at role='pending' instead of ending up with a teacher
       // profile row but no matching role.
       if (p.role === "teacher") {
-        await db.from("teachers").delete().eq("tenant_id", ctx.tenantId).eq("user_id", p.user_id).catch(() => {});
+        // PostgREST builders have no .catch(): the old `.catch(() => {})`
+        // threw a TypeError here, so the rollback never ran (R6 WP-01, found by
+        // the new `deno check` gate). Await it and log a failed rollback.
+        try {
+          const { error: rbErr } = await db.from("teachers").delete()
+            .eq("tenant_id", ctx.tenantId).eq("user_id", p.user_id);
+          if (rbErr) console.error("activate-sso-user: teacher rollback failed", { message: rbErr.message });
+        } catch (rbErr) {
+          console.error("activate-sso-user: teacher rollback failed", { message: (rbErr as Error).message });
+        }
       }
       throw updErr;
     }

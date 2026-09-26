@@ -2,13 +2,14 @@
 -- Platform-wide security settings (/platform/security, 20260806000001):
 -- get_security_settings() must be readable by any authenticated role (every
 -- signed-in user needs to know the idle timeout and password policy, not
--- just school_admin/super_admin), while writes to the underlying
+-- just school_admin/super_admin; since R6 WP-02 the login thresholds only
+-- reach super_admin), while writes to the underlying
 -- system_config rows (tenant_id is null) must stay restricted to
 -- super_admin -- the whole point of putting this in the platform console
 -- instead of a tenant-level settings page.
 -- ============================================================================
 begin;
-select plan(7);
+select plan(8);
 
 insert into auth.users (instance_id, id, aud, role, email, encrypted_password,
   email_confirmed_at, created_at, updated_at, confirmation_token, email_change,
@@ -32,10 +33,9 @@ set local role authenticated;
 set local request.jwt.claim.sub = '8a000002-0000-0000-0000-000000000002';
 
 -- ---------- get_security_settings() works for a plain registrar ----------
-select is(
-  (select (get_security_settings()->>'login_max_attempts')::int),
-  5,
-  'a registrar (not school_admin/super_admin) can call get_security_settings() and gets the seeded default'
+select ok(
+  (select get_security_settings() ? 'session_timeout_minutes'),
+  'a registrar (not school_admin/super_admin) can call get_security_settings() and gets the session timeout'
 );
 
 select ok(
@@ -57,14 +57,21 @@ select is(
 -- assertion is the next one -- the value is provably unchanged.
 select lives_ok(
   $stmt$ update public.system_config set value = '999'::jsonb
-         where tenant_id is null and key = 'login_max_attempts' $stmt$,
+         where tenant_id is null and key = 'password_min_length' $stmt$,
   'registrar''s write to a tenant_id-null row runs but (per RLS) matches nothing'
 );
 
-select is(
-  (select (get_security_settings()->>'login_max_attempts')::int),
-  5,
-  'login_max_attempts is unchanged after the blocked registrar write'
+select isnt(
+  (select (get_security_settings()->>'password_min_length')::int),
+  999,
+  'password_min_length is unchanged after the blocked registrar write'
+);
+
+-- R6 WP-02 (review AZ-4, L-07): the login lockout thresholds are for the
+-- super_admin who sets them, not for every signed-in user.
+select ok(
+  not (select get_security_settings() ? 'login_max_attempts'),
+  'a registrar does not get the platform login thresholds'
 );
 
 -- ---------- super_admin can write (the actual /platform/security save path) ----------

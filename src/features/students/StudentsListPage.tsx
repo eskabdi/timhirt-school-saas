@@ -112,6 +112,7 @@ export function StudentsListPage() {
               <tr>
                 <th className="px-5 py-3">{t("students.admissionNo")}</th>
                 <th className="px-5 py-3">{t("students.firstName")}</th>
+                <th className="px-5 py-3">{t("students.middleName")}</th>
                 <th className="px-5 py-3">{t("students.lastName")}</th>
                 <th className="px-5 py-3">{t("students.class")}</th>
                 <th className="px-5 py-3">{t("students.dob")}</th>
@@ -126,6 +127,7 @@ export function StudentsListPage() {
                     <Link to={`/students/${s.id}`} className="font-medium text-navy hover:underline">{s.admission_no}</Link>
                   </td>
                   <td className="px-5 py-3 text-ink">{s.first_name}</td>
+                  <td className="px-5 py-3 text-ink">{s.middle_name ?? "—"}</td>
                   <td className="px-5 py-3 text-ink">{s.last_name}</td>
                   <td className="px-5 py-3 text-ink-faint">{cls?.name} {cls?.section}</td>
                   <td className="px-5 py-3 text-ink-faint"><EthDate value={s.date_of_birth} /></td>

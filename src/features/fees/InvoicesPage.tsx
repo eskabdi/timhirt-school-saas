@@ -17,12 +17,14 @@ import { cn, onRowDoubleClick } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
 import { issueFeeDocumentUrl, markAllNotificationsRead, markNotificationRead, useBillingNotifications, generateFeeInvoices } from "./api";
 import { IconReceipt, IconCheckCircle, IconWarningTriangle, IconDownload, IconPlusDoc, IconCalendarSmall } from "./icons";
+import { fullName } from "@/lib/names";
+import { csvCell } from "@/lib/csv";
 
-const STATUS_TONE = { pending: "neutral", partial: "navy", paid: "ok", overdue: "danger" } as const;
+const STATUS_TONE = { pending: "neutral", partial: "navy", paid: "ok", overdue: "danger", void: "neutral" } as const;
 const SELECT_CLS = "rounded-control border border-line bg-card px-3 py-2 text-sm text-ink";
 
 interface StudentRow {
-  id: string; first_name: string; last_name: string;
+  id: string; first_name: string; middle_name?: string | null; last_name: string;
   class: { name: string; section: string | null } | null;
 }
 interface InvoiceRow {
@@ -62,7 +64,7 @@ function BillingNotificationsBanner() {
             <p className="text-ink">
               {t(`fees.notifications.${n.kind}`, {
                 amount: n.amount != null ? formatETB(Number(n.amount), i18n.resolvedLanguage!) : "",
-                student: n.student ? `${n.student.first_name} ${n.student.last_name}` : "",
+                student: n.student ? fullName(n.student) : "",
               })}
             </p>
             <div className="flex shrink-0 items-center gap-3">
@@ -133,10 +135,6 @@ function GenerateInvoicesModal({ open, onClose, onGenerated }: {
   );
 }
 
-function csvCell(value: string | number): string {
-  const s = String(value);
-  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-}
 
 export function InvoicesPage() {
   const { t, i18n } = useTranslation();
@@ -218,7 +216,7 @@ export function InvoicesPage() {
     if (error) throw error;
     const studentIds = [...new Set((data ?? []).map((r) => r.student_id))];
     const { data: students, error: studentsErr } = studentIds.length
-      ? await supabase.from("students").select("id, first_name, last_name, class:classes(name, section)").in("id", studentIds)
+      ? await supabase.from("students").select("id, first_name, middle_name, last_name, class:classes(name, section)").in("id", studentIds)
       : { data: [] as StudentRow[], error: null };
     if (studentsErr) throw studentsErr;
     const studentById = new Map((students ?? []).map((s) => [s.id, s as unknown as StudentRow]));
@@ -252,7 +250,7 @@ export function InvoicesPage() {
       const { rows } = await fetchInvoiceRows();
       const header = ["Student", "Due Date", "Amount Due", "Amount Paid", "Balance", "Status"];
       const lines = rows.map((r) => [
-        csvCell(`${r.student?.first_name ?? ""} ${r.student?.last_name ?? ""}`.trim()),
+        csvCell(fullName(r.student)),
         csvCell(r.due_date),
         csvCell(Number(r.amount_due).toFixed(2)),
         csvCell(Number(r.amount_paid).toFixed(2)),
@@ -347,6 +345,7 @@ export function InvoicesPage() {
               <option value="partial">{t("fees.invoiceStatus.partial")}</option>
               <option value="paid">{t("fees.invoiceStatus.paid")}</option>
               <option value="overdue">{t("fees.invoiceStatus.overdue")}</option>
+              <option value="void">{t("fees.invoiceStatus.void")}</option>
             </select>
             <select value={classId} onChange={(e) => { setClassId(e.target.value); setPage(1); }} className={SELECT_CLS}>
               <option value="">{t("fees.filters.allGradesSections")}</option>
@@ -381,7 +380,7 @@ export function InvoicesPage() {
                 className={cn("cursor-pointer hover:bg-sidebar", inv.status !== "paid" && "bg-danger-tint")}
                 onDoubleClick={onRowDoubleClick(navigate, inv.id)}>
                 <td className="px-4 py-2 font-medium text-ink">
-                  <Link to={inv.id} className="hover:underline">{inv.student?.first_name} {inv.student?.last_name}</Link>
+                  <Link to={inv.id} className="hover:underline">{fullName(inv.student)}</Link>
                   {inv.line_count > 1 && <span className="ml-1.5 text-xs font-normal text-ink-faint">({t("fees.lineCount", { count: inv.line_count })})</span>}
                 </td>
                 <td className="px-4 py-2 text-ink-faint"><EthDate value={inv.due_date} /></td>

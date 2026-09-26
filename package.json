@@ -13,8 +13,8 @@
     "check:locales": "node scripts/check-locales.mjs",
     "check:i18n": "node scripts/i18n-audit.mjs",
     "gen:types": "supabase gen types typescript --local > src/lib/database.types.ts",
-    "predeploy": "rm -rf .vercel/output",
-    "deploy": "npm run predeploy && npx vercel deploy --prod"
+    "predeploy": "bash scripts/deploy-guard.sh && rm -rf .vercel/output",
+    "deploy": "npm run predeploy && npx vercel deploy --prod --build-env VITE_COMMIT_SHA=$(git rev-parse HEAD)"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
@@ -42,6 +42,7 @@
     "autoprefixer": "^10.4.19",
     "eslint": "^9.6.0",
     "eslint-plugin-react": "^7.34.3",
+    "happy-dom": "20.14.5",
     "postcss": "^8.4.39",
     "tailwindcss": "^3.4.4",
     "typescript": "^5.5.3",

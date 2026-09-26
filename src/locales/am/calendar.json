@@ -1,7 +1,11 @@
 {
   "months": ["መስከረም", "ጥቅምት", "ኅዳር", "ታኅሣሥ", "ጥር", "የካቲት", "መጋቢት", "ሚያዝያ", "ግንቦት", "ሰኔ", "ሐምሌ", "ነሐሴ", "ጳጉሜን"],
+  "weekdaysShort": ["እ", "ሰ", "ማ", "ረ", "ሐ", "ዓ", "ቅ"],
   "eraSuffix": "ዓ.ም",
-  "gregorianEquivalent": "= {date} እ.ኤ.አ",
+  "hijriMonths": ["ሙሐረም", "ሰፈር", "ረቢዑል አወል", "ረቢዑል አኺር", "ጀማደል ኡላ", "ጀማደል አኺር", "ረጀብ", "ሻዕባን", "ረመዳን", "ሸዋል", "ዙልቀዕዳ", "ዙልሂጃ"],
+  "hijriEraSuffix": "ዓ.ሂ",
+  "nav": { "prevMonth": "ያለፈው ወር", "nextMonth": "የሚቀጥለው ወር", "prevYears": "ያለፉት ዓመታት", "nextYears": "የሚቀጥሉት ዓመታት", "selectYear": "ዓመት ይምረጡ", "backToDays": "ወደ ቀናት ይመለሱ" },
+  "gregorianEquivalent": "{date} እ.ኤ.አ",
   "today": "ዛሬ",
   "pickDate": "ቀን ይምረጡ",
   "placeholder": "ቀን ይምረጡ (ዓ.ም)"

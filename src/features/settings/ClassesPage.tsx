@@ -77,8 +77,10 @@ export function ClassesPage() {
   const { data: teachers } = useQuery({ queryKey: ["teachers-for-classes"], queryFn: listTeachers });
   // Shift only means anything for a double-shift school -- a full-day
   // tenant never sees the field at all rather than a dead one.
+  // Own sub-key: ["tenant-config", id] holds settings-only rows for the
+  // sidebar, and sharing it swapped one shape for the other in the cache.
   const { data: tenantConfig } = useQuery({
-    queryKey: ["tenant-config", profile?.tenant_id],
+    queryKey: ["tenant-config", profile?.tenant_id, "operational-mode"],
     enabled: !!profile?.tenant_id,
     queryFn: async () => (await supabase.from("tenant_configs").select("operational_mode_key").eq("tenant_id", profile!.tenant_id!).maybeSingle()).data,
   });

@@ -1,0 +1,4 @@
+# R6 WP-01 round 3 (review DM3-2): production calendar setting VALUES (read-only aggregate, no tenant ids)
+# captured 20260926T053918Z via Management API /database/query read_only=true
+# query: select coalesce(settings->'calendar'->>'secondaryVisible','(absent)') as secondary_visible_camel, coalesce(settings->'calendar'->>'secondary_visible','(absent)') as secondary_visible_snake, coalesce(settings->'calendar'->>'geezNumerals','(absent)') as geez_numerals, count(*) as tenants from public.tenant_configs group by 1,2,3 order by 1,2,3
+[{"secondary_visible_camel":"true","secondary_visible_snake":"(absent)","geez_numerals":"false","tenants":3}]

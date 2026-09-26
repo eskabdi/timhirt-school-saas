@@ -20,7 +20,7 @@
 5. **Gate after every WP:** `supabase/tests/run.sh` (all suites green) · `npm run typecheck` · `npm run lint` · `npm run test` · `deno test supabase/functions` · `deno check` on touched functions. Paste the summary into the PR.
 6. **Secure by default (INSA Phase 3).** Parameterised access only (PostgREST/RPC/`format('%I')`), Zod allow-list on every input, generic client errors (`errors.*`), no secrets in `src/`, no `dangerouslySetInnerHTML`, least privilege on every grant.
 7. **Documentation moves with code (INSA "Execution Rule").** Any WP that changes a control, table, endpoint or role updates the matching file in `docs/insa/` (created in WP-18) in the same PR. Until WP-18 lands, append the change to `docs/insa/_pending-changes.md`.
-8. **Project conventions (non-negotiable):** ETB only · Arabic numerals only (no Ge'ez numerals anywhere, including EC dates) · Tayitu.ttf primary / Jiret.ttf secondary for Amharic · Ethiopian names = First + Middle + Last, short = First + Middle · Ethiopian clock for Amharic time display · camelCase TS / snake_case SQL **and jsonb keys** · native Supabase Auth only · RLS on every table.
+8. **Project conventions (non-negotiable):** ETB only · Arabic numerals only (no Ge'ez numerals anywhere, including EC dates; 0-9 by default, with Eastern Arabic ٠-٩ as a per-tenant opt-in per the owner's decision of 2026-09-25) · Tayitu.ttf primary / Jiret.ttf secondary for Amharic · Ethiopian names = First + Middle + Last, short = First + Middle · Ethiopian clock for Amharic time display · camelCase TS / snake_case SQL **and jsonb keys** · native Supabase Auth only · RLS on every table.
 8a. **Tenant from the URL is never authorization.** The slug in `<slug>.edux.et` (or `edux.et/<slug>`) is for routing and branding only. Tenant access always comes from the JWT → `get_tenant_id_for_user(auth.uid())` → RLS (WP-20).
 9. **Hard stops.** No online payment gateway in this version: Telebirr endpoints are removed, not fixed (WP-03.1). Do not merge the H-06 foreign-key fix without the manual-payment verification flow (WP-03/WP-04). Do not run or schedule the audit-log purge until WP-08's backfill is done.
 10. **Record keeping.** After each WP, append to `audit/FIXES_VERIFIED_R6.md`: finding IDs, PR, test names, evidence (query output / test output), and whether it is verified on staging and on production.
@@ -312,13 +312,13 @@ Each WP lists: **Findings · Files · Changes · Tests (acceptance) · Docs to u
 2. Add **catalog guard suites** (they will fail until WP-02/WP-06 land — mark them `todo` with the WP id, then flip to hard failures in those WPs):
    - `catalog_definer_security.sql` — no definer function executable by `anon`; every definer function has `search_path` set.
    - `catalog_rls_coverage.sql` — every table in `public` has RLS **and** FORCE.
-   - `catalog_module_gate.sql` — every table with `tenant_id` has a restrictive `*_module_gate` policy or is in `supabase/security/module_gate_allowlist.txt`.
+   - `catalog_module_gate.sql` — every table with `tenant_id` has a restrictive `*_module_gate` policy or is in `supabase/security/module_gate_allowlist.sql` (a `.sql` file so pgTAP can `\ir` it).
    - `catalog_storage_policies.sql` — no `storage.objects` SELECT policy whose only predicate is the tenant folder.
 3. CI (`.github/workflows/ci.yml`):
    - Pin every action by **commit SHA** (comment the tag next to it).
    - Add jobs: `gitleaks` (secret scan), `semgrep --config p/owasp-top-ten --config p/typescript --config p/react` (SAST), `npm audit --omit=dev --audit-level=high`, `deno check supabase/functions/**/index.ts`.
    - Add `.github/dependabot.yml` for `npm` and `github-actions` (weekly).
-   - Add a **conventions gate** script `scripts/ci/conventions.sh` (filled in WP-14): no `$`/`USD` currency, no Ge'ez digits U+1369–U+137C in `src/`, `supabase/functions/`, PDF templates; no `first_name} ${…last_name` concatenations.
+   - Add a **conventions gate** script `scripts/ci/conventions.py` (filled in WP-14): no `$`/`USD` currency, no Ge'ez digits U+1369–U+137C in `src/`, `supabase/functions/`, PDF templates; no `first_name} ${…last_name` concatenations.
 
 **Tests:** CI runs on the PR and fails on a planted secret and a planted `dangerouslySetInnerHTML` (then remove them).
 
@@ -1208,6 +1208,8 @@ verify_enabled = true
 ### WP-12 — Input/output hardening (M-05, M-09, L-03, L-04, L-12, G-03)
 
 **12.1 CSV (M-05)** — `src/lib/csv.ts` and `supabase/functions/_shared/csv.ts` (same logic):
+
+> *Amendment (R6 WP-01 round 3, review CQ m-2):* `src/lib/csv.ts` already exists with `csvCell(value: string | number)` (formula guard, numeric strings exempt) and is used by the invoice and payroll exports. WP-12 widens it to `csvCell(value: unknown)`, adds `toCsv` and the Deno twin, and moves the remaining ad-hoc writers (`ClassesPage`, `ImportExportPage`, `process-export-job`) onto it.
 ```ts
 const FORMULA_START = /^[=+\-@\t\r]/;
 
@@ -1263,12 +1265,12 @@ Replace every CSV writer (`process-export-job`, `PayrollRunDetailPage`, `Invoice
 
 ### WP-14 — Ethiopian conventions (M-11, M-12, L-01, L-09, G-01, G-02)
 
-**14.1 Arabic numerals only (M-11, G-02)**
+**14.1 Arabic numerals only (M-11, G-02)** — *done in R6 WP-01 (owner request, 2026-09-25): the Ge'ez option is gone; `settings.calendar.numerals` is `latn` (0-9, default) or `arab` (٠-٩), and `show_hijri` adds the Hijri date. Migration `20260925000002` normalises every stored shape through a trigger. `scripts/ci/conventions.py` is blocking.*
 - Remove the `geezNumerals` toggle from `CalendarPreferencesPage`, the `geez` prop from `EthDate`/`EthDatePicker`, and `useGeezNumerals`. `formatEth` always uses Arabic digits. Delete `toGeez` unless another feature needs it (none should).
 - Migration: `update tenant_configs set settings = settings #- '{calendar,geezNumerals}'`.
-- CI gate (`scripts/ci/conventions.sh`): fail on any character U+1369–U+137C in `src/`, `supabase/functions/`, locale JSON, and PDF templates. Runtime test renders every EC date formatter, PDF header, ID card and rank label and asserts `!/[\u1369-\u137C]/.test(output)`.
+- CI gate (`scripts/ci/conventions.py`): fail on any character U+1369–U+137C in `src/`, `supabase/functions/`, locale JSON, and PDF templates. Runtime test renders every EC date formatter, PDF header, ID card and rank label and asserts `!/[\u1369-\u137C]/.test(output)`.
 
-**14.2 Names (M-12)** — `src/lib/names.ts` and `_shared/names.ts`:
+**14.2 Names (M-12)** — *done in R6 WP-01 (owner request, 2026-09-25) as `fullName(row)` / `shortName(row)` over the snake_case DB row (`first_name`, `middle_name` or staff `father_name`, `last_name`); the owner asked for First + Middle + Last in every list too, so call sites use `fullName`. The sketch below is superseded.* `src/lib/names.ts` and `_shared/names.ts`:
 ```ts
 export interface PersonName {
   firstName: string;
@@ -1799,14 +1801,14 @@ join information_schema.tables bt on bt.table_schema = t.table_schema and bt.tab
 where t.table_schema = 'public' and t.column_name = 'tenant_id'
   and not exists (select 1 from pg_policies p where p.schemaname = 'public' and p.tablename = t.table_name
                   and p.permissive = 'RESTRICTIVE' and p.policyname like '%module_gate%');
--- expect: only rows present in supabase/security/module_gate_allowlist.txt
+-- expect: only rows present in supabase/security/module_gate_allowlist.sql
 
 -- 4. No storage SELECT policy scoped only by tenant folder
 select policyname, qual from pg_policies where schemaname = 'storage' and tablename = 'objects' and cmd = 'SELECT';
 -- review: every policy has a role/ownership predicate beyond foldername[1]
 
 -- 5. No Ge'ez digits persisted in config
-select id from public.tenant_configs
+select tenant_id from public.tenant_configs
 where settings::text ~ '[\u1369-\u137C]' or (settings -> 'calendar') ? 'geezNumerals';
 -- expect: 0 rows
 

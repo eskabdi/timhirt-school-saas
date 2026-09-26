@@ -40,6 +40,7 @@ import {
   replaceQualificationsFromText, replaceTeachingSubjects, uploadStaffDocument,
   uploadStaffPhoto, upsertEmergencyContact, type StaffDocType,
 } from "./staffApi";
+import { fullName } from "@/lib/names";
 
 const QUALIFICATIONS = ["below_grade_12", "high_school", "certificate", "diploma", "bachelor", "masters", "phd", "other"] as const;
 const LANGUAGES = ["amharic", "english", "oromo", "tigrinya", "somali", "arabic", "french"] as const;
@@ -187,7 +188,7 @@ export function StaffRegistrationPage() {
   const [invitedUserId, setInvitedUserId] = useState<string | null>(null);
   const [inviteNotice, setInviteNotice] = useState<string | null>(null);
 
-  const fullName = () => [s1.first_name, s1.father_name, s1.last_name].filter(Boolean).join(" ").trim();
+  const staffName = () => fullName(s1);
 
   // ---------- Persistence -------------------------------------------------------
   /** Creates the draft row on first call, updates it on every later one. */
@@ -224,7 +225,7 @@ export function StaffRegistrationPage() {
         first_name: s1.first_name || null, first_name_am: s1.first_name_am || null,
         father_name: s1.father_name || null, father_name_am: s1.father_name_am || null,
         last_name: s1.last_name || null, last_name_am: s1.last_name_am || null,
-        full_name: fullName(),
+        full_name: staffName(),
         gender: s1.gender, date_of_birth: toIsoDate(s1.dob!),
         nationality: s1.nationality || null, national_id: s1.national_id || null,
         phone: s1.phone || null, personal_email: s1.personal_email || null,
@@ -328,7 +329,7 @@ export function StaffRegistrationPage() {
         } else {
           try {
             const uid = await inviteAndLink({
-              tenantId, employeeId: employeeId!, email, fullName: fullName() || employeeNo!,
+              tenantId, employeeId: employeeId!, email, fullName: staffName() || employeeNo!,
               role: portalRole, staffNo: employeeNo!, locale, teachingCycleKey,
             });
             setInvitedUserId(uid);
@@ -366,7 +367,7 @@ export function StaffRegistrationPage() {
               </div>
               <div className="min-w-0">
                 <Badge tone="ok" className="mb-1">{t("staffReg.activeRegistration")}</Badge>
-                <p className="truncate font-display text-base font-bold text-ink">{fullName()}</p>
+                <p className="truncate font-display text-base font-bold text-ink">{staffName()}</p>
                 <p className="truncate text-sm text-ink-faint">{s3.job_title}</p>
               </div>
             </div>
@@ -419,7 +420,7 @@ export function StaffRegistrationPage() {
     if (!email || !employeeId) { setInviteNotice(t("staffReg.inviteFailedNotice")); return; }
     try {
       const { user_id } = await callInviteStaff({
-        email, full_name: fullName() || employeeNo, role: portalRole,
+        email, full_name: staffName() || employeeNo, role: portalRole,
         staff_no: portalRole === "teacher" ? employeeNo ?? undefined : undefined,
         default_locale: locale,
       });

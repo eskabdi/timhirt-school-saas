@@ -1,0 +1,8 @@
+# Edge Functions whose index.ts fails `deno check` today (R6 WP-01 baseline,
+# 2026-09-25). scripts/ci/deno-check.sh fails on any other function that fails
+# and on any listed one that now passes (delete its line). Type-only errors in
+# code rewritten later: run-payroll and generate-payslip-pdf (WP-10/WP-13),
+# issue-id-card (WP-12). enroll-finalize-billing left the list in WP-01.
+generate-payslip-pdf
+issue-id-card
+run-payroll

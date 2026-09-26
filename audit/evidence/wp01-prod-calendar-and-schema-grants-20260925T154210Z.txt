@@ -1,0 +1,8 @@
+# R6 WP-01 round 2: production read-only capture (20260925T154210Z), Management API /database/query read_only=true, project livqynxlibmccaycseer
+## tenant_configs.settings.calendar shapes (pre-apply count for migration 20260925000002)
+[{"t":"object","n":3,"geez_key":3,"geez_true":0,"numerals_key":0,"secondary_visible_camel":3}]
+[{"k":"geezNumerals","count":3},{"k":"secondaryVisible","count":3}]
+## schema USAGE for API roles
+[{"nspname":"auth","rolname":"anon","u":true},{"nspname":"auth","rolname":"authenticated","u":true},{"nspname":"auth","rolname":"service_role","u":true},{"nspname":"extensions","rolname":"anon","u":true},{"nspname":"extensions","rolname":"authenticated","u":true},{"nspname":"extensions","rolname":"service_role","u":true},{"nspname":"public","rolname":"anon","u":true},{"nspname":"public","rolname":"authenticated","u":true},{"nspname":"public","rolname":"service_role","u":true},{"nspname":"storage","rolname":"anon","u":true},{"nspname":"storage","rolname":"authenticated","u":true},{"nspname":"storage","rolname":"service_role","u":true},{"nspname":"vault","rolname":"anon","u":false},{"nspname":"vault","rolname":"authenticated","u":false},{"nspname":"vault","rolname":"service_role","u":true}]
+## table privileges on managed schemas
+[{"rolname":"anon","auth_users_select":false,"obj_sel":true,"obj_ins":true,"obj_upd":true,"obj_del":true,"bkt_sel":true},{"rolname":"authenticated","auth_users_select":false,"obj_sel":true,"obj_ins":true,"obj_upd":true,"obj_del":true,"bkt_sel":true},{"rolname":"service_role","auth_users_select":false,"obj_sel":true,"obj_ins":true,"obj_upd":true,"obj_del":true,"bkt_sel":true}]

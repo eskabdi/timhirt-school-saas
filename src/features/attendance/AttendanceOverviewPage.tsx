@@ -12,6 +12,7 @@ import { toEthiopian, toIsoDate, today } from "@/lib/ethiopian-date";
 import { cn } from "@/lib/utils";
 import { IconFilter } from "@/features/dashboard/icons";
 import { ATTENDANCE_VIEWS as VIEWS, rangeFor, type TermRow, type View } from "@/features/attendance/attendanceRange";
+import { fullName } from "@/lib/names";
 
 export type { TermRow, View };
 
@@ -131,7 +132,7 @@ export function AttendanceOverviewPage() {
     queryFn: async () => {
       if (!filteredClassIds.length) return [];
       const { data, error } = await supabase.from("students")
-        .select("id,admission_no,first_name,last_name,class_id")
+        .select("id,admission_no,first_name,middle_name,last_name,class_id")
         .in("class_id", filteredClassIds).eq("status", "active").order("first_name");
       if (error) throw error;
       return data ?? [];
@@ -236,7 +237,7 @@ export function AttendanceOverviewPage() {
       const e = byStudent.get(s.id) ?? { present: 0, absent: 0 };
       return {
         id: s.id,
-        name: `${s.first_name} ${s.last_name}`,
+        name: fullName(s),
         admissionNo: s.admission_no,
         classLabel: cls ? `${cls.name}${cls.section ? ` ${cls.section}` : ""}` : "—",
         present: e.present,

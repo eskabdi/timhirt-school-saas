@@ -16,6 +16,7 @@ import { EthDate } from "@/components/EthDate";
 import { AcademicRecordTab } from "@/features/students/tabs/AcademicRecordTab";
 import { AttendanceTab } from "@/features/students/tabs/AttendanceTab";
 import { BehavioralTab } from "@/features/students/tabs/BehavioralTab";
+import { fullName } from "@/lib/names";
 
 const TABS = ["personalInfo", "academicRecord", "attendance", "behavioral"] as const;
 type Tab = (typeof TABS)[number];
@@ -81,7 +82,7 @@ export function StudentDashboardView({ studentId }: { studentId: string }) {
   if (!student) return null;
 
   const cls = student.class as { name?: string; section?: string; grade_level?: number } | null;
-  const fullName = [student.first_name, student.middle_name, student.last_name].filter(Boolean).join(" ");
+  const studentName = fullName(student);
   const gradeLabel = cls?.grade_level != null ? `${t("students.profile.grade")} ${cls.grade_level}${cls.section ? `-${cls.section}` : ""}` : cls?.name ?? "—";
 
   const statCard = (label: string, value: React.ReactNode) => (
@@ -101,7 +102,7 @@ export function StudentDashboardView({ studentId }: { studentId: string }) {
         </div>
         <div className="min-w-[240px]">
           <div className="flex items-center gap-2">
-            <h1 className="font-display text-3xl font-bold text-ink">{fullName || t("students.profile.fullNamePlaceholder")}</h1>
+            <h1 className="font-display text-3xl font-bold text-ink">{studentName || t("students.profile.fullNamePlaceholder")}</h1>
             <Badge tone={student.status === "active" ? "ok" : "neutral"}>{t(`students.${student.status}`)}</Badge>
           </div>
           <p className="mt-2 text-sm text-ink-soft">{t("students.admissionNo")}: <span className="font-medium text-ink">{student.admission_no}</span></p>
@@ -151,7 +152,7 @@ export function StudentDashboardView({ studentId }: { studentId: string }) {
       )}
 
       {tab === "academicRecord" && (
-        <AcademicRecordTab studentId={student.id} studentName={fullName}
+        <AcademicRecordTab studentId={student.id} studentName={studentName}
           admissionNo={student.admission_no} classId={student.class_id} />
       )}
       {tab === "attendance" && <AttendanceTab studentId={student.id} />}

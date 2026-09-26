@@ -368,3 +368,268 @@ The diff since `ebb48a5` is records and evidence only. There is no code change b
 - RV-05: the ledger part (WP-08).
 
 **WP-00: PASS.**
+
+---
+
+## WP-01 — Make the harness and CI tell the truth (L-08)
+
+**Branch / PR:** `claude/timhirt-security-audit-kan0ei` → `fix/production-readiness-r6` (base `bae3bfd`). PR link added when opened.
+
+### Findings
+
+| ID | Status | Evidence |
+|---|---|---|
+| L-08 (harness lacked Supabase grants, so anon probes passed vacuously) | **fixed** (harness/CI; nothing to deploy) | The shim mirrors Supabase default privileges. Effective-privilege parity with production is 191 = 191, 0 differences, and 42 = 42 anon-executable definer functions (`audit/evidence/wp01-acl-parity-*.txt`). All 56 existing suites still pass. |
+| New (R6-W1-1): stored XSS in the rich-text editor load path | **fixed** (repo; deploy pending) | `RichTextEditor` loads `sanitizeRichTextNodes()` via `replaceChildren`. `RichText.test.tsx` has 4 tests, and all 4 fail with raw nodes. The repo semgrep rule flags the old line 49. |
+| New (R6-W1-2): `.catch()` on PostgREST builders (3 Edge Functions) | **fixed** (repo; deploy pending) | At runtime, `typeof builder.catch` is `undefined`, confirmed with Deno. The rollback and `fail_job` calls are now awaited, with errors logged. `deno check` passes on all three; restoring the old code turns `scripts/ci/deno-check.sh` red. |
+| DM-2 (WP-00 backlog): real anon calls | **done** | `r6_hotfix_library_anon.sql` #13–#14. Both fail without the migration. |
+| GK-F4 (WP-00): commit SHA in bundle | **done** | `<meta name="app-commit">` equals `git rev-parse HEAD` in `dist/index.html`. An invalid `VITE_COMMIT_SHA` is rejected. |
+| GK-F1 (WP-00): sign-up stays disabled | **re-verified** at WP-01 start and again in round 2 | `disable_signup = true` (`audit/evidence/wp01-signup-disabled-20260925T203148Z.txt`, read from the Management API with only that field kept). |
+
+### Implementation (plan WP-01)
+
+| Plan item | Done | Notes |
+|---|---|---|
+| 1. Shim mirrors Supabase defaults | Yes | USAGE on `public` and `ALTER DEFAULT PRIVILEGES FOR ROLE postgres … GRANT ALL ON TABLES/SEQUENCES/FUNCTIONS` to anon, authenticated and service_role, set before any migration runs. |
+| 2. Catalog guard suites | Yes, as **ratchets** (recon adjustment 3) | See the four `catalog_*.sql` suites and `supabase/security/*_known.sql`. The allow-lists are `.sql`, not `.txt`, so pgTAP can `\ir` them (adjustment 5). The storage guard also covers `ALL` policies (adjustment 6). |
+| 3a. Pin actions by SHA | Yes | 7 `uses:`, all pinned, enforced by `scripts/ci/pinned-actions.sh`. |
+| 3b. gitleaks | Yes | Full history. 5 reviewed false positives are pinned by exact fingerprint (round 2 removed 2 stale entries that only a shallow clone produced). The first local scan ran on a **shallow** clone (180 of 256 commits) and missed one, which the first CI run caught; the clone was unshallowed and rescanned (256 commits, clean). |
+| 3c. semgrep | Yes, **plus repo rules** | The registry packs alone ran 4 rules and missed planted sinks. The repo rules come with a fixture self-test. |
+| 3d. `npm audit --omit=dev --audit-level=high` | Yes | Clean (0 high/critical in runtime deps). |
+| 3e. `deno check` | Yes, as a ratchet | 3 of the 7 failing functions were fixed (real bugs). 4 were baselined; round 1 fixed enroll-finalize-billing, so 3 remain. |
+| 3f. Dependabot | Yes | npm and github-actions, weekly. |
+| 3g. Conventions script | Yes; report-only at first (adjustment 8), **blocking since round 1** | The 8 Ge'ez-digit and 13 name findings were fixed on the owner's request (see below); CI now fails on any finding. |
+| Runner | Yes | TAP TODO support, real-error detection, private temp file. |
+
+### Tests: each gate proven to fail before it is trusted
+
+| Gate | Planted / mutation | Result |
+|---|---|---|
+| `run.sh` | a real failure; an SQL error; plan too short; a TODO that passes | FAIL on each. An open TODO and a description containing "ERROR:" pass. |
+| catalog guards | 9 mutations: new anon definer, fixed baseline entry, new table without FORCE, table without RLS, removed FORCE baseline entry, new ungated table, newly gated table, new tenant-only storage policy, new bucket-only storage policy | each fails the intended hard assertion |
+| gitleaks | planted `sk_live_…` key in a new commit | exit 1 (1 leak) |
+| semgrep repo rules | fixture: 10 `ruleid:` lines and 5 `ok:` lines (16/6 after round 2) | 10/10 matched, 0 unexpected. The old `RichTextEditor` is flagged. A rule-nesting bug was caught by the fixture itself. |
+| pinned actions | `setup-node@v4` | exit 1 |
+| `deno check` ratchet | old `activate-sso-user` restored | FAIL |
+| conventions | planted `"$5"` and `"USD 10"` | 2 currency findings; template literals are not flagged |
+
+### Gate (local, 2026-09-25)
+
+- typecheck 0; `eslint src` 0.
+- Vitest: 9 files / 60 tests.
+- `check:i18n` 0; `check:locales` OK; build OK.
+- no-payment-gateway, pinned-actions, `npm audit` (runtime): all OK.
+- Deno tests 22/22; `deno-check.sh` OK (28 functions, 4 baselined).
+- semgrep: rule self-test OK; full scan (repo rules + 3 packs) 0 findings.
+- gitleaks: history clean.
+- pgTAP: 108 migrations, 60/60 suites. The catalog guards show their TODOs: definer 2, RLS 1, module gate 1, storage 1.
+
+**Deploy note:** no migration. The fixes to `RichTextEditor` (frontend) and to 3 Edge Functions ship with the next production deploy.
+
+### Round 1 reviews (13 launched on `744f1d4`)
+
+Six reviewers returned: authz, api-contract, conventions, supply-chain and frontend-security PASS; tenant-isolation FAIL (one major). Their verdicts are saved unedited in `audit/evidence/reviews/wp01-r1-*.md`. The other seven (security, code-quality, test-verifier, regression-guardian, db-migration, infra-config, insa-docs) died on an API rate limit before reporting and are re-run on the fixed head.
+
+| Finding | Severity | Fix | Proof |
+|---|---|---|---|
+| TI-1 storage guard matched exact text only | major | Classify every `storage.objects` policy (all commands, USING and WITH CHECK) by content: it must carry a role/relationship term and a tenant-folder term. | 5 planted policies (unwrapped tenant-only, `auth.role()`, `bucket_id in (…)`, write tenant-only, role-but-cross-tenant) are each caught; the 4 baselined policies are still the only offenders. |
+| TI-2 module gate matched by name only | minor | A gate counts only if restrictive, `polcmd = '*'` and USING calls `has_module(`. | Planted insert-only `with check (true)` gate is not counted; a real gate is. All 56 existing gates still count. |
+| TI-3 anon calls accepted any 42501 | minor | Assert the exact message `permission denied for function …`, plus `has_schema_privilege('anon','public','usage')`. | `r6_hotfix_library_anon.sql` 15/15. |
+| TI-4 shim granted anon/authenticated `SELECT` on `auth.users` | minor | Removed (only service_role reads it, as on Supabase). | All suites still pass. |
+| TI-5 / AZ-5 shim said 46 | info | Comment says 46 before WP-00, 42 now. | — |
+| AZ-2 definer guard ignored other schemas | minor | Hard assertion: no SECURITY DEFINER function outside `public` (extensions aside). | ok. |
+| AZ-1 `search_path=public` without `pg_temp` | minor | Deferred to WP-02 (it rewrites every definer function). | backlog |
+| FE-1 editor kept the unsafe original in form state | minor | After sanitising on load, `onChange(cleaned)` when it differs. | New editor render test mounts `RichTextEditor`; it fails when line 52 is reverted to `innerHTML =`. |
+| FE-2 no editor-level test | minor | Same test. | 5/5. |
+| SC-1 pinned-actions missed flow-style YAML and docker tags | minor | Match `uses:` anywhere; docker needs `@sha256:<64hex>`. | 5 planted cases each exit 1. |
+| SC-2 semgrep deps floated | minor | Hash-locked `scripts/ci/requirements-semgrep.txt`, `--require-hashes`. This was also the **root cause of the red security-scan** (see below). | — |
+| SC-3 happy-dom not in the INSA notes | minor | Added to `_pending-changes.md`. | — |
+| EF-4 empty baseline printed 1 | info | `grep -c .`. | — |
+| CG-1…CG-7 conventions gate | minor | Rewritten: JSX, `+` and `.join` name forms; EUR/GBP, `$${`, Intl `currency:`; `.sql`/`.css`/`.html`/migrations scanned; Ge'ez range written as escapes; fixture self-test; plan text says `conventions.py`. **Now blocking in CI** (0 findings). | `--self-test` ok (19 planted lines). |
+
+**Red security-scan on PR #9 (CI #176), root cause.** `pip install semgrep==1.95.0` let pip pick the newest setuptools (84.0.0). setuptools 81+ no longer ships `pkg_resources`, which semgrep 1.95.0 imports through `opentelemetry-instrumentation` 0.46b0. semgrep died on import with exit 1 and no stdout, and the self-test reported that as a JSON decode error. Reproduced locally with the same install, fixed with a hash-locked dependency file (`setuptools<81`), and the self-test now requires a JSON report and prints semgrep's stderr otherwise. Proven both ways: CI-like install → exit 1 with the `ModuleNotFoundError`; locked install → 10/0/0.
+
+### Owner-directed changes (2026-09-25, pulled forward from WP-14)
+
+| Owner ask | Done | Proof |
+|---|---|---|
+| Show full names (First + Middle + Last) | `src/lib/names.ts` / `supabase/functions/_shared/names.ts` (`fullName`, `shortName`; staff `father_name` counts as middle). every name render uses it (round 2 also moved the 8 remaining hand-rolled joins onto it), and every students query that feeds them selects `middle_name`. `enroll-finalize-billing` left the `deno check` baseline. | `names.test.ts` 4/4; conventions name-concat 0 and blocking. |
+| (Superseded in round 2: trigger normaliser instead of a CHECK, snake_case keys, 15/15.) Remove "Use Ge'ez numerals"; add Arabic numerals (٠١٢٣…) and Hijri options | `settings.calendar.numerals` = `latn` (0-9, default) or `arab` (٠-٩); `settings.calendar.showHijri` shows the Hijri (Umm al-Qura) date beside EC dates. `toGeez` and the toggle are gone. Migration `20260925000002_r6_calendar_numerals.sql` moves any Ge'ez tenant to `latn`, and a CHECK stops `geezNumerals` or an unknown digit system being written back. Hijri month names in en/am/om. | `r6_calendar_numerals.sql` 7/7; `ethiopian-date.test.ts` asserts no U+1369–U+137C in any rendered EC date and checks two known Hijri dates. |
+
+### Gate after round-1 fixes (local)
+
+- typecheck 0; `eslint src` 0; Vitest 10 files / 66 tests; `check:i18n` 0; `check:locales` OK; build OK.
+- conventions self-test ok and 0 findings; pinned-actions ok; semgrep self-test 10/0/0 (hash-locked install).
+- `deno-check.sh` OK (28 functions, 3 baselined).
+- pgTAP: 109 migrations, 61/61 suites; catalog TODOs unchanged (definer 2, RLS 1, module gate 1, storage 1).
+
+**Deploy note (superseded by round 2 below).**
+
+### Round 2 reviews (on `ffe8242`)
+
+Verdicts, unedited: `audit/evidence/reviews/wp01-r2-*.md`. Returned: security PASS, infra-config PASS; tenant-isolation, code-quality, db-migration, regression-guardian, insa-docs and i18n-a11y FAIL (majors below). test-verifier died twice on the API rate limit and is re-run on the fixed head.
+
+| Finding | Severity | Fix | Proof |
+|---|---|---|---|
+| TI-R2-1: the storage text classifier is fooled by an AND/OR precedence slip | major | New suite `catalog_storage_probe.sql`: seeds a tenant-B object in each of the 15 private buckets and, as a tenant-A user of all 10 roles plus anon, tries SELECT, UPDATE, DELETE (without WHERE, so only the command's own policy applies) and INSERT into tenant B; every write in a rolled-back sub-transaction. | 10/10: clean on the real policies; each planted shape (OR precedence, tenant term inside an OR, cross-tenant insert/update/delete) is caught. |
+| M-1 / RG-3: new camelCase jsonb key | major | Calendar keys are `secondary_visible`, `numerals`, `show_hijri`; the reader also accepts legacy camelCase. | `r6_calendar_numerals.sql` 15/15. |
+| DM-1 / RG-1 / SEC-WP01-2 / F5: the CHECK broke the production frontend and onboard-tenant (they write `geezNumerals: false`) | major | CHECK replaced by `normalize_calendar_settings()` plus a BEFORE INSERT/UPDATE trigger: legacy writes are normalised, not rejected, so deploy order no longer matters. onboard-tenant now checks every insert, so a failure rolls the tenant back. | Suite asserts the old settings-page upsert and the old onboard insert both save and are stored normalised. |
+| DM-2 / SEC-WP01-1 / TI-R2-6: scalar/array/null calendar aborted or corrupted the migration; not idempotent on arrays | major | Normaliser handles every shape (non-object → defaults, invalid values → defaults, extra keys kept). | Suite covers scalar, array, null, invalid numerals, non-boolean `showHijri`; a second run changes nothing. Removing the non-object guard makes the suite error (mutation). |
+| DM-3: no rollback, counts or order | major | Migration header: pre-apply production count (3 rows, all `{secondaryVisible: true, geezNumerals: false}`, `audit/evidence/wp01-prod-calendar-and-schema-grants-20260925T154210Z.txt`), expected post-state, forward-fix (drop trigger and function; data stays valid). | — |
+| F-01 (i18n-a11y): Gregorian date only in a `title` tooltip | major | Shown as visible text (DD/MM/YYYY, tenant digits) when enabled; Hijri likewise; `text-ink-soft` for AA contrast (F-02). **Visible change:** all 3 production tenants have this setting on (the onboarding default, which never did anything before), so after deploy every date shows its Gregorian equivalent until an admin unticks it. | `EthDate.test.tsx` 5/5. |
+| F1–F5, F13 (insa-docs): stale counts and an over-broad parity claim | major/minor | Corrected here, in CLAUDE.md, README and `_pending-changes.md`; residual-risk table added. | — |
+| TI-R2-2 / m-10 | minor | Role term must be a role equality, permission/relationship helper or ownership column comparison; string literals blanked; bare EXISTS no longer counts. | 3 planted look-alikes flagged. |
+| TI-R2-3 | minor | A module gate must match the exact generated shapes and apply to authenticated/PUBLIC. | 3 planted bypasses flagged; all 56 real gates still count. |
+| TI-R2-4 | minor | Allow-listed storage policies carry an md5 fingerprint. | Widening 'public read branding' breaks it. |
+| TI-R2-5 / DM-5 | minor | Shim: vault USAGE only for service_role; no API role reads `auth.users` (matches the production capture). | Full harness green. |
+| m-2/F-03, m-3/F-04, m-4, m-5, m-6, m-7, m-8, m-9 (code-quality, i18n-a11y) | minor | Preview uses unsaved prefs; save status/error regions; one `useTenantSettings()` hook that throws on error (own sub-key); cached Hijri formatter; editor hands HTML back only when something was removed; 8 hand-rolled name joins moved to `fullName`; `failJobQuietly()` shared helper; baseline comments. | `RichText.test.tsx` 6/6, `_shared/jobs.test.ts` 3/3, `_shared/names.test.ts` 3/3. |
+| F-06/F-07/F-08/F-09/F-11 (i18n-a11y) | minor | Oromo "Durduuba", Sha'ban / Dhu al-Qa'dah; picker navigation labels translated; each day labelled with its full EC date, `aria-current="date"` on today; one Gregorian formatter (no leading "="). | locales parity ok. |
+| F-10 (i18n-a11y), owner rule | minor | Tayitu (primary) and Jiret (secondary) now render all app Ethiopic text via Ethiopic-only font aliases. | build ok. |
+| SEC-WP01-3 | minor | `src/lib/csv.ts`: CSV formula-injection guard for invoice and payroll exports. | `csv.test.ts` 3/3. |
+| SEC-WP01-4 | minor | semgrep sink rule adds `execCommand("insertHTML")`, `createContextualFragment`, `setHTMLUnsafe`, `parseHTMLUnsafe`, `srcdoc`, `<iframe srcDoc>`. | Rule self-test 16/0/0. |
+| infra F1/F2/F4/F7/F8/F10 | minor | 2 stale gitleaks fingerprints removed (full history still clean); `npm run deploy` refuses a dirty tree; conventions self-test needs a proving fixture per check; `persist-credentials: false`; `--only-binary :all:`; Dependabot pip. | gitleaks 256 commits clean; guard exits 1 on a dirty tree; thinned fixture fails. |
+| DM-7 | info | run.sh matches `psql:<any path>: ERROR:`. | — |
+| Found while testing (new) | — | In Vitest, i18next-icu loaded intl-messageformat's CommonJS build and every ICU message fell back to its raw text, so i18n in tests proved nothing. `vite.config.ts` inlines both packages. The browser bundle was checked separately (`{date} G.C.` → `25/09/2026 G.C.`); production is not affected. | EthDate tests would fail without it. |
+
+### Gate after round 2 (local)
+
+- typecheck 0; `eslint src` 0 errors, 0 warnings; Vitest 12 files / 75 tests; `check:i18n` 0; `check:locales` OK; build OK.
+- conventions self-test ok and 0 findings; pinned-actions ok; semgrep rule test 16/0/0 and full scan (repo rules + 3 packs) 0; gitleaks full history (256 commits) clean.
+- `deno-check.sh` OK (28 functions, 3 baselined); Deno tests 28/28.
+- pgTAP: 109 migrations, 62/62 suites; catalog TODOs unchanged (definer 2, RLS 1, module gate 1, storage 1).
+
+**Deploy note (round 2).** One migration (`20260925000002`), the frontend, and 9 Edge Functions: `activate-sso-user`, `enroll-finalize-billing`, `issue-fee-document`, `issue-id-card`, `onboard-tenant`, `process-export-job`, `process-import-job`, `provision-portal-accounts`, `record-fee-payment`. Order no longer matters (the trigger accepts old and new writers). Pre-apply check: `select jsonb_typeof(settings->'calendar'), count(*) from tenant_configs group by 1` (expect 3 objects). Post-apply check: 0 rows with any camelCase calendar key; `select count(*) from tenant_configs where settings->'calendar' ? 'geezNumerals'` = 0.
+
+
+### Round 3 reviews (final round, 7 reviewers)
+
+Verdicts in `audit/evidence/reviews/wp01-r3-*.md`. db-migration and regression-guardian passed. code-quality, i18n-a11y, insa-docs, tenant-isolation and test-verifier failed; every major and most minors are fixed below.
+
+| Finding | Severity | Fix | Proof |
+|---|---|---|---|
+| CQ M-1 / i18n N-01 / TI-R3-4: Save before the settings load (or after a failed load) overwrote the whole `tenant_configs.settings`, erasing branding, the ID-card template and billing with no backup | major | New migration `20260925000003`: `merge_tenant_settings(section, value)` (SECURITY INVOKER, RLS `configs_write` is the authorization, known sections only, one row-locked UPDATE). Calendar, ID-card, Branding and Fee-structures pages now write only their own section, and Save is disabled until the stored settings have loaded; a load failure shows an alert. | `tenant_settings_merge.sql` 9/9 (other sections untouched, tenant B untouched, teacher and anon refused, unknown section refused); `calendarPrefs.test.tsx` 11/11 (Save disabled while loading and on error, snake_case payload through the RPC). |
+| TI-R3-1: a path-keyed OR slip (`… OR foldername[2]='staff' AND role='hr_officer'`) evaded both storage guards | major | Text guard: the tenant-folder comparison must be a top-level AND conjunct right after the bucket test (anchored on the deparsed text; a top-level OR fails the anchor). Probe: tenant-B objects at realistic paths (`staff/<id>/`, three id segments, `front/`, `back/`, and every literal `foldername[k]='…'` in the live policies), inserts at the same paths. | Planted read and write slips are flagged by the text guard and caught by the probe; every shipped policy still passes the anchor (asserted). Storage suites 20/20 (1 TODO WP-05) and 14/14. |
+| TI-R3-2 / DM3-3: no cross-tenant update/delete probe in the public `branding` bucket | minor | Tenant-B objects are seeded in public buckets too; only the read check skips public buckets. | Planted branding update and delete policies are caught. |
+| TI-R3-3: role "terms" that narrow nothing (`role = role`, `helper(null) OR true`) | minor | Role equality must compare with a literal or literal list; any `OR true` disqualifies. | Both planted shapes flagged. |
+| TV-1: student list and class roster showed First and Last only; the name gate missed separate columns and multi-line joins | major | Both tables have a Middle name column. `conventions.py` adds `.concat`, a four-line window for split joins and templates, and `name-render` (a `.tsx` that renders `{x.first_name}` but never a middle name). | The pre-fix versions of both pages are flagged; self-test has proving fixtures for each new form. |
+| TV-2: the stored calendar setting → render path and the settings page were untested | major | `calendarPrefs.test.tsx`: parse/serialize (snake_case, camelCase, `geez`, junk), `<EthDate/>` rendering from a mocked stored setting with no `prefs` prop, and the page (options, no Ge'ez, Save gating, RPC payload). | Forcing `numerals` to `latn` or dropping the Save gate fails 4 tests. |
+| insa-docs 1, 2 (major), 3, 4 | major/minor | `_pending-changes.md` suite count; README no longer advertises Ge'ez numerals; key totals; backlog name count. | — |
+| TV-3: the semgrep hash-lock had no guard | minor | `pinned-actions.sh` also requires every workflow `pip install` to use `--require-hashes -r <file>` and every pin in that file to carry a hash. | Reverting the step, or stripping one pin's hashes, exits 1. |
+| RG R3-1 / TV-4: onboard-tenant "rollback" could not delete the tenant once its admin existed (FK NO ACTION) | minor | `_shared/onboard-rollback.ts` deletes periods, tenant_configs, academic_years and users before the tenant, then the invited auth user, and logs any step that fails. | `onboard-rollback.test.ts` 3/3. |
+| DM3-1: a write racing the backfill could stay un-normalised | minor | The trigger is created first, then the backfill runs under `SHARE ROW EXCLUSIVE`. | Harness green. |
+| DM3-5: the idempotency test could not see a rewrite | minor | It also compares each row's `ctid`. | — |
+| DM3-2: production values were not captured | minor | `audit/evidence/wp01-prod-calendar-values-20260926T053918Z.txt`: 3 tenants, `secondaryVisible` = true, `geezNumerals` = false. Header wording corrected: ship the frontend right after the migration. | — |
+| RG R3-2: the deploy guard tripped on `__pycache__` | minor | `.gitignore` ignores `__pycache__/`. | — |
+| CQ m-3, i-1; i18n N-02, N-03, N-04, N-08, N-09 | minor | ID-card upload guards the profile; `Object.hasOwn` in the sanitiser report; each date segment `whitespace-nowrap`; weekday initials and the ID-card save messages translated; the picker drops its half-built grid roles (day buttons keep full-date labels, `aria-pressed`); `<html lang>` follows the UI language; `<time>` wraps only the EC date. | locales parity ok. |
+| Not fixed here | — | CQ m-1 (Zod/RHF for the calendar form; server normalises every write), CQ m-2 (CSV helper API differs from WP-12.1; recorded in the plan), i18n N-05 (no Arabic-digit webfont; OS fallback, recorded as residual risk), N-06 and the new Amharic/Oromo weekday initials (owner B3 native-speaker check), N-07 (component tests beyond the calendar page). | — |
+
+### Gate after round 3 (local)
+
+- typecheck 0; `eslint src` 0 errors, 0 warnings; Vitest 14 files / 88 tests (after the release-gate fix); `check:i18n` 0; `check:locales` OK (common 2189, apply 135, calendar 44); build OK.
+- conventions self-test ok and 0 findings; pinned-actions ok (7 uses, 1 pip install hash-locked); semgrep rule test 16/0/0; gitleaks clean; no-payment-gateway ok.
+- `deno-check.sh` OK (28 functions, 3 baselined); Deno tests 31/31.
+- pgTAP: 110 migrations, 63/63 suites; catalog TODOs unchanged (definer 2, RLS 1, module gate 1, storage 1).
+
+**Deploy note (round 3).** Two migrations (`20260925000002`, `20260925000003`), then the frontend straight after (the old settings page reads only camelCase), and the same 9 Edge Functions as round 2 (`onboard-tenant` now also imports `_shared/onboard-rollback.ts`). Pre/post checks as in round 2, plus: `select has_function_privilege('authenticated', 'public.merge_tenant_settings(text,jsonb)', 'execute')` = true and for `anon` = false.
+
+### Release gate (at 5829420): FAIL, and what followed
+
+Verdict: `audit/evidence/reviews/wp01-r3-release-gatekeeper.md`. The gatekeeper re-ran every gate (all green) and confirmed every round-3 major closed by mutation or planted policies. It failed the WP on:
+
+| Finding | Severity | Status |
+|---|---|---|
+| GK-1: Branding and Fee structures swallowed a failed settings load (`.data` without checking `error`), so the "Save waits for the load" gate never engaged and Save could write default branding over a school's own | major | **Fixed.** Both queries throw on error; Branding shows the load-error alert; Branding and Classes get their own cache sub-keys (the old shared key could hand Branding a settings-only row and blank the school type on Save). `BrandingPage.test.tsx` 2/2; the pre-fix page fails it. |
+| GK-4: `merge_tenant_settings` turned a non-object `settings` into an array | minor | **Fixed** in `20260925000003` (non-object is replaced). `tenant_settings_merge.sql` 10/10. |
+| GK-5: Fee structures toggle after a failed load | minor | Fixed with GK-1. |
+| GK-7: open minors missing from the backlog | minor | Added to `audit/backlog.md`. GK-6 (Branding's two writes) is there for WP-12. |
+| GK-3: path-triggered reviewers (payments-integrity, privacy-guardian, state-concurrency) never ran | major (process) | Run after this fix; verdicts in `audit/evidence/reviews/wp01-r3-*.md`. |
+| GK-2: nobody but the gatekeeper reviewed the round-3 fix commit (new migration and RPC), and §0A.1 allows no 4th round | major (process) | **Owner decision**: `docs/OWNER_ACTIONS.md` B4. |
+
+#### GK-3: the missing path-triggered reviewers
+
+payments-integrity **PASS**, privacy-guardian **PASS**, state-concurrency **FAIL** (verdicts in `audit/evidence/reviews/wp01-r3-*.md`). Fixed:
+
+| Finding | Severity | Fix | Proof |
+|---|---|---|---|
+| SC-1: the new onboard rollback could delete an auth user it did not create (GoTrue's invite returns the existing account, e.g. another school's pending admin via a case-variant address) | major | The auth user is deleted only if GoTrue created it after this run started and no `public.users` row still owns it; the admin email is lower-cased and the pre-check is case-insensitive. | `onboard-rollback.test.ts` 6/6 (existing account and owned-elsewhere cases keep the user; no ids logged) |
+| SC-2: job claim was read-then-update, so two invocations could both import every row; `fail_job` could then flip a completed job | major (pre-existing, made reachable) | `claimJob()`: one conditional `queued → processing` UPDATE; a second invocation gets 409 and never touches the job. The `fail_job`/`complete_job` state guards and a claim lease are in the backlog (WP-10). | `jobs.test.ts` claim cases |
+| SC-3: two first saves on a tenant with no config row raced into a 23505 | minor | `merge_tenant_settings` falls back to `INSERT … ON CONFLICT DO UPDATE`. | Two real sessions saving calendar and branding concurrently: both sections stored, no error. |
+| PAY-1 / PAY-2: Fee structures shared the cache key with error-swallowing readers; toggle errors were silent | minor | Own sub-key `["tenant-config", id, "billing"]`; load and save errors shown. | — |
+| Privacy 1: the residual-risk row understated H-02 | minor | Reworded as an open High (staff ID/health scans and report cards readable by every role in the school); owner told (B5). | — |
+| Privacy 2 / 3: onboard logged raw auth error text (may quote the address); no test pinned "no ids in logs" | minor | Auth errors logged by code only; both helpers' tests assert no ids are logged. | Deno 37/37 |
+## WP-02 — Lock down `SECURITY DEFINER` RPCs (H-01, L-07, G-10)
+
+**Branch / PR:** `claude/timhirt-security-audit-kan0ei` → `fix/production-readiness-r6`, after WP-01 (PR #9). Implementation `7c81fd7`; round-1 fixes in the commit after `67a627d`.
+
+### Findings
+
+| ID | Status | Evidence |
+|---|---|---|
+| H-01: 42 anon-executable SECURITY DEFINER functions, several trusting caller-supplied tenant/user ids | **fixed** (repo; deploy pending) | Migration `20260926000001_r6_definer_lockdown.sql`. `catalog_definer_security.sql` 7/7 hard: every grant to any role but the owner and service_role (PUBLIC included) equals `definer_allowlist.sql` exactly; anon can execute **no** definer function; the default privileges stay closed. `definer_lockdown.sql` 51/51, including the Report 3 Appendix A-1 probes as anon, and the same forgeries attempted by direct table insert as a student. |
+| L-07: cross-tenant oracles (`has_module`, `get_config`, security thresholds, `attendance_retroactive_edit_window_days`) | **fixed** | `has_module` and the attendance window answer only for the caller's tenant; `get_config`/`is_feature_enabled` are service_role-only; `get_security_settings` gives the login thresholds only to super_admin. |
+| 13 definer functions without `search_path`, 39 without `pg_temp` (WP-01 AZ-1) | **fixed** | Every definer pins exactly `public, pg_temp`; the guard now requires exactly that. |
+| 11 tables without FORCE RLS (WP-01 baseline) | **fixed** | `catalog_rls_coverage.sql` hard. Production postgres is not a superuser and has BYPASSRLS, and owns all 11 tables (`audit/evidence/wp02-prod-owners-bypassrls-defacl-20260926T105624Z.txt`), so migrations and cron are unaffected. |
+
+### Implementation (plan WP-02) and recon adjustments
+
+| Plan item | Done | Notes |
+|---|---|---|
+| 1. Inventory | Yes | `supabase/security/definer_inventory.md`, generated by `scripts/db/definer-inventory.py`. At the WP-09 head: 29 Private, 23 Internal, 2 Disabled (owner only), 20 Trigger-only, 0 Public. |
+| 2. Allow-list | Yes | `supabase/security/definer_allowlist.sql` (24 WP-02 grants to authenticated, 3 to the view owner, 0 to anon; WP-09 adds 5), mirrored by the migration's GRANTs and enforced in both directions by the catalog guard. |
+| 3. Migration | Yes | Loop revokes PUBLIC/anon/authenticated and pins search_path on every definer; explicit re-grants. **Round 1 restored the plan's "future functions start closed"** (SEC-1/TI-6): postgres's global default no longer grants PUBLIC, and the public-schema default no longer grants anon/authenticated; `extensions` keeps PUBLIC explicitly so extension installs are unchanged. The shim restores the built-in default at the start of every harness run, so a re-run is unaffected. |
+| 4. Derive tenant internally | Yes, **adjusted** | Signatures kept (57 module-gate and 700+ helper call sites in policies unchanged); the functions ignore or refuse an id that is not the caller's. Trust is an **allow-list** of invoking roles (`current_setting('role')` in `none`/`service_role`/`postgres`/`supabase_admin`), round 1 (TI-5/SEC-6); any other role is treated as an end user. |
+| 5. `get_config()` split | **Adjusted** | Nothing calls `get_config`; it is service_role-only. The security-threshold reader is `get_security_settings()`: signed-in users get the password policy and session timeout, super_admin also the login thresholds. |
+| Deviations (round 1, AC-4/TV-9) | Recorded | `get_email_for_user` stays granted to authenticated (the `users_self_update` policy calls it; caller-only). `create_export_job`, `create_import_job`, `acknowledge_alert` stay granted to authenticated (the app calls them) with tenant and school_admin checks inside, instead of the plan's service_role-only. Same text in `docs/insa/_pending-changes.md`. |
+
+### Round 1 review (at `7c81fd7`)
+
+Verdicts in `audit/evidence/reviews/wp02-r1-*.md`. Six reviewers returned, all FAIL: security, tenant-isolation, authz, api-contract and test-verifier. The other five (code-quality, regression, conventions, insa-docs, performance) hit the API rate limit before returning, or were not started, so they run on the fixed head.
+
+| Finding | Severity | Fix |
+|---|---|---|
+| TI-1 (= AC-1, AZ-3, SEC-4, TV-6) `attendance_retroactive_edit_window_days(B)` read tenant B's setting | blocker | Answers only for the caller's tenant (default 7 otherwise); probes as admin A, as an unexpected role, and as service_role. |
+| AZ-1 (= AC-5) table INSERT policies bypassed the locked RPCs (forged critical alert, "completed" job with any path) | major | Dropped `health_alerts_insert`, `system_health_insert`, `data_jobs_write`; direct-insert probes as a student and an admin. |
+| SEC-1 (= TI-6, AZ-6) future functions start open | major | Default privileges closed (plan item 3), guarded in `catalog_definer_security.sql` #7. |
+| SEC-2 (= AZ-5, TV-4) anon grant on `get_security_settings`; acceptance says 0 | major | Revoked; every page that shows the password policy has a session. Guard asserts 0 anon definers. |
+| TV-1 (= AZ-2, AC-3, SEC-5) the `has_resource_permission` probe passed without the fix | major | Student asks about a same-tenant and a tenant-B admin (null), plus a positive self-check. |
+| TV-2 `create_import_job` and the `acknowledge_alert` role check untested | major | Probes: cross-tenant, student, own-tenant success; student acknowledge refused and row untouched. |
+| TV-3 "suite green proves the allow-list" false for 3 app RPCs | major | New CI step `scripts/ci/app-rpc-grants.py`: every `supabase.rpc`/`rpc<T>` name in `src/` must be executable by authenticated. Proven: revoking `create_import_job` or `dashboard_alerts` fails it. |
+| TV-5 (= AZ-7, SEC-10, TI-7, AC-12) production BYPASSRLS and owners unverified | major | Read-only production evidence: `audit/evidence/wp02-prod-owners-bypassrls-defacl-20260926T105624Z.txt`. |
+| SEC-3 (= AZ-4, AC-2, TI-4) login thresholds to every signed-in user | minor | super_admin only; `security_settings.sql` and `definer_lockdown.sql` assert it. The hook drops the unused login fields. |
+| SEC-6 (= TI-5) trust was a deny-list | minor | Allow-list of trusted roles (also in the two WP-09 functions using the pattern); unexpected-role probes. |
+| AC-6 no input validation on job RPCs | minor | Entity type allow-list and a 0–5 MB file size; probes. |
+| TI-2 (= AC-7 part) `auto_assign_exam_seats` told another tenant's exam from a missing one | minor | Both are `exam_not_found`; `exam_seating_charts.sql` updated. |
+| TV-7 super_admin branch of `has_module` untested | minor | Probe added. |
+| TV-10, TV-11, TV-12 guard precision | info | search_path exactly `public, pg_temp`; anon probes pin the message; the guard reads the ACL for every grantee. |
+| AC-8 (= TV-13) no-grantee functions labelled Internal | minor | New class "Disabled (owner only)"; inventory regenerated. |
+| AC-13 (= SEC-9) security-settings cache not tied to the session | info | Query keyed by user id and enabled only with a session; `useSecuritySettings.test.tsx`. |
+| SEC-9a stale shim comment | info | Fixed. |
+| AC-10 (= TV-8, SEC-8, AZ-9, TI-9) wrong counts in this ledger | minor | Corrected below from the actual run. |
+| TV-13 `.gitignore` `node_modules` | info | Kept: it also ignores the `node_modules` symlink a review worktree uses. |
+| AC-7 rest, AC-9, AC-11, AZ-8, SEC-7/TI-8/AC-14, SEC-11/TI-10, TI-3 rest, AC-6 idempotency | minor/info | `audit/backlog.md`. |
+
+### Gate (local, round-1 fixes)
+
+- pgTAP: 113 migrations, 65/65 suites; `definer_lockdown` 51/51, `catalog_definer_security` 7/7, `security_settings` 8/8, `exam_seating_charts` 9/9, `maker_checker` 65/65. Remaining TODOs: WP-05 (storage) and WP-06 (module gate).
+- Fail-before: the new test files against the round-1 migration (`7c81fd7`): `definer_lockdown` fails 13/51, `catalog_definer_security` 3/7, `security_settings` 1/8, `exam_seating_charts` 1/9. Against the WP-01 head, reviewers saw 19/28 of the original suite fail.
+- `app-rpc-grants.py`: 23 app RPCs, 0 findings.
+- tsc 0, eslint 0/0, Vitest (incl. `useSecuritySettings.test.tsx`), build, and the other gates: see the commit.
+
+**Deploy note.** One migration, plus the frontend (`useSecuritySettings`). Pre-apply (production, read-only): 42 anon-executable definer functions and 13 unpinned; 11 tables without FORCE; default ACLs as in the evidence file. Post-apply: the `docs/DEPLOYMENT.md` drift query equals the allow-list, no anon rows; no table without FORCE; the default-ACL query shows no anon/authenticated entry for public. Ship the frontend with the migration: the old frontend's anon call to `get_security_settings` gets 401 and falls back to the default policy, which is harmless, but the new hook stops making that call.
+
+---
+
+## WP-09 — Maker-checker (dual control) framework (M-06)
+
+Migrations `20260927000001` (the `void` invoice status, on its own because a new enum label cannot be used in the transaction that adds it) and `20260927000002` (framework and enforcement). Register and design: `docs/insa/_pending-changes.md` → "R6 WP-09".
+
+| Plan item | Done | Proof |
+|---|---|---|
+| 1. `approval_requests` + RPCs `submit_approval` / `decide_approval` / `execute_approval` | Table as in the plan, with an `approval_actions` registry (FK instead of the CHECK list; all 17 plan actions registered, 4 wired now, each other one names the WP that wires it), `decision_reason`, `executed_at`, one pending request per entity. RLS: maker sees own, checker sees what they may approve; no client writes. | `maker_checker.sql` 65/65 |
+| checker ≠ maker, pending, not expired, payload hash unchanged | Enforced in `decide_approval` and by the `checker_not_maker` constraint; the checker must also send the hash they were shown. | maker self-approval refused (payment and grade); tampered payload and stale hash refused; expired refused |
+| 2. Thresholds in `settings.approvals` with platform minimums | `manual_payment_threshold_etb` (default 0) and a per-action switch; `invoice_void`, `grade_edit_after_publish`, `student_transfer_out` (and `privileged_role_grant`, registered) are platform minimums a tenant cannot switch off. Saved by `set_approval_settings` (school_admin, merges only `settings.approvals`). | threshold 1000: 400 passes, 1500 waits; switch off; minimums stay on after the tenant sets them false; other settings keys untouched |
+| 3. Enforcement triggers | payments parked as `pending`, credited only on approval; DELETE revoked on invoices and headers, `void` only via approval, no payment on a void invoice; published grades refuse client edits (including the gradebook's upsert) and results cannot be unpublished; `students.status → transferred` refused. Transfers-out wired now; withdrawal (no status yet), timetable publish, bank export and role grants are registered for WP-14/15/12/07. | direct client writes refused in each case; trusted path unaffected (existing suites green) |
+| 4. UI | Approvals inbox (`/approvals`, waiting / mine / history, diff of the stored before/after, approve, reject with reason, nav badge), Settings → Approval rules, invoice "Request void", gradebook "Request correction" when results are published, transfer modal files a request, record-fee-payment returns `pending_approval` and issues no receipt; `issue-fee-document` refuses a receipt for a non-succeeded payment. | `approvals.test.ts` 8/8; all frontend gates |
+| Tests | pgTAP per action (see above); `payroll_sod` unchanged and green. Updated suites that relied on the old direct behaviour: `fee_payment_recording` and `invoice_consolidation` switch manual-payment approval off for their tenant (they test crediting), `student_transfer` proves the direct transfer is refused. | Harness 113 migrations / 65 suites |
+
+Found while building it: a school admin could unpublish results, edit grades directly and republish, sidestepping the grade-change approval. Unpublishing is now refused for clients (`academic_terms_unpublish_guard`), and the Academic Years page shows published results as locked.
