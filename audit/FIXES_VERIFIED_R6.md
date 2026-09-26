@@ -587,3 +587,20 @@ payments-integrity **PASS**, privacy-guardian **PASS**, state-concurrency **FAIL
 - No app or Edge Function change; the app's RPCs are all allow-listed, and every Edge Function RPC uses the service-role client.
 
 **Deploy note.** One migration, no function or frontend change. Pre-apply (production, read-only): §5 query 1 returns 42 anon-executable + 13 unpinned; query 2 returns 11. Post-apply: query 1 returns only `get_security_settings()`; query 2 returns 0.
+
+---
+
+## WP-09 — Maker-checker (dual control) framework (M-06)
+
+Migrations `20260927000001` (the `void` invoice status, on its own because a new enum label cannot be used in the transaction that adds it) and `20260927000002` (framework and enforcement). Register and design: `docs/insa/_pending-changes.md` → "R6 WP-09".
+
+| Plan item | Done | Proof |
+|---|---|---|
+| 1. `approval_requests` + RPCs `submit_approval` / `decide_approval` / `execute_approval` | Table as in the plan, with an `approval_actions` registry (FK instead of the CHECK list; all 17 plan actions registered, 4 wired now, each other one names the WP that wires it), `decision_reason`, `executed_at`, one pending request per entity. RLS: maker sees own, checker sees what they may approve; no client writes. | `maker_checker.sql` 65/65 |
+| checker ≠ maker, pending, not expired, payload hash unchanged | Enforced in `decide_approval` and by the `checker_not_maker` constraint; the checker must also send the hash they were shown. | maker self-approval refused (payment and grade); tampered payload and stale hash refused; expired refused |
+| 2. Thresholds in `settings.approvals` with platform minimums | `manual_payment_threshold_etb` (default 0) and a per-action switch; `invoice_void`, `grade_edit_after_publish`, `student_transfer_out` (and `privileged_role_grant`, registered) are platform minimums a tenant cannot switch off. Saved by `set_approval_settings` (school_admin, merges only `settings.approvals`). | threshold 1000: 400 passes, 1500 waits; switch off; minimums stay on after the tenant sets them false; other settings keys untouched |
+| 3. Enforcement triggers | payments parked as `pending`, credited only on approval; DELETE revoked on invoices and headers, `void` only via approval, no payment on a void invoice; published grades refuse client edits (including the gradebook's upsert) and results cannot be unpublished; `students.status → transferred` refused. Transfers-out wired now; withdrawal (no status yet), timetable publish, bank export and role grants are registered for WP-14/15/12/07. | direct client writes refused in each case; trusted path unaffected (existing suites green) |
+| 4. UI | Approvals inbox (`/approvals`, waiting / mine / history, diff of the stored before/after, approve, reject with reason, nav badge), Settings → Approval rules, invoice "Request void", gradebook "Request correction" when results are published, transfer modal files a request, record-fee-payment returns `pending_approval` and issues no receipt; `issue-fee-document` refuses a receipt for a non-succeeded payment. | `approvals.test.ts` 8/8; all frontend gates |
+| Tests | pgTAP per action (see above); `payroll_sod` unchanged and green. Updated suites that relied on the old direct behaviour: `fee_payment_recording` and `invoice_consolidation` switch manual-payment approval off for their tenant (they test crediting), `student_transfer` proves the direct transfer is refused. | Harness 113 migrations / 65 suites |
+
+Found while building it: a school admin could unpublish results, edit grades directly and republish, sidestepping the grade-change approval. Unpublishing is now refused for clients (`academic_terms_unpublish_guard`), and the Academic Years page shows published results as locked.

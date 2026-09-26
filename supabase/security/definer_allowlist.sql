@@ -37,6 +37,12 @@ insert into definer_allowlist values
   ('get_class_rank(uuid,uuid)', 'authenticated', 'Report card / academic record; checks the caller may see the student'),
   ('get_security_settings()', 'authenticated', 'Session timeout and password policy for signed-in users'),
   ('get_student_grade_history(uuid)', 'authenticated', 'Academic record; checks the caller may see the student'),
+  -- R6 WP-09 maker-checker. Each derives tenant and role from auth.uid().
+  ('submit_approval(text,uuid,jsonb,text)', 'authenticated', 'Maker submits a request; own tenant, needs the underlying write permission'),
+  ('decide_approval(uuid,text,text,text)', 'authenticated', 'Checker decides; own tenant, <resource>:approve, never the maker, payload hash must match'),
+  ('set_approval_settings(boolean,numeric)', 'authenticated', 'Approval rules page; school_admin, own tenant, merges only settings.approvals'),
+  ('approval_required(uuid,text,numeric)', 'authenticated', 'Called by the invoker payments gate as the inserting user; answers only for the caller''s tenant'),
+  ('exam_results_published(uuid)', 'authenticated', 'Called by the invoker grades gate as the editing user; answers only for the caller''s tenant'),
   ('get_security_settings()', 'anon', 'Invite page shows the password policy before a session exists; anon gets password_* keys only'),
   ('get_tenant_id_for_user(uuid)', 'timhirt_view_owner', 'hr_sensitive_view_read / clinic_detail_view_read run as the view owner'),
   ('get_role_for_user(uuid)', 'timhirt_view_owner', 'same view policies'),

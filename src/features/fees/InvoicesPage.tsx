@@ -20,7 +20,7 @@ import { IconReceipt, IconCheckCircle, IconWarningTriangle, IconDownload, IconPl
 import { fullName } from "@/lib/names";
 import { csvCell } from "@/lib/csv";
 
-const STATUS_TONE = { pending: "neutral", partial: "navy", paid: "ok", overdue: "danger" } as const;
+const STATUS_TONE = { pending: "neutral", partial: "navy", paid: "ok", overdue: "danger", void: "neutral" } as const;
 const SELECT_CLS = "rounded-control border border-line bg-card px-3 py-2 text-sm text-ink";
 
 interface StudentRow {
@@ -345,6 +345,7 @@ export function InvoicesPage() {
               <option value="partial">{t("fees.invoiceStatus.partial")}</option>
               <option value="paid">{t("fees.invoiceStatus.paid")}</option>
               <option value="overdue">{t("fees.invoiceStatus.overdue")}</option>
+              <option value="void">{t("fees.invoiceStatus.void")}</option>
             </select>
             <select value={classId} onChange={(e) => { setClassId(e.target.value); setPage(1); }} className={SELECT_CLS}>
               <option value="">{t("fees.filters.allGradesSections")}</option>

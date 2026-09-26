@@ -3,9 +3,13 @@
 -- transfer fields can be set together with status='transferred', and are
 -- automatically cleared if the status later moves away from 'transferred'
 -- (correcting a mistake), same discipline as graduated_ec_year.
+-- R6 WP-09: a client can no longer set status='transferred' directly; it needs
+-- an approved student_transfer_out request (maker_checker.sql). The field
+-- behaviour below is exercised through the trusted path (table owner), which
+-- is what execute_approval uses.
 -- ============================================================================
 begin;
-select plan(3);
+select plan(4);
 
 insert into auth.users (instance_id, id, aud, role, email, encrypted_password,
   email_confirmed_at, created_at, updated_at, confirmation_token, email_change,
@@ -27,7 +31,12 @@ insert into public.students (id, tenant_id, class_id, admission_no, first_name, 
 set local role authenticated;
 set local request.jwt.claim.sub = '99951111-0000-0000-0000-000000000001';
 
+select throws_ok($$ update public.students set status = 'transferred', transferred_to = 'X', transferred_on = '2026-03-01'
+                   where id = '99956000-0000-0000-0000-000000000001' $$,
+  '42501', 'approval_required', 'WP-09: a school admin cannot transfer a student out without an approved request');
+
 -- ---------- transfer out: fields land together with the status change -----
+reset role;
 update public.students set status = 'transferred',
   transferred_to = 'Another School', transferred_reason = 'Family relocation', transferred_on = '2026-03-01'
   where id = '99956000-0000-0000-0000-000000000001';
@@ -39,6 +48,8 @@ select is(
 );
 
 -- ---------- correcting the mistake clears the fields -----------------------
+set local role authenticated;
+set local request.jwt.claim.sub = '99951111-0000-0000-0000-000000000001';
 update public.students set status = 'active' where id = '99956000-0000-0000-0000-000000000001';
 
 select is(

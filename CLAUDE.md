@@ -5,8 +5,9 @@ TanStack Query on Supabase (Postgres + RLS + Edge Functions + Storage), no
 custom API server.
 
 > **Deployed state (verified 2026-09-25):** production runs commit `da6055e`
-> (R6 WP-00 and its closeout, PR #8). 108 of the repo's 111 migrations are applied
-> (`20260925000002`, `20260925000003` R6 WP-01 and `20260926000001` R6 WP-02 are pending deploy), and 28/28
+> (R6 WP-00 and its closeout, PR #8). 108 of the repo's 113 migrations are applied
+> (`20260925000002`, `20260925000003` R6 WP-01, `20260926000001` R6 WP-02 and
+> `20260927000001`/`…02` R6 WP-09 are pending deploy), and 28/28
 > Edge Functions match the repo (names and `verify_jwt`). The frontend is built
 > on Vercel from `da6055e`. See `audit/prod-drift-2026-09-24.md` §5 and
 > `audit/evidence/wp00-closeout-deploy-20260925T072419Z.txt`. There is **no staging project** yet (R6 WP-17), and **PITR is off with
@@ -151,7 +152,7 @@ npx vitest run
 npm run check:i18n                  # must be 0
 npm run check:locales               # parity + no wholesale reformat
 npm run build
-PGHOST=… ./supabase/tests/run.sh    # 111 migrations + 64 pgTAP suites
+PGHOST=… ./supabase/tests/run.sh    # 113 migrations + 65 pgTAP suites
 bash scripts/ci/deno-check.sh       # Edge Function types (ratchet)
 python3 scripts/ci/semgrep-rule-test.py   # needs semgrep 1.95.0
 ```
@@ -178,4 +179,12 @@ measuring nothing. Prove a gate fails before trusting that it passed.
   exist and only the harness caught it.
 - **Edge Functions** share `_shared/security.ts`. `rateLimit()` is async and
   Postgres-backed (`consume_rate_limit`); it fails closed.
+- **Dual control (R6 WP-09).** Recording a manual payment above the school's
+  threshold, voiding an invoice, changing a grade after results are published
+  and transferring a student out go through `approval_requests`
+  (`submit_approval` → `decide_approval`); the database refuses the direct
+  write from a client. The enforcement triggers are SECURITY INVOKER and test
+  `current_user` (a definer RPC or service_role path is trusted). A new
+  sensitive action is registered in `approval_actions` and wired the same way,
+  never gated only in the UI.
 - Deploy tokens: never commit, never echo, shred after use.

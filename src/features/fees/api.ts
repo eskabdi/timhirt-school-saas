@@ -23,7 +23,13 @@ export async function recordFeePayment(input: RecordPaymentInput) {
     invoice_id: input.invoiceId, amount: input.amount, provider: input.provider,
     reference: input.reference, bank_verification: input.bankVerification,
   });
-  return res as { payment_id: string; receipt_url: string | null; bank_verification: { status: string; failure_reason?: string } | null };
+  return res as {
+    payment_id: string;
+    /** "pending_approval": parked for a second person (R6 WP-09); no receipt yet. */
+    status: "succeeded" | "pending_approval";
+    receipt_url: string | null;
+    bank_verification: { status: string; failure_reason?: string } | null;
+  };
 }
 
 export async function generateFeeInvoices(feeStructureId: string) {

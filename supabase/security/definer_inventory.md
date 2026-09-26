@@ -5,16 +5,17 @@ Grantees exclude the owner (postgres). `Private` functions are reachable by sign
 `Internal` ones only by Edge Functions (service_role) and cron; trigger functions need no EXECUTE grant.
 The reviewed grant list is `definer_allowlist.sql`; `catalog_definer_security.sql` keeps the two in step.
 
-65 functions.
+74 functions.
 
 | Function | Class | EXECUTE | Policies | Triggers | App callers | Edge Function callers | search_path |
 |---|---|---|---|---|---|---|---|
 | `acknowledge_alert(uuid)` | Private (authenticated) | authenticated service_role | 0 | 0 | HealthMonitoringPage.tsx | — | `search_path=public, pg_temp` |
-| `apply_payment_to_invoice()` | Trigger-only | service_role | 0 | 1 | — | — | `search_path=public, pg_temp` |
+| `apply_payment_to_invoice()` | Trigger-only | service_role | 0 | 2 | — | — | `search_path=public, pg_temp` |
+| `approval_required(uuid,text,numeric)` | Private (authenticated) | authenticated service_role | 0 | 0 | — | — | `search_path=public, pg_temp` |
 | `attendance_guard()` | Trigger-only | service_role | 0 | 1 | — | — | `search_path=public, pg_temp` |
 | `attendance_notify_guardians()` | Trigger-only | service_role | 0 | 1 | — | — | `search_path=public, pg_temp` |
 | `attendance_retroactive_edit_window_days(uuid)` | Private (authenticated) | authenticated service_role | 1 | 0 | — | — | `search_path=public, pg_temp` |
-| `audit_trigger()` | Trigger-only | service_role | 0 | 31 | — | — | `search_path=public, pg_temp` |
+| `audit_trigger()` | Trigger-only | service_role | 0 | 32 | — | — | `search_path=public, pg_temp` |
 | `auto_assign_exam_seats(uuid,integer,integer)` | Private (authenticated) | authenticated service_role | 0 | 0 | ExamsPage.tsx | — | `search_path=public, pg_temp` |
 | `check_staff_employee_linkage()` | Private (authenticated) | authenticated service_role | 0 | 0 | HealthMonitoringPage.tsx | — | `search_path=public, pg_temp` |
 | `cleanup_expired_backups()` | Internal (service_role) | service_role | 0 | 0 | — | — | `search_path=public, pg_temp` |
@@ -34,12 +35,16 @@ The reviewed grant list is `definer_allowlist.sql`; `catalog_definer_security.sq
 | `dashboard_missing_attendance(date,date)` | Private (authenticated) | authenticated service_role | 0 | 0 | useDashboardData.ts | — | `search_path=public, pg_temp` |
 | `dashboard_overview(uuid)` | Private (authenticated) | authenticated service_role | 0 | 0 | useDashboardData.ts | — | `search_path=public, pg_temp` |
 | `dashboard_teaching_days(uuid,date,date)` | Internal (service_role) | service_role | 0 | 0 | — | — | `search_path=public, pg_temp` |
+| `decide_approval(uuid,text,text,text)` | Private (authenticated) | authenticated service_role | 0 | 0 | approvals.ts | — | `search_path=public, pg_temp` |
 | `exam_guard()` | Trigger-only | service_role | 0 | 1 | — | — | `search_path=public, pg_temp` |
+| `exam_results_published(uuid)` | Private (authenticated) | authenticated service_role | 0 | 0 | — | — | `search_path=public, pg_temp` |
+| `execute_approval(uuid)` | Internal (service_role) | service_role | 0 | 0 | — | — | `search_path=public, pg_temp` |
+| `expire_approvals()` | Internal (service_role) | service_role | 0 | 0 | — | — | `search_path=public, pg_temp` |
 | `fail_job(uuid,text)` | Internal (service_role) | service_role | 0 | 0 | — | _shared | `search_path=public, pg_temp` |
 | `get_class_rank(uuid,uuid)` | Private (authenticated) | authenticated service_role | 0 | 0 | academic-record.ts | — | `search_path=public, pg_temp` |
 | `get_config(text,uuid)` | Internal (service_role) | service_role | 0 | 0 | — | — | `search_path=public, pg_temp` |
 | `get_email_for_user(uuid)` | Private (authenticated) | authenticated service_role | 1 | 0 | — | — | `search_path=public, pg_temp` |
-| `get_role_for_user(uuid)` | Private (authenticated) | authenticated timhirt_view_owner service_role | 215 | 0 | — | — | `search_path=public, pg_temp` |
+| `get_role_for_user(uuid)` | Private (authenticated) | authenticated timhirt_view_owner service_role | 216 | 0 | — | — | `search_path=public, pg_temp` |
 | `get_security_settings()` | Public (anon) | authenticated anon service_role | 0 | 0 | useSecuritySettings.ts | — | `search_path=public, pg_temp` |
 | `get_student_grade_history(uuid)` | Private (authenticated) | authenticated service_role | 0 | 0 | academic-record.ts | — | `search_path=public, pg_temp` |
 | `get_tenant_id_for_user(uuid)` | Private (authenticated) | authenticated timhirt_view_owner service_role | 321 | 0 | — | — | `search_path=public, pg_temp` |
@@ -60,8 +65,11 @@ The reviewed grant list is `definer_allowlist.sql`; `catalog_definer_security.sq
 | `library_hold_tenant_guard()` | Trigger-only | service_role | 0 | 1 | — | — | `search_path=public, pg_temp` |
 | `library_renew(uuid,uuid)` | Internal (service_role) | service_role | 0 | 0 | — | process-library-circulation | `search_path=public, pg_temp` |
 | `library_return(uuid,uuid)` | Internal (service_role) | service_role | 0 | 0 | — | process-library-circulation | `search_path=public, pg_temp` |
+| `payments_reject_void_invoice()` | Trigger-only | service_role | 0 | 1 | — | — | `search_path=public, pg_temp` |
+| `payments_request_approval()` | Trigger-only | service_role | 0 | 1 | — | — | `search_path=public, pg_temp` |
 | `payroll_run_transition()` | Trigger-only | service_role | 0 | 1 | — | — | `search_path=public, pg_temp` |
 | `record_health_metric(uuid,text,numeric,text,numeric,numeric)` | Internal (service_role) | service_role | 0 | 0 | — | — | `search_path=public, pg_temp` |
+| `set_approval_settings(boolean,numeric)` | Private (authenticated) | authenticated service_role | 0 | 0 | ApprovalSettingsPage.tsx | — | `search_path=public, pg_temp` |
 | `set_employee_number()` | Trigger-only | service_role | 0 | 1 | — | — | `search_path=public, pg_temp` |
 | `set_student_number()` | Trigger-only | service_role | 0 | 1 | — | — | `search_path=public, pg_temp` |
 | `set_tenant_no()` | Trigger-only | service_role | 0 | 1 | — | — | `search_path=public, pg_temp` |
@@ -69,6 +77,7 @@ The reviewed grant list is `definer_allowlist.sql`; `catalog_definer_security.sq
 | `student_capture_graduation_year()` | Trigger-only | service_role | 0 | 1 | — | — | `search_path=public, pg_temp` |
 | `student_clear_transfer_fields()` | Trigger-only | service_role | 0 | 1 | — | — | `search_path=public, pg_temp` |
 | `students_lock_user_id()` | Trigger-only | service_role | 0 | 1 | — | — | `search_path=public, pg_temp` |
+| `submit_approval(text,uuid,jsonb,text)` | Private (authenticated) | authenticated service_role | 0 | 0 | approvals.ts | — | `search_path=public, pg_temp` |
 | `timeout_stalled_backups()` | Internal (service_role) | service_role | 0 | 0 | — | — | `search_path=public, pg_temp` |
 | `update_job_progress(uuid,integer,integer,jsonb)` | Internal (service_role) | service_role | 0 | 0 | — | process-export-job, process-import-job | `search_path=public, pg_temp` |
 | `users_lock_identity()` | Trigger-only | service_role | 0 | 1 | — | — | `search_path=public, pg_temp` |

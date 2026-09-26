@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
+import { approvalErrorKey, submitApproval } from "@/features/approvals/approvals";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -19,24 +19,27 @@ export function TransferStudentModal({ studentId, open, onClose }: {
   const [date, setDate] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // R6 WP-09: a transfer out is a student_transfer_out request; a second
+  // person with students:approve applies it (the database refuses a direct
+  // status change to 'transferred').
+  const [submitted, setSubmitted] = useState(false);
   const submit = useMutation({
     mutationFn: async () => {
       if (!transferredTo.trim() || !date) return;
-      const { error: err } = await supabase.from("students").update({
-        status: "transferred",
+      await submitApproval("student_transfer_out", studentId, {
         transferred_to: transferredTo.trim(),
         transferred_reason: reason.trim() || null,
         transferred_on: toIsoDate(date),
-      }).eq("id", studentId);
-      if (err) throw err;
+      }, reason.trim() || null);
     },
     onSuccess: () => {
       setError(null);
       setTransferredTo(""); setReason(""); setDate(null);
+      setSubmitted(true);
       qc.invalidateQueries({ queryKey: ["student-profile", studentId] });
-      onClose();
+      qc.invalidateQueries({ queryKey: ["approvals-pending-count"] });
     },
-    onError: (e) => setError(e instanceof Error ? e.message : String(e)),
+    onError: (e) => setError(t(`approvals.error.${approvalErrorKey(e)}`)),
   });
 
   return (
@@ -51,7 +54,8 @@ export function TransferStudentModal({ studentId, open, onClose }: {
           <textarea value={reason} onChange={(e) => setReason(e.target.value)} maxLength={500} rows={2}
             className="w-full rounded-control border border-line bg-card px-3 py-2 text-sm text-ink" />
         </Field>
-        {error && <p className="text-sm text-danger">{error}</p>}
+        {error && <p role="alert" className="text-sm text-danger">{error}</p>}
+        <p role="status" className="text-sm text-ok">{submitted ? t("students.transfer.submittedForApproval") : ""}</p>
         <div className="flex justify-end gap-2">
           <Button variant="tertiary" onClick={onClose}>{t("students.cancel")}</Button>
           <Button variant="danger" onClick={() => submit.mutate()} disabled={!transferredTo.trim() || !date || submit.isPending}>

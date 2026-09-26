@@ -14,6 +14,11 @@
 // line items exactly as it did for a single invoice before this function
 // existed -- no RLS/trigger changes needed here.
 //
+// R6 WP-09 (maker-checker): the database may park the payment as 'pending'
+// (tenant threshold, settings.approvals); the response is then 202
+// { status: "pending_approval" } with no receipt, and the invoice is credited
+// only when a different user with invoices:approve accepts it.
+//
 // Optionally accepts a bank-generated verification URL (Part 3). Unlike
 // verify-admission-bank-url, a failed verification here does NOT block
 // recording the payment: the accountant/school_admin is already a trusted
@@ -75,8 +80,12 @@ Deno.serve(async (req) => {
       tenant_id: header.tenant_id, invoice_id: header.id,
       amount: p.amount, provider: p.provider, provider_ref: p.reference?.trim() || null,
       status: "succeeded",
-    }).select("id, amount, provider, provider_ref, paid_at").single();
+    }).select("id, amount, provider, provider_ref, paid_at, status").single();
     if (payErr) throw payErr;
+    // R6 WP-09: above the tenant's threshold the database parks the payment
+    // as 'pending' and files a manual_payment_accept request; it credits the
+    // invoice only when a second person approves it.
+    const awaitingApproval = payment.status === "pending";
 
     let bankVerification: { status: string; failure_reason?: string } | null = null;
     if (p.bank_verification) {
@@ -95,6 +104,12 @@ Deno.serve(async (req) => {
         console.error("record-fee-payment: bank verification failed (non-fatal)", { message: (err as Error).message });
         bankVerification = { status: "failed", failure_reason: "internal_error" };
       }
+    }
+
+    // No receipt or "payment received" notice for a payment that is still
+    // waiting on approval; the approver's inbox issues the receipt.
+    if (awaitingApproval) {
+      return json({ payment_id: payment.id, status: "pending_approval", receipt_url: null, bank_verification: bankVerification }, 202);
     }
 
     // Receipt + notification -- non-fatal, the payment is already recorded.
@@ -146,7 +161,7 @@ Deno.serve(async (req) => {
       console.error("record-fee-payment: receipt generation failed (non-fatal)", { message: (err as Error).message });
     }
 
-    return json({ payment_id: payment.id, receipt_url: receiptUrl, bank_verification: bankVerification }, 201);
+    return json({ payment_id: payment.id, status: "succeeded", receipt_url: receiptUrl, bank_verification: bankVerification }, 201);
   } catch (err) {
     console.error("record-fee-payment failed", { message: (err as Error).message });
     return errors.internal();

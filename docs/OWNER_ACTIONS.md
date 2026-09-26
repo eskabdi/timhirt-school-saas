@@ -40,6 +40,16 @@ Last updated: 2026-09-26 (WP-01 round 3; WP-02 and WP-09 in progress).
   and did nothing before). It now works, so every date will also show its
   Gregorian equivalent. A school admin can switch it off in Settings →
   Calendar Preferences, or tell Claude to switch it off for all schools.
+- [ ] **B1a. Heads-up for the WP-09 deploy (maker-checker).** After it ships,
+  every cash or bank payment staff record waits for a *second* person
+  (another accountant or a school admin) to approve it before it counts
+  against the invoice; a school admin can set an amount below which payments
+  go straight through, or switch this off, in Settings → Approval rules.
+  Voiding an invoice, changing a grade after results are published, and
+  transferring a student out always need a second person, and published
+  results can no longer be unpublished. A school with only one school admin
+  and no accountant needs a second admin account to approve these. Tell
+  Claude if any school should start with a threshold other than 0.
 - [ ] **B2. API-origin WAF (plan WP-16, item 2).** Choose:
   **A)** a Cloudflare Worker reverse proxy for the Supabase API
   (`api.edux.et`, costs a Cloudflare plan, needs Supabase support's

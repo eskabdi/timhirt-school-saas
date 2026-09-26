@@ -97,6 +97,8 @@ import { BackupsPage } from "@/features/settings/BackupsPage";
 import { ConfigurationPage } from "@/features/settings/ConfigurationPage";
 import { ImportExportPage } from "@/features/settings/ImportExportPage";
 import { HealthMonitoringPage } from "@/features/settings/HealthMonitoringPage";
+import { ApprovalsPage } from "@/features/approvals/ApprovalsPage";
+import { ApprovalSettingsPage } from "@/features/approvals/ApprovalSettingsPage";
 import { CustomReportBuilderPage } from "@/features/reports/CustomReportBuilderPage";
 import { FinancialReportPage } from "@/features/reports/FinancialReportPage";
 import { FeesReportPage } from "@/features/reports/FeesReportPage";
@@ -122,6 +124,7 @@ const HR_FINANCE = ["school_admin", "hr_officer", "accountant"];
 const TEACH = ["school_admin", "teacher"];
 const ADMIN_REG = ["school_admin", "registrar"];
 const LIBRARY = ["school_admin", "librarian"];
+const STAFF = ["school_admin", "teacher", "hr_officer", "accountant", "registrar", "librarian"];
 
 export const router = createBrowserRouter([
   // ---------- Public (no session) ----------
@@ -143,6 +146,13 @@ export const router = createBrowserRouter([
           // Any staff role, no module gate -- messaging isn't a toggleable
           // module, and RLS (sender/recipient only) is the real access gate.
           { path: "messages", element: <MessagesPage /> },
+          // R6 WP-09 maker-checker inbox: any staff role (makers see their
+          // own requests, checkers what they may approve). RLS and
+          // decide_approval are the real gates.
+          {
+            element: <RequireRole roles={STAFF} />,
+            children: [{ path: "approvals", element: <ApprovalsPage /> }],
+          },
 
           // Same "not a toggleable module, RLS is the real gate" call as
           // messages -- school_admin or the student's own class teacher.
@@ -237,6 +247,7 @@ export const router = createBrowserRouter([
               { path: "settings/configuration", element: <ConfigurationPage /> },
               { path: "settings/import-export", element: <ImportExportPage /> },
               { path: "settings/health-monitoring", element: <HealthMonitoringPage /> },
+              { path: "settings/approvals", element: <ApprovalSettingsPage /> },
               { path: "reports/custom", element: <CustomReportBuilderPage /> },
               { path: "settings/audit-logs", element: <AuditLogsPage /> },
               { path: "settings/backups", element: <BackupsPage /> },

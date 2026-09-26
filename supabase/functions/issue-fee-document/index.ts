@@ -103,8 +103,10 @@ Deno.serve(async (req) => {
     }
 
     const { data: payment } = await ctx.userClient.from("payments")
-      .select("id, amount, provider, provider_ref, paid_at").eq("id", p.payment_id!).eq("invoice_id", header.id).maybeSingle();
-    if (!payment) return errors.badRequest();
+      .select("id, amount, provider, provider_ref, paid_at, status").eq("id", p.payment_id!).eq("invoice_id", header.id).maybeSingle();
+    // A receipt is proof of payment: never for a payment still waiting on its
+    // maker-checker approval, or one that failed (R6 WP-09).
+    if (!payment || payment.status !== "succeeded") return errors.badRequest();
 
     const doc = await issueFeeDocument(ctx.adminClient, {
       kind: "receipt", tenantId: header.tenant_id, invoiceId: header.id, paymentId: payment.id, amount: payment.amount,
