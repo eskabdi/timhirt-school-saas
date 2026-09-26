@@ -62,6 +62,15 @@ Last updated: 2026-09-26 (WP-01 round 3; WP-02 and WP-09 in progress).
   of just the round-3 changes (database, permissions and tenant isolation
   reviewers). Tell Claude "B4 A" or "B4 B".
 
+- [ ] **B5. Known open High finding until WP-05 ships (H-02).** Inside one
+  school, any signed-in account (students and parents included) can list
+  and download files in two shared folders: staff ID and health documents,
+  and every child's report card. Other schools cannot see them. The fix is
+  plan WP-05 (next in line after WP-09). If you want it contained sooner,
+  say "contain H-02": Claude will ship a one-line restriction (school admin
+  and HR only for staff documents; own child only for report cards) ahead of
+  the full WP-05.
+
 ## C. Accounts, services and money (Claude cannot create these)
 
 - [ ] **C1. Staging environment (plan WP-17 / WP-19).** Create a second

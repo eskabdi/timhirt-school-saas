@@ -10,13 +10,14 @@
 // ============================================================================
 import { z } from "npm:zod@3";
 import { requireRole, errors, json, rateLimit, corsHeaders } from "../_shared/security.ts";
-import { rollbackTenant, type RollbackClient } from "../_shared/onboard-rollback.ts";
+import { rollbackTenant, type InvitedUser, type RollbackClient } from "../_shared/onboard-rollback.ts";
 import { toEthiopian, toGregorian, todayAddis } from "../_shared/ethiopian-date.ts";
 
 const Payload = z.object({
   name: z.string().trim().min(2).max(120),
   slug: z.string().regex(/^[a-z0-9][a-z0-9-]{1,40}$/),
-  admin_email: z.string().email().max(254),
+  // GoTrue stores addresses lower-case; so do we (state-concurrency review).
+  admin_email: z.string().trim().email().max(254).transform((s) => s.toLowerCase()),
   admin_full_name: z.string().trim().min(1).max(120),
   default_locale: z.enum(["en", "am", "om"]).default("am"),
 });
@@ -24,7 +25,7 @@ const Payload = z.object({
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   let tenantId: string | undefined;
-  let invitedUserId: string | undefined;
+  let invited: InvitedUser | undefined;
   const ctxOrRes = await requireRole(req, ["super_admin"]);
   if (ctxOrRes instanceof Response) return ctxOrRes;
   const ctx = ctxOrRes;
@@ -42,7 +43,9 @@ Deno.serve(async (req) => {
     // email already has an account — inserting that id as this new tenant's
     // admin would collide with their existing public.users row and fail
     // with a confusing generic error instead of a clear one.
-    const { data: existingUser } = await db.from("users").select("id").eq("email", p.admin_email).maybeSingle();
+    // Case-insensitive: older rows may hold mixed case (LIKE wildcards escaped).
+    const { data: existingUser } = await db.from("users").select("id")
+      .ilike("email", p.admin_email.replace(/[\\%_]/g, (m) => `\\${m}`)).limit(1).maybeSingle();
     if (existingUser) return json({ error: "This email is already registered to a user in the system." }, 400);
 
     const { data: tenant, error: tErr } = await db.from("tenants")
@@ -51,12 +54,13 @@ Deno.serve(async (req) => {
     tenantId = tenant.id;
 
     const appUrl = Deno.env.get("APP_URL") ?? "https://timhirt-school-saas.vercel.app";
-    const { data: invited, error: uErr } = await db.auth.admin.inviteUserByEmail(p.admin_email, {
+    const inviteStartedAt = Date.now();
+    const { data: invitedData, error: uErr } = await db.auth.admin.inviteUserByEmail(p.admin_email, {
       data: { full_name: p.admin_full_name },
       redirectTo: `${appUrl}/accept-invite`,
     });
     if (uErr) throw uErr;
-    invitedUserId = invited.user.id;
+    invited = { id: invitedData.user.id, createdAt: invitedData.user.created_at, startedAt: inviteStartedAt };
 
     // Every write is checked: an ignored error used to leave a half-built
     // tenant (e.g. no tenant_configs row) that reported success and skipped
@@ -67,7 +71,7 @@ Deno.serve(async (req) => {
     };
 
     await must(db.from("users").insert({
-      id: invited.user.id, tenant_id: tenantId, role: "school_admin",
+      id: invited.id, tenant_id: tenantId, role: "school_admin",
       full_name: p.admin_full_name, email: p.admin_email, locale: p.default_locale,
     }));
 
@@ -123,9 +127,14 @@ Deno.serve(async (req) => {
 
     return json({ tenant_id: tenantId, ec_year: ecYear }, 201);
   } catch (err) {
-    console.error("onboard-tenant failed", { message: (err as Error).message });
+    // Auth (GoTrue) errors can quote the submitted email address, so they are
+    // logged by code only (privacy review, WP-01 round 3).
+    const e = err as { name?: string; code?: string; message?: string };
+    console.error("onboard-tenant failed", e.name === "AuthApiError" || e.name === "AuthError" || e.name?.startsWith("Auth")
+      ? { auth_error: e.code ?? "unknown" }
+      : { message: e.message });
     if (tenantId) {
-      const failed = await rollbackTenant(ctx.adminClient as unknown as RollbackClient, tenantId, invitedUserId);
+      const failed = await rollbackTenant(ctx.adminClient as unknown as RollbackClient, tenantId, invited);
       if (failed.length) console.error("onboard-tenant: rollback incomplete", { steps: failed });
     }
     return errors.internal();

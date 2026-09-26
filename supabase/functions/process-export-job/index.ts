@@ -22,7 +22,7 @@ import type { SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { requireRole, errors, json, rateLimit, corsHeaders } from "../_shared/security.ts";
 import { toEthiopian } from "../_shared/ethiopian-date.ts";
 import { fullName } from "../_shared/names.ts";
-import { failJobQuietly } from "../_shared/jobs.ts";
+import { claimJob, failJobQuietly, type ClaimJobClient } from "../_shared/jobs.ts";
 
 const Payload = z.object({ job_id: z.string().uuid() });
 
@@ -233,8 +233,11 @@ Deno.serve(async (req) => {
     if (job.status !== "queued") return errors.badRequest();
     if (!["students", "teachers", "fees"].includes(job.entity_type)) return errors.badRequest();
 
-    await ctx.adminClient.from("data_jobs")
-      .update({ status: "processing", started_at: new Date().toISOString() }).eq("id", job_id);
+    // Atomic claim: a second invocation for the same job stops here (409)
+    // instead of processing it again (state-concurrency review, WP-01).
+    if (!(await claimJob(ctx.adminClient as unknown as ClaimJobClient, job_id))) {
+      return json({ error: "job_already_claimed" }, 409);
+    }
 
     const rows = job.entity_type === "students" ? await buildStudentsCsv(ctx.adminClient, ctx.tenantId!)
       : job.entity_type === "teachers" ? await buildTeachersCsv(ctx.adminClient, ctx.tenantId!)

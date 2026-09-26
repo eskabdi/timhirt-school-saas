@@ -63,3 +63,6 @@
 | WP-01 round 3 (DM3-4) | Done: the round-1 ledger row is marked superseded. | — |
 | WP-01 release gate (GK-6) | Branding saves in two writes (settings section via RPC, then the two catalog columns); a failure between them half-applies the save (the error is shown). Fold the columns into one RPC. | WP-12 |
 | WP-01 release gate (GK-8) | The onboard-tenant rollback's auth-user deletion and all RPCs are unverified against real Supabase: no staging project. | WP-17 |
+| WP-01 state review (SC-2) | `fail_job` / `complete_job` accept any current status (a late failure can flip a completed job); no claim lease, so a timed-out run leaves a job `processing` forever. Guard both with `where status = 'processing'` and add a `started_at` staleness sweep. | WP-10 |
+| WP-01 state review (SC-4) | Settings sections are last-writer-wins: two admins editing the same section overwrite each other (billing is built client-side from the cache). Add an expected-`updated_at` check or server-side key merges. | WP-12 |
+| WP-01 privacy review (4) | `process-export-job` writes national ID, personal email, kebele/house number, minors' ethnicity and DOB in plaintext with no formula guard; needs a data-minimisation decision and `csvCell`. | WP-12 / WP-04 / WP-10 |

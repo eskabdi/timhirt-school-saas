@@ -44,10 +44,17 @@ begin
   returning settings into v_settings;
 
   if not found then
-    -- No row yet, or RLS hides it from this caller; the insert is then
-    -- refused by configs_write (42501) for anyone but the tenant's admin.
-    insert into public.tenant_configs (tenant_id, settings)
+    -- No row yet, or RLS hides it from this caller (then configs_write refuses
+    -- the insert, 42501, for anyone but the tenant's admin). Two first saves
+    -- of different sections can race here; ON CONFLICT merges the loser's
+    -- section into the winner's row instead of failing with 23505
+    -- (state-concurrency review).
+    insert into public.tenant_configs as tc (tenant_id, settings)
     values (v_tenant, jsonb_build_object(p_section, p_value))
+    on conflict (tenant_id) do update
+      set settings = (case when jsonb_typeof(tc.settings) = 'object' then tc.settings else '{}'::jsonb end)
+                     || excluded.settings,
+          updated_at = now()
     returning settings into v_settings;
   end if;
   return v_settings;

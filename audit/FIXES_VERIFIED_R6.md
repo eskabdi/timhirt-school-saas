@@ -544,3 +544,16 @@ Verdict: `audit/evidence/reviews/wp01-r3-release-gatekeeper.md`. The gatekeeper 
 | GK-7: open minors missing from the backlog | minor | Added to `audit/backlog.md`. GK-6 (Branding's two writes) is there for WP-12. |
 | GK-3: path-triggered reviewers (payments-integrity, privacy-guardian, state-concurrency) never ran | major (process) | Run after this fix; verdicts in `audit/evidence/reviews/wp01-r3-*.md`. |
 | GK-2: nobody but the gatekeeper reviewed the round-3 fix commit (new migration and RPC), and §0A.1 allows no 4th round | major (process) | **Owner decision**: `docs/OWNER_ACTIONS.md` B4. |
+
+#### GK-3: the missing path-triggered reviewers
+
+payments-integrity **PASS**, privacy-guardian **PASS**, state-concurrency **FAIL** (verdicts in `audit/evidence/reviews/wp01-r3-*.md`). Fixed:
+
+| Finding | Severity | Fix | Proof |
+|---|---|---|---|
+| SC-1: the new onboard rollback could delete an auth user it did not create (GoTrue's invite returns the existing account, e.g. another school's pending admin via a case-variant address) | major | The auth user is deleted only if GoTrue created it after this run started and no `public.users` row still owns it; the admin email is lower-cased and the pre-check is case-insensitive. | `onboard-rollback.test.ts` 6/6 (existing account and owned-elsewhere cases keep the user; no ids logged) |
+| SC-2: job claim was read-then-update, so two invocations could both import every row; `fail_job` could then flip a completed job | major (pre-existing, made reachable) | `claimJob()`: one conditional `queued → processing` UPDATE; a second invocation gets 409 and never touches the job. The `fail_job`/`complete_job` state guards and a claim lease are in the backlog (WP-10). | `jobs.test.ts` claim cases |
+| SC-3: two first saves on a tenant with no config row raced into a 23505 | minor | `merge_tenant_settings` falls back to `INSERT … ON CONFLICT DO UPDATE`. | Two real sessions saving calendar and branding concurrently: both sections stored, no error. |
+| PAY-1 / PAY-2: Fee structures shared the cache key with error-swallowing readers; toggle errors were silent | minor | Own sub-key `["tenant-config", id, "billing"]`; load and save errors shown. | — |
+| Privacy 1: the residual-risk row understated H-02 | minor | Reworded as an open High (staff ID/health scans and report cards readable by every role in the school); owner told (B5). | — |
+| Privacy 2 / 3: onboard logged raw auth error text (may quote the address); no test pinned "no ids in logs" | minor | Auth errors logged by code only; both helpers' tests assert no ids are logged. | Deno 37/37 |

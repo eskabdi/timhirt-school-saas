@@ -154,6 +154,6 @@ inventory, residual-risk register) and then empties this file.
 | No `deno.lock`; `npm:@supabase/supabase-js@2` floats; 3 Edge Functions baselined in `deno check` | The ratchet fails any new type error outside the 3 | WP-10 / WP-12 / WP-13 |
 | 39 SECURITY DEFINER functions set `search_path=public` without `pg_temp` | Growth is blocked by `catalog_definer_security.sql` | WP-02 |
 | ACL parity covers EXECUTE and SELECT/INSERT only | Remaining privileges are exercised by the RLS suites | WP-02 / WP-05 |
-| 4 storage policies let every role in a tenant read a bucket (same tenant only; the cross-tenant probe is clean) | Tenant isolation holds; least privilege within a tenant is WP-05 | WP-05 |
+| **H-02 (High), open until WP-05.** 4 storage policies let every role in a tenant read (and list) a whole bucket: in `documents` that includes staff national-ID and health/legal scans at predictable paths (`<tenant>/staff/<employee_id>/…`), and in `report-cards` every child's report card, so any student (a minor) or parent account in the same school can download them. Cross-tenant access is closed (the probe is clean). Restricted data. | Not accepted as a residual risk: WP-05 is the next storage work package; the owner is told in `docs/OWNER_ACTIONS.md` B5 | WP-05 |
 | No webfont covers Eastern Arabic digits (٠-٩); the opt-in relies on the device's fallback font | Opt-in only; Android and current desktop systems ship one | WP-14 |
 | The calendar form is not yet on Zod/React Hook Form (convention) | The server trigger normalises every write | WP-12 |
