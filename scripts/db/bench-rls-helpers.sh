@@ -2,10 +2,18 @@
 # R6 WP-02 (reviews DM-1, PERF-1): read-cost benchmark for the per-row RLS
 # helpers, with two tenants so the module gate also runs on the other
 # tenant's rows. Usage (a migrated harness database, never production):
-#   PGHOST=… PGDATABASE=<db after run.sh> scripts/db/bench-rls-helpers.sh [helpers.sql]
+#   BENCH_ON_HARNESS=1 PGHOST=… PGDATABASE=<db after run.sh> scripts/db/bench-rls-helpers.sh [helpers.sql]
 # If helpers.sql is given, those function bodies replace the current ones
 # first (to compare against older bodies in a copy of the database).
 set -euo pipefail
+# Refuse anything that looks like a real project (review SC-1): the script
+# inserts users and 150k rows. The harness runs on a local socket or localhost.
+case "${PGHOST:-}" in
+  *supabase.co*|*supabase.com*|*pooler.supabase*) echo "refusing: PGHOST looks like a Supabase project" >&2; exit 2 ;;
+esac
+if [ "${BENCH_ON_HARNESS:-}" != "1" ]; then
+  echo "refusing: set BENCH_ON_HARNESS=1 to confirm PG* points at a local harness database" >&2; exit 2
+fi
 psql -qX -v ON_ERROR_STOP=1 <<'SQL'
 insert into public.tenants (id, name, slug) values
   ('00000000-0000-0000-0000-00000000a000', 'Bench A', 'bench-a'),
