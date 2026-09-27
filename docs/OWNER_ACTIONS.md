@@ -40,7 +40,7 @@ Last updated: 2026-09-26 (WP-01 round 3; WP-02 and WP-09 in progress).
   and did nothing before). It now works, so every date will also show its
   Gregorian equivalent. A school admin can switch it off in Settings →
   Calendar Preferences, or tell Claude to switch it off for all schools.
-  **Decided 2026-09-27:** the owner merged PR #9 and wrote "Do not wait for my approval, you have permission to commit - deploy live to Supabase and Vercel if required". Standing approval for releases that have passed their release gate. Claude still ships each work package only after its own review and gate; WP-09 (maker-checker) is merged but waits for its review before it ships.
+  **Decided 2026-09-27:** the owner merged PR #9 and wrote "Do not wait for my approval, you have permission to commit - deploy live to Supabase and Vercel if required". Standing approval for releases that have passed their release gate. Claude still ships each work package only after its own review and gate; WP-09 (maker-checker) is merged but waits for its review before it ships. **WP-01 and WP-02 were deployed on 2026-09-27** (staging dry run first; evidence `audit/evidence/wp01-wp02-deploy-*.txt`).
 - [ ] **B1a. Heads-up for the WP-09 deploy (maker-checker).** After it ships,
   every cash or bank payment staff record waits for a *second* person
   (another accountant or a school admin) to approve it before it counts
@@ -134,6 +134,13 @@ Last updated: 2026-09-26 (WP-01 round 3; WP-02 and WP-09 in progress).
   API key or webhook through the environment secrets.
 - [ ] **C4. Operator MFA.** Turn on MFA for every person with access to the
   production Supabase dashboard, the Vercel team and GitHub.
+- [ ] **C6. Vercel blocks deploys of Claude's commits.** Your Vercel team
+  is on the Hobby plan, which refuses to build a commit whose author is not
+  a team member ("Claude"). Claude worked around it on 2026-09-27 by
+  deploying a plain copy of the reviewed commit with your token, which
+  works but loses the git link in Vercel. To keep that link, either upgrade
+  the Vercel team to Pro and add the commit author, or merge each release
+  (so the deployed commit is yours) before Claude deploys it.
 - [ ] **C5. Make CI a required check (review WP-02 AZ-6).** In GitHub →
   Settings → Branches, protect `main` and `fix/production-readiness-r6`:
   require a pull request, and require the three CI jobs `build-and-test`,

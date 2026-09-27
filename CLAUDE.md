@@ -4,19 +4,20 @@ Timhirt — multi-tenant Ethiopian school management SaaS. React + Vite +
 TanStack Query on Supabase (Postgres + RLS + Edge Functions + Storage), no
 custom API server.
 
-> **Deployed state (verified 2026-09-25):** production runs commit `da6055e`
-> (R6 WP-00 and its closeout, PR #8). 108 of the repo's 113 migrations are applied
-> (`20260925000002`, `20260925000003` R6 WP-01, `20260926000001` R6 WP-02 and
-> `20260927000001`/`…02` R6 WP-09 are pending deploy), and 28/28
-> Edge Functions match the repo (names and `verify_jwt`). The frontend is built
-> on Vercel from `da6055e`. See `audit/prod-drift-2026-09-24.md` §5 and
-> `audit/evidence/wp00-closeout-deploy-20260925T072419Z.txt`. A staging project
-> exists but is **empty** (`timhirt-saas-staging`, ref `ekebibapffrhzibidbnr`,
-> created 2026-09-26, sign-up disabled). R6 WP-17 loads the schema into it.
-> Production has **PITR off and no backups**, because the org is on the Free
-> plan. Public sign-up is **disabled** (invite-only, DR-1 closed
-> 2026-09-25). The R6 fix plan is `docs/audits/timhirt-production-fix-plan.md`;
-> progress is in `audit/FIXES_VERIFIED_R6.md`.
+> **Deployed state (verified 2026-09-27):** production runs the R6 WP-01 frontend
+> (`c4ecfac`, served `<meta name="app-commit">`) and 111 of the repo's 113
+> migrations (WP-01 `20260925000002`/`…03` and WP-02 `20260926000001` applied
+> 2026-09-27; WP-09 `20260927000001`/`…02` pending its review). 28/28 Edge
+> Functions match the repo (names and `verify_jwt`); the 9 WP-01 functions run
+> the `c4ecfac` code. Evidence: `audit/evidence/wp01-wp02-deploy-*.txt`. The
+> staging project (`timhirt-saas-staging`, ref `ekebibapffrhzibidbnr`,
+> sign-up disabled) has the same 111 migrations and no data; it is the dry run
+> for every production migration. Production has **PITR off and no backups**
+> (Free plan). Public sign-up is **disabled** (invite-only). Vercel (Hobby)
+> refuses to build a commit authored by Claude: deploy from a `git archive` of
+> the reviewed commit with `--build-env VITE_COMMIT_SHA=<sha>`. The R6 fix plan
+> is `docs/audits/timhirt-production-fix-plan.md`; progress is in
+> `audit/FIXES_VERIFIED_R6.md`.
 
 The architecture blueprint is [`docs/school-saas-architecture-blueprint.md`](docs/school-saas-architecture-blueprint.md).
 Code comments cite it by section (§6.2 route guards, §17.2 canonical date

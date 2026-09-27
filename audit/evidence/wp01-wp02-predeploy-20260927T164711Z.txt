@@ -1,0 +1,103 @@
+# R6 WP-01 + WP-02 production pre-deploy capture (20260927T164711Z), read-only Management API
+# Restore point for tenant_configs (PITR off, D-03) and the definer ACL state WP-02 changes.
+
+## state
+migrations | 108
+definer fns | 65
+anon-exec definers | 42
+unpinned definers | 52
+tables w/o FORCE RLS | 11
+default acl public | {postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}
+default acl storage | {postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}
+
+## tenant_configs (full rows, JSON)
+4bd279fc-0bf3-4f55-b3f2-ee798730ae26 | None | None | 2026-07-15 23:01:47.473337+00 | {"branding": {"primaryColor": "#E8A317"}, "calendar": {"geezNumerals": false, "secondaryVisible": true}, "defaultLocale": "am"}
+7546aa83-5102-4486-8925-fa7b163a8cc4 | None | None | 2026-09-26 11:39:57.371121+00 | {"branding": {"primaryColor": "#E8A317"}, "calendar": {"geezNumerals": false, "secondaryVisible": true}, "defaultLocale": "en"}
+ea037a5b-963f-499c-91a8-5d507a2b123b | None | full_day | 2026-08-15 22:06:31.19568+00 | {"branding": {"motto": "", "langAm": false, "langEn": true, "langOm": false, "nameAm": "", "nameEn": "QA HARAR MODEL SCHOOL", "nameOm": "", "calendar": "EC", "logoPath": null, "sealPath": null, "accentColor": "#ffd6a8", "primaryColor": "#E8A317", "secondaryColor": "#006c4a"}, "calendar": {"geezNumerals": false, "secondaryVisible": true}, "defaultLocale": "en", "idCardTemplate": {"front": {"fields": [{"h": 12, "w": 160, "x": 8, "y": 4, "id": "d1", "bold": true, "color": "#FFFFFF", "fontSize": 8, "field_key": "tenant_name"}, {"h": 10, "w": 60, "x": 175, "y": 4, "id": "d2", "bold": true, "text": "STUDENT ID", "align": "right", "color": "#FFFFFF", "fontSize": 6, "field_key": "static_text"}, {"h": 65, "w": 55, "x": 10, "y": 26, "id": "d3", "field_key": "photo"}, {"h": 14, "w": 165, "x": 72, "y": 30, "id": "d4", "bold": true, "color": "#000000", "fontSize": 11, "field_key": "full_name"}, {"h": 14, "w": 165, "x": 72, "y": 44, "id": "d4b", "bold": true, "color": "#000000", "fontSize": 11, "field_key": "full_name_am", "fontFamily": "NotoSerifEthiopic"}, {"h": 10, "w": 165, "x": 72, "y": 60, "id": "d5", "color": "#737373", "fontSize": 7, "field_key": "admission_no"}, {"h": 10, "w": 165, "x": 72, "y": 71, "id": "d6", "color": "#737373", "fontSize": 7, "field_key": "class_label"}, {"h": 10, "w": 165, "x": 72, "y": 82, "id": "d7", "color": "#737373", "fontSize": 7, "field_key": "dob"}, {"h": 10, "w": 220, "x": 8, "y": 133, "id": "d8", "text": "Valid for the current academic year", "color": "#737373", "fontSize": 6, "field_key": "static_text"}], "backgroundPath": null}}}
+f93e8346-ea5d-4c4e-bf07-3fd5fa6971de | community | double_shift | 2026-08-16 10:47:34.977429+00 | {"branding": {"motto": "Learning and Unity", "langAm": true, "langEn": true, "langOm": false, "nameAm": "አባዲር የማህበረሰብ ት/ቤት", "nameEn": "ABADIR COMMUNITY SCHOOL", "nameOm": "Abbadiir Mana Barnotta Hawassa", "calendar": "EC", "logoPath": "f93e8346-ea5d-4c4e-bf07-3fd5fa6971de/logo-1784635172611.png", "sealPath": "f93e8346-ea5d-4c4e-bf07-3fd5fa6971de/seal-1784634270316.png", "accentColor": "#041635", "primaryColor": "#006c4a", "secondaryColor": "#7d5800"}, "calendar": {"geezNumerals": false, "secondaryVisible": true}, "defaultLocale": "am", "idCardTemplate": {"back": {"fields": [{"h": 21.333333333333332, "w": 136, "x": 23.666666666666664, "y": 39.333333333333336, "id": "e656f87f-0187-45f8-b413-7010538367e6", "align": "left", "color": "#000000", "fontSize": 8, "field_key": "guardian_contact"}, {"h": 15, "w": 81, "x": 24.333333333333332, "y": 66.66666666666667, "id": "8f97b8ae-1b48-4e83-84b1-79ad4cc1f4c9", "align": "left", "color": "#000000", "fontSize": 7, "field_key": "issued_date"}, {"h": 10, "w": 180, "x": 18.666666666666668, "y": 131.66666666666669, "id": "13e00fbb-728c-4e30-9c66-6beea5bb97b1", "align": "left", "color": "#000000", "fontSize": 7, "field_key": "verify_code"}, {"h": 60, "w": 60, "x": 170.33333333333334, "y": 35.333333333333336, "id": "7619e9d0-254f-475c-aa82-68bdd72fb576", "align": "left", "color": "#000000", "field_key": "qr_code"}, {"h": 12, "w": 140, "x": 23.333333333333336, "y": 20.333333333333336, "id": "748ab8c7-258a-48c9-a3d4-294d5c4369e2", "align": "left", "color": "#000000", "fontSize": 9, "field_key": "tenant_name"}], "backgroundPath": "f93e8346-ea5d-4c4e-bf07-3fd5fa6971de/back/ff82a67b-ed09-4a76-adf4-2a3b287c3aaa.png"}, "front": {"fields": [{"h": 62.666666666666664, "w": 48.666666666666664, "x": 21.333333333333336, "y": 52.333333333333336, "id": "be25c0c7-4e7e-4ce9-bf2d-b3abfb2c021a", "align": "left", "color": "#000000", "field_key": "photo"}, {"h": 13.333333333333334, "w": 120, "x": 76.33333333333334, "y": 51, "id": "c811939f-8716-4d54-830b-920387ed800c", "bold": true, "align": "left", "color": "#0a4770", "fontSize": 11, "field_key": "full_name"}, {"h": 13, "w": 120, "x": 77, "y": 67, "id": "1931a08c-68ec-40ef-b4b3-3e7d5c58c70f", "bold": true, "align": "left", "color": "#143d39", "fontSize": 11, "field_key": "full_name_am", "fontFamily": "NotoSerifEthiopic"}, {"h": 12.333333333333334, "w": 56, "x": 78, "y": 83.33333333333334, "id": "658eaffe-110f-4373-bb80-b946b5ac0ea5", "bold": true, "align": "left", "color": "#000000", "fontSize": 7, "field_key": "dob", "fontFamily": "default"}, {"h": 12, "w": 56, "x": 138, "y": 83.66666666666666, "id": "b74c0385-4ffc-4358-af27-156c84852914", "bold": true, "align": "left", "color": "#000000", "fontSize": 7, "field_key": "class_label"}, {"h": 12, "w": 80, "x": 79, "y": 99.33333333333333, "id": "b6035758-402a-421a-8321-3095a6d77e19", "bold": true, "align": "left", "color": "#000000", "fontSize": 7, "field_key": "admission_no"}, {"h": 100, "w": 31.333333333333332, "x": 207, "y": 43.33333333333333, "id": "361246b4-2347-4425-8246-73b5526e8017", "align": "left", "color": "#000000", "rotation": 90, "field_key": "barcode"}, {"h": 12.666666666666666, "w": 117, "x": 18, "y": 134.33333333333334, "id": "504a6623-bb3f-4b77-8731-cec946391f5d", "align": "left", "color": "#000000", "fontSize": 10, "field_key": "issued_date"}], "backgroundPath": "f93e8346-ea5d-4c4e-bf07-3fd5fa6971de/front/abfccb66-9bac-4284-a4d3-aada5c8ef336.png"}}}
+
+## public SECURITY DEFINER functions: signature | proacl | proconfig
+acknowledge_alert(uuid) | 
+apply_payment_to_invoice() | {search_path=public}
+attendance_guard() | {search_path=public}
+attendance_notify_guardians() | {search_path=public}
+attendance_retroactive_edit_window_days(uuid) | {search_path=public}
+audit_trigger() | {search_path=public}
+auto_assign_exam_seats(uuid,integer,integer) | {search_path=public}
+check_staff_employee_linkage() | {"search_path=public, pg_temp"}
+cleanup_expired_backups() | 
+cleanup_old_audit_logs() | {search_path=public}
+complete_job(uuid,integer,text) | 
+consume_rate_limit(text,integer,integer) | {"search_path=public, pg_temp"}
+create_export_job(uuid,text) | 
+create_health_alert(uuid,text,text,text) | 
+create_import_job(uuid,text,integer) | 
+dashboard_alerts(date,date) | {"search_path=public, pg_temp"}
+dashboard_attendance_week(date) | {"search_path=public, pg_temp"}
+dashboard_billing(date,date) | {"search_path=public, pg_temp"}
+dashboard_can_read_finance() | {"search_path=public, pg_temp"}
+dashboard_can_read() | {"search_path=public, pg_temp"}
+dashboard_high_absence(date,date,numeric,integer) | {"search_path=public, pg_temp"}
+dashboard_lowest_gpa(integer) | {"search_path=public, pg_temp"}
+dashboard_missing_attendance(date,date) | {"search_path=public, pg_temp"}
+dashboard_overview(uuid) | {"search_path=public, pg_temp"}
+dashboard_teaching_days(uuid,date,date) | {"search_path=public, pg_temp"}
+exam_guard() | {search_path=public}
+fail_job(uuid,text) | 
+get_class_rank(uuid,uuid) | {search_path=public}
+get_config(text,uuid) | 
+get_email_for_user(uuid) | {search_path=public}
+get_role_for_user(uuid) | {search_path=public}
+get_security_settings() | {search_path=public}
+get_student_grade_history(uuid) | {search_path=public}
+get_tenant_id_for_user(uuid) | {search_path=public}
+grade_guard() | {search_path=public}
+grade_point_for(uuid,numeric) | {search_path=public}
+guardians_lock_user_id() | {search_path=public}
+has_module(uuid,text) | {search_path=public}
+has_permission(uuid,text) | 
+has_resource_permission(uuid,text,text) | {search_path=public}
+is_feature_enabled(text,uuid) | 
+is_guardian_of(uuid) | {search_path=public}
+is_teacher_of_class(uuid) | {search_path=public}
+jwt_user_id() | {search_path=public}
+leave_decision_trigger() | {search_path=public}
+library_bulk_return(uuid,uuid) | {search_path=public}
+library_checkout_tenant_guard() | {search_path=public}
+library_checkout(uuid,uuid,uuid,library_checkout_type,date) | {search_path=public}
+library_hold_tenant_guard() | {search_path=public}
+library_renew(uuid,uuid) | {search_path=public}
+library_return(uuid,uuid) | {search_path=public}
+payroll_run_transition() | {search_path=public}
+record_health_metric(uuid,text,numeric,text,numeric,numeric) | 
+set_employee_number() | {"search_path=public, pg_temp"}
+set_student_number() | {search_path=public}
+set_tenant_no() | {search_path=public}
+settle_gateway_payment(text,payment_provider,numeric) | {search_path=public}
+student_capture_graduation_year() | {search_path=public}
+student_clear_transfer_fields() | {search_path=public}
+students_lock_user_id() | {search_path=public}
+timeout_stalled_backups() | 
+update_job_progress(uuid,integer,integer,jsonb) | 
+users_lock_identity() | {search_path=public}
+verify_document(text) | {search_path=public}
+verify_id_card(text) | {search_path=public}
+
+## tables without FORCE RLS
+backup_jobs
+data_jobs
+feature_flags
+health_alerts
+permissions
+restore_jobs
+role_permissions
+roles
+system_config
+system_health
+user_roles
+
+## policies to be dropped by WP-02
+data_jobs | data_jobs_admin_update | UPDATE | {public} | ((tenant_id = ( SELECT get_tenant_id_for_user(auth.uid()) AS get_tenant_id_for_user)) AND (( SELECT get_role_for_user(auth.uid()) AS get_role_for_user) = 'school_admin'::text))
+data_jobs | data_jobs_write | INSERT | {public} | ((tenant_id = ( SELECT get_tenant_id_for_user(auth.uid()) AS get_tenant_id_for_user)) AND (user_id = auth.uid()))
+system_health | system_health_insert | INSERT | {public} | (tenant_id = ( SELECT get_tenant_id_for_user(auth.uid()) AS get_tenant_id_for_user))
+health_alerts | health_alerts_insert | INSERT | {public} | (tenant_id = ( SELECT get_tenant_id_for_user(auth.uid()) AS get_tenant_id_for_user))

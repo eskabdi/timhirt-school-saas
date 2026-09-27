@@ -587,7 +587,7 @@ New minors:
 
 | ID | Status | Evidence |
 |---|---|---|
-| H-01: 42 anon-executable SECURITY DEFINER functions, several trusting caller-supplied tenant/user ids | **fixed** (repo; deploy pending) | Migration `20260926000001_r6_definer_lockdown.sql`. `catalog_definer_security.sql` 10/10 hard: every grant to any role but the owner and service_role (PUBLIC included) equals `definer_allowlist.sql` exactly; anon can execute **no** definer function; the default privileges stay closed. `definer_lockdown.sql` 60/60, including the Report 3 Appendix A-1 probes as anon, and the same forgeries attempted by direct table insert as a student. |
+| H-01: 42 anon-executable SECURITY DEFINER functions, several trusting caller-supplied tenant/user ids | **fixed, verified-prod 2026-09-27** (`audit/evidence/wp01-wp02-deploy-*.txt`: 0 anon definers, live anon probes 401/42501; verified-staging first) | Migration `20260926000001_r6_definer_lockdown.sql`. `catalog_definer_security.sql` 10/10 hard: every grant to any role but the owner and service_role (PUBLIC included) equals `definer_allowlist.sql` exactly; anon can execute **no** definer function; the default privileges stay closed. `definer_lockdown.sql` 60/60, including the Report 3 Appendix A-1 probes as anon, and the same forgeries attempted by direct table insert as a student. |
 | L-07: cross-tenant oracles (`has_module`, `get_config`, security thresholds, `attendance_retroactive_edit_window_days`) | **fixed** | `has_module` and the attendance window answer only for the caller's tenant; `get_config`/`is_feature_enabled` are service_role-only; `get_security_settings` gives the login thresholds only to super_admin. |
 | 13 definer functions without `search_path`, 39 without `pg_temp` (WP-01 AZ-1) | **fixed** | Every definer pins exactly `public, pg_temp`; the guard accepts that or an empty path. |
 | 11 tables without FORCE RLS (WP-01 baseline) | **fixed** | `catalog_rls_coverage.sql` hard. Production postgres is not a superuser and has BYPASSRLS, and owns all 11 tables (`audit/evidence/wp02-prod-owners-bypassrls-defacl-20260926T105624Z.txt`), so migrations and cron are unaffected. |
@@ -745,6 +745,32 @@ Verdict: `audit/evidence/reviews/wp02-release-gatekeeper.md`.
 | GK-6, GK-7 | info | No action. |
 
 Verified on staging: no (staging is empty, WP-17). Verified on production: no (deploy pending).
+
+### Deployed (2026-09-27): WP-01 and WP-02, verified-staging and verified-prod
+
+The owner merged PR #9 and approved deploys ("Do not wait for my approval … deploy live to Supabase and Vercel if required"). B4 and B6 are recorded as A.
+
+**Staging dry run.** All 111 migrations were applied to the empty staging project. The resulting state was the same as the production result below.
+
+**Production:**
+- The three migrations were applied, and the 9 WP-01 Edge Functions deployed from `c4ecfac`.
+- The frontend was deployed from `c4ecfac` and is serving on www.edux.et, stamped `c4ecfac`.
+
+**Checks after the deploy:**
+- 0 anon-executable definer functions, 0 unpinned, 0 tables without FORCE.
+- Definer grants: 24 to authenticated and 3 to the view owner, matching the allow-list.
+- Default privileges are closed.
+- 0 camelCase calendar keys remain across the 4 tenants.
+- The 4 dropped policies are gone.
+- Live anon probes return 401/42501.
+- 28/28 functions deployed, with matching `verify_jwt`; calls without a token get 401.
+- The served bundle has the WP-01 markers and no WP-09 code.
+
+Evidence:
+- `audit/evidence/wp01-wp02-predeploy-20260927T164711Z.txt` (restore point)
+- `audit/evidence/wp01-wp02-deploy-*.txt`
+
+Not in this release: WP-02's `useSecuritySettings` frontend change. The old frontend's anon read of `get_security_settings` now gets 401 and falls back to the default policy, as the WP-02 deploy note says. It ships with the next frontend release.
 
 ## WP-09 — Maker-checker (dual control) framework (M-06)
 
