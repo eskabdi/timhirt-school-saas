@@ -45,7 +45,7 @@ create temp view definer_grant as
 
 select is(array(select sig || ' -> ' || grantee from definer_grant
                 except select sig || ' -> ' || grantee from definer_allowlist order by 1), '{}'::text[],
-  'no SECURITY DEFINER function is executable by anon/authenticated/view owner unless allow-listed');
+  'no SECURITY DEFINER function is executable by any role but the owner and service_role unless allow-listed');
 select is(array(select sig || ' -> ' || grantee from definer_allowlist
                 except select sig || ' -> ' || grantee from definer_grant order by 1), '{}'::text[],
   'every allow-list entry is a real grant (remove stale entries)');
@@ -74,8 +74,13 @@ select is(array(
     where d.defaclrole = 'postgres'::regrole and d.defaclnamespace in ('public'::regnamespace, 'storage'::regnamespace)
       and d.defaclobjtype = 'f' and a.privilege_type = 'EXECUTE'
       and (a.grantee = 0 or a.grantee::regrole::text in ('anon', 'authenticated'))
+    union all
+    select 'extensions default lost PUBLIC' where exists (select 1 from pg_namespace where nspname = 'extensions')
+      and not exists (select 1 from pg_default_acl d cross join lateral aclexplode(d.defaclacl) a
+                      where d.defaclrole = 'postgres'::regrole and d.defaclnamespace = 'extensions'::regnamespace
+                        and d.defaclobjtype = 'f' and a.grantee = 0 and a.privilege_type = 'EXECUTE')
     order by 1), '{}'::text[],
-  'new functions postgres creates in public or storage start closed to PUBLIC, anon and authenticated');
+  'new functions postgres creates start closed in public and storage, and open in extensions as before');
 
 -- Every function a policy, view, column default or CHECK calls is executable
 -- by the role that evaluates it (review SEC-R2-3): new functions start

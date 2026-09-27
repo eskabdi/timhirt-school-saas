@@ -629,7 +629,7 @@ Verdicts in `audit/evidence/reviews/wp02-r2-*.md`. PASS: tenant-isolation, secur
 
 ### Round 3 review (at `f4d5924`, the last round allowed)
 
-Verdicts in `audit/evidence/reviews/wp02-r3-*.md`. PASS: api-contract, regression-guardian, db-migration. FAIL: code-quality (CQ-1), insa-docs (IDA-1); both majors fixed in the commit after `853c371`.  test-verifier, performance and insa-docs: listed as they return.
+Verdicts in `audit/evidence/reviews/wp02-r3-*.md`. PASS: api-contract, regression-guardian, db-migration, test-verifier. FAIL: code-quality (CQ-1), insa-docs (IDA-1); both majors fixed in the commit after `853c371`.  test-verifier, performance and insa-docs: listed as they return.
 
 | Finding | Severity | Fix |
 |---|---|---|
@@ -650,6 +650,9 @@ Verdicts in `audit/evidence/reviews/wp02-r3-*.md`. PASS: api-contract, regressio
 | IDA-3 stale counts (58 assertions, 317 policies, #50, ~1,014 dependencies) | minor | Corrected. |
 | IDA-4 "exactly public, pg_temp" vs regex | minor | Docs say an empty path is also accepted. |
 | IDA-5 no clause mapping or residual-risk list | minor | Added to `_pending-changes.md` (INSA Phase 3; ISO 27001 A.8.2/A.8.3/A.8.9; residuals AC-9, AZ-8, SEC-11, DM-1); "unset role" defined. |
+| TV3-1 recorded gate output not from the final head | minor | The release-gate section below records the literal gate output at the final head. |
+| TV3-2 the `extensions` re-grant never ran in the harness | minor | The shim creates `extensions` as Supabase does; `catalog_definer_security` #7 also asserts the PUBLIC default there (revoking it fails #7). |
+| TV3-3, TV3-4, TV3-5 | info | Guard description reworded; the two surviving mutations are operational or pre-WP-02 and unreachable; test-only grants are role-switching helpers. |
 | IDA-6, IDA-7 | info | Final gate recorded by the release gate; performance by the performance reviewer; production facts re-queried on deploy day. |
 | RG3-1, RG3-3, RG3-5, AC3-3…AC3-5 | info | CI security-scan is green on each head (checked through the GitHub checks API); RG3-4 in the backlog; the rest noted. |
 

@@ -25,6 +25,9 @@ create extension if not exists pgtap;
 
 create schema if not exists auth;
 create schema if not exists storage;
+-- Supabase keeps extensions in their own schema; R6 WP-02 re-grants PUBLIC
+-- EXECUTE there by default, and that branch must run here (review TV3-2).
+create schema if not exists extensions;
 create schema if not exists vault;
 
 do $$
