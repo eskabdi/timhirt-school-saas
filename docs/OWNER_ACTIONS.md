@@ -64,13 +64,18 @@ Last updated: 2026-09-26 (WP-01 round 3; WP-02 and WP-09 in progress).
   om `D W K R K J S`. Reply with corrections or "OK".
 
 - [ ] **B4. WP-01 review limit (release gate finding GK-2).** The fix plan
-  allows 3 review rounds per work package. Round 3's fixes added a new
-  database function (`merge_tenant_settings`, migration `20260925000003`)
-  that only the final gatekeeper has reviewed; it found and Claude fixed one
-  more bug in it. Choose: **A)** accept the gatekeeper's review for that
-  code (PR #9 can then be merged), or **B)** authorise one targeted re-review
-  of just the round-3 changes (database, permissions and tenant isolation
-  reviewers). Tell Claude "B4 A" or "B4 B".
+  allows 3 review rounds per work package. The fixes made after round 3
+  have been checked only by the final gatekeeper, not by a 4th review round:
+  the new `merge_tenant_settings` database function (`20260925000003`) and
+  the commits `9ac652f` and `c4ecfac` (settings load errors, the safe
+  onboarding rollback, the one-at-a-time job claim, the settings-save race).
+  The gatekeeper re-ran on 2026-09-27, tested every one of those paths
+  itself (including two live database sessions racing each other), found
+  nothing open in the code, and recommends **A**
+  (`audit/evidence/reviews/wp01-r4-release-gatekeeper.md`). Choose:
+  **A)** accept the gatekeeper's review for that code, which makes WP-01
+  PASS, or **B)** authorise one targeted re-review of those changes.
+  Tell Claude "B4 A" or "B4 B".
 
 - [ ] **B5. Known open High finding until WP-05 ships (H-02).** Inside one
   school, any signed-in account (students and parents included) can list

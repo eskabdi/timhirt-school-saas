@@ -557,6 +557,28 @@ payments-integrity **PASS**, privacy-guardian **PASS**, state-concurrency **FAIL
 | PAY-1 / PAY-2: Fee structures shared the cache key with error-swallowing readers; toggle errors were silent | minor | Own sub-key `["tenant-config", id, "billing"]`; load and save errors shown. | — |
 | Privacy 1: the residual-risk row understated H-02 | minor | Reworded as an open High (staff ID/health scans and report cards readable by every role in the school); owner told (B5). | — |
 | Privacy 2 / 3: onboard logged raw auth error text (may quote the address); no test pinned "no ids in logs" | minor | Auth errors logged by code only; both helpers' tests assert no ids are logged. | Deno 37/37 |
+### Release gate re-run (at `c4ecfac`, 2026-09-27): FAIL, owner decision only
+
+Verdict: `audit/evidence/reviews/wp01-r4-release-gatekeeper.md`. All gates green: tsc 0, eslint 0, Vitest 88/88, i18n 0, locales OK, build OK, pgTAP 110 migrations and 63/63 suites (TODOs unchanged), deno-check ok, Deno 37/37, semgrep 16/0/0, conventions 0, pinned-actions ok, gitleaks 271 clean.
+
+Closed and verified by running them:
+- GK-1, Branding: the pre-fix page and the removed throw both fail `BrandingPage.test.tsx`.
+- GK-1, Fee structures: checked with a scratch render test.
+- GK-4: merge suite 10/10.
+- GK-5 and GK-7.
+- GK-3: all three verdicts are present.
+
+State-concurrency fixes, verified independently:
+- SC-1: mutations fail 2 and 1 of the 6 rollback tests.
+- SC-2: two sessions claimed 1 and 0; the claim mutation fails the type check and 2 tests.
+- SC-3: two first saves racing each other both land.
+
+Open: GK-2 (major, process). It now covers `9ac652f` and `c4ecfac`, with no reviewer re-run. The owner decides B4, widened to name those commits; the gatekeeper recommends A.
+
+New minors:
+- GK-R4-1: the Fee structures toggle showed the calendar save message. Fixed in the commit after `98b78e3`, with a new `fees.blockUnpaid.saveFailed` key in en/am/om.
+- GK-R4-2 and GK-R4-3: in `audit/backlog.md`.
+
 ## WP-02 — Lock down `SECURITY DEFINER` RPCs (H-01, L-07, G-10)
 
 **Branch / PR:** `claude/timhirt-security-audit-kan0ei` → `fix/production-readiness-r6`, after WP-01 (PR #9). Implementation `7c81fd7`; round-1 fixes in the commit after `67a627d`.

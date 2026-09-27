@@ -85,3 +85,5 @@
 | WP-09 | An approved manual payment gets its receipt from the approver's inbox but no parent "payment received" notice. Move receipt + notice into a server-side step after approval. | WP-10 |
 | WP-09 | Late-entered grades (a new row after publication) are not maker-checked; only edits are. | WP-08 |
 | WP-09 | Registered but not yet wired: admission_payment_accept (WP-04), payment_verify / payment_reversal / school_bank_account_change / unclaimed_receipt_assign (WP-03), privileged_role_grant / mfa_reset / impersonate_minor_account (WP-07), bank_transfer_export (WP-12), student_withdrawal (WP-14), timetable_publish (WP-15), tenant_activation / tenant_slug_change (WP-20). | per WP |
+| WP-01 gate re-run GK-R4-2 | Fee structures has no committed component test for the failed-load gate (GK-1/GK-5); the gatekeeper verified it with a scratch test. Add one like `BrandingPage.test.tsx`. | WP-12 |
+| WP-01 review PAY-4 (gate GK-R4-3) | `csvCell` formula-injection guard should also check `trimStart()` and the full-width `＝`. | WP-12 |

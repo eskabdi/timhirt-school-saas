@@ -260,7 +260,7 @@ export function FeeStructuresPage() {
         </label>
       </Card>
       {brandConfigFailed && <p role="alert" className="text-sm text-danger">{t("calendarPrefs.loadFailed")}</p>}
-      {toggleBlockUnpaid.isError && <p role="alert" className="text-sm text-danger">{t("calendarPrefs.saveFailed")}</p>}
+      {toggleBlockUnpaid.isError && <p role="alert" className="text-sm text-danger">{t("fees.blockUnpaid.saveFailed")}</p>}
 
       <div className="grid gap-3 md:grid-cols-2">
         {data?.map((f) => (

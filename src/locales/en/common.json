@@ -57,7 +57,7 @@
   "communication": { "title": "Communication Hub", "titleLabel": "Title", "message": "Message", "audience": "Audience",
     "all": "All", "staff": "Staff", "parents": "Parents", "publish": "Publish" },
   "fees": { "paymentAwaitingApproval": "Payment recorded. It will be credited to the invoice once a second person approves it.", "voidPending": "Void requested", "requestVoid": "Request void", "requestVoidHelp": "A second person must approve the void. Only an invoice with no payments can be voided.", "voidReason": "Why should this invoice be voided?", "submitVoidRequest": "Submit for approval", "structuresTitle": "Fee structures", "invoicesTitle": "Invoices", "student": "Student", "due": "Due", "amount": "Amount", "status": "Status", "payFailed": "Could not start the payment. Please try again.",
-    "blockUnpaid": { "title": "Block report card downloads on unpaid balance", "hint": "When on, a student or guardian with any unpaid invoice cannot download report cards or transcripts from the portal until it's paid. Staff are never blocked.", "toggle": "Enabled" },
+    "blockUnpaid": { "title": "Block report card downloads on unpaid balance", "hint": "When on, a student or guardian with any unpaid invoice cannot download report cards or transcripts from the portal until it's paid. Staff are never blocked.", "toggle": "Enabled", "saveFailed": "Could not save this setting. Try again." },
     "cycle": { "monthly": "Monthly", "term": "Term", "annual": "Annual", "once": "One-time" },
     "invoiceStatus": { "void": "Void", "pending": "Pending", "partial": "Partial", "paid": "Paid", "overdue": "Overdue" },
     "amountDue": "Amount due", "amountPaid": "Amount paid", "remaining": "Remaining", "feeStructure": "Fee structure",

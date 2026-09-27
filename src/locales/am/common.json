@@ -57,7 +57,7 @@
   "communication": { "title": "የመገናኛ ማዕከል", "titleLabel": "ርዕስ", "message": "መልእክት", "audience": "ተቀባዮች",
     "all": "ሁሉም", "staff": "ሰራተኞች", "parents": "ወላጆች", "publish": "አትም" },
   "fees": { "paymentAwaitingApproval": "ክፍያው ተመዝግቧል። ሁለተኛ ሰው ሲያጸድቀው ወደ ደረሰኙ ይገባል።", "voidPending": "መሰረዝ ተጠይቋል", "requestVoid": "መሰረዝ ጠይቅ", "requestVoidHelp": "መሰረዙን ሁለተኛ ሰው ማጽደቅ አለበት። ሊሰረዝ የሚችለው ክፍያ የሌለበት ደረሰኝ ብቻ ነው።", "voidReason": "ይህ ደረሰኝ ለምን መሰረዝ አለበት?", "submitVoidRequest": "ለማጽደቅ አቅርብ", "structuresTitle": "የክፍያ አወቃቀሮች", "invoicesTitle": "ደረሰኞች", "student": "ተማሪ", "due": "የመክፈያ ቀን", "amount": "መጠን", "status": "ሁኔታ", "payFailed": "ክፍያውን መጀመር አልተቻለም። እባክዎ እንደገና ይሞክሩ።",
-    "blockUnpaid": { "title": "ያልተከፈለ ቀሪ ሂሳብ ካለ የውጤት ካርድ ማውረድ ዝጋ", "hint": "ይህ ሲበራ፣ ያልተከፈለ ደረሰኝ ያለው ተማሪ ወይም አሳዳጊ እስኪከፍል ድረስ ከፖርታሉ የውጤት ካርድ ወይም የትምህርት ማስረጃ ማውረድ አይችልም። ሰራተኞች በፍጹም አይታገዱም።", "toggle": "የነቃ" },
+    "blockUnpaid": { "title": "ያልተከፈለ ቀሪ ሂሳብ ካለ የውጤት ካርድ ማውረድ ዝጋ", "hint": "ይህ ሲበራ፣ ያልተከፈለ ደረሰኝ ያለው ተማሪ ወይም አሳዳጊ እስኪከፍል ድረስ ከፖርታሉ የውጤት ካርድ ወይም የትምህርት ማስረጃ ማውረድ አይችልም። ሰራተኞች በፍጹም አይታገዱም።", "toggle": "የነቃ", "saveFailed": "ይህን ቅንብር ማስቀመጥ አልተቻለም። እንደገና ይሞክሩ።" },
     "cycle": { "monthly": "ወርሃዊ", "term": "ወሰነ ትምህርት", "annual": "ዓመታዊ", "once": "አንድ ጊዜ" },
     "invoiceStatus": { "void": "ተሰርዟል", "pending": "በመጠባበቅ ላይ", "partial": "በከፊል ተከፍሏል", "paid": "ተከፍሏል", "overdue": "ጊዜው አልፏል" },
     "amountDue": "የሚከፈል መጠን", "amountPaid": "የተከፈለ መጠን", "remaining": "የቀረ", "feeStructure": "የክፍያ አወቃቀር",
