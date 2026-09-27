@@ -6,7 +6,7 @@
 -- learn another tenant's modules; service_role (no end-user JWT) still can.
 -- ============================================================================
 begin;
-select plan(58);
+select plan(60);
 
 insert into public.tenants (id, name, slug) values
   ('00000000-0000-0000-0000-0000000d0a00', 'Lockdown A', 'lockdown-a'),
@@ -32,6 +32,14 @@ insert into public.health_alerts (id, tenant_id, alert_type, severity, message)
 values ('00000000-0000-0000-0000-0000000d0a0a', '00000000-0000-0000-0000-0000000d0a00', 'probe', 'warning', 'tenant A alert');
 insert into public.tenant_configs (tenant_id, settings)
 values ('00000000-0000-0000-0000-0000000d0b00', '{"attendance_retroactive_edit_days": 30}')
+on conflict (tenant_id) do update set settings = excluded.settings;
+-- A suspended tenant with the library module and its own window (gate GK-3).
+insert into public.tenants (id, name, slug, status) values ('00000000-0000-0000-0000-0000000d0d00', 'Lockdown S', 'lockdown-s', 'suspended');
+insert into auth.users (id, email) values ('00000000-0000-0000-0000-0000000d0d01', 'admin-s@example.test');
+insert into public.users (id, tenant_id, role, full_name, email)
+values ('00000000-0000-0000-0000-0000000d0d01', '00000000-0000-0000-0000-0000000d0d00', 'school_admin', 'Admin S', 'admin-s@example.test');
+insert into public.tenant_module_overrides (tenant_id, module_key, enabled) values ('00000000-0000-0000-0000-0000000d0d00', 'library', true);
+insert into public.tenant_configs (tenant_id, settings) values ('00000000-0000-0000-0000-0000000d0d00', '{"attendance_retroactive_edit_days": 40}')
 on conflict (tenant_id) do update set settings = excluded.settings;
 
 -- ---------------------------------------------------------------- anon ----
@@ -109,6 +117,13 @@ select throws_ok($$ insert into public.data_jobs (tenant_id, user_id, job_type, 
   '42501', null, 'a student cannot forge a completed data job by a direct insert');
 reset role;
 select is((select acknowledged_at from public.health_alerts where id = '00000000-0000-0000-0000-0000000d0a0a'), null, '... and the tenant-A alert stays unacknowledged');
+
+-- ------------------------------------------- suspended tenant (gate GK-3) ----
+set local role authenticated;
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000d0d01';
+select is(public.has_module('00000000-0000-0000-0000-0000000d0d00', 'library'), false, 'a suspended tenant''s user gets no module, even their own');
+select is(public.attendance_retroactive_edit_window_days('00000000-0000-0000-0000-0000000d0d00'), 7, 'a suspended tenant''s user gets the default attendance window');
+reset role;
 
 -- ------------------------------------------------- platform super_admin ----
 set local role authenticated;

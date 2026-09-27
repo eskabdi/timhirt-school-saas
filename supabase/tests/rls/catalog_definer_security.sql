@@ -123,8 +123,9 @@ select is(array(
     select p.oid::regprocedure::text from pg_proc p
     where p.pronamespace = 'public'::regnamespace
       and p.prosrc ~ 'current_setting\(''role'''
-      and (p.prosrc !~ 'current_setting\(''role'', true\), ''none''\) (not )?in \(''none'', ''service_role'', ''postgres'', ''supabase_admin''\)'
-           or p.prosrc ~ 'current_setting\(''role'', true\), ''none''\) (not )?in \(''authenticated''')
+      -- every occurrence, not just one (gate GK-5)
+      and (select count(*) from regexp_matches(p.prosrc, 'current_setting\(''role''', 'g'))
+          <> (select count(*) from regexp_matches(p.prosrc, 'current_setting\(''role'', true\), ''none''\) (not )?in \(''none'', ''service_role'', ''postgres'', ''supabase_admin''\)', 'g'))
     order by 1), '{}'::text[],
   'every role-GUC trust check uses the same allow-list of trusted contexts');
 

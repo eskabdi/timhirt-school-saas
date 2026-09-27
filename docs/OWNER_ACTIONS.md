@@ -77,6 +77,23 @@ Last updated: 2026-09-26 (WP-01 round 3; WP-02 and WP-09 in progress).
   PASS, or **B)** authorise one targeted re-review of those changes.
   Tell Claude "B4 A" or "B4 B".
 
+- [ ] **B6. WP-02 review limit (release gate finding GK-1).** Same
+  situation as B4, for WP-02 (database function lockdown). Three fixes made
+  after the last allowed review round were checked only by the final
+  gatekeeper:
+  - `853c371`: the undo instructions for the migration;
+  - `b5779d4`: closing the `storage` default grants;
+  - `98b78e3`: the faster module check.
+  The gatekeeper tested every changed line by breaking it on purpose,
+  re-measured the performance, found nothing open in the code, and
+  recommends **A**. Choose: **A)** accept the gatekeeper's review, which
+  makes WP-02 PASS once the two extra reviewers (supply-chain,
+  frontend-security) pass, or **B)** order one targeted re-review by the
+  security, tenant-isolation, performance and INSA-docs reviewers. Tell
+  Claude "B6 A" or "B6 B". It also recommends accepting WP-02's documented
+  deviations from the plan text and its residual risks (listed in
+  `docs/insa/_pending-changes.md`, WP-02 section) into the risk register.
+
 - [ ] **B5. Known open High finding until WP-05 ships (H-02).** Inside one
   school, any signed-in account (students and parents included) can list
   and download files in two shared folders: staff ID and health documents,

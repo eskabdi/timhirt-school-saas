@@ -587,7 +587,7 @@ New minors:
 
 | ID | Status | Evidence |
 |---|---|---|
-| H-01: 42 anon-executable SECURITY DEFINER functions, several trusting caller-supplied tenant/user ids | **fixed** (repo; deploy pending) | Migration `20260926000001_r6_definer_lockdown.sql`. `catalog_definer_security.sql` 10/10 hard: every grant to any role but the owner and service_role (PUBLIC included) equals `definer_allowlist.sql` exactly; anon can execute **no** definer function; the default privileges stay closed. `definer_lockdown.sql` 58/58, including the Report 3 Appendix A-1 probes as anon, and the same forgeries attempted by direct table insert as a student. |
+| H-01: 42 anon-executable SECURITY DEFINER functions, several trusting caller-supplied tenant/user ids | **fixed** (repo; deploy pending) | Migration `20260926000001_r6_definer_lockdown.sql`. `catalog_definer_security.sql` 10/10 hard: every grant to any role but the owner and service_role (PUBLIC included) equals `definer_allowlist.sql` exactly; anon can execute **no** definer function; the default privileges stay closed. `definer_lockdown.sql` 60/60, including the Report 3 Appendix A-1 probes as anon, and the same forgeries attempted by direct table insert as a student. |
 | L-07: cross-tenant oracles (`has_module`, `get_config`, security thresholds, `attendance_retroactive_edit_window_days`) | **fixed** | `has_module` and the attendance window answer only for the caller's tenant; `get_config`/`is_feature_enabled` are service_role-only; `get_security_settings` gives the login thresholds only to super_admin. |
 | 13 definer functions without `search_path`, 39 without `pg_temp` (WP-01 AZ-1) | **fixed** | Every definer pins exactly `public, pg_temp`; the guard accepts that or an empty path. |
 | 11 tables without FORCE RLS (WP-01 baseline) | **fixed** | `catalog_rls_coverage.sql` hard. Production postgres is not a superuser and has BYPASSRLS, and owns all 11 tables (`audit/evidence/wp02-prod-owners-bypassrls-defacl-20260926T105624Z.txt`), so migrations and cron are unaffected. |
@@ -651,7 +651,7 @@ Verdicts in `audit/evidence/reviews/wp02-r2-*.md`. PASS: tenant-isolation, secur
 
 ### Round 3 review (at `f4d5924`, the last round allowed)
 
-Verdicts in `audit/evidence/reviews/wp02-r3-*.md`. PASS: api-contract, regression-guardian, db-migration, test-verifier. FAIL: code-quality (CQ-1), insa-docs (IDA-1), performance (PERF-1); all three majors fixed (commits `853c371`, `b5779d4` and the PERF-1 commit after `a69dbf3`).  test-verifier, performance and insa-docs: listed as they return.
+Verdicts in `audit/evidence/reviews/wp02-r3-*.md`. PASS: api-contract, regression-guardian, db-migration, test-verifier. FAIL: code-quality (CQ-1), insa-docs (IDA-1), performance (PERF-1); all three majors fixed (commits `853c371`, `b5779d4` and the PERF-1 commit after `a69dbf3`).
 
 | Finding | Severity | Fix |
 |---|---|---|
@@ -714,6 +714,37 @@ gitleaks (working tree + history): no leaks found
 **Deploy note.** One migration, plus the frontend (`useSecuritySettings`). Pre-apply (production, read-only): 42 anon-executable definer functions and 13 unpinned; 11 tables without FORCE; default ACLs as in the evidence file. Post-apply: the `docs/DEPLOYMENT.md` drift query equals the allow-list, no anon rows; no table without FORCE; the default-ACL query shows no anon/authenticated entry for public. Ship the frontend with the migration: the old frontend's anon call to `get_security_settings` gets 401 and falls back to the default policy, which is harmless, but the new hook stops making that call.
 
 ---
+
+### Release gatekeeper — WP-02 (2026-09-27, HEAD `98b78e3`): FAIL (process only)
+
+Verdict: `audit/evidence/reviews/wp02-release-gatekeeper.md`.
+
+**Independent re-run** on a fresh database, then again on the same database: both green.
+- Harness: 113 migrations, 65/65 suites (definer_lockdown 58/58, catalog_definer_security 10/10, catalog_rls_coverage 2/2).
+- Other gates: app-rpc-grants 23/0; tsc, eslint, Vitest 98/98, i18n, locales, build, deno-check, Deno tests 37/0, semgrep rule test, conventions and pinned-actions are all green.
+- The harness at 108 migrations matches production: 65 definer functions, 42 of them anon-executable, 13 with no pinned search_path.
+
+**Mutations caught:**
+- has_module: caller check removed, super_admin branch removed, deny-list, tenant equality removed, SQL body.
+- attendance window: caller check removed.
+- default privileges: anon default in storage, PUBLIC default removed from extensions.
+- The one survivor (has_module's suspended clause) is now probed (GK-3, below).
+
+**Post-round-3 majors verified:**
+- CQ-1: all 11 cited sources are correct.
+- IDA-1: the storage default is revoked and guarded.
+- PERF-1: the two-tenant re-run puts the head level with pre-WP-02. The one exception is B students at +5–12%.
+
+| Finding | Severity | Status |
+|---|---|---|
+| GK-1: the post-round-3 fixes (`853c371`, `b5779d4`, `98b78e3`) were reviewed only by the gatekeeper; §0A.1 allows no 4th round | major (process) | **Owner decision B6** (`docs/OWNER_ACTIONS.md`); the gatekeeper recommends A. |
+| GK-2: the path-triggered supply-chain (ci.yml) and frontend-security (`useSecuritySettings`) reviewers never ran | major (process) | Both run on `1700e73`; verdicts `wp02-r4-*.md`. |
+| GK-3: has_module's suspended-tenant clause is untested | minor | Fixed: a suspended tenant's admin gets no module and the default window (definer_lockdown 60/60). |
+| GK-4: stale sentence in the round-3 table | minor | Removed. |
+| GK-5: catalog #9 passes one conforming copy alongside one deviant copy | info | Fixed: #9 now requires every `current_setting('role'` occurrence to use the list; a planted mixed function fails it. |
+| GK-6, GK-7 | info | No action. |
+
+Verified on staging: no (staging is empty, WP-17). Verified on production: no (deploy pending).
 
 ## WP-09 — Maker-checker (dual control) framework (M-06)
 
