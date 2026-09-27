@@ -610,7 +610,7 @@ Verdicts in `audit/evidence/reviews/wp02-r1-*.md`. Six reviewers returned, all F
 
 ### Round 2 review (at `16548ba`)
 
-Verdicts in `audit/evidence/reviews/wp02-r2-*.md`. PASS: tenant-isolation, security, authz. FAIL: regression-guardian (RG-1, a harness re-run on the same database). The rest are listed as they return.
+Verdicts in `audit/evidence/reviews/wp02-r2-*.md`. PASS: tenant-isolation, security, authz, conventions. FAIL: regression-guardian (RG-1, a harness re-run on the same database) and db-migration (DM-1, read performance). test-verifier, api-contract, code-quality and performance were cut off by the API rate limit and run in round 3.
 
 | Finding | Severity | Fix |
 |---|---|---|
@@ -619,6 +619,11 @@ Verdicts in `audit/evidence/reviews/wp02-r2-*.md`. PASS: tenant-isolation, secur
 | TI-R2-1 unexpected-role probe covered 2 of 9 helpers | minor | Now 8 (commit `6a89aa0`); a deny-list `has_module` fails #49. |
 | SEC-R2-3 nothing checks that functions called by policies/views/defaults stay executable now that new functions start closed | minor | `catalog_definer_security.sql` #8 over 1018 dependencies; revoking `is_guardian_of` from authenticated fails it. |
 | TI-R2-2, TI-R2-3 (= RG-2), SEC-R2-2, SEC-R2-4, SEC-R2-5, AZ2-6, RG-4 | minor/info | Backlog row corrected; runbook default-ACL text; extension note; attendance helper added to the performance row; definer count; CLAUDE.md; WP-09 revokes `approval_payload_hash` from authenticated explicitly. |
+| DM-1 the caller checks made the SQL helpers 4–5x slower on every read (5k students 297 → 1,420 ms, 50k attendance 3.3 → 14 s; the backlog had "+27–40%") | major | `get_tenant_id_for_user`, `get_role_for_user`, `has_module` rewritten as plpgsql with the same predicates. Measured on the harness with 5k students and 50k attendance as a school_admin: 308 ms and 3.57 s (before the fix, same data: 1,420 ms and 14.0 s). All suites green. |
+| DM-2 rollback note incomplete | minor | Replaced with a forward-fix plan listing each reverse statement; anon is never re-granted. |
+| DM-3 no lock timeout on ACCESS EXCLUSIVE DDL on hot tables | minor | `set local lock_timeout = '5s'` at the top. |
+| DM-4, DM-5, DM-6, DM-7 | info | Never re-run the migration by hand (header, DEPLOYMENT.md); other schemas start closed (header, DEPLOYMENT.md); citation fixed; super_admin note in the backlog. |
+| CG-1…CG-4 (conventions, PASS) | minor/info | CG-2/3/4 are pre-existing UI issues WP-02's refusals surface; backlog rows for WP-14. CG-1 is the reviewer brief (the gate is `conventions.py`). |
 | TI-R2-4, SEC-R2-1, AZ2-4 production facts from an implementer-written file | info | Release gate re-runs the read-only queries on deploy day. |
 | TI-R2-5, TI-R2-6, AZ2-3, AZ2-5, RG-3, RG-5, RG-6, RG-7 | info | Closed by AZ2-1, noted for the WP-09 review, owner item C5, backlog, or no action (RG-6: CI security-scan green on `16548ba`). |
 

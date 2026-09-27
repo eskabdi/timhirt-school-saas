@@ -42,10 +42,28 @@
 -- pgTAP run stays green, which proves the allow-list is complete for every
 -- policy and RPC path the suites exercise, and definer_lockdown.sql probes
 -- each closed path as anon and cross-tenant.
--- Rollback: re-grant EXECUTE to the listed roles; the body changes only narrow
--- answers to other users/tenants and can be reverted by re-running the
--- previous CREATE OR REPLACE from the earlier migrations.
+-- Forward-fix only (review DM-2). Never re-grant anything to anon. To undo a
+-- piece, write a new migration with the reverse of just that piece:
+--   * a helper body: CREATE OR REPLACE with its previous body (latest earlier
+--     definitions: 20260817000006 has_resource_permission, 20260821000005
+--     attendance_retroactive_edit_window_days, 20260825000001
+--     auto_assign_exam_seats, the rest in 20260715*/20260719*);
+--   * a grant: GRANT EXECUTE … TO authenticated for that one function (and add
+--     it to definer_allowlist.sql);
+--   * a dropped policy: recreate it from 20260719000010:41,47 (data_jobs) or
+--     20260719000011:49,55 (health_alerts, system_health);
+--   * FORCE RLS: ALTER TABLE … NO FORCE ROW LEVEL SECURITY;
+--   * default privileges: ALTER DEFAULT PRIVILEGES FOR ROLE postgres [IN
+--     SCHEMA public] GRANT EXECUTE ON FUNCTIONS TO authenticated (never anon).
+-- Never re-run this migration by hand after later ones (review DM-4): step 1
+-- revokes from every definer function, including ones later migrations
+-- granted (WP-09's). The drift query in docs/DEPLOYMENT.md §7 detects that.
 -- ============================================================================
+
+-- DROP POLICY and FORCE RLS take ACCESS EXCLUSIVE locks on tables that almost
+-- every authenticated query reads (roles, user_roles, …). Fail fast rather than
+-- queue all API traffic behind a long reader (review DM-3); just retry.
+set local lock_timeout = '5s';
 
 -- 1. Close everything, pin search_path ------------------------------------
 do $$
@@ -76,6 +94,12 @@ end $$;
 -- themselves, or (role/tenant) about a user in their own tenant, which is what
 -- the messages recipient policy needs.
 
+-- get_tenant_id_for_user, get_role_for_user and has_module run once per row
+-- in hundreds of policies. As SQL functions the caller checks added below cost
+-- 4-5x on every read (review DM-1: 5k students 297 -> 1,420 ms, 50k attendance
+-- 3.3 -> 14 s); as plpgsql, whose plans are cached per session, they are back
+-- to the pre-WP-02 cost (290 ms / 3.1 s). Same predicates, caller path first.
+
 create or replace function public.get_email_for_user(user_id uuid)
 returns text
 language sql
@@ -90,47 +114,60 @@ $$;
 
 create or replace function public.get_tenant_id_for_user(user_id uuid)
 returns uuid
-language sql
+language plpgsql
 stable
 security definer
 set search_path = public, pg_temp
 as $$
-  select u.tenant_id
-  from public.users u
-  where u.id = user_id
-    and (
-      u.role = 'super_admin'
-      or not exists (
-        select 1 from public.tenants t
-        where t.id = u.tenant_id and t.status = 'suspended'
-      )
-    )
-    and (
-      user_id = auth.uid()
-      or coalesce(current_setting('role', true), 'none') in ('none', 'service_role', 'postgres', 'supabase_admin')
-      or u.tenant_id = (select c.tenant_id from public.users c where c.id = auth.uid())
-    )
+declare
+  v_tenant uuid;
+  v_role public.user_role;
+  v_caller uuid := auth.uid();
+begin
+  select u.tenant_id, u.role into v_tenant, v_role from public.users u where u.id = user_id;
+  if not found then
+    return null;
+  end if;
+  if v_role <> 'super_admin'
+     and exists (select 1 from public.tenants t where t.id = v_tenant and t.status = 'suspended') then
+    return null;
+  end if;
+  if user_id = v_caller
+     or coalesce(current_setting('role', true), 'none') in ('none', 'service_role', 'postgres', 'supabase_admin')
+     or v_tenant = (select c.tenant_id from public.users c where c.id = v_caller) then
+    return v_tenant;
+  end if;
+  return null;
+end;
 $$;
 
 create or replace function public.get_role_for_user(user_id uuid)
 returns text
-language sql
+language plpgsql
 stable
 security definer
 set search_path = public, pg_temp
 as $$
-  select u.role::text
-  from public.users u
-  where u.id = user_id
-    and (
-      user_id = auth.uid()
-      or coalesce(current_setting('role', true), 'none') in ('none', 'service_role', 'postgres', 'supabase_admin')
-      or u.tenant_id = (select c.tenant_id from public.users c where c.id = auth.uid())
-    )
+declare
+  v_tenant uuid;
+  v_role text;
+  v_caller uuid := auth.uid();
+begin
+  select u.tenant_id, u.role::text into v_tenant, v_role from public.users u where u.id = user_id;
+  if not found then
+    return null;
+  end if;
+  if user_id = v_caller
+     or coalesce(current_setting('role', true), 'none') in ('none', 'service_role', 'postgres', 'supabase_admin')
+     or v_tenant = (select c.tenant_id from public.users c where c.id = v_caller) then
+    return v_role;
+  end if;
+  return null;
+end;
 $$;
 
--- has_resource_permission: the current body (latest definition, from
--- 20260817000004 onwards) unchanged, answering only for the caller: policies
+-- has_resource_permission: the current body (latest definition,
+-- 20260817000006_custom_role_enforcement.sql) unchanged, answering only for the caller: policies
 -- always pass auth.uid(); service_role/cron (no JWT) may ask about anyone.
 create or replace function public.has_resource_permission(p_user_id uuid, p_resource text, p_action text)
 returns boolean
@@ -176,24 +213,27 @@ $$;
 -- tenant_id, which is the caller's tenant for every row RLS lets them see.
 create or replace function public.has_module(p_tenant_id uuid, p_module_key text)
 returns boolean
-language sql
+language plpgsql
 stable
 security definer
 set search_path = public, pg_temp
 as $$
-  select case
-    when coalesce(current_setting('role', true), 'none') not in ('none', 'service_role', 'postgres', 'supabase_admin')
-         and p_tenant_id is distinct from public.get_tenant_id_for_user(auth.uid())
-         and public.get_role_for_user(auth.uid()) is distinct from 'super_admin'
-      then false
-    else coalesce(
-      (select tmo.enabled from public.tenant_module_overrides tmo
-       where tmo.tenant_id = p_tenant_id and tmo.module_key = p_module_key),
-      (select true from public.tier_modules tm
-       join public.tenants t on t.tier_key = tm.tier_key
-       where t.id = p_tenant_id and tm.module_key = p_module_key),
-      false)
-  end
+declare
+  v_enabled boolean;
+begin
+  if coalesce(current_setting('role', true), 'none') not in ('none', 'service_role', 'postgres', 'supabase_admin')
+     and p_tenant_id is distinct from public.get_tenant_id_for_user(auth.uid())
+     and public.get_role_for_user(auth.uid()) is distinct from 'super_admin' then
+    return false;
+  end if;
+  select tmo.enabled into v_enabled from public.tenant_module_overrides tmo
+  where tmo.tenant_id = p_tenant_id and tmo.module_key = p_module_key;
+  if v_enabled is not null then
+    return v_enabled;
+  end if;
+  return exists (select 1 from public.tier_modules tm join public.tenants t on t.tier_key = tm.tier_key
+                 where t.id = p_tenant_id and tm.module_key = p_module_key);
+end;
 $$;
 
 -- Job and alert RPCs: the tenant comes from the caller, never the argument
@@ -437,7 +477,9 @@ to timhirt_view_owner;
 --     postgres installs there later (pgcrypto, uuid-ossp and
 --     pg_stat_statements are postgres-owned today) behaves exactly as before.
 -- Every function postgres creates in public from now on, definer or invoker,
--- is callable only by service_role until its migration grants it; a definer
+-- is callable only by service_role until its migration grants it, and in any
+-- other schema but extensions (a future private schema, an extension installed
+-- WITH SCHEMA elsewhere) only by postgres (review DM-5); a definer
 -- grant must also be in definer_allowlist.sql (catalog_definer_security.sql),
 -- and catalog_definer_security.sql also asserts these defaults stay closed.
 -- Functions that already exist keep their grants (step 1 handled definers).

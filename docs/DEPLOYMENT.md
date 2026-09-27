@@ -239,6 +239,14 @@ See `README.md` → "Pre-go-live checklist" for the full compliance/statutory si
 
 ### Database function grants match the allow-list (R6 WP-02)
 
+Never re-run `20260926000001_r6_definer_lockdown.sql` by hand once later
+migrations are applied: it revokes EXECUTE from every definer function,
+including the ones later migrations granted. Undo any piece of it with a new
+forward-fix migration (its header lists each reverse statement); never grant
+anything back to anon. Its global default-privilege change also means a
+function postgres creates in any schema other than `public` (service_role
+only) and `extensions` starts with no EXECUTE for anyone but postgres.
+
 After any migration deploy, and whenever someone may have used the SQL editor,
 compare production's SECURITY DEFINER grants with
 `supabase/security/definer_allowlist.sql`. Run this read-only query (Management
