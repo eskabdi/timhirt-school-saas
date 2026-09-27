@@ -108,9 +108,10 @@ end $$;
 -- get_tenant_id_for_user, get_role_for_user and has_module run once per row
 -- in hundreds of policies. As SQL functions the caller checks added below cost
 -- 4-5x on every read (review DM-1: 5k students 297 -> 1,420 ms, 50k attendance
--- 3.3 -> 14 s); as plpgsql, whose plans are cached per session, they cost
--- about +25-35% over the pre-WP-02 bodies (review DM3-1, same data, same
--- session). Same predicates, caller path first. catalog_definer_security #10
+-- 3.3 -> 14 s). As plpgsql (plans cached per session), with has_module's
+-- caller check as one lookup (review PERF-1), reads cost the same as with the
+-- pre-WP-02 bodies, two tenants measured (audit/evidence/wp02-perf-two-tenant-20260927T121528Z.txt,
+-- scripts/db/bench-rls-helpers.sh). Same predicates, caller path first. catalog_definer_security #10
 -- keeps them plpgsql (review DM3-3).
 
 create or replace function public.get_email_for_user(user_id uuid)
@@ -234,9 +235,15 @@ as $$
 declare
   v_enabled boolean;
 begin
+  -- One lookup instead of two nested helper calls (review PERF-1): this runs
+  -- on every row of a scan, other tenants' rows included. Same rule: a
+  -- super_admin may ask about any tenant; anyone else only about their own,
+  -- non-suspended one.
   if coalesce(current_setting('role', true), 'none') not in ('none', 'service_role', 'postgres', 'supabase_admin')
-     and p_tenant_id is distinct from public.get_tenant_id_for_user(auth.uid())
-     and public.get_role_for_user(auth.uid()) is distinct from 'super_admin' then
+     and not exists (select 1 from public.users c left join public.tenants ct on ct.id = c.tenant_id
+                     where c.id = auth.uid()
+                       and (c.role = 'super_admin'
+                            or (c.tenant_id = p_tenant_id and ct.status is distinct from 'suspended'))) then
     return false;
   end if;
   select tmo.enabled into v_enabled from public.tenant_module_overrides tmo
@@ -370,7 +377,10 @@ as $$
      from public.tenant_configs tc
      where tc.tenant_id = p_tenant_id
        and (coalesce(current_setting('role', true), 'none') in ('none', 'service_role', 'postgres', 'supabase_admin')
-            or p_tenant_id = public.get_tenant_id_for_user(auth.uid()))),
+            -- one inline lookup, not a nested helper call per row (review PERF-2)
+            or exists (select 1 from public.users c left join public.tenants ct on ct.id = c.tenant_id
+                       where c.id = auth.uid() and c.tenant_id = p_tenant_id
+                         and (c.role = 'super_admin' or ct.status is distinct from 'suspended')))),
     7
   );
 $$;

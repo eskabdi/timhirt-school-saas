@@ -182,7 +182,7 @@ inventory, residual-risk register) and then empties this file.
 
 **Clause mapping.** H-01, L-07, G-10 → INSA Phase 3 (Access Control; least privilege on the API surface), ISO/IEC 27001:2022 A.8.2 (privileged access rights), A.8.3 (information access restriction), A.8.9 (configuration management: default privileges closed, drift query); OWASP A01 (Broken Access Control).
 
-**Residual risks (owner to accept or schedule; rows in `audit/backlog.md`):** invoker RPCs are still executable by anon, with RLS applying (AC-9, WP-06/WP-18); writing definer RPCs bypass the module, aal2 and impersonation policies WP-06/WP-07 will add (AZ-8); anon queries on the 9 PUBLIC-scoped admin tables fail with 42501 naming the helper, instead of returning nothing (SEC-11, WP-06); the per-row helpers cost about +25–35% over the pre-WP-02 bodies until WP-06 moves the gates to initplans (DM-1).
+**Residual risks (owner to accept or schedule; rows in `audit/backlog.md`):** invoker RPCs are still executable by anon, with RLS applying (AC-9, WP-06/WP-18); writing definer RPCs bypass the module, aal2 and impersonation policies WP-06/WP-07 will add (AZ-8); anon queries on the 9 PUBLIC-scoped admin tables fail with 42501 naming the helper, instead of returning nothing (SEC-11, WP-06); every tenant-table read still runs the module and permission gates on every row, other tenants' included (pre-WP-02 cost, unchanged by WP-02; WP-06 moves them to initplans, PERF-3).
 
 **Monitoring:** the definer allow-list is enforced in CI and at migration time; a function created on production outside migrations (the SQL editor) now starts closed to anon and authenticated, and the post-deploy drift query in `docs/DEPLOYMENT.md` compares production's definer grants with the allow-list.
 

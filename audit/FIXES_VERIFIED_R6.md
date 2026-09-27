@@ -629,7 +629,7 @@ Verdicts in `audit/evidence/reviews/wp02-r2-*.md`. PASS: tenant-isolation, secur
 
 ### Round 3 review (at `f4d5924`, the last round allowed)
 
-Verdicts in `audit/evidence/reviews/wp02-r3-*.md`. PASS: api-contract, regression-guardian, db-migration, test-verifier. FAIL: code-quality (CQ-1), insa-docs (IDA-1); both majors fixed in the commit after `853c371`.  test-verifier, performance and insa-docs: listed as they return.
+Verdicts in `audit/evidence/reviews/wp02-r3-*.md`. PASS: api-contract, regression-guardian, db-migration, test-verifier. FAIL: code-quality (CQ-1), insa-docs (IDA-1), performance (PERF-1); all three majors fixed (commits `853c371`, `b5779d4` and the PERF-1 commit after `a69dbf3`).  test-verifier, performance and insa-docs: listed as they return.
 
 | Finding | Severity | Fix |
 |---|---|---|
@@ -650,11 +650,37 @@ Verdicts in `audit/evidence/reviews/wp02-r3-*.md`. PASS: api-contract, regressio
 | IDA-3 stale counts (58 assertions, 317 policies, #50, ~1,014 dependencies) | minor | Corrected. |
 | IDA-4 "exactly public, pg_temp" vs regex | minor | Docs say an empty path is also accepted. |
 | IDA-5 no clause mapping or residual-risk list | minor | Added to `_pending-changes.md` (INSA Phase 3; ISO 27001 A.8.2/A.8.3/A.8.9; residuals AC-9, AZ-8, SEC-11, DM-1); "unset role" defined. |
+| PERF-1 `has_module`'s caller check (two nested plpgsql calls) ran on every row, other tenants' included: a small tenant sharing tables read 1.7–1.9x slower; the ledger's single-tenant measurement missed it | major | One inline lookup with the same rule (super_admin, or own non-suspended tenant). Two-tenant benchmark, committed (`audit/evidence/wp02-perf-two-tenant-20260927T121528Z.txt`, `scripts/db/bench-rls-helpers.sh`): head vs pre-WP-02 bodies, A students 696 vs 657 ms, A attendance 6.3 vs 6.5 s, B students 362 vs 366 ms, B attendance 4.1 vs 4.0 s, i.e. parity. The DM3-1 "+25–35%" figure is superseded. |
+| PERF-2 attendance window called the helper per row | minor | Same single inline lookup. |
+| PERF-3 pre-existing per-row gates on every tenant's rows | minor | Backlog row widened for WP-06 (initplans, tenant qual first, EXPLAIN budget test). |
+| PERF-4 bundle and query dedupe | info | No change needed (−352 bytes JS). |
 | TV3-1 recorded gate output not from the final head | minor | The release-gate section below records the literal gate output at the final head. |
 | TV3-2 the `extensions` re-grant never ran in the harness | minor | The shim creates `extensions` as Supabase does; `catalog_definer_security` #7 also asserts the PUBLIC default there (revoking it fails #7). |
 | TV3-3, TV3-4, TV3-5 | info | Guard description reworded; the two surviving mutations are operational or pre-WP-02 and unreachable; test-only grants are role-switching helpers. |
 | IDA-6, IDA-7 | info | Final gate recorded by the release gate; performance by the performance reviewer; production facts re-queried on deploy day. |
 | RG3-1, RG3-3, RG3-5, AC3-3…AC3-5 | info | CI security-scan is green on each head (checked through the GitHub checks API); RG3-4 in the backlog; the rest noted. |
+
+### Gate at the final WP-02 head (round 3 fixes, TV3-1)
+
+Run on the commit that adds this section (after `a69dbf3`), fresh database:
+
+```
+tsc: exit 0
+eslint src --max-warnings 0: exit 0
+vitest:  Test Files 16 passed (16); Tests 98 passed (98);
+check:i18n: TOTAL 0 hardcoded strings across 0 files
+check:locales: locale checks passed
+build: exit 0
+pgTAP: exit 0, 113 migrations applied, 65 suites ok, 0 failed; catalog_definer_security.sql (10/10 assertions);catalog_rls_coverage.sql (2/2 assertions);definer_lockdown.sql (58/58 assertions);
+pgTAP re-run on the same database: exit 0
+app-rpc-grants: app-rpc-grants self-test: ok; app-rpc-grants: 23 app RPCs, 0 finding(s)
+deno-check: deno-check: 28 functions, 3 baselined, ok
+deno test: 37 passed | 0 failed
+conventions: conventions self-test: ok; conventions: 0 finding(s)
+pinned-actions: pinned-actions: ok (7 uses, all SHA-pinned; 1 pip install(s), hash-locked)
+semgrep rule test: semgrep rule test: 16 expected matches, 0 missing, 0 unexpected
+gitleaks (working tree + history): no leaks found
+```
 
 ### Gate (local, round-1 fixes)
 

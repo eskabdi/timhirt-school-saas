@@ -1,0 +1,36 @@
+R6 WP-02 read-cost benchmark (reviews DM-1, PERF-1), local PG16 harness, 20260927T121528Z
+Script: scripts/db/bench-rls-helpers.sh (two tenants: A 10k students/100k attendance, B 5k/50k; school_admin; EXPLAIN ANALYZE execution time, median of 3).
+Old bodies: get_tenant_id_for_user, get_role_for_user, has_module, has_resource_permission, attendance_retroactive_edit_window_days as built from c4ecfac (pre-WP-02).
+
+== head (bench_new)
+tenant A admin | select count(*) from public.students | 695.529 ms
+tenant A admin | select count(*) from public.attendance | 6323.157 ms
+tenant B admin | select count(*) from public.students | 362.233 ms
+tenant B admin | select count(*) from public.attendance | 4066.190 ms
+== pre-WP-02 helper bodies (bench_old)
+tenant A admin | select count(*) from public.students | 656.776 ms
+tenant A admin | select count(*) from public.attendance | 6526.740 ms
+tenant B admin | select count(*) from public.students | 365.688 ms
+tenant B admin | select count(*) from public.attendance | 3955.997 ms
+== plan, tenant B admin, head
+Aggregate (actual time=4471.433..4471.440 rows=1 loops=1)
+  InitPlan 1 (returns $0)
+    ->  Result (actual time=1.437..1.438 rows=1 loops=1)
+  InitPlan 2 (returns $1)
+    ->  Result (actual time=0.120..0.120 rows=1 loops=1)
+  InitPlan 3 (returns $2)
+    ->  Result (actual time=0.526..0.526 rows=1 loops=1)
+  ->  Seq Scan on attendance (actual time=343.815..4463.962 rows=50000 loops=1)
+        Filter: ((($0 = 'super_admin'::text) OR has_module(tenant_id, 'attendance'::text)) AND (($1 = 'super_admin'::text) OR ((tenant_id = $2) AND (has_resource_permission((NULLIF(current_setting('request.jwt.claim.sub'::text, true), ''::text))::uuid, 'attendance'::text, 'read'::text) OR is_teacher_of_class(class_id) OR (hashed SubPlan 11)))))
+        Rows Removed by Filter: 100000
+        SubPlan 11
+          ->  Seq Scan on students s (never executed)
+                Filter: ((($8 = 'super_admin'::text) OR has_module(tenant_id, 'sis'::text)) AND (($9 = 'super_admin'::text) OR ((tenant_id = $10) AND (has_resource_permission((NULLIF(current_setting('request.jwt.claim.sub'::text, true), ''::text))::uuid, 'students'::text, 'read'::text) OR is_teacher_of_class(class_id) OR (user_id = (NULLIF(current_setting('request.jwt.claim.sub'::text, true), ''::text))::uuid) OR is_guardian_of(id)))) AND ((user_id = (NULLIF(current_setting('request.jwt.claim.sub'::text, true), ''::text))::uuid) OR is_guardian_of(id)))
+                InitPlan 8 (returns $8)
+                  ->  Result (never executed)
+                InitPlan 9 (returns $9)
+                  ->  Result (never executed)
+                InitPlan 10 (returns $10)
+                  ->  Result (never executed)
+Planning Time: 2.686 ms
+Execution Time: 4497.681 ms
