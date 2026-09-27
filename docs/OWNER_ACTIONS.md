@@ -30,7 +30,7 @@ Last updated: 2026-09-26 (WP-01 round 3; WP-02 and WP-09 in progress).
 
 ## B. Decisions and approvals Claude needs from you
 
-- [ ] **B1. Approve production deploys.** Claude prepares each release and
+- [x] **B1. Approve production deploys.** Claude prepares each release and
   verifies it, but a production deploy (migrations, Edge Functions, frontend)
   waits for your explicit "deploy". Pending right now: WP-01, which includes
   migrations `20260925000002` (calendar settings) and `20260925000003` (safe
@@ -40,6 +40,7 @@ Last updated: 2026-09-26 (WP-01 round 3; WP-02 and WP-09 in progress).
   and did nothing before). It now works, so every date will also show its
   Gregorian equivalent. A school admin can switch it off in Settings →
   Calendar Preferences, or tell Claude to switch it off for all schools.
+  **Decided 2026-09-27:** the owner merged PR #9 and wrote "Do not wait for my approval, you have permission to commit - deploy live to Supabase and Vercel if required". Standing approval for releases that have passed their release gate. Claude still ships each work package only after its own review and gate; WP-09 (maker-checker) is merged but waits for its review before it ships.
 - [ ] **B1a. Heads-up for the WP-09 deploy (maker-checker).** After it ships,
   every cash or bank payment staff record waits for a *second* person
   (another accountant or a school admin) to approve it before it counts
@@ -63,7 +64,7 @@ Last updated: 2026-09-26 (WP-01 round 3; WP-02 and WP-09 in progress).
   initials, now per language (Sunday first): am `እ ሰ ማ ረ ሐ ዓ ቅ`,
   om `D W K R K J S`. Reply with corrections or "OK".
 
-- [ ] **B4. WP-01 review limit (release gate finding GK-2).** The fix plan
+- [x] **B4. WP-01 review limit (release gate finding GK-2).** The fix plan
   allows 3 review rounds per work package. The fixes made after round 3
   have been checked only by the final gatekeeper, not by a 4th review round:
   the new `merge_tenant_settings` database function (`20260925000003`) and
@@ -76,8 +77,9 @@ Last updated: 2026-09-26 (WP-01 round 3; WP-02 and WP-09 in progress).
   **A)** accept the gatekeeper's review for that code, which makes WP-01
   PASS, or **B)** authorise one targeted re-review of those changes.
   Tell Claude "B4 A" or "B4 B".
+  **Decided 2026-09-27:** the owner merged PR #9 and wrote "Do not wait for my approval, you have permission to commit - deploy live to Supabase and Vercel if required". Recorded as **A** (accept the gatekeeper's review).
 
-- [ ] **B6. WP-02 review limit (release gate finding GK-1).** Same
+- [x] **B6. WP-02 review limit (release gate finding GK-1).** Same
   situation as B4, for WP-02 (database function lockdown). Three fixes made
   after the last allowed review round were checked only by the final
   gatekeeper:
@@ -91,6 +93,7 @@ Last updated: 2026-09-26 (WP-01 round 3; WP-02 and WP-09 in progress).
   frontend-security, have both passed), or **B)** order one targeted re-review by the
   security, tenant-isolation, performance and INSA-docs reviewers. Tell
   Claude "B6 A" or "B6 B". It also recommends accepting WP-02's documented
+  **Decided 2026-09-27:** the owner merged PR #9 and wrote "Do not wait for my approval, you have permission to commit - deploy live to Supabase and Vercel if required". Recorded as **A** (accept the gatekeeper's review).
   deviations from the plan text and its residual risks (listed in
   `docs/insa/_pending-changes.md`, WP-02 section) into the risk register.
 

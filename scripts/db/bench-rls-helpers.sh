@@ -6,10 +6,16 @@
 # If helpers.sql is given, those function bodies replace the current ones
 # first (to compare against older bodies in a copy of the database).
 set -euo pipefail
-# Refuse anything that looks like a real project (review SC-1): the script
-# inserts users and 150k rows. The harness runs on a local socket or localhost.
-case "${PGHOST:-}" in
-  *supabase.co*|*supabase.com*|*pooler.supabase*) echo "refusing: PGHOST looks like a Supabase project" >&2; exit 2 ;;
+# Refuse anything but a local harness (reviews SC-1, code-review): the script
+# inserts users and 150k rows, and production has no backups. Only a Unix
+# socket directory or localhost is accepted, case-insensitively, and a
+# connection given any other way (PGHOSTADDR, PGSERVICE, a URI) is refused.
+if [ -n "${PGHOSTADDR:-}" ] || [ -n "${PGSERVICE:-}" ] || [ -n "${DATABASE_URL:-}" ]; then
+  echo "refusing: PGHOSTADDR/PGSERVICE/DATABASE_URL set; use PGHOST=<socket dir> or localhost" >&2; exit 2
+fi
+case "$(printf %s "${PGHOST:-}" | tr '[:upper:]' '[:lower:]')" in
+  /*|localhost|127.0.0.1|::1) ;;
+  *) echo "refusing: PGHOST must be a local socket directory or localhost" >&2; exit 2 ;;
 esac
 if [ "${BENCH_ON_HARNESS:-}" != "1" ]; then
   echo "refusing: set BENCH_ON_HARNESS=1 to confirm PG* points at a local harness database" >&2; exit 2
