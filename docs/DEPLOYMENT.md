@@ -244,8 +244,9 @@ migrations are applied: it revokes EXECUTE from every definer function,
 including the ones later migrations granted. Undo any piece of it with a new
 forward-fix migration (its header lists each reverse statement); never grant
 anything back to anon. Its global default-privilege change also means a
-function postgres creates in any schema other than `public` (service_role
-only) and `extensions` starts with no EXECUTE for anyone but postgres.
+function postgres creates in `public` or `storage` is callable only by
+service_role, in `extensions` by everyone (as before), and in any other schema
+by no one but postgres.
 
 After any migration deploy, and whenever someone may have used the SQL editor,
 compare production's SECURITY DEFINER grants with
@@ -268,4 +269,4 @@ order by 1, 2;
 
 Also confirm new functions still start closed:
 `select defaclnamespace::regnamespace, defaclacl from pg_default_acl where defaclrole = 'postgres'::regrole and defaclobjtype = 'f';`
-must show no `anon=`/`authenticated=` entry for `public` (expected `{service_role=X/postgres}`), and a global row (namespace `-`) with no PUBLIC entry, i.e. no item that starts with `=X/` (expected `{postgres=X/postgres}`). The `extensions` row should read `{=X/postgres}`. After any `create extension` that lands outside the `extensions` schema, check EXECUTE on its functions: they start closed like every other new function.
+must show no `anon=`/`authenticated=` entry for `public` or `storage` (expected `{postgres=X/postgres,service_role=X/postgres}` in production), and a global row (namespace `-`) with no PUBLIC entry, i.e. no item that starts with `=X/` (expected `{postgres=X/postgres}`). The `extensions` row should read `{=X/postgres}`. After any `create extension` that lands outside the `extensions` schema, check EXECUTE on its functions: they start closed like every other new function.

@@ -567,7 +567,7 @@ payments-integrity **PASS**, privacy-guardian **PASS**, state-concurrency **FAIL
 |---|---|---|
 | H-01: 42 anon-executable SECURITY DEFINER functions, several trusting caller-supplied tenant/user ids | **fixed** (repo; deploy pending) | Migration `20260926000001_r6_definer_lockdown.sql`. `catalog_definer_security.sql` 10/10 hard: every grant to any role but the owner and service_role (PUBLIC included) equals `definer_allowlist.sql` exactly; anon can execute **no** definer function; the default privileges stay closed. `definer_lockdown.sql` 58/58, including the Report 3 Appendix A-1 probes as anon, and the same forgeries attempted by direct table insert as a student. |
 | L-07: cross-tenant oracles (`has_module`, `get_config`, security thresholds, `attendance_retroactive_edit_window_days`) | **fixed** | `has_module` and the attendance window answer only for the caller's tenant; `get_config`/`is_feature_enabled` are service_role-only; `get_security_settings` gives the login thresholds only to super_admin. |
-| 13 definer functions without `search_path`, 39 without `pg_temp` (WP-01 AZ-1) | **fixed** | Every definer pins exactly `public, pg_temp`; the guard now requires exactly that. |
+| 13 definer functions without `search_path`, 39 without `pg_temp` (WP-01 AZ-1) | **fixed** | Every definer pins exactly `public, pg_temp`; the guard accepts that or an empty path. |
 | 11 tables without FORCE RLS (WP-01 baseline) | **fixed** | `catalog_rls_coverage.sql` hard. Production postgres is not a superuser and has BYPASSRLS, and owns all 11 tables (`audit/evidence/wp02-prod-owners-bypassrls-defacl-20260926T105624Z.txt`), so migrations and cron are unaffected. |
 
 ### Implementation (plan WP-02) and recon adjustments
@@ -616,8 +616,8 @@ Verdicts in `audit/evidence/reviews/wp02-r2-*.md`. PASS: tenant-isolation, secur
 |---|---|---|
 | RG-1 (= AZ2-2) a second `run.sh` on the same database failed 55 suites: the shim recreated pgtap before restoring the default privileges the migration closes | major | `shim.sql` restores the default first; two consecutive runs on one database are green. Ledger sentence corrected. |
 | AZ2-1 `data_jobs_admin_update` let a school admin mark a job completed with any path, which `complete_job` (service_role) guards | minor | Policy dropped (nothing in the app updates `data_jobs`); probe added. |
-| TI-R2-1 unexpected-role probe covered 2 of 9 helpers | minor | Now 8 (commit `6a89aa0`); a deny-list `has_module` fails #49. |
-| SEC-R2-3 nothing checks that functions called by policies/views/defaults stay executable now that new functions start closed | minor | `catalog_definer_security.sql` #8 over 1018 dependencies; revoking `is_guardian_of` from authenticated fails it. |
+| TI-R2-1 unexpected-role probe covered 2 of 9 helpers | minor | Now 8 (commit `6a89aa0`); a deny-list `has_module` fails the unexpected-role probe (#50 after later additions). |
+| SEC-R2-3 nothing checks that functions called by policies/views/defaults stay executable now that new functions start closed | minor | `catalog_definer_security.sql` #8 over the ~1,014 policy/view/default/constraint dependencies; revoking `is_guardian_of` from authenticated fails it. |
 | TI-R2-2, TI-R2-3 (= RG-2), SEC-R2-2, SEC-R2-4, SEC-R2-5, AZ2-6, RG-4 | minor/info | Backlog row corrected; runbook default-ACL text; extension note; attendance helper added to the performance row; definer count; CLAUDE.md; WP-09 revokes `approval_payload_hash` from authenticated explicitly. |
 | DM-1 the caller checks made the SQL helpers 4–5x slower on every read (5k students 297 → 1,420 ms, 50k attendance 3.3 → 14 s; the backlog had "+27–40%") | major | `get_tenant_id_for_user`, `get_role_for_user`, `has_module` rewritten as plpgsql with the same predicates. Measured on the harness with 5k students and 50k attendance as a school_admin: 308 ms and 3.57 s (before the fix, same data: 1,420 ms and 14.0 s). The db-migration reviewer's interleaved round-3 run against the pre-WP-02 bodies: students 330 → 446 ms (+35%), attendance 3.64 → 4.50 s (+24%); round-2 SQL bodies 1.9–2.0 s and 16.5–18 s. The rest is WP-06's initplan work. All suites green. |
 | DM-2 rollback note incomplete | minor | Replaced with a forward-fix plan listing each reverse statement; anon is never re-granted. |
@@ -629,7 +629,7 @@ Verdicts in `audit/evidence/reviews/wp02-r2-*.md`. PASS: tenant-isolation, secur
 
 ### Round 3 review (at `f4d5924`, the last round allowed)
 
-Verdicts in `audit/evidence/reviews/wp02-r3-*.md`. PASS: api-contract, regression-guardian, db-migration. FAIL: code-quality (CQ-1).  test-verifier, performance and insa-docs: listed as they return.
+Verdicts in `audit/evidence/reviews/wp02-r3-*.md`. PASS: api-contract, regression-guardian, db-migration. FAIL: code-quality (CQ-1), insa-docs (IDA-1); both majors fixed in the commit after `853c371`.  test-verifier, performance and insa-docs: listed as they return.
 
 | Finding | Severity | Fix |
 |---|---|---|
@@ -645,6 +645,12 @@ Verdicts in `audit/evidence/reviews/wp02-r3-*.md`. PASS: api-contract, regressio
 | DM3-2 forward-fix sources | minor | Every replaced function now cites its real latest earlier migration (with CQ-1). |
 | DM3-3 nothing keeps the helpers plpgsql | info | `catalog_definer_security` #10. |
 | DM3-4 lock timeout needs a transaction | info | DEPLOYMENT.md says to apply it in one. |
+| IDA-1 docs said new `storage` functions start closed; production's `storage` default still granted anon/authenticated | major | Migration revokes it too; the shim now models production's `storage` default, and `catalog_definer_security` #7 covers public and storage (a planted anon default in storage fails it). |
+| IDA-2 expected default ACL in the runbook came from the harness | minor | Production value given. |
+| IDA-3 stale counts (58 assertions, 317 policies, #50, ~1,014 dependencies) | minor | Corrected. |
+| IDA-4 "exactly public, pg_temp" vs regex | minor | Docs say an empty path is also accepted. |
+| IDA-5 no clause mapping or residual-risk list | minor | Added to `_pending-changes.md` (INSA Phase 3; ISO 27001 A.8.2/A.8.3/A.8.9; residuals AC-9, AZ-8, SEC-11, DM-1); "unset role" defined. |
+| IDA-6, IDA-7 | info | Final gate recorded by the release gate; performance by the performance reviewer; production facts re-queried on deploy day. |
 | RG3-1, RG3-3, RG3-5, AC3-3…AC3-5 | info | CI security-scan is green on each head (checked through the GitHub checks API); RG3-4 in the backlog; the rest noted. |
 
 ### Gate (local, round-1 fixes)

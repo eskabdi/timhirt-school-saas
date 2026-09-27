@@ -487,8 +487,8 @@ to timhirt_view_owner;
 -- Supabase's `ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public`.
 -- A schema-scoped default cannot remove the global PUBLIC grant, so:
 --   * the global default for postgres stops granting EXECUTE to PUBLIC;
---   * the public-schema default stops granting it to anon and authenticated
---     (service_role keeps it, for Edge Functions);
+--   * the public-schema and storage-schema defaults stop granting it to anon
+--     and authenticated (service_role keeps it, for Edge Functions);
 --   * the `extensions` schema gets PUBLIC back explicitly, so an extension
 --     postgres installs there later (pgcrypto, uuid-ossp and
 --     pg_stat_statements are postgres-owned today) behaves exactly as before.
@@ -501,6 +501,13 @@ to timhirt_view_owner;
 -- Functions that already exist keep their grants (step 1 handled definers).
 alter default privileges for role postgres revoke execute on functions from public;
 alter default privileges for role postgres in schema public revoke execute on functions from anon, authenticated;
+-- Production grants the same in `storage` (review IDA-1): close it too.
+do $$
+begin
+  if exists (select 1 from pg_namespace where nspname = 'storage') then
+    execute 'alter default privileges for role postgres in schema storage revoke execute on functions from anon, authenticated';
+  end if;
+end $$;
 do $$
 begin
   if exists (select 1 from pg_namespace where nspname = 'extensions') then

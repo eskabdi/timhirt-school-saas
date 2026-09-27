@@ -12,7 +12,7 @@
 create temp table definer_allowlist (sig text, grantee text, reason text not null, primary key (sig, grantee)) on commit drop;
 insert into definer_allowlist values
   -- RLS helpers: policies call them as the querying user.
-  ('get_tenant_id_for_user(uuid)', 'authenticated', 'RLS helper (321 policies); answers only for the caller or a user in the caller''s tenant'),
+  ('get_tenant_id_for_user(uuid)', 'authenticated', 'RLS helper (317 policies); answers only for the caller or a user in the caller''s tenant'),
   ('get_role_for_user(uuid)', 'authenticated', 'RLS helper (215 policies); answers only for the caller or a user in the caller''s tenant'),
   ('get_email_for_user(uuid)', 'authenticated', 'users_self_update policy; returns only the caller''s own email'),
   ('has_module(uuid,text)', 'authenticated', 'module-gate policies; answers only for the caller''s tenant (super_admin: any)'),

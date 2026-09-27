@@ -62,6 +62,10 @@ alter default privileges for role postgres in schema public
   grant all on sequences to anon, authenticated, service_role;
 alter default privileges for role postgres in schema public
   grant all on functions to anon, authenticated, service_role;
+-- Production has the same function default for postgres in `storage`
+-- (audit/evidence/wp02-prod-owners-bypassrls-defacl-*.txt; review IDA-1).
+alter default privileges for role postgres in schema storage
+  grant all on functions to anon, authenticated, service_role;
 
 -- Column set mirrors GoTrue's: the suites insert real-looking rows (aud,
 -- encrypted_password, confirmation_token …), and a narrower table would fail

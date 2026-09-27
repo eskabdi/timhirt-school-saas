@@ -69,13 +69,13 @@ select is(array(
       where d.defaclrole = 'postgres'::regrole and d.defaclnamespace = 0 and d.defaclobjtype = 'f'
         and not exists (select 1 from aclexplode(d.defaclacl) a where a.grantee = 0 and a.privilege_type = 'EXECUTE'))
     union all
-    select 'public default grants ' || case when a.grantee = 0 then 'PUBLIC' else a.grantee::regrole::text end
+    select d.defaclnamespace::regnamespace::text || ' default grants ' || case when a.grantee = 0 then 'PUBLIC' else a.grantee::regrole::text end
     from pg_default_acl d cross join lateral aclexplode(d.defaclacl) a
-    where d.defaclrole = 'postgres'::regrole and d.defaclnamespace = 'public'::regnamespace
+    where d.defaclrole = 'postgres'::regrole and d.defaclnamespace in ('public'::regnamespace, 'storage'::regnamespace)
       and d.defaclobjtype = 'f' and a.privilege_type = 'EXECUTE'
       and (a.grantee = 0 or a.grantee::regrole::text in ('anon', 'authenticated'))
     order by 1), '{}'::text[],
-  'new functions postgres creates in public start closed to PUBLIC, anon and authenticated');
+  'new functions postgres creates in public or storage start closed to PUBLIC, anon and authenticated');
 
 -- Every function a policy, view, column default or CHECK calls is executable
 -- by the role that evaluates it (review SEC-R2-3): new functions start
