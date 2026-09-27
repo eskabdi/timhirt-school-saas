@@ -377,7 +377,7 @@ export function InvoicesPage() {
           <tbody className="divide-y divide-line">
             {invoices?.map((inv) => (
               <tr key={inv.id}
-                className={cn("cursor-pointer hover:bg-sidebar", inv.status !== "paid" && "bg-danger-tint")}
+                className={cn("cursor-pointer hover:bg-sidebar", inv.status !== "paid" && inv.status !== "void" && "bg-danger-tint")}
                 onDoubleClick={onRowDoubleClick(navigate, inv.id)}>
                 <td className="px-4 py-2 font-medium text-ink">
                   <Link to={inv.id} className="hover:underline">{fullName(inv.student)}</Link>

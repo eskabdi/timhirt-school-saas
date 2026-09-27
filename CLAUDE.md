@@ -171,7 +171,7 @@ npx vitest run
 npm run check:i18n                  # must be 0
 npm run check:locales               # parity + no wholesale reformat
 npm run build
-PGHOST=… ./supabase/tests/run.sh    # 113 migrations + 65 pgTAP suites
+PGHOST=… ./supabase/tests/run.sh    # 114 migrations + 66 pgTAP suites
 python3 scripts/ci/app-rpc-grants.py      # after run.sh, same PG* env
 bash scripts/ci/deno-check.sh       # Edge Function types (ratchet)
 python3 scripts/ci/semgrep-rule-test.py   # needs semgrep 1.95.0
@@ -203,8 +203,12 @@ measuring nothing. Prove a gate fails before trusting that it passed.
   threshold, voiding an invoice, changing a grade after results are published
   and transferring a student out go through `approval_requests`
   (`submit_approval` → `decide_approval`); the database refuses the direct
-  write from a client. The enforcement triggers are SECURITY INVOKER and test
-  `current_user` (a definer RPC or service_role path is trusted). A new
+  write from a client. The enforcement triggers are SECURITY INVOKER and trust
+  only `current_user` in (`postgres`, `service_role`, `supabase_admin`), i.e. a
+  definer RPC or the service key; every other role is a client. Invoice
+  amounts and status are written only by payments and approved requests, and
+  an approval re-checks the record it acts on (the state the checker saw)
+  under the invoice-header lock: header first, then its lines by created_at. A new
   sensitive action is registered in `approval_actions` and wired the same way,
   never gated only in the UI.
 - Deploy tokens: never commit, never echo, shred after use.

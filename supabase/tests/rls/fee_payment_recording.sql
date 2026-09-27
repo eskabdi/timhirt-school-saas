@@ -113,6 +113,9 @@ select is(
   (select status::text from public.fee_invoices where id = 'aeb50000-0000-0000-0000-000000000002'),
   'paid', 'a provider=bank payment credits the invoice via apply_manual_payment_trg exactly like cash -- guards the admission-methods-map-to-bank decision');
 
+-- The adm-* key is written by enroll-finalize-billing as service_role (a
+-- client would first be refused for paying more than is owed, R6 WP-09).
+set local role service_role;
 select throws_ok(
   $stmt$ insert into public.payments (tenant_id, invoice_id, amount, provider, provider_ref, status)
          values ('aeb00000-0000-0000-0000-00000000000a', 'aebc0002-0000-0000-0000-000000000002', 50.00, 'bank', 'adm-cbe-app-1', 'succeeded') $stmt$,

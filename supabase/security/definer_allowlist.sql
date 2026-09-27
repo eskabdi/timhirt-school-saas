@@ -39,6 +39,7 @@ insert into definer_allowlist values
   ('get_student_grade_history(uuid)', 'authenticated', 'Academic record; checks the caller may see the student'),
   -- R6 WP-09 maker-checker. Each derives tenant and role from auth.uid().
   ('submit_approval(text,uuid,jsonb,text)', 'authenticated', 'Maker submits a request; own tenant, needs the underlying write permission'),
+  ('cancel_approval(uuid)', 'authenticated', 'Maker withdraws their own pending request; own tenant, maker only'),
   ('decide_approval(uuid,text,text,text)', 'authenticated', 'Checker decides; own tenant, <resource>:approve, never the maker, payload hash must match'),
   ('set_approval_settings(boolean,numeric)', 'authenticated', 'Approval rules page; school_admin, own tenant, merges only settings.approvals'),
   ('approval_required(uuid,text,numeric)', 'authenticated', 'Called by the invoker payments gate as the inserting user; answers only for the caller''s tenant'),

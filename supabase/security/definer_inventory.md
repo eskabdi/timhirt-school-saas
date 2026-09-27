@@ -6,7 +6,7 @@ Grantees exclude the owner (postgres). `Private` functions are reachable by sign
 (cron as postgres, or nothing); trigger functions need no EXECUTE grant.
 The reviewed grant list is `definer_allowlist.sql`; `catalog_definer_security.sql` keeps the two in step.
 
-74 functions.
+77 functions.
 
 | Function | Class | EXECUTE | Policies | Triggers | App callers | Edge Function callers | search_path |
 |---|---|---|---|---|---|---|---|
@@ -18,6 +18,7 @@ The reviewed grant list is `definer_allowlist.sql`; `catalog_definer_security.sq
 | `attendance_retroactive_edit_window_days(uuid)` | Private (authenticated) | authenticated service_role | 1 | 0 | — | — | `search_path=public, pg_temp` |
 | `audit_trigger()` | Trigger-only | service_role | 0 | 32 | — | — | `search_path=public, pg_temp` |
 | `auto_assign_exam_seats(uuid,integer,integer)` | Private (authenticated) | authenticated service_role | 0 | 0 | ExamsPage.tsx | — | `search_path=public, pg_temp` |
+| `cancel_approval(uuid)` | Private (authenticated) | authenticated service_role | 0 | 0 | approvals.ts | — | `search_path=public, pg_temp` |
 | `check_staff_employee_linkage()` | Private (authenticated) | authenticated service_role | 0 | 0 | HealthMonitoringPage.tsx | — | `search_path=public, pg_temp` |
 | `cleanup_expired_backups()` | Internal (service_role) | service_role | 0 | 0 | — | — | `search_path=public, pg_temp` |
 | `cleanup_old_audit_logs()` | Disabled (owner only) | — | 0 | 0 | — | — | `search_path=public, pg_temp` |
@@ -41,6 +42,7 @@ The reviewed grant list is `definer_allowlist.sql`; `catalog_definer_security.sq
 | `exam_results_published(uuid)` | Private (authenticated) | authenticated service_role | 0 | 0 | — | — | `search_path=public, pg_temp` |
 | `execute_approval(uuid)` | Internal (service_role) | service_role | 0 | 0 | — | — | `search_path=public, pg_temp` |
 | `expire_approvals()` | Internal (service_role) | service_role | 0 | 0 | — | — | `search_path=public, pg_temp` |
+| `expire_approvals_for(uuid)` | Internal (service_role) | service_role | 0 | 0 | — | — | `search_path=public, pg_temp` |
 | `fail_job(uuid,text)` | Internal (service_role) | service_role | 0 | 0 | — | _shared | `search_path=public, pg_temp` |
 | `get_class_rank(uuid,uuid)` | Private (authenticated) | authenticated service_role | 0 | 0 | academic-record.ts | — | `search_path=public, pg_temp` |
 | `get_config(text,uuid)` | Internal (service_role) | service_role | 0 | 0 | — | — | `search_path=public, pg_temp` |
@@ -79,6 +81,7 @@ The reviewed grant list is `definer_allowlist.sql`; `catalog_definer_security.sq
 | `student_clear_transfer_fields()` | Trigger-only | service_role | 0 | 1 | — | — | `search_path=public, pg_temp` |
 | `students_lock_user_id()` | Trigger-only | service_role | 0 | 1 | — | — | `search_path=public, pg_temp` |
 | `submit_approval(text,uuid,jsonb,text)` | Private (authenticated) | authenticated service_role | 0 | 0 | approvals.ts | — | `search_path=public, pg_temp` |
+| `tenant_configs_approvals_audit()` | Trigger-only | service_role | 0 | 1 | — | — | `search_path=public, pg_temp` |
 | `timeout_stalled_backups()` | Internal (service_role) | service_role | 0 | 0 | — | — | `search_path=public, pg_temp` |
 | `update_job_progress(uuid,integer,integer,jsonb)` | Internal (service_role) | service_role | 0 | 0 | — | process-export-job, process-import-job | `search_path=public, pg_temp` |
 | `users_lock_identity()` | Trigger-only | service_role | 0 | 1 | — | — | `search_path=public, pg_temp` |

@@ -39,7 +39,8 @@ import { fullName } from "../_shared/names.ts";
 
 const Payload = z.object({
   invoice_id: z.string().uuid(), // an invoice_headers id
-  amount: z.number().positive(),
+  // ETB to the cent: numeric(12,2) would silently round a third decimal.
+  amount: z.number().positive().max(10_000_000).refine((v) => Math.abs(v * 100 - Math.round(v * 100)) < 1e-6, "at most 2 decimals"),
   provider: z.enum(["cash", "bank"]),
   reference: z.string().max(100).optional(),
   bank_verification: z.object({
@@ -69,18 +70,29 @@ Deno.serve(async (req) => {
     const { data: lines } = await ctx.userClient.from("fee_invoices")
       .select("amount_due, amount_paid, status").eq("invoice_header_id", header.id);
     if (!lines || !lines.length) return errors.badRequest();
-    const amountDue = lines.reduce((s, l) => s + Number(l.amount_due), 0);
-    const amountPaid = lines.reduce((s, l) => s + Number(l.amount_paid), 0);
-    if (lines.every((l) => l.status === "paid")) return errors.badRequest();
-
-    const remaining = amountDue - amountPaid;
-    if (p.amount > remaining + 0.01) return json({ error: "amount_exceeds_balance" }, 400);
+    // In cents, over the lines still owed. Payments already waiting for a
+    // second person's approval count against the balance too (R6 WP-09
+    // PAY-1); the database enforces the same limit.
+    const open = lines.filter((l) => l.status !== "void");
+    if (!open.length) return json({ error: "invoice_void" }, 400);
+    if (open.every((l) => l.status === "paid")) return errors.badRequest();
+    const cents = (v: number | string) => Math.round(Number(v) * 100);
+    const { data: waiting } = await ctx.userClient.from("payments")
+      .select("amount").eq("invoice_id", header.id).eq("status", "pending").in("provider", ["cash", "bank"]);
+    const remainingCents = open.reduce((s, l) => s + cents(l.amount_due) - cents(l.amount_paid), 0)
+      - (waiting ?? []).reduce((s, w) => s + cents(w.amount), 0);
+    if (cents(p.amount) > remainingCents) return json({ error: "amount_exceeds_balance" }, 400);
 
     const { data: payment, error: payErr } = await ctx.userClient.from("payments").insert({
       tenant_id: header.tenant_id, invoice_id: header.id,
       amount: p.amount, provider: p.provider, provider_ref: p.reference?.trim() || null,
       status: "succeeded",
     }).select("id, amount, provider, provider_ref, paid_at, status").single();
+    // A concurrent recording can take the balance between the check above and
+    // this insert; the database refuses it (payments_reject_void_invoice).
+    if (payErr && /amount_exceeds_balance|invoice_void/.test(payErr.message ?? "")) {
+      return json({ error: /invoice_void/.test(payErr.message ?? "") ? "invoice_void" : "amount_exceeds_balance" }, 400);
+    }
     if (payErr) throw payErr;
     // R6 WP-09: above the tenant's threshold the database parks the payment
     // as 'pending' and files a manual_payment_accept request; it credits the

@@ -11,14 +11,14 @@ import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { EthDate } from "@/components/EthDate";
 import { issueFeeDocumentUrl } from "@/features/fees/api";
 import {
-  APPROVAL_SELECT, approvalErrorKey, decideApproval, diffRows, isExpired,
+  APPROVAL_SELECT, approvalErrorKey, cancelApproval, decideApproval, diffRows, isExpired,
   type ApprovalRequest, type DiffRow,
 } from "./approvals";
 
 type View = "waiting" | "mine" | "history";
 
 const STATUS_TONE = {
-  pending: "late", approved: "navy", executed: "ok", rejected: "danger", expired: "neutral",
+  pending: "late", approved: "navy", executed: "ok", rejected: "danger", expired: "neutral", cancelled: "neutral",
 } as const;
 
 // R6 WP-09 (M-06): the maker-checker inbox. RLS shows a maker their own
@@ -99,7 +99,18 @@ function ApprovalCard({ request: r, myId, onDecided }: { request: ApprovalReques
       return outcome;
     },
     onSuccess: (outcome) => { setResult(outcome); setRejecting(false); onDecided(); },
+    // Another checker may have decided it, or it expired or the record moved
+    // on: reload so the card shows where it stands now.
+    onError: () => onDecided(),
   });
+
+  // The maker withdraws a request they no longer want decided.
+  const withdraw = useMutation({
+    mutationFn: () => cancelApproval(r.id),
+    onSuccess: (outcome) => { setResult(outcome); onDecided(); },
+    onError: () => onDecided(),
+  });
+  const canWithdraw = r.status === "pending" && !expired && r.maker_id === myId;
 
   const entityLink = r.action === "invoice_void" ? `/fees/invoices/${r.entity_id}`
     : r.action === "manual_payment_accept" && typeof r.payload.invoice_id === "string" ? `/fees/invoices/${r.payload.invoice_id}`
@@ -157,6 +168,11 @@ function ApprovalCard({ request: r, myId, onDecided }: { request: ApprovalReques
       {r.status === "pending" && r.maker_id === myId && (
         <p className="mt-2 text-xs text-ink-soft">{t("approvals.ownRequest")}</p>
       )}
+      {canWithdraw && !result && (
+        <Button className="mt-2" variant="tertiary" onClick={() => withdraw.mutate()} disabled={withdraw.isPending}>
+          {t("approvals.withdraw")}
+        </Button>
+      )}
 
       {canDecide && !result && (
         <div className="mt-3 space-y-2">
@@ -185,8 +201,8 @@ function ApprovalCard({ request: r, myId, onDecided }: { request: ApprovalReques
         </div>
       )}
       <p role="status" className="mt-2 text-sm text-ok">{result ? t(`approvals.outcome.${result}`) : ""}</p>
-      {decide.isError && (
-        <p role="alert" className="mt-1 text-sm text-danger">{t(`approvals.error.${approvalErrorKey(decide.error)}`)}</p>
+      {(decide.isError || withdraw.isError) && (
+        <p role="alert" className="mt-1 text-sm text-danger">{t(`approvals.error.${approvalErrorKey(decide.error ?? withdraw.error)}`)}</p>
       )}
     </Card>
   );

@@ -786,3 +786,22 @@ Migrations `20260927000001` (the `void` invoice status, on its own because a new
 | Tests | pgTAP per action (see above); `payroll_sod` unchanged and green. Updated suites that relied on the old direct behaviour: `fee_payment_recording` and `invoice_consolidation` switch manual-payment approval off for their tenant (they test crediting), `student_transfer` proves the direct transfer is refused. | Harness 113 migrations / 65 suites |
 
 Found while building it: a school admin could unpublish results, edit grades directly and republish, sidestepping the grade-change approval. Unpublishing is now refused for clients (`academic_terms_unpublish_guard`), and the Academic Years page shows published results as locked.
+
+### WP-09 review round 1 (6 reviewers: security, authz, tenant isolation, payments, db migration, state/concurrency)
+
+All six returned FAIL (`audit/evidence/reviews/wp09-r1-*.md`). Every Critical/High/Medium finding was reproduced by the reviewer's probe and is fixed in migration `20260927000003_r6_maker_checker_hardening` and the app, with each probe replayed as a hard assertion in `supabase/tests/rls/maker_checker_hardening.sql` (59). Against the round-1 schema that suite fails 28+ of its assertions; after the fix it passes, with the full harness green (114 migrations, 66 suites).
+
+| Findings | Severity | Fix |
+|---|---|---|
+| TI-01 = SEC-03 (+ TI-06) | blocker/High | A payment or fee line must share its invoice header's tenant: composite foreign keys on (header id, tenant_id); crediting, void checks, settlement and `verify_document` filter on the tenant. Cross-tenant grade entry probe. |
+| AZ-01 = SEC-01 = PAY-2 = SC-04 = DB-2 = TI-03 | High/blocker | `fee_invoices_void_guard` refuses any client change of `amount_due`, `amount_paid`, `status`, header, student, structure or tenant, and a client insert that is not unpaid and pending or goes into a void header. |
+| AZ-02 = SEC-02 = TI-02 = DB-1 (+ AZ-05) | High | Grade gate checks the old and the new exam and gates INSERT; `exams_publication_guard` locks a published exam's term, scale, weight and class and refuses its deletion and any move into a published term. New action `grade_entry_after_publish` for a grade missing at publication; the gradebook sends it. |
+| SEC-04 = PAY-3, PAY-1 = SC-02, SC-01, SC-08 | Medium/blocker/major | One lock order (invoice header, then lines). The void executor re-checks amount due, amount paid and open lines against what the checker saw; the payment executor re-checks the open balance; a client cash/bank payment may not exceed the balance less payments waiting; gateway settlement refuses a void invoice. `record-fee-payment` and the invoice page count waiting payments and compare in cents. |
+| SEC-05 = PAY-4 | Low/major | Threshold compares the Addis day's running total on the invoice. |
+| TI-04 = PAY-7 = SC-03 (+ SC-05, AZ-08) | major | Submit, decide and the new `cancel_approval` expire the school's stale requests first; deciding an expired request records it and returns `expired`; the maker can withdraw (`cancelled`), which fails a parked payment. Scheduler still in the backlog (WP-16). |
+| AZ-03 = PAY-8 | Medium/major | `settings.approvals` is writable only through `set_approval_settings`; each change is written to `audit_logs` (`APPROVAL_SETTINGS`, actor, before/after). |
+| AZ-04 | Medium | `approval_actions.module`; the select policy, submit and decide require the module. |
+| PAY-5, PAY-6 = DB-6, PAY-11 | major/minor | `verify_document` and `issue-fee-document` treat a void invoice as void; reports, the transcript block, the invoice list highlight and `generate-fee-invoices` ignore void lines. |
+| SEC-06, SC-09, TI-05, DB-3, DB-4, DB-7, DB-8, DB-9, PAY-9, SC-06, SC-07 | Info/minor | Trusted-role allow-list in every enforcement trigger; request immutability and forward-only status (all roles); tenant_id null only for platform actions; `lock_timeout`; forward-fix plan in the header; a failed payment frees its reference; indexes on `checker_id` and `action`; TRUNCATE revoked on the invoice tables; amounts to the cent; per-row gradebook submission; the inbox reloads after a failed decision. |
+| AZ-06, AZ-07 = SEC-08, DB-5, DB-10, DB-11, SC-10, PAY-10 | Info/minor | Backlog (WP-07, WP-04) or deploy runbook: production has 0 pending cash/bank payments (checked 2026-09-27); 000001, 000002 and 000003 are applied as separate transactions, once each. |
+

@@ -30,7 +30,8 @@ export function FeesReportPage() {
     queryFn: async () => {
       const [{ data: invoices, error: e1 }, { data: students, error: e2 }, { data: classes, error: e3 }, { data: structures, error: e4 }] =
         await Promise.all([
-          supabase.from("fee_invoices").select("id, student_id, fee_structure_id, amount_due, amount_paid, status").limit(5000),
+          // Void lines are not money owed (R6 WP-09).
+          supabase.from("fee_invoices").select("id, student_id, fee_structure_id, amount_due, amount_paid, status").neq("status", "void").limit(5000),
           supabase.from("students").select("id, class_id").limit(5000),
           supabase.from("classes").select("id, name, section").limit(500),
           supabase.from("fee_structures").select("id, name_i18n, amount, billing_cycle").limit(500),
