@@ -4,7 +4,7 @@
 -- assertion. IDs in the descriptions are the review findings.
 -- ============================================================================
 begin;
-select plan(59);
+select plan(63);
 
 insert into auth.users (id, email) values
   ('0000000f-0000-0000-0000-0000000a0001', 'mh-admin1@example.test'),
@@ -89,6 +89,26 @@ select throws_ok($$ insert into public.fee_invoices (tenant_id, student_id, fee_
 reset role;
 select is((select amount_paid from public.fee_invoices where id = '0000000f-0000-0000-000a-000000000009'), 0.00::numeric(12,2),
   'TI-01: the tenant-B invoice is untouched');
+-- TI-R2-1: a row claiming tenant B is refused by RLS before anything of B's
+-- invoice is read: the same error above and below B's balance.
+select pg_temp.act_as('0000000f-0000-0000-0000-0000000a0003');
+select throws_ok($$ insert into public.payments (tenant_id, invoice_id, amount, provider, status)
+                    values ('0000000f-0000-0000-0000-00000000000b', '0000000f-0000-0000-0009-000000000009', 4001, 'cash', 'pending') $$,
+  '42501', null, 'TI-R2-1: a payment claiming another tenant is refused by RLS, not by a balance check (above the balance)');
+select throws_ok($$ insert into public.payments (tenant_id, invoice_id, amount, provider, status)
+                    values ('0000000f-0000-0000-0000-00000000000b', '0000000f-0000-0000-0009-000000000009', 1, 'cash', 'pending') $$,
+  '42501', null, 'TI-R2-1: ... and the same below it');
+reset role;
+-- TI-R2-2: a cash/bank reference is unique per school only.
+insert into public.payments (tenant_id, invoice_id, amount, provider, provider_ref, status)
+values ('0000000f-0000-0000-0000-00000000000b', '0000000f-0000-0000-0009-000000000009', 100, 'bank', 'FT-SHARED-1', 'succeeded');
+select pg_temp.act_as('0000000f-0000-0000-0000-0000000a0003');
+select lives_ok($$ insert into public.payments (tenant_id, invoice_id, amount, provider, provider_ref, status)
+                   values ('0000000f-0000-0000-0000-00000000000a', '0000000f-0000-0000-0009-000000000001', 10, 'bank', 'FT-SHARED-1', 'succeeded') $$,
+  'TI-R2-2: another school''s bank reference neither blocks nor is revealed');
+reset role;
+-- TI-R2-3: gateway settlement never touches a parked manual payment.
+select is(public.settle_gateway_payment('FT-SHARED-1', 'chapa', 10), 'not_found', 'TI-R2-3: settlement ignores cash/bank payments');
 
 -- ============================== AZ-01/SEC-01/PAY-2: invoice money locked ===
 select pg_temp.act_as('0000000f-0000-0000-0000-0000000a0003');

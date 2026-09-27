@@ -21,7 +21,7 @@
 // would insert a 'succeeded' payment that never credits the invoice. The
 // true instrument is preserved losslessly in provider_ref
 // (adm-<method>-<application_id>), which doubles as an idempotency key via
-// payments_provider_ref_uq.
+// payments_manual_ref_uq (tenant_id, provider_ref) for cash/bank (R6 WP-09).
 // ============================================================================
 import { z } from "npm:zod@3";
 import { requireRole, errors, json, rateLimit, corsHeaders } from "../_shared/security.ts";

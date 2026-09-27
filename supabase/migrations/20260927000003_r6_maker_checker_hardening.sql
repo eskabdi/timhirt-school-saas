@@ -221,7 +221,14 @@ end $$;
 create or replace function public.payments_reject_void_invoice()
 returns trigger language plpgsql security definer set search_path = public, pg_temp as $$
 declare v_lines int; v_open int; v_balance numeric; v_pending numeric;
+  v_client boolean := coalesce(current_setting('role', true), 'none') not in ('none', 'service_role', 'postgres', 'supabase_admin');
 begin
+  -- A client row for another tenant is refused by RLS (WITH CHECK runs after
+  -- BEFORE triggers); read nothing of that tenant first, or the errors below
+  -- would tell the caller about its invoices (review TI-R2-1).
+  if v_client and new.tenant_id is distinct from public.get_tenant_id_for_user(auth.uid()) then
+    return new;
+  end if;
   perform 1 from public.invoice_headers where id = new.invoice_id and tenant_id = new.tenant_id for update;
   if not found then
     return new;   -- the composite foreign key refuses it
@@ -233,8 +240,7 @@ begin
   if v_lines > 0 and v_open = 0 then
     raise exception 'invoice_void' using errcode = '22023';
   end if;
-  if coalesce(current_setting('role', true), 'none') not in ('none', 'service_role', 'postgres', 'supabase_admin')
-     and new.provider in ('cash', 'bank') then
+  if v_client and new.provider in ('cash', 'bank') then
     select coalesce(sum(amount), 0) into v_pending from public.payments
      where invoice_id = new.invoice_id and tenant_id = new.tenant_id
        and provider in ('cash', 'bank') and status = 'pending';
@@ -278,7 +284,8 @@ begin
   end;
 
   select id, invoice_id, tenant_id, amount into v_pay
-  from public.payments where provider_ref = p_tx_ref and status = 'pending'
+  from public.payments where provider_ref = p_tx_ref and provider = p_provider
+    and provider not in ('cash', 'bank') and status = 'pending'   -- never a parked manual payment (TI-R2-3)
   for update limit 1;
   if v_pay.id is null then return 'not_found'; end if;
 
@@ -776,8 +783,12 @@ begin
   if r.status <> 'pending' then raise exception 'approval_not_pending' using errcode = '22023'; end if;
   if r.expires_at <= now() then
     -- Record the expiry (and fail a parked payment) instead of leaving the
-    -- request pending, where it would block a fresh one.
-    perform public.expire_approvals_for(r.tenant_id);
+    -- request pending, where it would block a fresh one. Only this request:
+    -- a platform request has no tenant to scope a sweep to (TI-R2-5).
+    update public.approval_requests set status = 'expired' where id = p_id;
+    if r.action = 'manual_payment_accept' then
+      update public.payments set status = 'failed' where id = r.entity_id and tenant_id = r.tenant_id and status = 'pending';
+    end if;
     return 'expired';
   end if;
   if public.approval_payload_hash(r.payload) <> r.payload_hash then
@@ -821,7 +832,10 @@ begin
   end if;
   if r.status <> 'pending' then raise exception 'approval_not_pending' using errcode = '22023'; end if;
   if r.expires_at <= now() then
-    perform public.expire_approvals_for(r.tenant_id);
+    update public.approval_requests set status = 'expired' where id = p_id;
+    if r.action = 'manual_payment_accept' then
+      update public.payments set status = 'failed' where id = r.entity_id and tenant_id = r.tenant_id and status = 'pending';
+    end if;
     return 'expired';
   end if;
   update public.approval_requests set status = 'cancelled' where id = p_id;
@@ -836,9 +850,15 @@ end $$;
 -- other writer of settings.approvals and audit every change.
 
 -- -------------------------------------------------------- 12. db review --
+-- A cash/bank reference (receipt or bank transfer number) is unique within
+-- the school, so another school's reference neither blocks nor is revealed
+-- (TI-R2-2); a gateway transaction reference stays globally unique, since
+-- settlement finds the payment by it.
 drop index public.payments_provider_ref_uq;
 create unique index payments_provider_ref_uq on public.payments (provider_ref)
-  where provider_ref is not null and status <> 'failed';
+  where provider_ref is not null and status <> 'failed' and provider not in ('cash', 'bank');
+create unique index payments_manual_ref_uq on public.payments (tenant_id, provider_ref)
+  where provider_ref is not null and status <> 'failed' and provider in ('cash', 'bank');
 create index approval_requests_checker on public.approval_requests (checker_id);
 create index approval_requests_action on public.approval_requests (action);
 revoke truncate on public.fee_invoices, public.invoice_headers, public.payments from anon, authenticated;

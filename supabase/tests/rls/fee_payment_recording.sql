@@ -119,7 +119,7 @@ set local role service_role;
 select throws_ok(
   $stmt$ insert into public.payments (tenant_id, invoice_id, amount, provider, provider_ref, status)
          values ('aeb00000-0000-0000-0000-00000000000a', 'aebc0002-0000-0000-0000-000000000002', 50.00, 'bank', 'adm-cbe-app-1', 'succeeded') $stmt$,
-  '23505', null, 'a duplicate provider_ref is rejected by payments_provider_ref_uq -- the adm-<method>-<application_id> idempotency key actually works');
+  '23505', null, 'a duplicate provider_ref is rejected by payments_manual_ref_uq (bank refs are unique per school) -- the adm-<method>-<application_id> idempotency key actually works');
 
 select * from finish();
 rollback;
