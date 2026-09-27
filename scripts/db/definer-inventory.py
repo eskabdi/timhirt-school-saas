@@ -30,7 +30,7 @@ def callers(name, base):
     for p in (ROOT / base).rglob("*.ts*"):
         if ".test." in p.name:
             continue
-        if re.search(r"rpc(<[^>]*>)?\(\s*[\"']" + re.escape(name) + r"[\"']", p.read_text(encoding="utf-8")):
+        if re.search(r"rpc(<[^>(]*>)?\(\s*[\"'`]" + re.escape(name) + r"[\"'`]", p.read_text(encoding="utf-8")):
             hits.append(p.relative_to(ROOT / base).parts[0] if base == "supabase/functions" else p.name)
     return sorted(set(hits))
 

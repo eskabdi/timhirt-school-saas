@@ -102,7 +102,7 @@ jobs:
           PGUSER: postgres
           PGPASSWORD: postgres
           PGDATABASE: postgres
-        run: python3 scripts/ci/app-rpc-grants.py
+        run: python3 scripts/ci/app-rpc-grants.py --self-test && python3 scripts/ci/app-rpc-grants.py
 
   # Secret scan and SAST (R6 WP-01). Both tools are proven to fail on planted
   # findings; see audit/FIXES_VERIFIED_R6.md (WP-01).

@@ -239,7 +239,7 @@ See `README.md` → "Pre-go-live checklist" for the full compliance/statutory si
 
 ### Database function grants match the allow-list (R6 WP-02)
 
-Never re-run `20260926000001_r6_definer_lockdown.sql` by hand once later
+Apply `20260926000001_r6_definer_lockdown.sql` inside a transaction, as the deploy wrapper does, so its lock timeout and all-or-nothing behaviour hold. Never re-run it by hand once later
 migrations are applied: it revokes EXECUTE from every definer function,
 including the ones later migrations granted. Undo any piece of it with a new
 forward-fix migration (its header lists each reverse statement); never grant

@@ -9,9 +9,10 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 const h = vi.hoisted(() => ({
   userId: null as string | null,
-  rpc: vi.fn(async () => ({ data: { session_timeout_minutes: 15, password_min_length: 12 }, error: null })),
+  rpc: vi.fn<(name: string) => Promise<{ data: unknown; error: null }>>(
+    async () => ({ data: { session_timeout_minutes: 15, password_min_length: 12 }, error: null })),
 }));
-vi.mock("@/lib/supabase", () => ({ supabase: { rpc: (...a: unknown[]) => h.rpc(...(a as [])) } }));
+vi.mock("@/lib/supabase", () => ({ supabase: { rpc: (name: string) => h.rpc(name) } }));
 vi.mock("@/features/auth/useSession", () => ({ useSession: () => ({ userId: h.userId }) }));
 
 import { DEFAULT_SECURITY_SETTINGS, useSecuritySettings, type SecuritySettings } from "./useSecuritySettings";

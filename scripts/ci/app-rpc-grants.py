@@ -17,8 +17,17 @@ with the same PG* environment. Exit 1 on any finding.
 import os, re, subprocess, sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-# `supabase.rpc("name"` and the dashboard's typed wrapper `rpc<T>("name"`.
-RPC = re.compile(r"""\brpc(?:<[^>(]*>)?\(\s*["'`]([A-Za-z_][A-Za-z0-9_]*)["'`]""")
+# `supabase.rpc("name"` and the dashboard's typed wrapper `rpc<T>("name"`,
+# matched over the whole file so a call broken across lines, or a nested
+# generic like `rpc<Array<X>>(`, is still found (review AC3-2).
+RPC = re.compile(r"""\brpc\s*(?:<(?:[^<>]|<[^<>]*>)*>)?\s*\(\s*["'`]([A-Za-z_][A-Za-z0-9_]*)["'`]""")
+SELF_TEST = {
+    'supabase.rpc("a", {})': ["a"],
+    "supabase\n  .rpc(\n    'b',\n    {})": ["b"],
+    "rpc<Array<X>>(`c`, {})": ["c"],
+    "rpc<Overview>(\"d\", {})": ["d"],
+    "rpc(name, args)": [],
+}
 
 
 def app_rpcs():
@@ -29,13 +38,25 @@ def app_rpcs():
                 continue
             path = os.path.join(dp, f)
             with open(path, encoding="utf-8") as fh:
-                for i, line in enumerate(fh, 1):
-                    for m in RPC.finditer(line):
-                        names.setdefault(m.group(1), f"{os.path.relpath(path, ROOT)}:{i}")
+                text = fh.read()
+            for m in RPC.finditer(text):
+                line = text.count("\n", 0, m.start()) + 1
+                names.setdefault(m.group(1), f"{os.path.relpath(path, ROOT)}:{line}")
     return names
 
 
+def self_test():
+    bad = [(src, want, got) for src, want in SELF_TEST.items()
+           if (got := [m.group(1) for m in RPC.finditer(src)]) != want]
+    for src, want, got in bad:
+        print(f"self-test: {src!r} -> {got}, want {want}")
+    print(f"app-rpc-grants self-test: {'ok' if not bad else f'{len(bad)} FAILED'}")
+    return 1 if bad else 0
+
+
 def main():
+    if "--self-test" in sys.argv:
+        return self_test()
     names = app_rpcs()
     if not names:
         print("app-rpc-grants: found no supabase.rpc() calls in src/, the scan is broken")

@@ -44,10 +44,19 @@
 -- each closed path as anon and cross-tenant.
 -- Forward-fix only (review DM-2). Never re-grant anything to anon. To undo a
 -- piece, write a new migration with the reverse of just that piece:
---   * a helper body: CREATE OR REPLACE with its previous body (latest earlier
---     definitions: 20260817000006 has_resource_permission, 20260821000005
---     attendance_retroactive_edit_window_days, 20260825000001
---     auto_assign_exam_seats, the rest in 20260715*/20260719*);
+--   * a helper body: CREATE OR REPLACE with its previous body. The latest
+--     earlier definition of each (review CQ-1; restoring an older one would
+--     drop a later control, e.g. the suspended-tenant lockout):
+--       get_email_for_user        20260715000012_rls_recursion_fix
+--       get_role_for_user         20260713000001_core
+--       get_tenant_id_for_user    20260821000002_suspended_tenant_lockout
+--       has_module                20260821000003_module_gating_rls
+--       has_resource_permission   20260817000006_custom_role_enforcement
+--       get_security_settings     20260806000001_security_settings
+--       create_export_job, create_import_job   20260719000010_import_export
+--       acknowledge_alert         20260719000011_system_health
+--       attendance_retroactive_edit_window_days   20260821000005
+--       auto_assign_exam_seats    20260825000001_exam_seating_charts;
 --   * a grant: GRANT EXECUTE … TO authenticated for that one function (and add
 --     it to definer_allowlist.sql);
 --   * a dropped policy: recreate it from 20260719000010:41,47 (data_jobs) or
@@ -62,8 +71,10 @@
 
 -- DROP POLICY and FORCE RLS take ACCESS EXCLUSIVE locks on tables that almost
 -- every authenticated query reads (roles, user_roles, …). Fail fast rather than
--- queue all API traffic behind a long reader (review DM-3); just retry.
-set local lock_timeout = '5s';
+-- queue all API traffic behind a long reader (review DM-3); just retry. Plain
+-- SET (reset at the end), so it also holds when the file is applied outside a
+-- transaction (review RG3-2).
+set lock_timeout = '5s';
 
 -- 1. Close everything, pin search_path ------------------------------------
 do $$
@@ -97,8 +108,10 @@ end $$;
 -- get_tenant_id_for_user, get_role_for_user and has_module run once per row
 -- in hundreds of policies. As SQL functions the caller checks added below cost
 -- 4-5x on every read (review DM-1: 5k students 297 -> 1,420 ms, 50k attendance
--- 3.3 -> 14 s); as plpgsql, whose plans are cached per session, they are back
--- to the pre-WP-02 cost (290 ms / 3.1 s). Same predicates, caller path first.
+-- 3.3 -> 14 s); as plpgsql, whose plans are cached per session, they cost
+-- about +25-35% over the pre-WP-02 bodies (review DM3-1, same data, same
+-- session). Same predicates, caller path first. catalog_definer_security #10
+-- keeps them plpgsql (review DM3-3).
 
 create or replace function public.get_email_for_user(user_id uuid)
 returns text
@@ -342,6 +355,9 @@ $$;
 -- the caller's own. Called directly with another tenant's id it answered with
 -- that tenant's setting (review TI-1); an end user now gets the platform
 -- default (7) for any tenant but their own.
+comment on function public.get_security_settings() is
+  'Platform security policy for signed-in users: password policy and session timeout; the login lockout thresholds only for super_admin and trusted contexts (R6 WP-02).';
+
 create or replace function public.attendance_retroactive_edit_window_days(p_tenant_id uuid)
 returns int
 language sql
@@ -504,3 +520,5 @@ alter table public.roles            force row level security;
 alter table public.system_config    force row level security;
 alter table public.system_health    force row level security;
 alter table public.user_roles       force row level security;
+
+reset lock_timeout;

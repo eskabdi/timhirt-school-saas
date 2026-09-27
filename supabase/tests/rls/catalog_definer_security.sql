@@ -4,19 +4,22 @@
 --     (PUBLIC included) matches supabase/security/definer_allowlist.sql
 --     exactly, in both directions (review TV-12);
 --   * anon can execute no definer function at all;
---   * every definer function pins search_path to exactly public, pg_temp
+--   * every definer function pins search_path to exactly public, pg_temp (or
+--     to an empty path, which is stricter)
 --     (review TV-10);
 --   * no definer function exists outside public (review AZ-2);
 --   * postgres's default privileges keep new functions closed: no EXECUTE to
 --     PUBLIC globally, none to anon/authenticated/PUBLIC in public (review
 --     SEC-1);
 --   * nothing a policy, view, default or constraint calls is closed to the
---     role that evaluates it (review SEC-R2-3).
+--     role that evaluates it (review SEC-R2-3);
+--   * every role-GUC trust check uses the same trusted-context list (CQ-3);
+--   * the per-row RLS helpers stay plpgsql (DM3-3).
 -- Needs the Supabase-faithful grants in shim.sql, otherwise anon cannot reach
 -- the schema and every "anon cannot execute" check passes vacuously (L-08).
 -- ============================================================================
 begin;
-select plan(8);
+select plan(10);
 \ir ../../security/definer_allowlist.sql
 
 create temp view definer_fn as
@@ -52,7 +55,7 @@ select is(array(select replace(regexp_replace(sig, '^public\.', ''), ', ', ',') 
 select is(array(select sig from definer_fn
                 where not exists (select 1 from unnest(coalesce(proconfig, '{}')) c
                                   where c ~ '^search_path=(""|public, pg_temp)$') order by 1), '{}'::text[],
-  'every SECURITY DEFINER function pins search_path to exactly public, pg_temp');
+  'every SECURITY DEFINER function pins search_path to exactly public, pg_temp (or an empty path)');
 select is(array(select p.oid::regprocedure::text from pg_proc p join pg_namespace n on n.oid = p.pronamespace
                 where p.prosecdef and n.nspname not in ('public', 'pg_catalog', 'information_schema')
                   and not exists (select 1 from pg_depend d where d.classid = 'pg_proc'::regclass and d.objid = p.oid and d.deptype = 'e')
@@ -107,6 +110,27 @@ select array(select distinct what || ' -> ' || fn::regprocedure::text || ' (' ||
              from deps where needs is not null and needs <> 'postgres' and not has_function_privilege(needs, fn, 'execute')
              order by 1)), '{}'::text[],
   'every function a policy, view, default or constraint calls is executable by the role that evaluates it');
+
+-- The trusted-context allow-list is written out in each helper (a shared
+-- helper would cost a call per row, review DM-1); every copy must be the same
+-- list, so adding or removing a trusted role cannot miss one (review CQ-3).
+select is(array(
+    select p.oid::regprocedure::text from pg_proc p
+    where p.pronamespace = 'public'::regnamespace
+      and p.prosrc ~ 'current_setting\(''role'''
+      and (p.prosrc !~ 'current_setting\(''role'', true\), ''none''\) (not )?in \(''none'', ''service_role'', ''postgres'', ''supabase_admin''\)'
+           or p.prosrc ~ 'current_setting\(''role'', true\), ''none''\) (not )?in \(''authenticated''')
+    order by 1), '{}'::text[],
+  'every role-GUC trust check uses the same allow-list of trusted contexts');
+
+-- The three helpers that run once per row in hundreds of policies stay
+-- plpgsql: as SQL functions with the caller checks they cost 4-5x on every
+-- read (review DM-1), and no suite would notice a revert (review DM3-3).
+select is(array(select p.proname::text || ' ' || l.lanname from pg_proc p join pg_language l on l.oid = p.prolang
+                where p.pronamespace = 'public'::regnamespace
+                  and p.proname in ('get_tenant_id_for_user', 'get_role_for_user', 'has_module')
+                  and l.lanname <> 'plpgsql' order by 1), '{}'::text[],
+  'the per-row RLS helpers stay plpgsql (cached plans)');
 
 select * from finish();
 rollback;
