@@ -13,6 +13,12 @@
 // but no page anywhere ever exposed that path. For a school where most fee
 // payment happens in person rather than through the online gateway, that's not an edge
 // case, it's the common case — the module was incomplete without it.
+//
+// R6 WP-09 (maker-checker): a recorded payment above the school's threshold
+// waits for a second person's approval before it credits the invoice, and an
+// unpaid invoice is never deleted — it is voided through an approved
+// invoice_void request. Both are enforced in the database; this page only
+// shows the state and files the request.
 // ============================================================================
 import { useState } from "react";
 import { httpsHref } from "@/lib/safeUrl";
@@ -31,8 +37,10 @@ import { Modal } from "@/components/ui/Modal";
 import { EthDate } from "@/components/EthDate";
 import { formatETB, tField } from "@/lib/i18n";
 import { issueFeeDocumentUrl, recordFeePayment } from "./api";
+import { fullName } from "@/lib/names";
+import { approvalErrorKey, submitApproval } from "@/features/approvals/approvals";
 
-const STATUS_TONE = { pending: "neutral", partial: "navy", paid: "ok", overdue: "danger" } as const;
+const STATUS_TONE = { pending: "neutral", partial: "navy", paid: "ok", overdue: "danger", void: "neutral" } as const;
 const PAYMENT_STATUS_TONE = { succeeded: "ok", pending: "neutral", failed: "danger", refunded: "late" } as const;
 
 export function InvoiceDetailPage() {
@@ -53,7 +61,7 @@ export function InvoiceDetailPage() {
     queryKey: ["invoice", id],
     queryFn: async () => {
       const { data, error } = await supabase.from("invoice_headers")
-        .select("id, tenant_id, due_date, student:students(id, first_name, last_name, admission_no, class:classes(name, section))")
+        .select("id, tenant_id, due_date, student:students(id, first_name, middle_name, last_name, admission_no, class:classes(name, section))")
         .eq("id", id).single();
       if (error) throw error;
       return data;
@@ -75,12 +83,39 @@ export function InvoiceDetailPage() {
 
   const isLoading = headerLoading || linesLoading;
   const error = headerError || linesError;
+  // Same roll-up as the invoice_summary view: void lines are not owed.
+  const openLines = lines?.filter((l) => l.status !== "void") ?? [];
   const invoice = header && lines ? {
     ...header,
-    amount_due: lines.reduce((s, l) => s + Number(l.amount_due), 0),
+    amount_due: openLines.reduce((s, l) => s + Number(l.amount_due), 0),
     amount_paid: lines.reduce((s, l) => s + Number(l.amount_paid), 0),
-    status: lines.every((l) => l.status === "paid") ? "paid" : lines.some((l) => Number(l.amount_paid) > 0) ? "partial" : "pending",
+    status: lines.length > 0 && openLines.length === 0 ? "void"
+      : openLines.every((l) => l.status === "paid") ? "paid"
+      : lines.some((l) => Number(l.amount_paid) > 0) ? "partial" : "pending",
   } : undefined;
+
+  // An open invoice_void request for this invoice (visible to its maker and
+  // to checkers; RLS hides it from everyone else).
+  const { data: pendingVoid } = useQuery({
+    queryKey: ["invoice-void-request", id],
+    enabled: !!id && canManage && !isPortal,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("approval_requests")
+        .select("id").eq("action", "invoice_void").eq("entity_id", id).eq("status", "pending").maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+  const [voidOpen, setVoidOpen] = useState(false);
+  const [voidReason, setVoidReason] = useState("");
+  const requestVoid = useMutation({
+    mutationFn: () => submitApproval("invoice_void", id!, {}, voidReason.trim()),
+    onSuccess: () => {
+      setVoidOpen(false); setVoidReason("");
+      qc.invalidateQueries({ queryKey: ["invoice-void-request", id] });
+      qc.invalidateQueries({ queryKey: ["approvals-pending-count"] });
+    },
+  });
 
   const { data: payments } = useQuery({
     queryKey: ["invoice-payments", id],
@@ -126,6 +161,7 @@ export function InvoiceDetailPage() {
   const [bankUrl, setBankUrl] = useState("");
   const [manualError, setManualError] = useState<string | null>(null);
   const [lastReceiptUrl, setLastReceiptUrl] = useState<string | null>(null);
+  const [awaitingApproval, setAwaitingApproval] = useState(false);
 
   const remaining = invoice ? Number(invoice.amount_due) - Number(invoice.amount_paid) : 0;
 
@@ -143,6 +179,7 @@ export function InvoiceDetailPage() {
     onSuccess: (res) => {
       setAmount(""); setReference(""); setBankUrl(""); setManualError(null);
       setLastReceiptUrl(res.receipt_url);
+      setAwaitingApproval(res.status === "pending_approval");
       qc.invalidateQueries({ queryKey: ["invoice", id] });
       qc.invalidateQueries({ queryKey: ["invoice-lines", id] });
       qc.invalidateQueries({ queryKey: ["invoice-payments", id] });
@@ -164,7 +201,7 @@ export function InvoiceDetailPage() {
   if (error || !invoice) return <p role="alert" className="text-danger">{t("errors.generic")}</p>;
 
   const student = invoice.student as unknown as {
-    id: string; first_name: string; last_name: string; admission_no: string;
+    id: string; first_name: string; middle_name?: string | null; last_name: string; admission_no: string;
     class: { name: string; section: string } | null;
   };
 
@@ -179,7 +216,7 @@ export function InvoiceDetailPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="font-display text-xl font-bold text-ink">
-              <Link to={`/students/${student?.id}`} className="hover:underline">{student?.first_name} {student?.last_name}</Link>
+              <Link to={`/students/${student?.id}`} className="hover:underline">{fullName(student)}</Link>
             </h1>
             <p className="text-sm text-ink-faint">{student?.admission_no} · {student?.class?.name} {student?.class?.section}</p>
           </div>
@@ -222,10 +259,18 @@ export function InvoiceDetailPage() {
           <Button variant="ghost" onClick={() => downloadInvoice.mutate()} disabled={downloadInvoice.isPending}>
             {downloadInvoice.isPending ? t("fees.generating") : t("fees.downloadInvoice")}
           </Button>
+          {canManage && !isPortal && invoice.status === "pending" && !payments?.some((p) => p.status === "pending" || p.status === "succeeded") && (
+            pendingVoid
+              ? <Badge tone="late">{t("fees.voidPending")}</Badge>
+              : <Button variant="tertiary" onClick={() => setVoidOpen(true)}>{t("fees.requestVoid")}</Button>
+          )}
         </div>
         {downloadInvoice.isError && <p role="alert" className="mt-2 text-sm text-danger">{t("fees.errors.documentFailed")}</p>}
       </Card>
 
+      {awaitingApproval && (
+        <p role="status" className="text-sm text-late">{t("fees.paymentAwaitingApproval")}</p>
+      )}
       {lastReceiptUrl && (
         <p className="text-sm text-ok">
           <a href={lastReceiptUrl} target="_blank" rel="noreferrer" className="hover:underline">{t("fees.receipt")}: {t("fees.downloadReceipt")}</a>
@@ -277,6 +322,26 @@ export function InvoiceDetailPage() {
         )}
       </Panel>
 
+      <Modal open={voidOpen} onClose={() => setVoidOpen(false)} title={t("fees.requestVoid")}>
+        <div className="space-y-3">
+          <p className="text-sm text-ink-soft">{t("fees.requestVoidHelp")}</p>
+          <label className="block text-sm">
+            <span className="text-ink">{t("fees.voidReason")}</span>
+            <textarea value={voidReason} onChange={(e) => setVoidReason(e.target.value)} maxLength={500} rows={3} required
+              className="mt-1 w-full rounded-control border border-line bg-card px-3 py-2 text-sm text-ink" />
+          </label>
+          {requestVoid.isError && (
+            <p role="alert" className="text-sm text-danger">{t(`approvals.error.${approvalErrorKey(requestVoid.error)}`)}</p>
+          )}
+          <div className="flex justify-end gap-2">
+            <Button variant="tertiary" onClick={() => setVoidOpen(false)}>{t("approvals.cancel")}</Button>
+            <Button variant="danger" onClick={() => requestVoid.mutate()} disabled={!voidReason.trim() || requestVoid.isPending}>
+              {t("fees.submitVoidRequest")}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
       <Modal open={!!previewPaymentId} onClose={() => setPreviewPaymentId(null)} title={t("fees.bankVerification.title")} size="lg">
         {previewPaymentId && bankVerifications?.get(previewPaymentId) && (
           <div className="space-y-2">
@@ -301,7 +366,7 @@ export function InvoiceDetailPage() {
         )}
       </Modal>
 
-      {canManage && invoice.status !== "paid" && (
+      {canManage && invoice.status !== "paid" && invoice.status !== "void" && (
         <Panel>
           <PanelHeader title={t("fees.recordPayment")} />
           <div className="space-y-3 p-5">

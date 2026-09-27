@@ -1,0 +1,30 @@
+# Planted cases for scripts/ci/conventions.py --self-test. BAD lines must be
+# flagged, OK lines must not. Ge'ez digits are written as escapes in the
+# checker itself; the two below are real U+1369/U+137C characters.
+BAD const day = "፩";
+BAD <span>ቀን ፼</span>
+OK const day = "١٥"; // Eastern Arabic digits are allowed
+OK const year = 2019;
+BAD const price = "USD 20";
+BAD const p = `$${amount}`;
+BAD <span>$5</span>
+BAD new Intl.NumberFormat("en", { style: "currency", currency: "EUR" })
+BAD new Intl.NumberFormat("en", { style: "currency", currency: 'usd' })
+OK new Intl.NumberFormat("en", { style: "currency", currency: "ETB" })
+OK const x = s.replace(/(\d+)/, "$1");
+OK const t = `${a} and ${b}`;
+BAD name: `${s.first_name} ${s.last_name}`,
+BAD <td>{s.first_name} {s.last_name}</td>
+BAD const n = s.first_name + " " + s.last_name;
+BAD const n = [s.first_name, s.last_name].filter(Boolean).join(" ");
+OK const n = [s.first_name, s.middle_name, s.last_name].filter(Boolean).join(" ");
+OK const n = [e.first_name, e.father_name, e.last_name].filter(Boolean).join(" ");
+OK <td>{fullName(s)}</td>
+# Review TV-1 (round 3): multi-line joins, .concat and separate columns.
+BAD const n = [\n  s.first_name,\n  s.last_name,\n].join(" ");
+BAD const n = `${s.first_name}\n ${s.last_name}`;
+BAD const n = s.first_name.concat(" ", s.last_name);
+BAD <td className="px-5 py-3">{s.first_name}</td>\n<td className="px-5 py-3">{s.last_name}</td>
+OK <td>{s.first_name}</td>\n<td>{s.middle_name ?? "—"}</td>\n<td>{s.last_name}</td>
+OK <td>{fullName(s)}</td>
+OK <Input value={s1.first_name} onChange={(e) => setF({ ...f, first_name: e.target.value })} />

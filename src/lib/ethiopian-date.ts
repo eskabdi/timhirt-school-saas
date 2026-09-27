@@ -67,22 +67,24 @@ export const isEthLeapYear = (ey: number): boolean => mod(ey, 4) === 3;
 export const daysInEthMonth = (ey: number, m: number): number =>
   m === 13 ? (isEthLeapYear(ey) ? 6 : 5) : 30;
 
-/** Geez numerals ፩…፼ for 1..9999 (§16.5, optional per tenant). */
-const G_ONES = ["", "፩", "፪", "፫", "፬", "፭", "፮", "፯", "፰", "፱"];
-const G_TENS = ["", "፲", "፳", "፴", "፵", "፶", "፷", "፸", "፹", "፺"];
-export function toGeez(n: number): string {
-  if (!Number.isInteger(n) || n < 1 || n > 9999) return String(n);
-  const pair = (v: number) => (G_TENS[fdiv(v, 10)] ?? "") + (G_ONES[mod(v, 10)] ?? "");
-  const hundreds = fdiv(n, 100);
-  const rest = mod(n, 100);
-  let out = "";
-  if (hundreds > 0) out += (hundreds > 1 ? pair(hundreds) : "") + "፻";
-  out += pair(rest);
-  return out || "፩";
+/**
+ * Digit systems a tenant can pick (Settings → Calendar). Western Arabic
+ * (0-9) is the default and the project rule; Eastern Arabic-Indic (٠-٩) is an
+ * opt-in for schools that teach in Arabic. Ge'ez numerals are not offered
+ * (owner rule, fix plan §0 Rule 8; the old tenant toggle was removed in R6).
+ */
+export type NumeralSystem = "latn" | "arab";
+
+const ARABIC_INDIC = ["٠", "١", "٢", "٣", "٤", "٥", "٦", "٧", "٨", "٩"];
+
+/** Rewrites every ASCII digit in `s` in the chosen system. */
+export function formatDigits(s: string | number, numerals: NumeralSystem = "latn"): string {
+  const str = String(s);
+  return numerals === "arab" ? str.replace(/[0-9]/g, (d) => ARABIC_INDIC[Number(d)] ?? d) : str;
 }
 
 export interface FormatEthOptions {
-  geez?: boolean;
+  numerals?: NumeralSystem;
   monthNames: readonly string[]; // injected from i18n calendar namespace
   eraSuffix?: string;            // e.g. "ዓ.ም" / "E.C." / "ALI"
 }
@@ -91,9 +93,68 @@ export interface FormatEthOptions {
 export function formatEth(g: Date, opts: FormatEthOptions): string {
   const e = toEthiopian(g);
   const month = opts.monthNames[e.month - 1] ?? String(e.month);
-  const day = opts.geez ? toGeez(e.day) : String(e.day);
-  const year = opts.geez ? toGeez(e.year) : String(e.year);
-  return `${month} ${day}, ${year}${opts.eraSuffix ? ` ${opts.eraSuffix}` : ""}`;
+  const n = (v: number) => formatDigits(v, opts.numerals);
+  return `${month} ${n(e.day)}, ${n(e.year)}${opts.eraSuffix ? ` ${opts.eraSuffix}` : ""}`;
+}
+
+/** A Hijri (Islamic, Umm al-Qura) calendar date. */
+export interface HijriDate { year: number; month: number; day: number }
+
+// One formatter for the whole app (EthDate renders it in large tables):
+// undefined = not built yet, null = the runtime has no Islamic calendar.
+let hijriFormatter: Intl.DateTimeFormat | null | undefined;
+function getHijriFormatter(): Intl.DateTimeFormat | null {
+  if (hijriFormatter === undefined) {
+    try {
+      hijriFormatter = new Intl.DateTimeFormat("en-u-ca-islamic-umalqura-nu-latn", {
+        timeZone: "UTC", year: "numeric", month: "numeric", day: "numeric",
+      });
+    } catch {
+      hijriFormatter = null;
+    }
+  }
+  return hijriFormatter;
+}
+
+/**
+ * Gregorian → Hijri through the platform's ICU (`islamic-umalqura`, the
+ * tabular-astronomical calendar Saudi Arabia publishes; local moon sighting
+ * can differ by a day). Reads the Date's UTC calendar day, like toEthiopian
+ * (§17.2). Returns null where the runtime has no Islamic calendar support, so
+ * callers simply omit the Hijri line.
+ */
+export function toHijri(g: Date): HijriDate | null {
+  const fmt = getHijriFormatter();
+  if (!fmt || Number.isNaN(g.getTime())) return null;
+  const parts = fmt.formatToParts(g);
+  const get = (type: string) => Number(parts.find((p) => p.type === type)?.value);
+  const out = { year: get("year"), month: get("month"), day: get("day") };
+  const ok = [out.year, out.month, out.day].every(Number.isInteger) && out.month >= 1 && out.month <= 12;
+  return ok ? out : null;
+}
+
+/**
+ * The Gregorian equivalent as DD/MM/YYYY, the way it is written in Ethiopia,
+ * with no locale month names (so it reads the same in en/am/om) and the
+ * tenant's digit system. Reads UTC fields (§17.2).
+ */
+export function formatGregorian(g: Date, numerals: NumeralSystem = "latn"): string {
+  const pad = (v: number) => String(v).padStart(2, "0");
+  return formatDigits(`${pad(g.getUTCDate())}/${pad(g.getUTCMonth() + 1)}/${g.getUTCFullYear()}`, numerals);
+}
+
+export interface FormatHijriOptions {
+  numerals?: NumeralSystem;
+  monthNames: readonly string[]; // 12 names, calendar namespace `hijriMonths`
+  eraSuffix?: string;            // e.g. "AH"
+}
+
+export function formatHijri(g: Date, opts: FormatHijriOptions): string | null {
+  const h = toHijri(g);
+  if (!h) return null;
+  const month = opts.monthNames[h.month - 1] ?? String(h.month);
+  const n = (v: number) => formatDigits(v, opts.numerals);
+  return `${month} ${n(h.day)}, ${n(h.year)}${opts.eraSuffix ? ` ${opts.eraSuffix}` : ""}`;
 }
 
 /**

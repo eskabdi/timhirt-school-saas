@@ -19,12 +19,13 @@
 // ============================================================================
 import { useTranslation } from "react-i18next";
 import { useEffect, useRef, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useSession } from "@/features/auth/useSession";
 import { convertImageToPng } from "@/lib/image";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { mergeTenantSettings, useTenantSettings } from "./useCalendarPrefs";
 
 type FieldKey =
   | "photo" | "full_name" | "full_name_am" | "admission_no" | "class_label" | "dob"
@@ -109,19 +110,16 @@ export function IdCardTemplateDesignerPage() {
   const dragState = useRef<{ id: string; startX: number; startY: number; origX: number; origY: number } | null>(null);
   const resizeState = useRef<{ id: string; corner: ResizeCorner; startX: number; startY: number; origX: number; origY: number; origW: number; origH: number } | null>(null);
 
-  const { data: config } = useQuery({
-    queryKey: ["tenant-config"],
-    enabled: !!profile?.tenant_id,
-    queryFn: async () => (await supabase.from("tenant_configs").select("settings").eq("tenant_id", profile!.tenant_id!).maybeSingle()).data,
-  });
+  const { data: settings, isSuccess: settingsLoaded, isError: settingsLoadFailed } = useTenantSettings();
   useEffect(() => {
-    if (config?.settings?.idCardTemplate) {
+    const saved = settings?.idCardTemplate as Partial<typeof template> | undefined;
+    if (saved) {
       setTemplate({
-        front: config.settings.idCardTemplate.front ?? EMPTY_SIDE,
-        back: config.settings.idCardTemplate.back ?? EMPTY_SIDE,
+        front: saved.front ?? EMPTY_SIDE,
+        back: saved.back ?? EMPTY_SIDE,
       });
     }
-  }, [config]);
+  }, [settings]);
 
   const current = template[side];
 
@@ -242,20 +240,19 @@ export function IdCardTemplateDesignerPage() {
 
   const uploadBackground = async (file: File) => {
     const png = await convertImageToPng(file);
-    const path = `${profile!.tenant_id}/${side}/${crypto.randomUUID()}.png`;
+    if (!profile?.tenant_id) return;
+    const path = `${profile.tenant_id}/${side}/${crypto.randomUUID()}.png`;
     const { error } = await supabase.storage.from("id-card-templates").upload(path, png, { contentType: "image/png" });
     if (error) return;
     updateSide((s) => ({ ...s, backgroundPath: path }));
   };
 
+  // Writes only the idCardTemplate section (merge_tenant_settings); Save is
+  // disabled until the stored settings have loaded (review CQ M-1).
   const save = useMutation({
-    mutationFn: async () => {
-      const settings = { ...(config?.settings ?? {}), idCardTemplate: template };
-      const { error } = await supabase.from("tenant_configs").upsert({ tenant_id: profile!.tenant_id, settings });
-      if (error) throw error;
-    },
+    mutationFn: () => mergeTenantSettings("idCardTemplate", template as unknown as Record<string, unknown>),
     onSuccess: () => {
-      setSaveMessage("Saved.");
+      setSaveMessage(t("idCardTemplate.saved"));
       qc.invalidateQueries({ queryKey: ["tenant-config"] });
       setTimeout(() => setSaveMessage(null), 2000);
     },
@@ -474,8 +471,12 @@ export function IdCardTemplateDesignerPage() {
       </div>
 
       <div className="flex items-center gap-3">
-        <Button onClick={() => save.mutate()} disabled={save.isPending}>{save.isPending ? "Saving…" : "Save template"}</Button>
-        {saveMessage && <span className="text-sm text-ok">{saveMessage}</span>}
+        <Button onClick={() => save.mutate()} disabled={!settingsLoaded || save.isPending}>
+          {save.isPending ? t("idCardTemplate.saving") : t("idCardTemplate.save")}
+        </Button>
+        <span role="status" className="text-sm text-ok">{saveMessage ?? ""}</span>
+        {save.isError && <span role="alert" className="text-sm text-danger">{t("idCardTemplate.saveFailed")}</span>}
+        {settingsLoadFailed && <span role="alert" className="text-sm text-danger">{t("idCardTemplate.loadFailed")}</span>}
       </div>
     </div>
   );

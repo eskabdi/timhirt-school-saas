@@ -69,6 +69,11 @@ select is(
   'pending', 'invoice_summary status is pending before any payment');
 
 -- ---------- (2) a manual payment allocates across lines, oldest first ----------
+-- Crediting is under test here; manual-payment maker-checker (WP-09) is
+-- switched off for this tenant and proven in maker_checker.sql.
+insert into public.tenant_configs (tenant_id, settings) values
+  ('ec000000-0000-0000-0000-00000000000a', '{"approvals":{"actions":{"manual_payment_accept":false}}}');
+
 set local role authenticated;
 set local request.jwt.claim.sub = 'ec000002-0000-0000-0000-000000000002'; -- accountant
 

@@ -207,7 +207,16 @@ super-admin console to a pre-redesign layout and blanking the app.
 ### Verify a deploy before calling it done
 
 A `READY` state means Vercel accepted an upload, not that your code shipped.
-Grep the served bundle for something only the new code contains:
+First compare the served commit with the one you meant to ship. Since R6 WP-01
+every build stamps it into `index.html` (`npm run deploy` passes it in, because
+a CLI upload carries no `.git`):
+
+```bash
+curl -s https://your-app.vercel.app/ | grep -o '<meta name="app-commit" content="[0-9a-f]*"'
+git rev-parse HEAD   # must match
+```
+
+Then grep the served bundle for something only the new code contains:
 
 ```bash
 BUNDLE=$(curl -s https://your-app.vercel.app/ | grep -o 'assets/index-[A-Za-z0-9_-]*\.js' | head -1)
@@ -227,3 +236,37 @@ accountant, teacher, parent, student) to exercise the RLS cross-tenant matrix.
 ## 7. Post-deploy checklist
 
 See `README.md` → "Pre-go-live checklist" for the full compliance/statutory sign-off list.
+
+### Database function grants match the allow-list (R6 WP-02)
+
+Apply `20260926000001_r6_definer_lockdown.sql` inside a transaction, as the deploy wrapper does, so its lock timeout and all-or-nothing behaviour hold. Never re-run it by hand once later
+migrations are applied: it revokes EXECUTE from every definer function,
+including the ones later migrations granted. Undo any piece of it with a new
+forward-fix migration (its header lists each reverse statement); never grant
+anything back to anon. Its global default-privilege change also means a
+function postgres creates in `public` or `storage` is callable only by
+service_role, in `extensions` by everyone (as before), and in any other schema
+by no one but postgres.
+
+After any migration deploy, and whenever someone may have used the SQL editor,
+compare production's SECURITY DEFINER grants with
+`supabase/security/definer_allowlist.sql`. Run this read-only query (Management
+API with `"read_only": true`, or the SQL editor). It lists every definer function in `public` that
+anyone other than the owner and service_role may execute. The result must equal
+the allow-list's rows exactly; anything extra is drift to revoke, and `anon` must
+never appear.
+
+```sql
+select regexp_replace(p.oid::regprocedure::text, '^public\.|, ', '', 'g') as sig,
+       case when a.grantee = 0 then 'PUBLIC' else a.grantee::regrole::text end as grantee
+from pg_proc p
+cross join lateral aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+where p.pronamespace = 'public'::regnamespace and p.prosecdef
+  and a.privilege_type = 'EXECUTE' and a.grantee <> p.proowner
+  and (a.grantee = 0 or a.grantee::regrole::text <> 'service_role')
+order by 1, 2;
+```
+
+Also confirm new functions still start closed:
+`select defaclnamespace::regnamespace, defaclacl from pg_default_acl where defaclrole = 'postgres'::regrole and defaclobjtype = 'f';`
+must show no `anon=`/`authenticated=` entry for `public` or `storage` (expected `{postgres=X/postgres,service_role=X/postgres}` in production), and a global row (namespace `-`) with no PUBLIC entry, i.e. no item that starts with `=X/` (expected `{postgres=X/postgres}`). The `extensions` row should read `{=X/postgres}`. After any `create extension` that lands outside the `extensions` schema, check EXECUTE on its functions: they start closed like every other new function.

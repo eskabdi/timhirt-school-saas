@@ -12,11 +12,22 @@
 -- project, where Supabase owns all of these objects.
 -- ============================================================================
 
+-- Global defaults are stored per role, not per schema, so they outlive the
+-- schema reset in run.sh. Restore PostgreSQL's built-in default (EXECUTE for
+-- PUBLIC on new functions, which Supabase keeps), so a local run cannot
+-- inherit a default a previous run left behind (R6 WP-02's migration closes
+-- it). This runs first: pgtap and pgcrypto are recreated below after the reset
+-- and must get PUBLIC EXECUTE like on a fresh database (review AZ2-2).
+alter default privileges for role postgres grant execute on functions to public;
+
 create extension if not exists pgcrypto;
 create extension if not exists pgtap;
 
 create schema if not exists auth;
 create schema if not exists storage;
+-- Supabase keeps extensions in their own schema; R6 WP-02 re-grants PUBLIC
+-- EXECUTE there by default, and that branch must run here (review TV3-2).
+create schema if not exists extensions;
 create schema if not exists vault;
 
 do $$
@@ -33,6 +44,31 @@ end $$;
 -- so a suite exercising a service_role-only RPC sees rows silently vanish
 -- and misreports a real bug as a test failure.
 alter role service_role bypassrls;
+
+-- Supabase's default privileges on `public` (R6 WP-01, finding L-08). Real
+-- projects grant the API roles USAGE on the schema and, through
+-- `ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT ALL ON
+-- {TABLES,SEQUENCES,FUNCTIONS} TO anon, authenticated, service_role`
+-- (supabase/cli initial_schemas, and production's own pg_default_acl, captured
+-- in audit/evidence/), an explicit per-role grant on every object a migration
+-- creates. `revoke … from public` does not remove those per-role grants. The
+-- shim used to grant nothing on `public`, so anon could not even reach the
+-- schema and every "anon cannot call X" probe passed vacuously: that is how
+-- H-01 (46 anon-executable SECURITY DEFINER functions in production before
+-- WP-00 revoked four; R6 WP-02 closed the other 42, see definer_allowlist.sql) stayed
+-- invisible to a green harness. This must run before any migration creates
+-- objects, and as the role that owns them (postgres), exactly like production.
+grant usage on schema public to anon, authenticated, service_role;
+alter default privileges for role postgres in schema public
+  grant all on tables to anon, authenticated, service_role;
+alter default privileges for role postgres in schema public
+  grant all on sequences to anon, authenticated, service_role;
+alter default privileges for role postgres in schema public
+  grant all on functions to anon, authenticated, service_role;
+-- Production has the same function default for postgres in `storage`
+-- (audit/evidence/wp02-prod-owners-bypassrls-defacl-*.txt; review IDA-1).
+alter default privileges for role postgres in schema storage
+  grant all on functions to anon, authenticated, service_role;
 
 -- Column set mirrors GoTrue's: the suites insert real-looking rows (aud,
 -- encrypted_password, confirmation_token …), and a narrower table would fail
@@ -105,8 +141,14 @@ $$ insert into vault.secrets(name, secret) values (name, secret)
 create or replace view vault.decrypted_secrets as
   select id, name, secret, secret as decrypted_secret, created_at from vault.secrets;
 
-grant usage on schema auth, storage, vault to authenticated, anon, service_role;
-grant select on auth.users to authenticated, anon, service_role;
+-- Schema USAGE and auth.users access exactly as production has them
+-- (audit/evidence/wp01-prod-calendar-and-schema-grants-*.txt): every API role
+-- reaches auth and storage; only service_role reaches vault; no API role, not
+-- even service_role, can SELECT auth.users (it belongs to supabase_auth_admin;
+-- Edge Functions use the Auth admin API). The shim used to grant more
+-- (reviews TI-4, TI-R2-5, DM-5).
+grant usage on schema auth, storage to authenticated, anon, service_role;
+grant usage on schema vault to service_role;
 
 -- Supabase grants the API roles table-level DML on the storage tables and lets
 -- RLS do the actual gating. Without these grants a policy test fails with

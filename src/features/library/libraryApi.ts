@@ -135,12 +135,12 @@ export async function listActiveClasses(): Promise<ClassOption[]> {
   return data ?? [];
 }
 
-export interface StudentOption { id: string; first_name: string; last_name: string; admission_no: string }
+export interface StudentOption { id: string; first_name: string; middle_name?: string | null; last_name: string; admission_no: string }
 
 export async function searchStudents(term: string): Promise<StudentOption[]> {
   if (term.trim().length < 2) return [];
   const { data, error } = await supabase.from("students")
-    .select("id,first_name,last_name,admission_no").eq("status", "active")
+    .select("id,first_name,middle_name,last_name,admission_no").eq("status", "active")
     .or(`first_name.ilike.%${term}%,last_name.ilike.%${term}%,admission_no.ilike.%${term}%`)
     .limit(10);
   if (error) throw error;
@@ -155,14 +155,14 @@ export interface CheckoutRow {
   checkout_type: "lending" | "rental";
   renewal_count: number;
   copy: { barcode: string; book: { title: string } | null } | null;
-  student: { first_name: string; last_name: string; admission_no: string } | null;
+  student: { first_name: string; middle_name?: string | null; last_name: string; admission_no: string } | null;
 }
 
 export async function listActiveCheckouts(): Promise<CheckoutRow[]> {
   const { data, error } = await supabase.from("library_checkouts")
     .select("id,student_id,due_on,checked_out_on,checkout_type,renewal_count,"
       + "copy:library_book_copies(barcode,book:library_books(title)),"
-      + "student:students(first_name,last_name,admission_no)")
+      + "student:students(first_name,middle_name,last_name,admission_no)")
     .eq("status", "checked_out").order("due_on");
   if (error) throw error;
   return (data ?? []) as unknown as CheckoutRow[];
@@ -174,12 +174,12 @@ export interface HoldRow {
   requested_on: string;
   expires_on: string | null;
   book: { title: string } | null;
-  student: { first_name: string; last_name: string } | null;
+  student: { first_name: string; middle_name?: string | null; last_name: string } | null;
 }
 
 export async function listHolds(): Promise<HoldRow[]> {
   const { data, error } = await supabase.from("library_holds")
-    .select("id,status,requested_on,expires_on,book:library_books(title),student:students(first_name,last_name)")
+    .select("id,status,requested_on,expires_on,book:library_books(title),student:students(first_name,middle_name,last_name)")
     .in("status", ["waiting", "ready"]).order("requested_on");
   if (error) throw error;
   return (data ?? []) as unknown as HoldRow[];
@@ -189,12 +189,12 @@ export interface FineRow {
   id: string;
   amount: number;
   status: string;
-  checkout: { student: { first_name: string; last_name: string } | null; copy: { book: { title: string } | null } | null } | null;
+  checkout: { student: { first_name: string; middle_name?: string | null; last_name: string } | null; copy: { book: { title: string } | null } | null } | null;
 }
 
 export async function listPendingFines(): Promise<FineRow[]> {
   const { data, error } = await supabase.from("library_fines")
-    .select("id,amount,status,checkout:library_checkouts(student:students(first_name,last_name),"
+    .select("id,amount,status,checkout:library_checkouts(student:students(first_name,middle_name,last_name),"
       + "copy:library_book_copies(book:library_books(title)))")
     .eq("status", "pending").order("created_at");
   if (error) throw error;

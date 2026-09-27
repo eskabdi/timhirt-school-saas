@@ -14,6 +14,7 @@ import { Card } from "@/components/ui/Card";
 import { Field } from "@/components/ui/Field";
 import { Pagination, pageRange } from "@/components/ui/Pagination";
 import { EthDate } from "@/components/EthDate";
+import { fullName } from "@/lib/names";
 
 export function ClinicPage() {
   const { t } = useTranslation();
@@ -26,13 +27,13 @@ export function ClinicPage() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [page, setPage] = useState(1);
 
-  const { data: students } = useQuery({ queryKey: ["students-brief"], queryFn: async () => (await supabase.from("students").select("id,first_name,last_name")).data ?? [] });
+  const { data: students } = useQuery({ queryKey: ["students-brief"], queryFn: async () => (await supabase.from("students").select("id,first_name,middle_name,last_name")).data ?? [] });
   const { data: visits } = useQuery({
     queryKey: ["clinic", page],
     queryFn: async () => {
       const [from, to] = pageRange(page);
       const { data, error, count } = await supabase.from("clinic_visits")
-        .select("id, visit_date, guardian_notified, students(first_name,last_name)", { count: "exact" })
+        .select("id, visit_date, guardian_notified, students(first_name,middle_name,last_name)", { count: "exact" })
         .order("visit_date", { ascending: false })
         .range(from, to);
       if (error) throw error;
@@ -71,7 +72,7 @@ export function ClinicPage() {
           <Field label={t("clinic.student")}>
             <select value={studentId} onChange={(e) => setStudentId(e.target.value)} className="w-full rounded-control border border-line bg-card px-3 py-2 text-sm text-ink">
               <option value="">—</option>
-              {students?.map((s) => <option key={s.id} value={s.id}>{s.first_name} {s.last_name}</option>)}
+              {students?.map((s) => <option key={s.id} value={s.id}>{fullName(s)}</option>)}
             </select>
           </Field>
           <Field label={t("clinic.complaint")}>
@@ -87,14 +88,14 @@ export function ClinicPage() {
       )}
       <div className="space-y-2">
         {visits?.rows.map((v) => {
-          const student = v.students as unknown as { first_name: string; last_name: string } | null;
+          const student = v.students as unknown as { first_name: string; middle_name?: string | null; last_name: string } | null;
           return (
           <Card key={v.id} className="text-sm">
             <button
               onClick={() => setExpanded((cur) => (cur === v.id ? null : v.id))}
               className="flex w-full items-center justify-between text-left"
             >
-              <span className="font-medium text-ink">{student?.first_name} {student?.last_name}</span>
+              <span className="font-medium text-ink">{fullName(student)}</span>
               <span className="text-ink-faint"><EthDate value={v.visit_date.slice(0, 10)} /></span>
             </button>
             {expanded === v.id && detail && (

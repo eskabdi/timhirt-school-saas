@@ -1,0 +1,2 @@
+# R6 WP-01 GK-F1 re-check (20260925T203148Z): Management API GET /v1/projects/livqynxlibmccaycseer/config/auth, only the sign-up field is kept (the response holds secrets)
+{"disable_signup": true}

@@ -6,22 +6,23 @@
 // the query client's default refetchOnWindowFocus, is what makes an admin's
 // change "effective immediately" for sessions that are already open rather
 // than only for the next login.
+//
+// R6 WP-02: the RPC is for signed-in users only (no anon grant) and returns
+// the session timeout and password policy; the login lockout thresholds are
+// for super_admin, whose page reads system_config directly. The query is keyed
+// by the signed-in user and runs only with a session, so an answer fetched for
+// one session is never reused for another (reviews AC-13/SEC-9).
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { useSession } from "@/features/auth/useSession";
 import { DEFAULT_PASSWORD_POLICY, type PasswordPolicy } from "@/lib/passwordPolicy";
 
 export interface SecuritySettings {
-  loginMaxAttempts: number;
-  loginAttemptWindowMinutes: number;
-  loginIpMaxAttempts: number;
-  loginIpWindowMinutes: number;
   sessionTimeoutMinutes: number;
   passwordPolicy: PasswordPolicy;
 }
 
 export const DEFAULT_SECURITY_SETTINGS: SecuritySettings = {
-  loginMaxAttempts: 5, loginAttemptWindowMinutes: 15,
-  loginIpMaxAttempts: 20, loginIpWindowMinutes: 15,
   sessionTimeoutMinutes: 60,
   passwordPolicy: DEFAULT_PASSWORD_POLICY,
 };
@@ -32,8 +33,10 @@ function toNumber(v: unknown, fallback: number): number {
 }
 
 export function useSecuritySettings(): SecuritySettings {
+  const { userId } = useSession();
   const { data } = useQuery({
-    queryKey: ["security-settings"],
+    queryKey: ["security-settings", userId ?? null],
+    enabled: !!userId,
     queryFn: async (): Promise<Record<string, unknown>> => {
       const { data, error } = await supabase.rpc("get_security_settings");
       if (error) throw error;
@@ -45,10 +48,6 @@ export function useSecuritySettings(): SecuritySettings {
 
   if (!data) return DEFAULT_SECURITY_SETTINGS;
   return {
-    loginMaxAttempts: toNumber(data.login_max_attempts, DEFAULT_SECURITY_SETTINGS.loginMaxAttempts),
-    loginAttemptWindowMinutes: toNumber(data.login_attempt_window_minutes, DEFAULT_SECURITY_SETTINGS.loginAttemptWindowMinutes),
-    loginIpMaxAttempts: toNumber(data.login_ip_max_attempts, DEFAULT_SECURITY_SETTINGS.loginIpMaxAttempts),
-    loginIpWindowMinutes: toNumber(data.login_ip_window_minutes, DEFAULT_SECURITY_SETTINGS.loginIpWindowMinutes),
     sessionTimeoutMinutes: toNumber(data.session_timeout_minutes, DEFAULT_SECURITY_SETTINGS.sessionTimeoutMinutes),
     passwordPolicy: {
       minLength: toNumber(data.password_min_length, DEFAULT_PASSWORD_POLICY.minLength),

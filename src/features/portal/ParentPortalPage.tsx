@@ -4,6 +4,7 @@ import { Link, Navigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { useSession } from "@/features/auth/useSession";
 import { Card } from "@/components/ui/Card";
+import { fullName } from "@/lib/names";
 
 export function ParentPortalPage() {
   const { t } = useTranslation();
@@ -12,7 +13,7 @@ export function ParentPortalPage() {
     queryKey: ["my-children", profile?.id],
     enabled: !!profile,
     queryFn: async () => {
-      const { data } = await supabase.from("guardians").select("student_id, students(first_name,last_name,class:classes(name,section))").eq("user_id", profile!.id);
+      const { data } = await supabase.from("guardians").select("student_id, students(first_name,middle_name,last_name,class:classes(name,section))").eq("user_id", profile!.id);
       return data ?? [];
     },
   });
@@ -38,12 +39,12 @@ export function ParentPortalPage() {
         <div className="grid gap-3 md:grid-cols-2">
           {children.map((c) => {
             const student = c.students as unknown as {
-              first_name: string; last_name: string; class: { name: string; section: string | null } | null;
+              first_name: string; middle_name?: string | null; last_name: string; class: { name: string; section: string | null } | null;
             } | null;
             return (
             <Link key={c.student_id} to={`/portal/child/${c.student_id}`}>
               <Card className="hover:border-navy">
-                <p className="font-medium text-ink">{student?.first_name} {student?.last_name}</p>
+                <p className="font-medium text-ink">{fullName(student)}</p>
                 <p className="text-sm text-ink-faint">{student?.class?.name} {student?.class?.section}</p>
               </Card>
             </Link>

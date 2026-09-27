@@ -78,6 +78,7 @@ export function ClassDetailPage() {
                 <th className="px-5 py-3">{t("students.edit.rollNumber")}</th>
                 <th className="px-5 py-3">{t("students.admissionNo")}</th>
                 <th className="px-5 py-3">{t("students.firstName")}</th>
+                <th className="px-5 py-3">{t("students.middleName")}</th>
                 <th className="px-5 py-3">{t("students.lastName")}</th>
                 <th className="px-5 py-3">{t("students.gender")}</th>
                 <th className="px-5 py-3">{t("students.status")}</th>
@@ -91,6 +92,7 @@ export function ClassDetailPage() {
                     <Link to={`/students/${s.id}`} className="font-medium text-navy hover:underline">{s.admission_no}</Link>
                   </td>
                   <td className="px-5 py-3 text-ink">{s.first_name}</td>
+                  <td className="px-5 py-3 text-ink">{s.middle_name ?? "—"}</td>
                   <td className="px-5 py-3 text-ink">{s.last_name}</td>
                   <td className="px-5 py-3 text-ink-faint">{t(`students.${s.gender}`)}</td>
                   <td className="px-5 py-3"><Badge tone={STATUS_TONE[s.status] ?? "neutral"}>{t(`students.${s.status}`)}</Badge></td>

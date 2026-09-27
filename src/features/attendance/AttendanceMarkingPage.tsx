@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/Card";
 import { Panel, PanelHeader, PanelFooter } from "@/components/ui/Panel";
 import { SegmentedControl, type SegmentOption } from "@/components/ui/SegmentedControl";
 import { toIsoDate, today } from "@/lib/ethiopian-date";
+import { fullName } from "@/lib/names";
 
 type Status = "present" | "absent" | "late" | "excused";
 const STATUSES: Status[] = ["present", "absent", "late", "excused"];
@@ -46,7 +47,7 @@ export function AttendanceMarkingPage() {
     enabled: !!classId,
     queryFn: async () => {
       const { data } = await supabase.from("students")
-        .select("id, first_name, last_name").eq("class_id", classId).eq("status", "active").order("last_name");
+        .select("id, first_name, middle_name, last_name").eq("class_id", classId).eq("status", "active").order("last_name");
       return data ?? [];
     },
   });
@@ -146,7 +147,7 @@ export function AttendanceMarkingPage() {
                   const current = marks[s.id] ?? savedMap.get(s.id) ?? "present";
                   return (
                     <tr key={s.id}>
-                      <td className="px-5 py-3 font-medium text-ink">{s.first_name} {s.last_name}</td>
+                      <td className="px-5 py-3 font-medium text-ink">{fullName(s)}</td>
                       <td className="px-5 py-3 text-right">
                         <SegmentedControl
                           options={STATUSES.map((st) => ({ value: st, label: t(`attendance.${st}`), tone: TONE[st] }))}

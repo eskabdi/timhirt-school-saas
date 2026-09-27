@@ -140,12 +140,12 @@ export async function getClassDetail(id: string) {
 }
 
 export interface ClassRosterRow {
-  id: string; admission_no: string; first_name: string; last_name: string; roll_number: string | null; gender: string; status: string;
+  id: string; admission_no: string; first_name: string; middle_name?: string | null; last_name: string; roll_number: string | null; gender: string; status: string;
 }
 
 export async function listClassRoster(classId: string) {
   const { data, error } = await supabase.from("students")
-    .select("id,admission_no,first_name,last_name,roll_number,gender,status")
+    .select("id,admission_no,first_name,middle_name,last_name,roll_number,gender,status")
     .eq("class_id", classId)
     .order("roll_number", { ascending: true, nullsFirst: false })
     .order("last_name");

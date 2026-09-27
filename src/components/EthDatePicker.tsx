@@ -11,29 +11,34 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
-  EthDate as Eth, toEthiopian, toGregorian, daysInEthMonth, toGeez, todayEthiopian, formatEth,
+  EthDate as Eth, toEthiopian, toGregorian, daysInEthMonth, todayEthiopian, formatEth, formatDigits, formatGregorian, type NumeralSystem,
 } from "@/lib/ethiopian-date";
 import { cn } from "@/lib/utils";
+import { useCalendarPrefs } from "@/features/settings/useCalendarPrefs";
 
 interface Props {
   value: Date | null;
   onChange: (gregorian: Date) => void;
-  geez?: boolean;
+  /** Digit system; defaults to the tenant's calendar preference. */
+  numerals?: NumeralSystem;
   id?: string;
 }
 
 // Fixed English weekday initials regardless of active locale, matching the
 // reference design — there's no standard single-letter Amharic/Afaan Oromoo
 // weekday abbreviation to fall back on without risking an invented one.
-const WEEKDAYS = ["S", "M", "T", "W", "T", "F", "S"];
 
 // Year-grid page size — clicking the header opens a grid of years so a
 // distant birth year is one or two clicks away, not dozens of month steps.
 const YEARS_PER_PAGE = 12;
 
-export function EthDatePicker({ value, onChange, geez = false, id }: Props) {
+export function EthDatePicker({ value, onChange, numerals, id }: Props) {
   const { t } = useTranslation("calendar");
+  const prefs = useCalendarPrefs();
+  const digits = numerals ?? prefs.numerals;
+  const num = (v: number) => formatDigits(v, digits);
   const months = t("months", { returnObjects: true }) as string[];
+  const weekdays = t("weekdaysShort", { returnObjects: true }) as string[];
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -89,11 +94,9 @@ export function EthDatePicker({ value, onChange, geez = false, id }: Props) {
     setView({ year: y, month: m });
   };
 
-  const gcPreview = value
-    ? new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }).format(value)
-    : "";
+  const gcPreview = value ? formatGregorian(value, digits) : "";
 
-  const displayValue = value ? formatEth(value, { monthNames: months, eraSuffix: t("eraSuffix"), geez }) : "";
+  const displayValue = value ? formatEth(value, { monthNames: months, eraSuffix: t("eraSuffix"), numerals: digits }) : "";
 
   const selectDay = (d: number) => {
     onChange(toGregorian({ year: view.year, month: view.month, day: d }));
@@ -130,26 +133,26 @@ export function EthDatePicker({ value, onChange, geez = false, id }: Props) {
             <button
               type="button"
               onClick={() => (mode === "days" ? move(-1) : setYearGridStart((s) => s - YEARS_PER_PAGE))}
-              aria-label={mode === "days" ? "Previous month" : "Previous years"}
+              aria-label={mode === "days" ? t("nav.prevMonth") : t("nav.prevYears")}
               className="rounded-control px-2 py-1 text-ink-faint hover:bg-sidebar">‹</button>
             <button
               type="button"
               onClick={() => (mode === "days" ? openYearGrid() : setMode("days"))}
-              aria-label={mode === "days" ? "Select year" : "Back to days"}
+              aria-label={mode === "days" ? t("nav.selectYear") : t("nav.backToDays")}
               className="rounded-control px-2 py-1 font-display text-sm font-bold text-ink hover:bg-sidebar">
               {mode === "days"
-                ? `${months[view.month - 1]} ${geez ? toGeez(view.year) : view.year} ${t("eraSuffix")}`
-                : `${geez ? toGeez(yearGridStart) : yearGridStart}–${geez ? toGeez(yearGridStart + YEARS_PER_PAGE - 1) : yearGridStart + YEARS_PER_PAGE - 1} ${t("eraSuffix")}`}
+                ? `${months[view.month - 1]} ${num(view.year)} ${t("eraSuffix")}`
+                : `${num(yearGridStart)}–${num(yearGridStart + YEARS_PER_PAGE - 1)} ${t("eraSuffix")}`}
             </button>
             <button
               type="button"
               onClick={() => (mode === "days" ? move(1) : setYearGridStart((s) => s + YEARS_PER_PAGE))}
-              aria-label={mode === "days" ? "Next month" : "Next years"}
+              aria-label={mode === "days" ? t("nav.nextMonth") : t("nav.nextYears")}
               className="rounded-control px-2 py-1 text-ink-faint hover:bg-sidebar">›</button>
           </div>
 
           {mode === "years" ? (
-            <div className="grid grid-cols-3 gap-1" role="grid">
+            <div className="grid grid-cols-3 gap-1">
               {Array.from({ length: YEARS_PER_PAGE }, (_, i) => yearGridStart + i).map((y) => {
                 const isSelectedYear = selected?.year === y;
                 const isCurrentYear = today.year === y;
@@ -157,8 +160,7 @@ export function EthDatePicker({ value, onChange, geez = false, id }: Props) {
                   <button
                     key={y}
                     type="button"
-                    role="gridcell"
-                    aria-selected={isSelectedYear}
+                    aria-pressed={isSelectedYear}
                     onClick={() => selectYear(y)}
                     className={cn(
                       "flex h-10 items-center justify-center rounded-control text-sm tabular-nums transition-colors",
@@ -167,18 +169,19 @@ export function EthDatePicker({ value, onChange, geez = false, id }: Props) {
                         : "text-ink hover:bg-navy-wash",
                     )}
                   >
-                    {geez ? toGeez(y) : y}
+                    {num(y)}
                   </button>
                 );
               })}
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-7 gap-1 text-center text-xs font-medium text-ink-faint">
-                {WEEKDAYS.map((w, i) => <div key={i} className="py-1">{w}</div>)}
+              {/* Visual column heads only: each day button carries its full date label. */}
+              <div className="grid grid-cols-7 gap-1 text-center text-xs font-medium text-ink-faint" aria-hidden="true">
+                {weekdays.map((w, i) => <div key={i} className="py-1">{w}</div>)}
               </div>
 
-              <div className="grid grid-cols-7 gap-1" role="grid">
+              <div className="grid grid-cols-7 gap-1">
                 {Array.from({ length: leadingBlanks }, (_, i) => <div key={`blank-${i}`} />)}
                 {days.map((d) => {
                   const isSelected = selected?.year === view.year && selected?.month === view.month && selected?.day === d;
@@ -187,8 +190,9 @@ export function EthDatePicker({ value, onChange, geez = false, id }: Props) {
                     <button
                       key={d}
                       type="button"
-                      role="gridcell"
-                      aria-selected={isSelected}
+                      aria-pressed={isSelected}
+                      aria-current={isToday ? "date" : undefined}
+                      aria-label={formatEth(toGregorian({ year: view.year, month: view.month, day: d }), { monthNames: months, eraSuffix: t("eraSuffix"), numerals: digits })}
                       onClick={() => selectDay(d)}
                       className={cn(
                         "flex h-9 w-9 items-center justify-center rounded-full text-sm tabular-nums transition-colors",
@@ -197,7 +201,7 @@ export function EthDatePicker({ value, onChange, geez = false, id }: Props) {
                           : "text-ink hover:bg-navy-wash",
                       )}
                     >
-                      {geez ? toGeez(d) : d}
+                      {num(d)}
                     </button>
                   );
                 })}

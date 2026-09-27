@@ -1,8 +1,8 @@
 // §17.8 edge-case checklist — Pagume leap logic, round-trip conversion,
-// month-13 arithmetic, Geez numerals, EC new-year shift.
+// month-13 arithmetic, digit systems (never Ge'ez), Hijri, EC new-year shift.
 import { describe, it, expect, vi, afterEach } from "vitest";
 import {
-  toEthiopian, toGregorian, isEthLeapYear, daysInEthMonth, toGeez, today, todayEthiopian,
+  toEthiopian, toGregorian, isEthLeapYear, daysInEthMonth, formatDigits, formatEth, formatHijri, toHijri, today, todayEthiopian,
 } from "@/lib/ethiopian-date";
 
 describe("Ethiopian calendar facade", () => {
@@ -35,10 +35,28 @@ describe("Ethiopian calendar facade", () => {
     expect(diffDays).toBe(1);
   });
 
-  it("renders Geez numerals for common values", () => {
-    expect(toGeez(1)).toBe("፩");
-    expect(toGeez(10)).toBe("፲");
-    expect(toGeez(2018)).not.toBe("2018"); // must be transliterated, not passthrough
+  it("renders Western digits by default and Eastern Arabic digits on request, never Ge'ez", () => {
+    const months = ["M1", "M2", "M3", "M4", "M5", "M6", "M7", "M8", "M9", "M10", "M11", "M12", "M13"];
+    const g = toGregorian({ year: 2019, month: 1, day: 15 });
+    expect(formatEth(g, { monthNames: months })).toBe("M1 15, 2019");
+    expect(formatEth(g, { monthNames: months, numerals: "arab" })).toBe("M1 ١٥, ٢٠١٩");
+    expect(formatDigits(2018, "latn")).toBe("2018");
+    expect(formatDigits("0123456789", "arab")).toBe("٠١٢٣٤٥٦٧٨٩");
+    for (const numerals of ["latn", "arab"] as const) {
+      for (let day = 1; day <= 30; day++) {
+        const out = formatEth(toGregorian({ year: 2018, month: 5, day }), { monthNames: months, numerals });
+        expect(out).not.toMatch(/[\u1369-\u137C]/); // fix plan §0 Rule 8
+      }
+    }
+  });
+
+  it("converts to the Hijri (Umm al-Qura) calendar", () => {
+    // 2026-09-25 G.C. = 14 Rabi al-Thani 1448 AH; 2026-03-20 = 1 Shawwal 1447 (Eid al-Fitr).
+    expect(toHijri(new Date(Date.UTC(2026, 8, 25)))).toEqual({ year: 1448, month: 4, day: 14 });
+    expect(toHijri(new Date(Date.UTC(2026, 2, 20)))).toEqual({ year: 1447, month: 10, day: 1 });
+    const names = Array.from({ length: 12 }, (_, i) => `H${i + 1}`);
+    expect(formatHijri(new Date(Date.UTC(2026, 8, 25)), { monthNames: names, eraSuffix: "AH" })).toBe("H4 14, 1448 AH");
+    expect(formatHijri(new Date(Date.UTC(2026, 8, 25)), { monthNames: names, numerals: "arab" })).toBe("H4 ١٤, ١٤٤٨");
   });
 
   it("never returns EC values into DB-bound ISO strings (canonical storage rule)", () => {

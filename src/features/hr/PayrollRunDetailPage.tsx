@@ -9,13 +9,10 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Panel, PanelHeader } from "@/components/ui/Panel";
 import { formatETB } from "@/lib/i18n";
+import { csvCell } from "@/lib/csv";
 
 const STATUS_TONE = { draft: "neutral", approved: "navy", paid: "ok", void: "danger" } as const;
 
-function csvCell(value: string | number): string {
-  const s = String(value);
-  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-}
 
 export function PayrollRunDetailPage() {
   const { runId } = useParams();

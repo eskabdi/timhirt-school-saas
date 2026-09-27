@@ -12,7 +12,7 @@ export interface AttendanceNotification {
   attendance_id: string | null;
   read_at: string | null;
   created_at: string;
-  student: { first_name: string; last_name: string } | null;
+  student: { first_name: string; middle_name?: string | null; last_name: string } | null;
   attendance: { attendance_date: string } | null;
 }
 
@@ -24,7 +24,7 @@ export function useAttendanceNotifications(enabled: boolean) {
     enabled,
     queryFn: async () => {
       const { data, error } = await supabase.from("portal_notifications")
-        .select("id, kind, attendance_id, read_at, created_at, student:students(first_name, last_name), attendance:attendance_id(attendance_date)")
+        .select("id, kind, attendance_id, read_at, created_at, student:students(first_name, middle_name, last_name), attendance:attendance_id(attendance_date)")
         .in("kind", ATTENDANCE_KINDS)
         .order("created_at", { ascending: false })
         .limit(50);

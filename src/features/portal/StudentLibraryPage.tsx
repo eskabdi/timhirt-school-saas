@@ -12,6 +12,7 @@ import { Panel, PanelHeader } from "@/components/ui/Panel";
 import { Badge } from "@/components/ui/Badge";
 import { EthDate } from "@/components/EthDate";
 import { listActiveCheckouts, listHolds, listPendingFines } from "@/features/library/libraryApi";
+import { fullName } from "@/lib/names";
 
 function today(): string {
   return new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString().slice(0, 10);
@@ -27,7 +28,7 @@ export function StudentLibraryPage() {
   const lendings = (checkouts ?? []).filter((c) => c.checkout_type === "lending");
   const todayStr = today();
 
-  const studentName = (s: { first_name: string; last_name: string } | null) => s ? `${s.first_name} ${s.last_name}` : "—";
+  const studentName = (s: { first_name: string; middle_name?: string | null; last_name: string } | null) => s ? fullName(s) : "—";
 
   return (
     <div className="space-y-4">

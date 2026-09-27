@@ -48,6 +48,11 @@ insert into public.fee_invoices (id, tenant_id, student_id, fee_structure_id, am
   ('aeb50000-0000-0000-0000-000000000001', 'aeb00000-0000-0000-0000-00000000000a', 'aeb30000-0000-0000-0000-000000000001', 'aeb40000-0000-0000-0000-000000000001', 500.00, 0, '2026-08-01', 'pending', 'aebc0001-0000-0000-0000-000000000001'),
   ('aeb50000-0000-0000-0000-000000000002', 'aeb00000-0000-0000-0000-00000000000a', 'aeb30000-0000-0000-0000-000000000001', 'aeb40000-0000-0000-0000-000000000001', 300.00, 0, '2026-08-02', 'pending', 'aebc0002-0000-0000-0000-000000000002');
 
+-- This suite proves crediting. Maker-checker for manual payments (WP-09) is
+-- switched off for this tenant here and proven in maker_checker.sql.
+insert into public.tenant_configs (tenant_id, settings) values
+  ('aeb00000-0000-0000-0000-00000000000a', '{"approvals":{"actions":{"manual_payment_accept":false}}}');
+
 set local role authenticated;
 set local request.jwt.claim.sub = 'aeb00002-0000-0000-0000-000000000002'; -- accountant
 
@@ -63,8 +68,8 @@ select throws_ok(
 
 select throws_ok(
   $stmt$ insert into public.payments (tenant_id, invoice_id, amount, provider, status)
-         values ('aeb00000-0000-0000-0000-00000000000a', 'aebc0001-0000-0000-0000-000000000001', 500.00, 'cash', 'pending') $stmt$,
-  '42501', null, 'an accountant cannot insert a cash payment with status other than succeeded');
+         values ('aeb00000-0000-0000-0000-00000000000a', 'aebc0001-0000-0000-0000-000000000001', 500.00, 'cash', 'failed') $stmt$,
+  '42501', null, 'an accountant cannot insert a cash payment as failed/refunded (only succeeded, or pending for approval)');
 
 set local request.jwt.claim.sub = 'aeb00003-0000-0000-0000-000000000003'; -- registrar
 

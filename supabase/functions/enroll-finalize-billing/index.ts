@@ -28,6 +28,7 @@ import { requireRole, errors, json, rateLimit, corsHeaders } from "../_shared/se
 import { issueFeeDocument, notifyBilling, renderInvoicePdf, renderReceiptPdf, type FeeLineItem } from "../_shared/fee-pdf.ts";
 import { loadDocumentBranding } from "../_shared/branding.ts";
 import { loadDocumentTemplate } from "../_shared/doc-template.ts";
+import { fullName } from "../_shared/names.ts";
 
 const Payload = z.object({
   application_id: z.string().uuid(),
@@ -56,14 +57,16 @@ Deno.serve(async (req) => {
     if (!application || application.converted_student_id !== p.student_id) return errors.badRequest();
 
     const { data: student } = await ctx.adminClient.from("students")
-      .select("id, tenant_id, first_name, last_name, admission_no, class:classes(name, section)")
+      .select("id, tenant_id, first_name, middle_name, last_name, admission_no, class:classes(name, section)")
       .eq("id", p.student_id).maybeSingle();
     if (!student) return errors.badRequest();
 
     const { data: tenant } = await ctx.adminClient.from("tenants").select("name").eq("id", application.tenant_id).maybeSingle();
     const tenantName = tenant?.name ?? "School";
-    const studentName = `${student.first_name} ${student.last_name}`.trim();
-    const classLabel = student.class ? `${(student.class as { name: string }).name} ${(student.class as { section: string | null }).section ?? ""}`.trim() : "-";
+    const studentName = fullName(student);
+    // Many-to-one embed: an object at runtime; the untyped client infers an array.
+    const cls = student.class as unknown as { name: string; section: string | null } | null;
+    const classLabel = cls ? `${cls.name} ${cls.section ?? ""}`.trim() : "-";
 
     let invoiceId: string | null = null;
     let invoiceUrl: string | null = null;

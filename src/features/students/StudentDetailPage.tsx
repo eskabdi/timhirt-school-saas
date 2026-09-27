@@ -17,6 +17,7 @@ import { buildStudentProfilePdf } from "./student-profile-pdf";
 import { formatEth, toIsoDate, today } from "@/lib/ethiopian-date";
 import { gradeCycleKeyFor, gradeCycleI18nKey } from "@/lib/gradeCycles";
 import { fetchAcademicRecord, fetchClassRank } from "./academic-record";
+import { fullName } from "@/lib/names";
 
 const TABS = ["personalInfo", "academicRecord", "attendance", "behavioral"] as const;
 type Tab = (typeof TABS)[number];
@@ -112,7 +113,7 @@ export function StudentDetailPage() {
   if (!student) return null;
 
   const cls = student.class as { name?: string; section?: string; grade_level?: number } | null;
-  const fullName = [student.first_name, student.middle_name, student.last_name].filter(Boolean).join(" ");
+  const studentName = fullName(student);
   const gradeLabel = cls?.grade_level != null ? `${t("students.profile.grade")} ${cls.grade_level}${cls.section ? `-${cls.section}` : ""}` : cls?.name ?? "—";
   const cycleKey = gradeCycleKeyFor(cls?.grade_level);
 
@@ -135,7 +136,7 @@ export function StudentDetailPage() {
         schoolName,
         photoPngBytes,
         logoImageBytes,
-        studentName: fullName || t("students.profile.fullNamePlaceholder"),
+        studentName: studentName || t("students.profile.fullNamePlaceholder"),
         admissionNo: student.admission_no,
         gradeLabel,
         status: t(`students.${student.status}`),
@@ -249,7 +250,7 @@ export function StudentDetailPage() {
         </div>
         <div className="min-w-[240px]">
           <div className="flex items-center gap-2">
-            <h1 className="font-display text-3xl font-bold text-ink">{fullName || t("students.profile.fullNamePlaceholder")}</h1>
+            <h1 className="font-display text-3xl font-bold text-ink">{studentName || t("students.profile.fullNamePlaceholder")}</h1>
             <Badge tone={student.status === "active" ? "ok" : "neutral"}>{t(`students.${student.status}`)}</Badge>
           </div>
           <p className="mt-2 text-sm text-ink-soft">{t("students.admissionNo")}: <span className="font-medium text-ink">{student.admission_no}</span></p>
@@ -287,7 +288,7 @@ export function StudentDetailPage() {
       {/* Print Report scopes to this container only (see index.css @media print) */}
       <div id="print-scope">
       <div className="print-only mb-4">
-        <h2 className="font-display text-xl font-bold text-ink">{fullName} — {t(`students.tabs.${tab}`)}</h2>
+        <h2 className="font-display text-xl font-bold text-ink">{studentName} — {t(`students.tabs.${tab}`)}</h2>
         <p className="text-sm text-ink-faint">{t("students.admissionNo")}: {student.admission_no} · {gradeLabel}</p>
       </div>
 
@@ -340,7 +341,7 @@ export function StudentDetailPage() {
       )}
 
       {tab === "academicRecord" && (
-        <AcademicRecordTab studentId={student.id} studentName={fullName}
+        <AcademicRecordTab studentId={student.id} studentName={studentName}
           admissionNo={student.admission_no} classId={student.class_id} />
       )}
       {tab === "attendance" && <AttendanceTab studentId={student.id} />}
@@ -352,7 +353,7 @@ export function StudentDetailPage() {
       )}
       </div>
 
-      <PrintIDCardModal studentId={student.id} studentName={fullName} open={showIdCard} onClose={() => setShowIdCard(false)} />
+      <PrintIDCardModal studentId={student.id} studentName={studentName} open={showIdCard} onClose={() => setShowIdCard(false)} />
       <TransferStudentModal studentId={student.id} open={showTransfer} onClose={() => setShowTransfer(false)} />
       <EditProfileModal
         open={showEdit}

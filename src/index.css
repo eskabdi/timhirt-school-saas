@@ -20,6 +20,24 @@
   font-weight: normal; font-style: normal; font-display: swap;
 }
 
+/* App-wide Amharic text: Tayitu primary, Jiret secondary (project rule).
+   Ethiopic-only aliases (unicode-range), so Latin text keeps Inter/Public Sans
+   and the files are fetched only when a page shows Ethiopic script. The
+   full-range "Tayitu"/"Jiret" faces above stay as they are for the ID card
+   designer, whose text fields use them for Latin too. */
+@font-face {
+  font-family: "Tayitu Ethiopic";
+  src: url("/fonts/Tayitu.ttf") format("truetype");
+  font-weight: normal; font-style: normal; font-display: swap;
+  unicode-range: U+1200-139F, U+2D80-2DDF, U+AB00-AB2F, U+1E7E0-1E7FF;
+}
+@font-face {
+  font-family: "Jiret Ethiopic";
+  src: url("/fonts/Jiret.ttf") format("truetype");
+  font-weight: normal; font-style: normal; font-display: swap;
+  unicode-range: U+1200-139F, U+2D80-2DDF, U+AB00-AB2F, U+1E7E0-1E7FF;
+}
+
 /* Design-system palette defaults, as space-separated RGB channels so Tailwind
    opacity modifiers work (see tailwind.config.ts). A tenant's Branding page
    palette overrides --brand-primary/-secondary/-accent on :root at runtime via

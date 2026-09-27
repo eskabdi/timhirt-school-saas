@@ -39,6 +39,14 @@ i18n
     detection: { order: ["localStorage", "navigator"], caches: ["localStorage"] },
   });
 
+// Screen readers pick their voice from <html lang>; keep it in step with the
+// UI language (WCAG 3.1.1, review i18n N-08).
+const syncHtmlLang = (lng: string | undefined) => {
+  if (typeof document !== "undefined" && lng) document.documentElement.lang = lng;
+};
+syncHtmlLang(i18n.resolvedLanguage ?? i18n.language);
+i18n.on("languageChanged", syncHtmlLang);
+
 export default i18n;
 
 /** Resolve a jsonb i18n field ({en, am, om}) client-side — mirrors SQL t_field(). */

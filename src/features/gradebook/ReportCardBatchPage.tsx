@@ -10,6 +10,7 @@ import { fetchDocumentTemplate } from "@/lib/documentTemplate";
 import { useDocumentSchoolName } from "@/lib/documentBranding";
 import { fetchAcademicRecord } from "../students/academic-record";
 import { fetchConductSummary } from "../students/conduct-summary";
+import { fullName } from "@/lib/names";
 
 export function ReportCardBatchPage() {
   const { t, i18n } = useTranslation();
@@ -32,7 +33,7 @@ export function ReportCardBatchPage() {
     setBusy(true);
     try {
       const { data: students, error: studentsError } = await supabase.from("students")
-        .select("id, first_name, last_name, admission_no, class_id")
+        .select("id, first_name, middle_name, last_name, admission_no, class_id")
         .in("class_id", selected)
         .eq("status", "active");
       if (studentsError) throw studentsError;
@@ -61,7 +62,7 @@ export function ReportCardBatchPage() {
       let succeeded = 0;
       const failed: string[] = [];
       for (const s of roster) {
-        const fullName = `${s.first_name} ${s.last_name}`;
+        const studentName = fullName(s);
         try {
           const cls = classes?.find((c) => c.id === s.class_id);
           const gradeLabel = cls ? `${t("students.profile.grade")} ${cls.grade_level}${cls.section ? `-${cls.section}` : ""}` : "—";
@@ -71,7 +72,7 @@ export function ReportCardBatchPage() {
           const record = await fetchAcademicRecord(s.id, i18n.resolvedLanguage!, cls?.grade_level ?? undefined);
           const conductSummary = await fetchConductSummary(s.id);
           const blob = await buildTranscriptPdf({
-            schoolName, template, studentName: fullName, admissionNo: s.admission_no,
+            schoolName, template, studentName, admissionNo: s.admission_no,
             gradeLabel, academicPeriod: gradeLabel,
             rows: record.rows,
             gpa: record.totals.gpa, totalScore: record.totals.sum, maxScore: record.totals.max,
@@ -98,7 +99,7 @@ export function ReportCardBatchPage() {
           URL.revokeObjectURL(url);
           succeeded++;
         } catch {
-          failed.push(fullName);
+          failed.push(studentName);
         }
         setProgress((p) => p ? { done: p.done + 1, total: p.total } : p);
       }

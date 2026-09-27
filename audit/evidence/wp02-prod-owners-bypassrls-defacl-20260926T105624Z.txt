@@ -1,0 +1,42 @@
+R6 WP-02 pre-deploy evidence, production livqynxlibmccaycseer, 20260926T105624Z
+Read-only Management API queries (read_only=true, run as supabase_read_only_user). Answers review findings AC-12, AZ-7, SEC-10, TV-5.
+
+## roles: rolname | rolsuper | rolbypassrls
+  anon | False | False
+  authenticated | False | False
+  postgres | False | True
+  service_role | False | True
+  supabase_admin | True | True
+  timhirt_view_owner | False | False
+
+## owner | security definer | count of public (non-extension) functions
+  postgres | False | 11
+  postgres | True | 65
+
+## the 11 tables WP-02 forces: table | owner | relforcerowsecurity (before WP-02)
+  backup_jobs | postgres | False
+  data_jobs | postgres | False
+  feature_flags | postgres | False
+  health_alerts | postgres | False
+  permissions | postgres | False
+  restore_jobs | postgres | False
+  role_permissions | postgres | False
+  roles | postgres | False
+  system_config | postgres | False
+  system_health | postgres | False
+  user_roles | postgres | False
+
+## default ACLs for role postgres: schema | objtype | acl  (no <global> row = built-in default: EXECUTE to PUBLIC)
+  public | S | {postgres=rwU/postgres,anon=rwU/postgres,authenticated=rwU/postgres,service_role=rwU/postgres}
+  public | f | {postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}
+  public | r | {postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}
+  storage | S | {postgres=rwU/postgres,anon=rwU/postgres,authenticated=rwU/postgres,service_role=rwU/postgres}
+  storage | f | {postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}
+  storage | r | {postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}
+
+## extensions: name | schema | owner
+  pg_stat_statements | extensions | postgres
+  pgcrypto | extensions | postgres
+  plpgsql | pg_catalog | supabase_admin
+  supabase_vault | vault | supabase_admin
+  uuid-ossp | extensions | postgres

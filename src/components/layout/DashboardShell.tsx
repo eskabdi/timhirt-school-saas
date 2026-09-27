@@ -33,6 +33,7 @@ const NAV: NavSection[] = [
     items: [
       { to: "/", key: "nav.dashboard", roles: STAFF, end: true },
       { to: "/messages", key: "nav.messages", roles: STAFF },
+      { to: "/approvals", key: "nav.approvals", roles: STAFF },
     ],
   },
   {
@@ -132,6 +133,7 @@ const NAV: NavSection[] = [
           { to: "/settings/access", key: "nav.accessManagement", roles: ["school_admin"] },
           { to: "/settings/configuration", key: "nav.configuration", roles: ["school_admin"] },
           { to: "/settings/health-monitoring", key: "nav.healthMonitoring", roles: ["school_admin"] },
+          { to: "/settings/approvals", key: "nav.approvalSettings", roles: ["school_admin"] },
           { to: "/settings/audit-logs", key: "nav.auditLogs", roles: ["school_admin"] },
           { to: "/settings/backups", key: "nav.backups", roles: ["school_admin"] },
         ],
@@ -198,6 +200,20 @@ export function DashboardShell() {
     queryFn: async () => {
       const { count } = await supabase.from("messages").select("id", { count: "exact", head: true })
         .eq("recipient_id", profile!.id).is("read_at", null);
+      return count ?? 0;
+    },
+  });
+  // R6 WP-09: maker-checker requests this user can decide. RLS returns only
+  // the caller's own requests and those they hold <resource>:approve for;
+  // excluding their own leaves the ones waiting on them.
+  const isStaff = !!profile?.role && STAFF.includes(profile.role);
+  const { data: pendingApprovals } = useQuery({
+    queryKey: ["approvals-pending-count", profile?.id],
+    enabled: !!profile?.id && isStaff,
+    refetchInterval: 60_000,
+    queryFn: async () => {
+      const { count } = await supabase.from("approval_requests").select("id", { count: "exact", head: true })
+        .eq("status", "pending").neq("maker_id", profile!.id).gt("expires_at", new Date().toISOString());
       return count ?? 0;
     },
   });
@@ -538,6 +554,12 @@ export function DashboardShell() {
                         {n.to === "/messages" && !!unreadMessages && (
                           <span className="rounded-pill bg-danger px-1.5 py-0.5 text-[11px] font-semibold text-white">
                             {unreadMessages}
+                          </span>
+                        )}
+                        {n.to === "/approvals" && !!pendingApprovals && (
+                          <span className="rounded-pill bg-danger px-1.5 py-0.5 text-[11px] font-semibold text-white"
+                            aria-label={t("approvals.pendingBadge", { count: pendingApprovals })}>
+                            {pendingApprovals}
                           </span>
                         )}
                         {n.to === "/portal/pay" && !!unreadBilling && (

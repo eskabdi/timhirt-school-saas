@@ -8,6 +8,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
+import { sanitizeRichTextNodes } from "@/components/ui/RichText";
 
 type Cmd = { key: string; label: string; cmd: string; arg?: string; className?: string };
 
@@ -44,9 +45,21 @@ export function RichTextEditor({ value, onChange, placeholder, minHeight = 220 }
 
   // Only push `value` into the DOM when it diverges from what the user is
   // typing; writing on every keystroke would reset the caret to the start.
+  // Stored HTML goes through the RichText allow-list as real nodes, never
+  // `innerHTML =`: another author's notice can carry `<img onerror>` (R6 WP-01).
+  // Latest onChange without re-running the load effect when its identity changes.
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
   useEffect(() => {
     const el = ref.current;
-    if (el && el.innerHTML !== value) el.innerHTML = value ?? "";
+    if (el && el.innerHTML !== value) {
+      const report = { removed: false };
+      el.replaceChildren(...sanitizeRichTextNodes(value, document, report));
+      // Hand the cleaned HTML back only when something unsafe was dropped, so
+      // a stored payload is not saved again unchanged (review FE-1) while a
+      // harmless rewrite (<b> → <strong>) does not mark the form dirty (m-6).
+      if (report.removed) onChangeRef.current(el.innerHTML);
+    }
     setEmpty(!(value ?? "").replace(/<[^>]*>/g, "").trim());
   }, [value]);
 

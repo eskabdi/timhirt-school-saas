@@ -13,6 +13,7 @@ import {
   listHolds, cancelHold, listPendingFines, markFinePaid, waiveFine, scanOverdue,
   type StudentOption,
 } from "./libraryApi";
+import { fullName } from "@/lib/names";
 
 // Ethiopia is a single fixed UTC+3 offset year-round (no DST) -- same
 // reasoning as todayLocal() in the Edge Function, kept local to this file
@@ -130,7 +131,7 @@ export function LibraryCirculationPage() {
           </FieldGroup>
           <FieldGroup label={t("students.search")}>
             <Input
-              value={selectedStudent ? `${selectedStudent.first_name} ${selectedStudent.last_name} (${selectedStudent.admission_no})` : studentTerm}
+              value={selectedStudent ? `${fullName(selectedStudent)} (${selectedStudent.admission_no})` : studentTerm}
               onChange={(e) => { setStudentTerm(e.target.value); setSelectedStudent(null); }}
               placeholder={t("students.search")}
             />
@@ -139,7 +140,7 @@ export function LibraryCirculationPage() {
                 {studentResults!.map((s) => (
                   <button key={s.id} type="button" className="block w-full px-3 py-2 text-left text-sm hover:bg-sidebar"
                     onClick={() => { setSelectedStudent(s); setStudentTerm(""); }}>
-                    {s.first_name} {s.last_name} — {s.admission_no}
+                    {fullName(s)} — {s.admission_no}
                   </button>
                 ))}
               </div>
@@ -171,7 +172,7 @@ export function LibraryCirculationPage() {
               const overdue = c.due_on < todayStr;
               return (
                 <tr key={c.id} className="hover:bg-sidebar">
-                  <td className="px-5 py-3 text-ink">{c.student ? `${c.student.first_name} ${c.student.last_name}` : "—"}</td>
+                  <td className="px-5 py-3 text-ink">{c.student ? fullName(c.student) : "—"}</td>
                   <td className="px-5 py-3 text-ink-soft">{c.copy?.book?.title ?? "—"} <span className="text-xs text-ink-faint">({c.copy?.barcode})</span></td>
                   <td className="px-5 py-3"><EthDate value={c.due_on} /></td>
                   <td className="px-5 py-3">
@@ -213,7 +214,7 @@ export function LibraryCirculationPage() {
             {(holds ?? []).map((h) => (
               <tr key={h.id} className="hover:bg-sidebar">
                 <td className="px-5 py-3 text-ink">{h.book?.title ?? "—"}</td>
-                <td className="px-5 py-3 text-ink-soft">{h.student ? `${h.student.first_name} ${h.student.last_name}` : "—"}</td>
+                <td className="px-5 py-3 text-ink-soft">{h.student ? fullName(h.student) : "—"}</td>
                 <td className="px-5 py-3"><Badge tone={h.status === "ready" ? "ok" : "neutral"}>{t(`library.holdStatus.${h.status}`)}</Badge></td>
                 <td className="px-5 py-3 text-right">
                   <button type="button" className="text-xs font-medium text-danger hover:underline" onClick={() => doCancelHold.mutate(h.id)}>{t("crud.cancel")}</button>
@@ -241,7 +242,7 @@ export function LibraryCirculationPage() {
           <tbody className="divide-y divide-line">
             {(fines ?? []).map((f) => (
               <tr key={f.id} className="hover:bg-sidebar">
-                <td className="px-5 py-3 text-ink">{f.checkout?.student ? `${f.checkout.student.first_name} ${f.checkout.student.last_name}` : "—"}</td>
+                <td className="px-5 py-3 text-ink">{f.checkout?.student ? fullName(f.checkout.student) : "—"}</td>
                 <td className="px-5 py-3 text-ink-soft">{f.checkout?.copy?.book?.title ?? "—"}</td>
                 <td className="px-5 py-3 text-ink">ETB {Number(f.amount).toFixed(2)}</td>
                 <td className="px-5 py-3">
