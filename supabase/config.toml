@@ -39,6 +39,8 @@ verify_jwt = true                      # school_admin/accountant, checked in-cod
 
 [functions.onboard-tenant]
 verify_jwt = true
+[functions.invite-tenant-admin]
+verify_jwt = true
 [functions.generate-payslip-pdf]
 verify_jwt = true
 [functions.issue-id-card]
@@ -90,3 +92,10 @@ verify_jwt = true
 verify_jwt = true
 [functions.activate-sso-user]
 verify_jwt = true
+
+[functions.issue-staff-id]
+verify_jwt = true                      # school_admin/hr_officer, checked in-code
+
+[functions.upload-admission-document]
+verify_jwt = false                     # public registration stepper; rate-limited
+                                       # in-code + gated on stage = 'applied'

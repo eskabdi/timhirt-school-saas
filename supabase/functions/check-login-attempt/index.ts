@@ -19,7 +19,7 @@
 // ============================================================================
 import { z } from "npm:zod@3";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { errors, json, rateLimit, corsHeaders } from "../_shared/security.ts";
+import { errors, json, rateLimit, corsHeaders, clientIp } from "../_shared/security.ts";
 
 const Payload = z.object({ email: z.string().email().max(254) });
 
@@ -49,7 +49,7 @@ Deno.serve(async (req) => {
     if (!parsed.success) return errors.badRequest();
     const email = parsed.data.email.trim().toLowerCase();
 
-    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+    const ip = clientIp(req);
     const t = await loadThresholds();
 
     // Both run (not short-circuited) so a blocked IP still burns the email

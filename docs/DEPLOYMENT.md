@@ -42,19 +42,50 @@ supabase db push
 # app instead of the default http://localhost:3000 fallback.
 supabase secrets set APP_URL=https://your-app.vercel.app
 
-# Deploy all Edge Functions
-supabase functions deploy run-payroll
-supabase functions deploy process-fee-payment
-supabase functions deploy telebirr-notify --no-verify-jwt
-supabase functions deploy telebirr-query-order
-supabase functions deploy telebirr-generate-keypair
-supabase functions deploy onboard-tenant
-supabase functions deploy invite-tenant-admin
+# Deploy all Edge Functions.
+#
+# All 32 are listed, and the split mirrors supabase/config.toml: the 8
+# anonymous ones MUST carry --no-verify-jwt because they authorize in-code
+# instead (signature check for the gateway callbacks, per-IP rate limiting for
+# the rest); everything else is JWT-verified at the edge AND role-checked by
+# requireRole() inside. Deploying a function that is missing here is how a
+# public endpoint ends up either unreachable or, worse, reachable without the
+# gate it expects -- keep this list, supabase/config.toml and
+# supabase/functions/ in step.
+supabase functions deploy activate-sso-user
+supabase functions deploy complete-sso-login
+supabase functions deploy end-impersonation
+supabase functions deploy enroll-finalize-billing
+supabase functions deploy generate-fee-invoices
 supabase functions deploy generate-payslip-pdf
-supabase functions deploy submit-admission --no-verify-jwt
-supabase functions deploy upload-admission-document --no-verify-jwt
-supabase functions deploy verify-id --no-verify-jwt
+supabase functions deploy impersonate-user
+supabase functions deploy invite-staff
+supabase functions deploy invite-tenant-admin
+supabase functions deploy issue-fee-document
+supabase functions deploy issue-id-card
+supabase functions deploy issue-staff-id
 supabase functions deploy manage-integration-credentials
+supabase functions deploy manage-sso-provider
+supabase functions deploy onboard-tenant
+supabase functions deploy process-export-job
+supabase functions deploy process-fee-payment
+supabase functions deploy process-import-job
+supabase functions deploy process-library-circulation
+supabase functions deploy provision-portal-accounts
+supabase functions deploy record-fee-payment
+supabase functions deploy run-payroll
+supabase functions deploy telebirr-generate-keypair
+supabase functions deploy telebirr-query-order
+
+# Anonymous -- authorization is in-code, so the edge JWT check is off.
+supabase functions deploy check-admission-status --no-verify-jwt
+supabase functions deploy check-login-attempt --no-verify-jwt
+supabase functions deploy sso-domain-lookup --no-verify-jwt
+supabase functions deploy submit-admission --no-verify-jwt
+supabase functions deploy telebirr-notify --no-verify-jwt
+supabase functions deploy upload-admission-document --no-verify-jwt
+supabase functions deploy verify-admission-bank-url --no-verify-jwt
+supabase functions deploy verify-id --no-verify-jwt
 ```
 
 Also set **Authentication → URL Configuration** in the Supabase dashboard:

@@ -25,7 +25,7 @@
 // ============================================================================
 import { z } from "npm:zod@3";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { errors, json, rateLimit, corsHeaders } from "../_shared/security.ts";
+import { errors, json, rateLimit, corsHeaders, clientIp } from "../_shared/security.ts";
 import { verifyBankUrl } from "../_shared/bank-verify.ts";
 
 const Payload = z.object({
@@ -38,7 +38,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
     if (req.method !== "POST") return errors.badRequest();
-    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+    const ip = clientIp(req);
     if (!(await rateLimit(`admission-bank-verify:${ip}`, 10, 3_600_000))) return errors.tooMany(3600);
 
     const parsed = Payload.safeParse(await req.json().catch(() => null));

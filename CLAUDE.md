@@ -18,6 +18,51 @@ Code comments cite it by section (§6.2 route guards, §17.2 canonical date
 storage, §10.4 injection/XSS). It ends at §20 — a few comments cite §21.9 for
 INSA reasoning, and that section is not in the document.
 
+There is no backend service to run: the browser talks to Supabase directly with
+the anon key, and RLS + Edge Functions + SECURITY DEFINER RPCs are the whole
+server. "Deploy" means three separate things — migrations, Edge Functions, and
+the Vercel frontend (see [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md)).
+
+---
+
+## Layout
+
+```
+src/
+  app/            App.tsx, providers.tsx (single QueryClient), router.tsx (~95
+                  routes over Admin / Teacher / Student / Parent / Public /
+                  Platform surfaces)
+  features/<domain>/   feature-sliced (24 domains: students, attendance,
+                  gradebook, fees, hr, admissions, portal, platform, settings,
+                  …). A folder holds its *Page.tsx views plus, as needed,
+                  api.ts / *Api.ts (Supabase data access) and schemas.ts (zod).
+                  Data is fetched with TanStack useQuery/useMutation inline in
+                  the page, keyed by qk() — never a hand-written key array.
+  components/     cross-feature: EthDate, EthDatePicker, LanguageSwitcher
+    ui/           design-system primitives — Button, Card, Field/FieldGroup,
+                  Modal, RichText, Stepper, Toggle, SegmentedControl, …
+    layout/       DashboardShell (tenant app), PlatformShell/PlatformNav (super-
+                  admin console)
+    charts/       Bars, Pie (hand-rolled SVG, no chart lib)
+  lib/            supabase.ts (the one client), queryKeys.ts (qk), i18n.ts,
+                  ethiopian-date.ts, brand-theme.ts, ethnic-groups.ts, image.ts,
+                  utils.ts, database.types.ts (generated — `npm run gen:types`)
+  locales/{en,am,om}/   common / apply / calendar namespaces, at full parity
+  __tests__/      vitest unit tests (Ethiopian-date math, EC parity, payroll)
+
+supabase/
+  migrations/     106 timestamped SQL files, applied in filename order
+  functions/      32 Deno Edge Functions + _shared/ (security.ts, dates)
+  tests/          run.sh + rls/ pgTAP suites (55)
+
+scripts/          check-locales.mjs, i18n-audit.mjs, i18n-review-export.mjs
+docs/             architecture blueprint, DEPLOYMENT.md
+```
+
+Auth is three composable guards in `src/features/auth/`: `RequireAuth`
+(session), `RequireRole` (role gate), `RequireModule` (tenant module toggle) —
+all UX-only; RLS is what actually enforces access.
+
 ---
 
 ## Traps that have already cost real time
@@ -53,6 +98,19 @@ forbid. `cardinality('{}')` is `0`.
 
 **`ALTER TYPE … ADD VALUE` works inside the deploy wrapper's transaction**,
 provided the new labels are not *used* in that same transaction.
+
+**A `SECURITY DEFINER` function is a hole in RLS until it re-checks the caller
+itself.** It runs as the owner, so no policy applies inside it. The 20260719
+batch granted 13 of them to `authenticated` while trusting a caller-supplied
+`p_tenant_id` and addressing rows by bare `id` — a *student* could create rows
+in another tenant, rewrite another tenant's `data_jobs.storage_path`, and read
+another tenant's `system_config`, all while `select` on those tables correctly
+returned zero rows. Every such function must derive the tenant from
+`get_tenant_id_for_user(auth.uid())`, gate on the same role its table's policy
+names, pin `set search_path = public, pg_temp`, and `revoke … from public, anon`
+before granting. Regression: `supabase/tests/rls/rpc_authorization.sql`.
+Remember Postgres grants `EXECUTE` to `PUBLIC` by default — writing no `grant`
+is not the same as granting nothing.
 
 **Gregorian is canonical storage; EC is presentation-only (§17.2).** Every
 rendered date goes through `<EthDate/>` or `formatEth`. Raw `toLocaleDateString`
@@ -117,12 +175,12 @@ Run the gates — CI runs all of them, so a miss here is a red build later:
 
 ```bash
 npx tsc --noEmit
-npx eslint src                      # 0 errors; ~41 pre-existing `any` warnings
+npx eslint src                      # must be clean: 0 errors, 0 warnings
 npx vitest run
 npm run check:i18n                  # must be 0
 npm run check:locales               # parity + no wholesale reformat
 npm run build
-PGHOST=… ./supabase/tests/run.sh    # 38 migrations + 5 pgTAP suites
+PGHOST=… ./supabase/tests/run.sh    # 106 migrations + 55 pgTAP suites
 ```
 
 `eslint scripts/` reports `no-undef` on node globals — `scripts/` is outside the

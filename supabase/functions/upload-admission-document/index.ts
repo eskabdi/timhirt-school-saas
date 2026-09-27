@@ -11,7 +11,7 @@
 // ============================================================================
 import { z } from "npm:zod@3";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { errors, json, rateLimit, corsHeaders } from "../_shared/security.ts";
+import { errors, json, rateLimit, clientIp, corsHeaders } from "../_shared/security.ts";
 
 const DOC_TYPES = ["birth_certificate", "transcript", "photo", "payment_receipt"] as const;
 type DocType = typeof DOC_TYPES[number];
@@ -40,7 +40,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
     if (req.method !== "POST") return errors.badRequest();
-    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+    const ip = clientIp(req);
     if (!(await rateLimit(`admission-upload:${ip}`, 20, 3_600_000))) return errors.tooMany(3600);
 
     const form = await req.formData().catch(() => null);
