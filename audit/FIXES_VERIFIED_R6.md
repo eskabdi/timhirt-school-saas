@@ -738,7 +738,7 @@ Verdict: `audit/evidence/reviews/wp02-release-gatekeeper.md`.
 | Finding | Severity | Status |
 |---|---|---|
 | GK-1: the post-round-3 fixes (`853c371`, `b5779d4`, `98b78e3`) were reviewed only by the gatekeeper; §0A.1 allows no 4th round | major (process) | **Owner decision B6** (`docs/OWNER_ACTIONS.md`); the gatekeeper recommends A. |
-| GK-2: the path-triggered supply-chain (ci.yml) and frontend-security (`useSecuritySettings`) reviewers never ran | major (process) | Both run on `1700e73`; verdicts `wp02-r4-*.md`. |
+| GK-2: the path-triggered supply-chain (ci.yml) and frontend-security (`useSecuritySettings`) reviewers never ran | major (process) | **Closed.** Both ran on `1700e73` and PASSED (`wp02-r4-supply-chain-reviewer.md`, `wp02-r4-frontend-security-reviewer.md`). SC-1 (the bench script now refuses non-harness targets) fixed in `f42c6e0`; the other minors are in the backlog. |
 | GK-3: has_module's suspended-tenant clause is untested | minor | Fixed: a suspended tenant's admin gets no module and the default window (definer_lockdown 60/60). |
 | GK-4: stale sentence in the round-3 table | minor | Removed. |
 | GK-5: catalog #9 passes one conforming copy alongside one deviant copy | info | Fixed: #9 now requires every `current_setting('role'` occurrence to use the list; a planted mixed function fails it. |

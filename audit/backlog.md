@@ -87,3 +87,8 @@
 | WP-09 | Registered but not yet wired: admission_payment_accept (WP-04), payment_verify / payment_reversal / school_bank_account_change / unclaimed_receipt_assign (WP-03), privileged_role_grant / mfa_reset / impersonate_minor_account (WP-07), bank_transfer_export (WP-12), student_withdrawal (WP-14), timetable_publish (WP-15), tenant_activation / tenant_slug_change (WP-20). | per WP |
 | WP-01 gate re-run GK-R4-2 | Fee structures has no committed component test for the failed-load gate (GK-1/GK-5); the gatekeeper verified it with a scratch test. Add one like `BrandingPage.test.tsx`. | WP-12 |
 | WP-01 review PAY-4 (gate GK-R4-3) | `csvCell` formula-injection guard should also check `trimStart()` and the full-width `＝`. | WP-12 |
+| WP-02 frontend FE-1 | Until the security-settings query succeeds (or when it errors), the invite and change-password forms validate against the built-in default policy without saying so. Expose a `policyReady` state and keep submit disabled until the real policy has loaded; server-side enforcement (FE-3) is the real control. | WP-07 |
+| WP-02 frontend FE-2 | `useSecuritySettings` tests do not cover a user switch without sign-out, or that the platform page's `["security-settings"]` invalidation still refetches the per-user key. | WP-07 |
+| WP-02 frontend FE-3 | Password policy is enforced only in the browser; set `minimum_password_length`/`password_requirements` in Supabase Auth. | WP-07 (§7.2) |
+| WP-02 frontend FE-4 | Each `useSecuritySettings()` call adds its own `useSession()` subscription; read the user id from shared session state. | WP-14 |
+| WP-02 supply-chain SC-2 | `app-rpc-grants.py` sees only literal RPC names; fail on a non-literal `.rpc(` outside the allow-listed dashboard wrapper. | WP-12 |

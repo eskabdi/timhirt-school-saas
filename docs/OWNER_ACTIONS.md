@@ -87,8 +87,8 @@ Last updated: 2026-09-26 (WP-01 round 3; WP-02 and WP-09 in progress).
   The gatekeeper tested every changed line by breaking it on purpose,
   re-measured the performance, found nothing open in the code, and
   recommends **A**. Choose: **A)** accept the gatekeeper's review, which
-  makes WP-02 PASS once the two extra reviewers (supply-chain,
-  frontend-security) pass, or **B)** order one targeted re-review by the
+  makes WP-02 PASS (the two extra reviewers, supply-chain and
+  frontend-security, have both passed), or **B)** order one targeted re-review by the
   security, tenant-isolation, performance and INSA-docs reviewers. Tell
   Claude "B6 A" or "B6 B". It also recommends accepting WP-02's documented
   deviations from the plan text and its residual risks (listed in
