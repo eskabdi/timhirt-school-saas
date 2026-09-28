@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { tField } from "@/lib/i18n";
 import { useSession } from "@/features/auth/useSession";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
@@ -209,9 +210,11 @@ function ApprovalCard({ request: r, myId, onDecided }: { request: ApprovalReques
 }
 
 function DiffValue({ row, side }: { row: DiffRow; side: "from" | "to" }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const v = row[side];
   if (v === null || v === undefined || v === "") return <span className="text-ink-soft">—</span>;
+  // Names stored as {en, am, om} (exam, subject).
+  if (typeof v === "object" && !Array.isArray(v)) return <>{tField(v as Record<string, string>, i18n.resolvedLanguage ?? "en")}</>;
   if (row.field === "transferred_on" && typeof v === "string") return <EthDate value={v} />;
   if (row.field === "status" && typeof v === "string") return <>{t(`approvals.value.${v}`, { defaultValue: v })}</>;
   return <>{String(v)}</>;

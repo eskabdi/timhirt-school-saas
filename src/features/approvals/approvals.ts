@@ -69,7 +69,8 @@ export const APPROVAL_ERRORS = [
   "invoice_void", "approval_not_needed", "invalid_score", "invalid_remark", "no_change",
   "invalid_state", "invalid_transferred_to", "invalid_transferred_on", "reason_too_long",
   "invalid_settings", "amount_exceeds_balance", "invoice_amounts_locked", "results_published_locked",
-  "approval_settings_rpc_only", "grade_exists",
+  "approval_settings_rpc_only", "grade_exists", "approval_action_unavailable", "invalid_changes",
+  "results_unpublish_blocked", "no_tenant",
 ] as const;
 export type ApprovalErrorKey = (typeof APPROVAL_ERRORS)[number] | "unknown";
 

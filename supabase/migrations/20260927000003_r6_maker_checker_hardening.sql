@@ -594,11 +594,13 @@ begin
       'to',   jsonb_build_object('status', 'void'));
 
   elsif p_action = 'grade_edit_after_publish' then
-    select g.id, g.exam_id, g.score, g.remark, s.class_id, e.max_score
+    select g.id, g.exam_id, g.student_id, g.subject_id, g.score, g.remark, s.class_id, e.max_score,
+           s.first_name, s.middle_name, s.last_name, e.name_i18n as exam_name, sj.name_i18n as subject_name
       into r
       from public.grades g
-      join public.students s on s.id = g.student_id
-      join public.exams e on e.id = g.exam_id
+      join public.students s on s.id = g.student_id and s.tenant_id = g.tenant_id
+      join public.exams e on e.id = g.exam_id and e.tenant_id = g.tenant_id
+      join public.subjects sj on sj.id = g.subject_id and sj.tenant_id = g.tenant_id
      where g.id = p_entity_id and g.tenant_id = v_tenant;
     if r.id is null or not (coalesce(public.has_resource_permission(v_uid, 'grades', 'update'), false)
                             or public.is_teacher_of_class(r.class_id)) then
@@ -625,7 +627,11 @@ begin
     if v_score = r.score and v_remark is not distinct from r.remark then
       raise exception 'no_change' using errcode = '22023';
     end if;
+    -- The checker sees whose grade, in which exam and subject (review CQ-2).
     v_payload := jsonb_build_object(
+      'student', concat_ws(' ', r.first_name, r.middle_name, r.last_name),
+      'exam', r.exam_name, 'subject', r.subject_name,
+      'exam_id', r.exam_id, 'student_id', r.student_id, 'subject_id', r.subject_id,
       'from', jsonb_build_object('score', r.score, 'remark', r.remark),
       'to',   jsonb_build_object('score', v_score, 'remark', v_remark));
 
@@ -643,7 +649,8 @@ begin
       raise exception 'invalid_changes' using errcode = '22023';
     end;
     select e.id, e.max_score, e.class_id as exam_class, s.class_id, s.status::text as student_status,
-           s.first_name, s.middle_name, s.last_name
+           s.first_name, s.middle_name, s.last_name, e.name_i18n as exam_name,
+           (select sj.name_i18n from public.subjects sj where sj.id = v_subject and sj.tenant_id = v_tenant) as subject_name
       into r
       from public.exams e
       join public.students s on s.id = v_student and s.tenant_id = v_tenant
@@ -676,6 +683,7 @@ begin
     v_entity := md5('grade_entry:' || r.id || ':' || v_student || ':' || v_subject)::uuid;
     v_payload := jsonb_build_object(
       'student', concat_ws(' ', r.first_name, r.middle_name, r.last_name),
+      'exam', r.exam_name, 'subject', r.subject_name,
       'exam_id', r.id, 'student_id', v_student, 'subject_id', v_subject,
       'from', jsonb_build_object('score', null, 'remark', null),
       'to',   jsonb_build_object('score', v_score, 'remark', v_remark));
@@ -809,6 +817,23 @@ begin
   end if;
 
   update public.approval_requests set status = 'executed', executed_at = now() where id = p_id;
+
+  -- An approved manual payment tells the student and their guardians, as
+  -- record-fee-payment does for one that needs no approval (review CQ-1).
+  -- The unique index (recipient, kind, payment) makes it idempotent.
+  if r.action = 'manual_payment_accept' then
+    insert into public.portal_notifications (tenant_id, recipient_id, student_id, kind, invoice_id, payment_id, amount)
+    select r.tenant_id, u.user_id, h.student_id, 'payment_received', h.id, v_pay.id, v_pay.amount
+      from public.invoice_headers h
+      cross join lateral (
+        select s.user_id from public.students s
+         where s.id = h.student_id and s.tenant_id = r.tenant_id and s.user_id is not null
+        union
+        select g.user_id from public.guardians g
+         where g.student_id = h.student_id and g.tenant_id = r.tenant_id and g.user_id is not null) u
+     where h.id = v_pay.invoice_id and h.tenant_id = r.tenant_id
+    on conflict do nothing;
+  end if;
 end $$;
 
 -- ----------------------------------------------------------------- decide --
@@ -925,6 +950,25 @@ revoke truncate on public.grades, public.exams, public.students, public.subjects
 -- DB-R2-1: the composite FK and the per-insert balance and running-total
 -- scans read payments by invoice.
 create index payments_invoice_tenant_idx on public.payments (invoice_id, tenant_id);
+-- Round 3 (TV-2, SEC-R3b-2): a payment's status and amount change only in
+-- definer code (approval, settlement, expiry). Clients had no UPDATE/DELETE
+-- policy on payments; now they also lack the privilege, and a guard refuses
+-- the write outright should a policy ever be added. The same for grades
+-- DELETE (published grades are corrected only by request).
+revoke update, delete on public.payments from anon, authenticated;
+revoke delete on public.grades from anon, authenticated;
+create function public.payments_client_write_guard()
+returns trigger language plpgsql set search_path = public, pg_temp as $$
+begin
+  if current_user not in ('postgres', 'service_role', 'supabase_admin') then
+    raise exception 'approval_required' using errcode = '42501',
+      hint = 'A payment changes only through an approved request or the payment provider.';
+  end if;
+  return coalesce(new, old);
+end $$;
+revoke execute on function public.payments_client_write_guard() from public, anon, authenticated;
+create trigger payments_client_write_guard before update or delete on public.payments
+  for each row execute function public.payments_client_write_guard();
 
 -- ------------------------------------------------------------------ grants --
 revoke execute on function

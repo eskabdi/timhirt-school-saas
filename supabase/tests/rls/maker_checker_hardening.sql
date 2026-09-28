@@ -4,7 +4,7 @@
 -- assertion. IDs in the descriptions are the review findings.
 -- ============================================================================
 begin;
-select plan(73);
+select plan(81);
 
 insert into auth.users (id, email) values
   ('0000000f-0000-0000-0000-0000000a0001', 'mh-admin1@example.test'),
@@ -12,7 +12,9 @@ insert into auth.users (id, email) values
   ('0000000f-0000-0000-0000-0000000a0003', 'mh-acc1@example.test'),
   ('0000000f-0000-0000-0000-0000000a0004', 'mh-acc2@example.test'),
   ('0000000f-0000-0000-0000-0000000b0001', 'mh-adminb@example.test'),
-  ('0000000f-0000-0000-0000-0000000a0009', 'mh-reg@example.test');
+  ('0000000f-0000-0000-0000-0000000a0009', 'mh-reg@example.test'),
+  ('0000000f-0000-0000-0000-0000000a0010', 'mh-teacher@example.test'),
+  ('0000000f-0000-0000-0000-0000000a0011', 'mh-parent@example.test');
 insert into public.tenants (id, name, slug, status, tier_key) values
   ('0000000f-0000-0000-0000-00000000000a', 'MH Tenant A', 'mh-a', 'active', 'premium'),
   ('0000000f-0000-0000-0000-00000000000b', 'MH Tenant B', 'mh-b', 'active', 'premium');
@@ -22,7 +24,9 @@ insert into public.users (id, tenant_id, role, full_name, email) values
   ('0000000f-0000-0000-0000-0000000a0003', '0000000f-0000-0000-0000-00000000000a', 'accountant',   'MH Acc One',   'mh-acc1@example.test'),
   ('0000000f-0000-0000-0000-0000000a0004', '0000000f-0000-0000-0000-00000000000a', 'accountant',   'MH Acc Two',   'mh-acc2@example.test'),
   ('0000000f-0000-0000-0000-0000000b0001', '0000000f-0000-0000-0000-00000000000b', 'school_admin', 'MH Admin B',   'mh-adminb@example.test'),
-  ('0000000f-0000-0000-0000-0000000a0009', '0000000f-0000-0000-0000-00000000000a', 'registrar',    'MH Reg Cashier', 'mh-reg@example.test');
+  ('0000000f-0000-0000-0000-0000000a0009', '0000000f-0000-0000-0000-00000000000a', 'registrar',    'MH Reg Cashier', 'mh-reg@example.test'),
+  ('0000000f-0000-0000-0000-0000000a0010', '0000000f-0000-0000-0000-00000000000a', 'teacher',      'MH Teacher',   'mh-teacher@example.test'),
+  ('0000000f-0000-0000-0000-0000000a0011', '0000000f-0000-0000-0000-00000000000a', 'parent',       'MH Parent',    'mh-parent@example.test');
 -- A registrar made a cashier: may record payments and add fee lines, but
 -- (role-based SELECT policies) reads no payments and, here, no fee lines.
 insert into public.user_permission_overrides (tenant_id, user_id, permission_id, granted)
@@ -384,6 +388,52 @@ select has_index('public', 'payments', 'payments_invoice_tenant_idx', 'DB-R2-1: 
 select ok(not has_table_privilege('authenticated', 'public.grades', 'TRUNCATE')
           and not has_table_privilege('authenticated', 'public.approval_requests', 'TRUNCATE'),
   'SEC-R2-4: clients cannot TRUNCATE the tables WP-09 protects');
+
+
+-- TV-1: deciding needs <resource>:approve (a same-tenant user without it,
+-- on a real pending request, is refused and nothing is credited).
+select pg_temp.act_as('0000000f-0000-0000-0000-0000000a0010');
+select throws_ok(format('select public.decide_approval(%L, %L, %L)',
+                        (pg_temp.req('0000000f-0000-0000-000b-000000000082')).id, 'approved',
+                        (pg_temp.req('0000000f-0000-0000-000b-000000000082')).payload_hash),
+  '42501', 'not_allowed', 'TV-1: a teacher (no invoices:approve) cannot approve a payment');
+reset role;
+select is((select status::text from public.payments where id = '0000000f-0000-0000-000b-000000000082'), 'pending',
+  'TV-1: ... and the payment stays parked');
+
+-- TV-2: a client cannot mark a parked payment succeeded (no privilege, and
+-- a guard trigger behind it).
+select pg_temp.act_as('0000000f-0000-0000-0000-0000000a0003');
+select throws_ok($$ update public.payments set status = 'succeeded' where id = '0000000f-0000-0000-000b-000000000082' $$,
+  '42501', null, 'TV-2: a client UPDATE of a payment is refused');
+reset role;
+select has_trigger('public', 'payments', 'payments_client_write_guard', 'TV-2: payments carry the client write guard');
+
+-- CQ-1: an approved manual payment notifies the student's guardians.
+insert into public.guardians (tenant_id, student_id, user_id, relationship) values
+  ('0000000f-0000-0000-0000-00000000000a', '0000000f-0000-0000-0005-000000000001', '0000000f-0000-0000-0000-0000000a0011', 'mother');
+select pg_temp.act_as('0000000f-0000-0000-0000-0000000a0001');
+select is(public.decide_approval((pg_temp.req('0000000f-0000-0000-000b-000000000082')).id, 'approved',
+                                 (pg_temp.req('0000000f-0000-0000-000b-000000000082')).payload_hash),
+  'executed', 'an admin approves the parked payment');
+reset role;
+select is((select count(*)::int from public.portal_notifications
+            where recipient_id = '0000000f-0000-0000-0000-0000000a0011' and kind = 'payment_received'
+              and payment_id = '0000000f-0000-0000-000b-000000000082'), 1,
+  'CQ-1: ... and the guardian gets a payment_received notice');
+
+-- CQ-2: a grade correction shows the checker whose grade, which exam and subject.
+select pg_temp.act_as('0000000f-0000-0000-0000-0000000a0001');
+select lives_ok($$ select public.submit_approval('grade_edit_after_publish', '0000000f-0000-0000-0007-000000000001', '{"score":55}', 'marking error') $$,
+  'a published grade correction is requested');
+reset role;
+select is((select jsonb_build_object('student', payload -> 'student', 'exam', payload -> 'exam', 'subject', payload -> 'subject')
+             from public.approval_requests where action = 'grade_edit_after_publish'
+              and entity_id = '0000000f-0000-0000-0007-000000000001' and status = 'pending'),
+  jsonb_build_object('student', 'Abebe Kebede Tadesse',
+                     'exam', (select name_i18n from public.exams where id = '0000000f-0000-0000-0006-000000000001'),
+                     'subject', '{"en": "Math"}'::jsonb),
+  'CQ-2: the request names the student, exam and subject');
 
 select * from finish();
 rollback;

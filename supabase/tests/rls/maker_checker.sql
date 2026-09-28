@@ -238,7 +238,8 @@ select throws_ok($$ select public.submit_approval('grade_edit_after_publish', '0
   '22023', 'invalid_score', 'a proposed score above the exam maximum is refused');
 select isnt(public.submit_approval('grade_edit_after_publish', '0000000e-0000-0000-0007-000000000001', '{"score": 90}', 'Marking error on Q4'), null,
   'admin one requests 72 -> 90');
-select is((select payload from public.approval_requests where action = 'grade_edit_after_publish' and status = 'pending'),
+select is((select payload - 'student' - 'exam' - 'subject' - 'exam_id' - 'student_id' - 'subject_id'
+             from public.approval_requests where action = 'grade_edit_after_publish' and status = 'pending'),
   '{"to": {"score": 90, "remark": null}, "from": {"score": 72.00, "remark": null}}'::jsonb,
   'the stored payload is built by the server from the current grade, not taken from the client');
 select throws_ok($$ select public.decide_approval((select id from public.approval_requests where action = 'grade_edit_after_publish' and status = 'pending'), 'approved',

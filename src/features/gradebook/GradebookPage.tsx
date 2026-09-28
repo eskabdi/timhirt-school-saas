@@ -124,7 +124,17 @@ export function GradebookPage() {
                     <input type="number" min={0} max={selectedExam?.max_score ?? undefined} aria-label={t("gradebook.scoreFor", { name: fullName(s) })}
                       className="w-20 rounded-control border border-line bg-card px-2 py-1 text-sm text-ink"
                       value={scores[s.id] ?? existing?.get(s.id)?.score ?? ""}
-                      onChange={(e) => { save.reset(); setScores((sc) => ({ ...sc, [s.id]: Number(e.target.value) })); }} />
+                      onChange={(e) => {
+                        save.reset();
+                        const raw = e.target.value;
+                        // An emptied box is "no edit", not a score of 0 (review CQ-4).
+                        setScores((sc) => {
+                          const next = { ...sc };
+                          if (raw === "") delete next[s.id];
+                          else next[s.id] = Number(raw);
+                          return next;
+                        });
+                      }} />
                   </td>
                 </tr>
               ))}

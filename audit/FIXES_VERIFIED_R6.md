@@ -834,3 +834,14 @@ Payments and db migration PASS (`audit/evidence/reviews/wp09-r3-{pay,db}.md`); s
 | DB-R3-1 | Info | Forward-fix note: check provider_ref duplicates across all schools, failed rows included, before restoring the global index. |
 | PAY-R3-2, PAY-R3-3 | Info | `set local lock_timeout` works only inside the deploy wrapper's transaction (as used); the race fixes are covered by recorded two-session probes, not by pgTAP (backlog). |
 
+Re-review of the fix (`a6d673e`): security re-check PASS (`wp09-r3b-sec.md`), state/concurrency PASS with a 9-worker deadlock stress run (`wp09-r3-sc.md`). First core reviewers on the same commit: code quality FAIL (`wp09-cq.md`), test verifier FAIL (`wp09-tv.md`); fixed as below, 8 new assertions (81 in the suite; the 4 behavioural ones fail on `a6d673e`).
+
+| Findings | Severity | Fix |
+|---|---|---|
+| CQ-1 | Medium | `execute_approval` writes the `payment_received` portal notification for the student and guardians when it credits an approved manual payment (idempotent on the existing unique index). |
+| CQ-2 | Medium | `grade_edit_after_publish` (and `grade_entry_after_publish`) payloads carry the student's full name and the exam and subject names; the inbox renders `{en,am,om}` names in the reader's language. |
+| TV-1 | Medium | New assertion: a same-tenant teacher (no `invoices:approve`) deciding a real pending payment request gets `not_allowed`, and the payment stays parked. |
+| TV-2 = SEC-R3b-2 | Medium/Info | UPDATE/DELETE on `payments` and DELETE on `grades` revoked from clients, and a `payments_client_write_guard` trigger refuses a client write should a policy ever be added; asserted. |
+| CQ-4, CQ-5 (codes) | Low | An emptied gradebook box is "no edit", not 0; four more server codes have translated messages. |
+| CQ-3, CQ-5 (rest), CQ-6, CQ-7, TV-3, TV-5, SC-R3-1, SC-R3-2 | Low/Info | Backlog. |
+
