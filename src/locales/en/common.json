@@ -66,7 +66,7 @@
     "paidOn": "Paid on",
     "paymentProvider": { "cash": "Cash", "bank": "Bank transfer", "chapa": "Chapa", "telebirr": "Telebirr", "stripe": "Card" },
     "paymentStatus": { "succeeded": "Succeeded", "pending": "Pending", "failed": "Failed", "refunded": "Refunded" },
-    "errors": { "invalidAmount": "Enter a valid amount", "overpayment": "Amount exceeds the outstanding balance", "duplicateReference": "This receipt or bank reference is already recorded for another payment.", "documentFailed": "Could not generate the document. Try again." },
+    "errors": { "invalidAmount": "Enter a valid amount", "overpayment": "Amount exceeds the outstanding balance", "duplicateReference": "This receipt or bank reference is already recorded for another payment.", "invoiceChangedRetry": "An invoice changed while generating. Nothing was created; generate again.", "documentFailed": "Could not generate the document. Try again." },
     "balance": "Balance", "totalBilled": "Total billed", "totalPaid": "Total paid", "outstanding": "Outstanding", "lineCount": "{count, plural, one {# fee item} other {# fee items}}",
     "downloadInvoice": "Invoice (PDF)", "downloadReceipt": "Receipt (PDF)", "receipt": "Receipt", "generating": "Generating…",
     "termLabel": "{term}, {year} E.C.", "exportReport": "Export Report", "generateInvoices": "Generate Invoices",

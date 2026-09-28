@@ -823,3 +823,14 @@ Tenant isolation FAILED at `28ee1ba` (TI-R2-1) and authz passed with two Low fin
 | SC-R2-3 | Low | The gradebook keeps a row whose correction is already waiting and says so (withdraw it to change it). |
 | SEC-R2-3, SC-R2-4, SC-R2-5, PAY-R2-5 | Info | Backlog: WP-14 `student_withdrawal` covers every status leaving active; trusted-role writes to a decided request; WP-16 scheduler; splitting across days or headers is outside the per-invoice-day rule. |
 
+### WP-09 review round 3 (at `b260bf2`, the last round allowed)
+
+Payments and db migration PASS (`audit/evidence/reviews/wp09-r3-{pay,db}.md`); security FAIL on one Medium (`wp09-r3-sec.md`), fixed below. The state/concurrency reviewer was cut off by a usage limit and is re-run on the fix commit. Every round-2 finding in these areas was re-verified fixed by the reviewers' probes, including both two-session races.
+
+| Findings | Severity | Fix |
+|---|---|---|
+| SEC-R3-1 | Medium | A client chose `payments.created_at`, so back-dated splits fell outside "today". `payments_reject_void_invoice` now sets `created_at = now()` and `paid_at` (now, or null while parked) for every client insert. Two new assertions (73 in the suite) fail on `b260bf2` and pass after the fix. |
+| SEC-R3-2 = PAY-R3-1 | Info/Low | `generate-fee-invoices` answers 409 `invoice_changed_retry` when a chosen invoice was voided meanwhile (nothing written); both generate screens say so in en/am/om. |
+| DB-R3-1 | Info | Forward-fix note: check provider_ref duplicates across all schools, failed rows included, before restoring the global index. |
+| PAY-R3-2, PAY-R3-3 | Info | `set local lock_timeout` works only inside the deploy wrapper's transaction (as used); the race fixes are covered by recorded two-session probes, not by pgTAP (backlog). |
+

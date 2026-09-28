@@ -122,7 +122,8 @@ function GenerateInvoicesModal({ open, onClose, onGenerated }: {
             {t("fees.generateResult", { created: result.created, skipped: result.skipped, total: result.total })}
           </p>
         )}
-        {generate.isError && <p role="alert" className="text-sm text-danger">{generate.error instanceof Error ? generate.error.message : t("fees.payFailed")}</p>}
+        {generate.isError && <p role="alert" className="text-sm text-danger">{generate.error instanceof Error && generate.error.message === "invoice_changed_retry" ? t("fees.errors.invoiceChangedRetry")
+          : generate.error instanceof Error ? generate.error.message : t("fees.payFailed")}</p>}
 
         <div className="flex justify-end gap-2">
           <Button variant="ghost" onClick={close}>{t("common.cancel")}</Button>

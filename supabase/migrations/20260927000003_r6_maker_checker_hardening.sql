@@ -80,7 +80,9 @@
 --   * the provider_ref indexes: drop payments_provider_ref_uq and
 --     payments_manual_ref_uq and re-create the single global index
 --     `payments_provider_ref_uq on payments (provider_ref) where provider_ref
---     is not null` (20260713000010) -- check for per-school duplicates first;
+--     is not null` (20260713000010) -- first check that `select provider_ref
+--     from payments where provider_ref is not null group by 1 having count(*) > 1`
+--     returns no rows (across all schools, failed rows included);
 --   * the approval_requests checks: re-create status_check and
 --     decided_has_checker from 20260927000002 and drop
 --     approval_requests_tenant_scope (after removing 'cancelled' rows);
@@ -271,6 +273,13 @@ begin
     from public.fee_invoices where invoice_header_id = new.invoice_id and tenant_id = new.tenant_id;
   if v_lines > 0 and v_open = 0 then
     raise exception 'invoice_void' using errcode = '22023';
+  end if;
+  if v_client then
+    -- The client does not choose the record's dates: a back-dated or
+    -- forward-dated created_at would fall outside "today" and dodge the
+    -- running total below (review SEC-R3-1).
+    new.created_at := now();
+    new.paid_at := case when new.status = 'succeeded' then now() end;
   end if;
   if v_client and new.provider in ('cash', 'bank') then
     select coalesce(sum(amount), 0) into v_pending from public.payments

@@ -158,6 +158,9 @@ Deno.serve(async (req) => {
     }));
 
     const { error: insErr } = await admin.from("fee_invoices").insert(rows);
+    // A header chosen above was voided meanwhile (fee_invoices_header_open_check):
+    // nothing was written; running it again gives that student a new header.
+    if (insErr && /invoice_void/.test(insErr.message ?? "")) return json({ error: "invoice_changed_retry" }, 409);
     if (insErr) throw insErr;
 
     return json({

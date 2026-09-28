@@ -4,7 +4,7 @@
 -- assertion. IDs in the descriptions are the review findings.
 -- ============================================================================
 begin;
-select plan(71);
+select plan(73);
 
 insert into auth.users (id, email) values
   ('0000000f-0000-0000-0000-0000000a0001', 'mh-admin1@example.test'),
@@ -60,16 +60,16 @@ update public.academic_terms set results_published = true where id = '0000000f-0
 insert into public.fee_structures (id, tenant_id, name_i18n, amount, billing_cycle) values
   ('0000000f-0000-0000-0008-000000000001', '0000000f-0000-0000-0000-00000000000a', '{"en":"Tuition"}', 800, 'monthly'),
   ('0000000f-0000-0000-0008-0000000000b1', '0000000f-0000-0000-0000-00000000000b', '{"en":"Tuition"}', 4000, 'monthly');
--- Headers 1-7 in A (one per scenario), 9 in B.
+-- Headers 1-8 in A (one per scenario), 9 in B.
 insert into public.invoice_headers (id, tenant_id, student_id, due_date)
 select ('0000000f-0000-0000-0009-00000000000' || n)::uuid, '0000000f-0000-0000-0000-00000000000a', '0000000f-0000-0000-0005-000000000001', '2026-08-01'
-from generate_series(1, 7) n;
+from generate_series(1, 8) n;
 insert into public.invoice_headers (id, tenant_id, student_id, due_date) values
   ('0000000f-0000-0000-0009-000000000009', '0000000f-0000-0000-0000-00000000000b', '0000000f-0000-0000-0005-0000000000b1', '2026-08-01');
 insert into public.fee_invoices (id, tenant_id, student_id, fee_structure_id, amount_due, due_date, invoice_header_id)
 select ('0000000f-0000-0000-000a-00000000000' || n)::uuid, '0000000f-0000-0000-0000-00000000000a', '0000000f-0000-0000-0005-000000000001',
        '0000000f-0000-0000-0008-000000000001', 800, '2026-08-01', ('0000000f-0000-0000-0009-00000000000' || n)::uuid
-from generate_series(1, 7) n;
+from generate_series(1, 8) n;
 insert into public.fee_invoices (id, tenant_id, student_id, fee_structure_id, amount_due, due_date, invoice_header_id) values
   ('0000000f-0000-0000-000a-000000000009', '0000000f-0000-0000-0000-00000000000b', '0000000f-0000-0000-0005-0000000000b1',
    '0000000f-0000-0000-0008-0000000000b1', 4000, '2026-08-01', '0000000f-0000-0000-0009-000000000009');
@@ -197,6 +197,20 @@ select is((select array_agg(status::text order by id) from public.payments where
   array['succeeded', 'pending'], 'SEC-R2-1: ... and cannot split past the threshold either');
 select is((select count(*)::int from public.approval_requests where entity_id = '0000000f-0000-0000-000b-000000000072'), 1,
   'SEC-R2-1: ... the second payment files its approval request');
+-- SEC-R3-1: back-dated splits do not take payments out of "today".
+select pg_temp.act_as('0000000f-0000-0000-0000-0000000a0003');
+insert into public.payments (id, tenant_id, invoice_id, amount, provider, status, created_at, paid_at) values
+  ('0000000f-0000-0000-000b-000000000081', '0000000f-0000-0000-0000-00000000000a', '0000000f-0000-0000-0009-000000000008',
+   300, 'cash', 'succeeded', '2026-01-01', '2026-01-01');
+insert into public.payments (id, tenant_id, invoice_id, amount, provider, status, created_at, paid_at) values
+  ('0000000f-0000-0000-000b-000000000082', '0000000f-0000-0000-0000-00000000000a', '0000000f-0000-0000-0009-000000000008',
+   300, 'cash', 'succeeded', '2026-01-02', '2026-01-02');
+reset role;
+select is((select array_agg(status::text order by id) from public.payments where invoice_id = '0000000f-0000-0000-0009-000000000008'),
+  array['succeeded', 'pending'], 'SEC-R3-1: back-dated splits still count toward today''s total');
+select ok((select bool_and(created_at = now()) and bool_and((paid_at is null) = (status = 'pending'))
+           from public.payments where invoice_id = '0000000f-0000-0000-0009-000000000008'),
+  'SEC-R3-1: ... the client does not choose created_at or paid_at');
 select pg_temp.act_as('0000000f-0000-0000-0000-0000000a0001');
 select lives_ok($$ select public.set_approval_settings(true, 0) $$, '(threshold back to 0)');
 reset role;
