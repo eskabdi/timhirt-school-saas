@@ -4,7 +4,7 @@
 -- assertion. IDs in the descriptions are the review findings.
 -- ============================================================================
 begin;
-select plan(81);
+select plan(82);
 
 insert into auth.users (id, email) values
   ('0000000f-0000-0000-0000-0000000a0001', 'mh-admin1@example.test'),
@@ -388,6 +388,9 @@ select has_index('public', 'payments', 'payments_invoice_tenant_idx', 'DB-R2-1: 
 select ok(not has_table_privilege('authenticated', 'public.grades', 'TRUNCATE')
           and not has_table_privilege('authenticated', 'public.approval_requests', 'TRUNCATE'),
   'SEC-R2-4: clients cannot TRUNCATE the tables WP-09 protects');
+select ok(not has_function_privilege('authenticated', 'public.approval_required(uuid, text, numeric)', 'EXECUTE')
+          and not has_function_privilege('anon', 'public.approval_required(uuid, text, numeric)', 'EXECUTE'),
+  'INSA-1: clients cannot probe the approval threshold through approval_required');
 
 
 -- TV-1: deciding needs <resource>:approve (a same-tenant user without it,

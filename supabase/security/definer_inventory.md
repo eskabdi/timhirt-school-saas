@@ -12,7 +12,7 @@ The reviewed grant list is `definer_allowlist.sql`; `catalog_definer_security.sq
 |---|---|---|---|---|---|---|---|
 | `acknowledge_alert(uuid)` | Private (authenticated) | authenticated service_role | 0 | 0 | HealthMonitoringPage.tsx | — | `search_path=public, pg_temp` |
 | `apply_payment_to_invoice()` | Trigger-only | service_role | 0 | 2 | — | — | `search_path=public, pg_temp` |
-| `approval_required(uuid,text,numeric)` | Private (authenticated) | authenticated service_role | 0 | 0 | — | — | `search_path=public, pg_temp` |
+| `approval_required(uuid,text,numeric)` | Internal (service_role) | service_role | 0 | 0 | — | — | `search_path=public, pg_temp` |
 | `attendance_guard()` | Trigger-only | service_role | 0 | 1 | — | — | `search_path=public, pg_temp` |
 | `attendance_notify_guardians()` | Trigger-only | service_role | 0 | 1 | — | — | `search_path=public, pg_temp` |
 | `attendance_retroactive_edit_window_days(uuid)` | Private (authenticated) | authenticated service_role | 1 | 0 | — | — | `search_path=public, pg_temp` |

@@ -42,7 +42,6 @@ insert into definer_allowlist values
   ('cancel_approval(uuid)', 'authenticated', 'Maker withdraws their own pending request; own tenant, maker only'),
   ('decide_approval(uuid,text,text,text)', 'authenticated', 'Checker decides; own tenant, <resource>:approve, never the maker, payload hash must match'),
   ('set_approval_settings(boolean,numeric)', 'authenticated', 'Approval rules page; school_admin, own tenant, merges only settings.approvals'),
-  ('approval_required(uuid,text,numeric)', 'authenticated', 'Called by the invoker payments gate as the inserting user; answers only for the caller''s tenant'),
   ('exam_results_published(uuid)', 'authenticated', 'Called by the invoker grades gate as the editing user; answers only for the caller''s tenant'),
   ('get_tenant_id_for_user(uuid)', 'timhirt_view_owner', 'hr_sensitive_view_read / clinic_detail_view_read run as the view owner'),
   ('get_role_for_user(uuid)', 'timhirt_view_owner', 'same view policies'),

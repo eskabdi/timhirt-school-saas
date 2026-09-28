@@ -957,6 +957,11 @@ create index payments_invoice_tenant_idx on public.payments (invoice_id, tenant_
 -- DELETE (published grades are corrected only by request).
 revoke update, delete on public.payments from anon, authenticated;
 revoke delete on public.grades from anon, authenticated;
+-- INSA-1: the only caller of approval_required is now the definer trigger
+-- payments_reject_void_invoice (the invoker payments gate is dropped above), so
+-- a client no longer needs it; left granted, any student or parent could probe
+-- their school's threshold amount by amount.
+revoke execute on function public.approval_required(uuid, text, numeric) from authenticated;
 create function public.payments_client_write_guard()
 returns trigger language plpgsql set search_path = public, pg_temp as $$
 begin

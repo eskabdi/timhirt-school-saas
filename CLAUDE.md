@@ -5,9 +5,9 @@ TanStack Query on Supabase (Postgres + RLS + Edge Functions + Storage), no
 custom API server.
 
 > **Deployed state (verified 2026-09-27):** production runs the R6 WP-01 frontend
-> (`c4ecfac`, served `<meta name="app-commit">`) and 111 of the repo's 113
+> (`c4ecfac`, served `<meta name="app-commit">`) and 111 of the repo's 114
 > migrations (WP-01 `20260925000002`/`…03` and WP-02 `20260926000001` applied
-> 2026-09-27; WP-09 `20260927000001`/`…02` pending its review). 28/28 Edge
+> 2026-09-27; WP-09 `20260927000001`/`…02`/`…03` pending its review). 28/28 Edge
 > Functions match the repo (names and `verify_jwt`); the 9 WP-01 functions run
 > the `c4ecfac` code. Evidence: `audit/evidence/wp01-wp02-deploy-*.txt`. The
 > staging project (`timhirt-saas-staging`, ref `ekebibapffrhzibidbnr`,
@@ -203,9 +203,14 @@ measuring nothing. Prove a gate fails before trusting that it passed.
   threshold, voiding an invoice, changing a grade after results are published
   and transferring a student out go through `approval_requests`
   (`submit_approval` → `decide_approval`); the database refuses the direct
-  write from a client. The enforcement triggers are SECURITY INVOKER and trust
-  only `current_user` in (`postgres`, `service_role`, `supabase_admin`), i.e. a
-  definer RPC or the service key; every other role is a client. Invoice
+  write from a client. Two kinds of enforcement trigger. The SECURITY INVOKER ones
+  (grades, students, invoice amounts and status, the payment write guard)
+  trust only `current_user` in (`postgres`, `service_role`, `supabase_admin`),
+  i.e. a definer RPC or the service key. The SECURITY DEFINER ones
+  (`payments_reject_void_invoice`, `fee_invoices_header_open_check`) see
+  `current_user = postgres` always, so they trust `current_setting('role')` in
+  (`none`, `service_role`, `postgres`, `supabase_admin`) instead; a definer RPC
+  called by a signed-in user is a client there. Every other role is a client. Invoice
   amounts and status are written only by payments and approved requests, and
   an approval re-checks the record it acts on (the state the checker saw)
   under the invoice-header lock: header first, then its lines by created_at. A new
