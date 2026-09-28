@@ -163,13 +163,19 @@ export function InvoiceDetailPage() {
   const [lastReceiptUrl, setLastReceiptUrl] = useState<string | null>(null);
   const [awaitingApproval, setAwaitingApproval] = useState(false);
 
+  // Cash/bank payments still waiting for approval count against the balance
+  // (R6 WP-09); the database refuses a payment beyond it either way.
+  const waitingForApproval = (payments ?? [])
+    .filter((p) => p.status === "pending" && (p.provider === "cash" || p.provider === "bank"))
+    .reduce((s, p) => s + Number(p.amount), 0);
   const remaining = invoice ? Number(invoice.amount_due) - Number(invoice.amount_paid) : 0;
+  const payable = remaining - waitingForApproval;
 
   const recordPayment = useMutation({
     mutationFn: async () => {
       const amt = Number(amount);
       if (!amt || amt <= 0) throw new Error(t("fees.errors.invalidAmount"));
-      if (amt > remaining + 0.01) throw new Error(t("fees.errors.overpayment"));
+      if (Math.round(amt * 100) > Math.round(payable * 100)) throw new Error(t("fees.errors.overpayment"));
       return recordFeePayment({
         invoiceId: id!, amount: amt, provider, reference: reference.trim() || undefined,
         bankVerification: provider === "bank" && bankUrl.trim()
@@ -184,7 +190,12 @@ export function InvoiceDetailPage() {
       qc.invalidateQueries({ queryKey: ["invoice-lines", id] });
       qc.invalidateQueries({ queryKey: ["invoice-payments", id] });
     },
-    onError: (err: unknown) => setManualError(err instanceof Error ? err.message : String(err)),
+    onError: (err: unknown) => {
+      const message = err instanceof Error ? err.message : String(err);
+      setManualError(message === "amount_exceeds_balance" ? t("fees.errors.overpayment")
+        : message === "invoice_void" ? t("approvals.error.invoice_void")
+        : message === "duplicate_reference" ? t("fees.errors.duplicateReference") : message);
+    },
   });
 
   const downloadInvoice = useMutation({
@@ -271,9 +282,9 @@ export function InvoiceDetailPage() {
       {awaitingApproval && (
         <p role="status" className="text-sm text-late">{t("fees.paymentAwaitingApproval")}</p>
       )}
-      {lastReceiptUrl && (
+      {lastReceiptUrl && httpsHref(lastReceiptUrl) && (
         <p className="text-sm text-ok">
-          <a href={lastReceiptUrl} target="_blank" rel="noreferrer" className="hover:underline">{t("fees.receipt")}: {t("fees.downloadReceipt")}</a>
+          <a href={httpsHref(lastReceiptUrl)!} target="_blank" rel="noopener noreferrer" className="hover:underline">{t("fees.receipt")}: {t("fees.downloadReceipt")}</a>
         </p>
       )}
 
@@ -371,7 +382,7 @@ export function InvoiceDetailPage() {
           <PanelHeader title={t("fees.recordPayment")} />
           <div className="space-y-3 p-5">
             <Field label={t("fees.amount")}>
-              <Input type="number" min={0.01} step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder={remaining.toFixed(2)} />
+              <Input type="number" min={0.01} step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder={Math.max(0, payable).toFixed(2)} />
             </Field>
             <Field label={t("fees.provider")}>
               <select value={provider} onChange={(e) => setProvider(e.target.value as "cash" | "bank")}

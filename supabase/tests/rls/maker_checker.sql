@@ -110,12 +110,18 @@ select throws_ok($$ select public.decide_approval((select id from mc_ids), 'appr
   '22023', 'payload_mismatch', 'approving with a hash other than the stored one is refused');
 
 reset role;
+-- Simulates tampering below the triggers (approval_requests_transition_guard
+-- refuses a payload change from any role).
+set local session_replication_role = replica;
 update public.approval_requests set payload = jsonb_set(payload, '{amount}', '12000') where id = (select id from mc_ids);
+set local session_replication_role = origin;
 select pg_temp.act_as('0000000e-0000-0000-0000-0000000a0004');
 select throws_ok($$ select public.decide_approval((select id from mc_ids), 'approved', (select payload_hash from mc_ids)) $$,
   '22023', 'payload_tampered', 'a payload changed after submit is refused');
 reset role;
+set local session_replication_role = replica;
 update public.approval_requests set payload = jsonb_set(payload, '{amount}', '1200.00') where id = (select id from mc_ids);
+set local session_replication_role = origin;
 select is(public.approval_payload_hash((select payload from public.approval_requests where id = (select id from mc_ids))),
   (select payload_hash from mc_ids), '(the payload is restored for the next step)');
 
@@ -153,6 +159,11 @@ select pg_temp.act_as('0000000e-0000-0000-0000-0000000a0003');
 select throws_ok($$ select public.set_approval_settings(true, 1000) $$, '42501', 'not_allowed', 'an accountant cannot change the approval rules');
 select pg_temp.act_as('0000000e-0000-0000-0000-0000000a0001');
 select lives_ok($$ select public.set_approval_settings(true, 1000) $$, 'a school admin sets a 1000 ETB threshold');
+-- The threshold applies to the Addis day's running total on the invoice
+-- (maker_checker_hardening.sql); move the earlier payments to yesterday so
+-- this step sees the single-payment threshold.
+reset role;
+update public.payments set created_at = now() - interval '1 day' where invoice_id = '0000000e-0000-0000-0009-000000000001';
 select pg_temp.act_as('0000000e-0000-0000-0000-0000000a0003');
 insert into public.payments (id, tenant_id, invoice_id, amount, provider, status)
 values ('0000000e-0000-0000-000b-000000000003', '0000000e-0000-0000-0000-00000000000a', '0000000e-0000-0000-0009-000000000001', 400, 'cash', 'succeeded'),
@@ -227,7 +238,8 @@ select throws_ok($$ select public.submit_approval('grade_edit_after_publish', '0
   '22023', 'invalid_score', 'a proposed score above the exam maximum is refused');
 select isnt(public.submit_approval('grade_edit_after_publish', '0000000e-0000-0000-0007-000000000001', '{"score": 90}', 'Marking error on Q4'), null,
   'admin one requests 72 -> 90');
-select is((select payload from public.approval_requests where action = 'grade_edit_after_publish' and status = 'pending'),
+select is((select payload - 'student' - 'exam' - 'subject' - 'exam_id' - 'student_id' - 'subject_id'
+             from public.approval_requests where action = 'grade_edit_after_publish' and status = 'pending'),
   '{"to": {"score": 90, "remark": null}, "from": {"score": 72.00, "remark": null}}'::jsonb,
   'the stored payload is built by the server from the current grade, not taken from the client');
 select throws_ok($$ select public.decide_approval((select id from public.approval_requests where action = 'grade_edit_after_publish' and status = 'pending'), 'approved',
@@ -274,14 +286,16 @@ select pg_temp.act_as('0000000e-0000-0000-0000-0000000a0003');
 insert into public.payments (id, tenant_id, invoice_id, amount, provider, status)
 values ('0000000e-0000-0000-000b-000000000006', '0000000e-0000-0000-0000-00000000000a', '0000000e-0000-0000-0009-000000000001', 50, 'cash', 'succeeded');
 reset role;
+set local session_replication_role = replica;   -- age it below the immutability trigger
 update public.approval_requests set expires_at = now() - interval '1 minute' where entity_id = '0000000e-0000-0000-000b-000000000006';
+set local session_replication_role = origin;
 select pg_temp.act_as('0000000e-0000-0000-0000-0000000a0004');
-select throws_ok($$ select public.decide_approval((select id from public.approval_requests where entity_id = '0000000e-0000-0000-000b-000000000006'), 'approved',
-                   (select payload_hash from public.approval_requests where entity_id = '0000000e-0000-0000-000b-000000000006')) $$,
-  '22023', 'approval_expired', 'an expired request cannot be approved');
+select is(public.decide_approval((select id from public.approval_requests where entity_id = '0000000e-0000-0000-000b-000000000006'), 'approved',
+                   (select payload_hash from public.approval_requests where entity_id = '0000000e-0000-0000-000b-000000000006')),
+  'expired', 'an expired request cannot be approved: deciding it records the expiry');
 reset role;
 set local role service_role;
-select ok(public.expire_approvals() >= 1, 'the expiry sweep marks it expired');
+select is(public.expire_approvals(), 0, 'the expiry sweep finds nothing left to expire');
 reset role;
 select is((select status::text from public.payments where id = '0000000e-0000-0000-000b-000000000006'), 'failed', '... and fails the parked payment');
 

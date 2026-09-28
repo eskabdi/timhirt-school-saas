@@ -122,7 +122,8 @@ function GenerateInvoicesModal({ open, onClose, onGenerated }: {
             {t("fees.generateResult", { created: result.created, skipped: result.skipped, total: result.total })}
           </p>
         )}
-        {generate.isError && <p role="alert" className="text-sm text-danger">{generate.error instanceof Error ? generate.error.message : t("fees.payFailed")}</p>}
+        {generate.isError && <p role="alert" className="text-sm text-danger">{generate.error instanceof Error && generate.error.message === "invoice_changed_retry" ? t("fees.errors.invoiceChangedRetry")
+          : generate.error instanceof Error ? generate.error.message : t("fees.payFailed")}</p>}
 
         <div className="flex justify-end gap-2">
           <Button variant="ghost" onClick={close}>{t("common.cancel")}</Button>
@@ -377,7 +378,7 @@ export function InvoicesPage() {
           <tbody className="divide-y divide-line">
             {invoices?.map((inv) => (
               <tr key={inv.id}
-                className={cn("cursor-pointer hover:bg-sidebar", inv.status !== "paid" && "bg-danger-tint")}
+                className={cn("cursor-pointer hover:bg-sidebar", inv.status !== "paid" && inv.status !== "void" && "bg-danger-tint")}
                 onDoubleClick={onRowDoubleClick(navigate, inv.id)}>
                 <td className="px-4 py-2 font-medium text-ink">
                   <Link to={inv.id} className="hover:underline">{fullName(inv.student)}</Link>

@@ -9,9 +9,11 @@ import { fullName } from "@/lib/names";
 import { approvalErrorKey, submitApproval } from "@/features/approvals/approvals";
 
 // R6 WP-09 (M-06): once a term's results are published, a grade can no longer
-// be edited directly (the database refuses it). Changed scores are sent as
-// grade_edit_after_publish requests for a second person to approve; grades
-// that do not exist yet can still be entered.
+// be entered or edited directly (the database refuses both). A changed score
+// is sent as a grade_edit_after_publish request and a missing one as a
+// grade_entry_after_publish request, one per student, for a second person to
+// approve. Rows that went through are cleared; rows that failed stay filled
+// in with the reason, so saving again resends only those.
 export function GradebookPage() {
   const { t, i18n } = useTranslation();
   const qc = useQueryClient();
@@ -19,7 +21,7 @@ export function GradebookPage() {
   const [subjectId, setSubjectId] = useState("");
   const [scores, setScores] = useState<Record<string, number>>({});
   const [reason, setReason] = useState("");
-  const [result, setResult] = useState<string | null>(null);
+  const [result, setResult] = useState<{ outcome: "saved" | "corrections"; failed: { sid: string; key: string }[] } | null>(null);
 
   const { data: exams } = useQuery({
     queryKey: ["exams"],
@@ -57,8 +59,8 @@ export function GradebookPage() {
   useEffect(() => { setScores({}); setResult(null); }, [examId, subjectId]);
 
   const changed = Object.entries(scores).filter(([sid, score]) => existing?.get(sid)?.score !== score);
-  const corrections = published ? changed.filter(([sid]) => existing?.has(sid)) : [];
-  const directWrites = changed.filter(([sid]) => !published || !existing?.has(sid));
+  const corrections = published ? changed : [];
+  const directWrites = published ? [] : changed;
 
   const save = useMutation({
     mutationFn: async () => {
@@ -71,15 +73,25 @@ export function GradebookPage() {
         const { error } = await supabase.from("grades").upsert(rows, { onConflict: "tenant_id,student_id,exam_id,subject_id" });
         if (error) throw error;
       }
+      const failed: { sid: string; key: string }[] = [];
       for (const [sid, score] of corrections) {
-        await submitApproval("grade_edit_after_publish", existing!.get(sid)!.id, { score }, reason.trim());
+        const grade = existing?.get(sid);
+        try {
+          if (grade) await submitApproval("grade_edit_after_publish", grade.id, { score }, reason.trim());
+          else await submitApproval("grade_entry_after_publish", examId, { student_id: sid, subject_id: subjectId, score }, reason.trim());
+        } catch (err) {
+          // approval_already_pending counts as a failure too: the waiting
+          // request carries the earlier score, not this one (SC-R2-3).
+          failed.push({ sid, key: approvalErrorKey(err) });
+        }
       }
-      return corrections.length ? "corrections" : "saved";
+      return { outcome: corrections.length ? "corrections" as const : "saved" as const, failed };
     },
-    onSuccess: (outcome) => {
-      setResult(outcome);
-      setScores({});
-      setReason("");
+    onSuccess: (res) => {
+      setResult(res);
+      const keep = new Set(res.failed.map((f) => f.sid));
+      setScores((sc) => Object.fromEntries(Object.entries(sc).filter(([sid]) => keep.has(sid))));
+      if (!keep.size) setReason("");
       qc.invalidateQueries({ queryKey: ["grades"] });
       qc.invalidateQueries({ queryKey: ["approvals-pending-count"] });
     },
@@ -112,7 +124,17 @@ export function GradebookPage() {
                     <input type="number" min={0} max={selectedExam?.max_score ?? undefined} aria-label={t("gradebook.scoreFor", { name: fullName(s) })}
                       className="w-20 rounded-control border border-line bg-card px-2 py-1 text-sm text-ink"
                       value={scores[s.id] ?? existing?.get(s.id)?.score ?? ""}
-                      onChange={(e) => { save.reset(); setScores((sc) => ({ ...sc, [s.id]: Number(e.target.value) })); }} />
+                      onChange={(e) => {
+                        save.reset();
+                        const raw = e.target.value;
+                        // An emptied box is "no edit", not a score of 0 (review CQ-4).
+                        setScores((sc) => {
+                          const next = { ...sc };
+                          if (raw === "") delete next[s.id];
+                          else next[s.id] = Number(raw);
+                          return next;
+                        });
+                      }} />
                   </td>
                 </tr>
               ))}
@@ -129,8 +151,14 @@ export function GradebookPage() {
             {corrections.length ? t("gradebook.requestCorrection") : t("gradebook.saveGrades")}
           </Button>
           <p role="status" className="mt-2 text-sm text-ok">
-            {result === "corrections" ? t("gradebook.correctionsSubmitted") : result === "saved" ? t("gradebook.saved") : ""}
+            {result?.outcome === "saved" ? t("gradebook.saved")
+              : result?.outcome === "corrections" && !result.failed.length ? t("gradebook.correctionsSubmitted") : ""}
           </p>
+          {result?.failed[0] && (
+            <p role="alert" className="mt-1 text-sm text-danger">
+              {t("gradebook.correctionsFailed", { count: result.failed.length, reason: t(`approvals.error.${result.failed[0].key}`) })}
+            </p>
+          )}
           {save.isError && <p role="alert" className="mt-1 text-sm text-danger">{t(`approvals.error.${approvalErrorKey(save.error)}`)}</p>}
         </Card>
       )}

@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { formatETB, tField } from "@/lib/i18n";
 import { useSession } from "@/features/auth/useSession";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
@@ -11,14 +12,14 @@ import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { EthDate } from "@/components/EthDate";
 import { issueFeeDocumentUrl } from "@/features/fees/api";
 import {
-  APPROVAL_SELECT, approvalErrorKey, decideApproval, diffRows, isExpired,
+  APPROVAL_SELECT, approvalErrorKey, cancelApproval, decideApproval, diffRows, isExpired,
   type ApprovalRequest, type DiffRow,
 } from "./approvals";
 
 type View = "waiting" | "mine" | "history";
 
 const STATUS_TONE = {
-  pending: "late", approved: "navy", executed: "ok", rejected: "danger", expired: "neutral",
+  pending: "late", approved: "navy", executed: "ok", rejected: "danger", expired: "neutral", cancelled: "neutral",
 } as const;
 
 // R6 WP-09 (M-06): the maker-checker inbox. RLS shows a maker their own
@@ -99,7 +100,18 @@ function ApprovalCard({ request: r, myId, onDecided }: { request: ApprovalReques
       return outcome;
     },
     onSuccess: (outcome) => { setResult(outcome); setRejecting(false); onDecided(); },
+    // Another checker may have decided it, or it expired or the record moved
+    // on: reload so the card shows where it stands now.
+    onError: () => onDecided(),
   });
+
+  // The maker withdraws a request they no longer want decided.
+  const withdraw = useMutation({
+    mutationFn: () => cancelApproval(r.id),
+    onSuccess: (outcome) => { setResult(outcome); onDecided(); },
+    onError: () => onDecided(),
+  });
+  const canWithdraw = r.status === "pending" && !expired && r.maker_id === myId;
 
   const entityLink = r.action === "invoice_void" ? `/fees/invoices/${r.entity_id}`
     : r.action === "manual_payment_accept" && typeof r.payload.invoice_id === "string" ? `/fees/invoices/${r.payload.invoice_id}`
@@ -157,6 +169,11 @@ function ApprovalCard({ request: r, myId, onDecided }: { request: ApprovalReques
       {r.status === "pending" && r.maker_id === myId && (
         <p className="mt-2 text-xs text-ink-soft">{t("approvals.ownRequest")}</p>
       )}
+      {canWithdraw && !result && (
+        <Button className="mt-2" variant="tertiary" onClick={() => withdraw.mutate()} disabled={withdraw.isPending}>
+          {t("approvals.withdraw")}
+        </Button>
+      )}
 
       {canDecide && !result && (
         <div className="mt-3 space-y-2">
@@ -185,18 +202,29 @@ function ApprovalCard({ request: r, myId, onDecided }: { request: ApprovalReques
         </div>
       )}
       <p role="status" className="mt-2 text-sm text-ok">{result ? t(`approvals.outcome.${result}`) : ""}</p>
-      {decide.isError && (
-        <p role="alert" className="mt-1 text-sm text-danger">{t(`approvals.error.${approvalErrorKey(decide.error)}`)}</p>
+      {(decide.isError || withdraw.isError) && (
+        <p role="alert" className="mt-1 text-sm text-danger">{t(`approvals.error.${approvalErrorKey(decide.error ?? withdraw.error)}`)}</p>
       )}
     </Card>
   );
 }
 
+const MONEY_FIELDS = new Set(["amount", "amount_due", "amount_paid"]);
+
 function DiffValue({ row, side }: { row: DiffRow; side: "from" | "to" }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const v = row[side];
   if (v === null || v === undefined || v === "") return <span className="text-ink-soft">—</span>;
+  // Names stored as {en, am, om} (exam, subject).
+  // The jsonb shape is not CHECKed, so anything but a string renders as "—"
+  // rather than taking the whole inbox down (FS-1).
+  if (typeof v === "object") {
+    const text: unknown = Array.isArray(v) ? null : tField(v as Record<string, string>, i18n.resolvedLanguage ?? "en");
+    return typeof text === "string" && text ? <>{text}</> : <span className="text-ink-soft">—</span>;
+  }
   if (row.field === "transferred_on" && typeof v === "string") return <EthDate value={v} />;
   if (row.field === "status" && typeof v === "string") return <>{t(`approvals.value.${v}`, { defaultValue: v })}</>;
+  if (row.field === "provider" && typeof v === "string") return <>{t(`fees.paymentProvider.${v}`, { defaultValue: v })}</>;
+  if (MONEY_FIELDS.has(row.field) && Number.isFinite(Number(v))) return <>{formatETB(Number(v), i18n.resolvedLanguage ?? "en")}</>;
   return <>{String(v)}</>;
 }
