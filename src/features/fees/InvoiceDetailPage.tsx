@@ -193,7 +193,8 @@ export function InvoiceDetailPage() {
     onError: (err: unknown) => {
       const message = err instanceof Error ? err.message : String(err);
       setManualError(message === "amount_exceeds_balance" ? t("fees.errors.overpayment")
-        : message === "invoice_void" ? t("approvals.error.invoice_void") : message);
+        : message === "invoice_void" ? t("approvals.error.invoice_void")
+        : message === "duplicate_reference" ? t("fees.errors.duplicateReference") : message);
     },
   });
 

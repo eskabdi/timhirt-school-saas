@@ -83,7 +83,8 @@ Deno.serve(async (req) => {
         // rather than duplicating it on a retry/double-click.
         const { data: existingInvoice } = await ctx.adminClient.from("fee_invoices")
           .select("id, amount_due, amount_paid, status, invoice_header_id")
-          .eq("student_id", p.student_id).eq("fee_structure_id", structure.id).maybeSingle();
+          .eq("student_id", p.student_id).eq("fee_structure_id", structure.id).neq("status", "void")
+          .order("created_at", { ascending: false }).limit(1).maybeSingle();
 
         let invoice = existingInvoice;
         let headerId: string;
@@ -124,7 +125,8 @@ Deno.serve(async (req) => {
             paymentId = existingPayment.id;
           } else {
             const { data: created, error: payErr } = await ctx.adminClient.from("payments").insert({
-              tenant_id: application.tenant_id, invoice_id: invoice.id,
+              // payments.invoice_id is the invoice header, not the fee line.
+              tenant_id: application.tenant_id, invoice_id: headerId,
               amount: application.fees_total_etb, provider: "bank", provider_ref: providerRef,
               status: "succeeded", paid_at: new Date().toISOString(),
             }).select("id").single();

@@ -48,10 +48,17 @@
 --     for platform actions; a request's identity and payload never change and
 --     its status moves only forward.
 --
--- 12. Database review (DB-3, DB-7, DB-8, DB-9): lock_timeout; a rejected or
---     expired manual payment frees its reference for the corrected one;
---     indexes on approval_requests.checker_id and .action; TRUNCATE revoked
---     from clients on the invoice tables.
+-- 12. Database review (DB-3, DB-7, DB-8, DB-9, DB-R2-1): lock_timeout; a
+--     rejected or expired manual payment frees its reference for the
+--     corrected one; cash/bank references are unique per school, gateway
+--     references platform-wide; indexes on approval_requests.checker_id and
+--     .action and on payments (invoice_id, tenant_id); TRUNCATE revoked from
+--     clients on the tables WP-09 protects.
+-- 13. Round 2: the threshold and balance checks run in one SECURITY DEFINER
+--     trigger after the invoice-header lock, so concurrent or RLS-limited
+--     recorders cannot split a payment past the threshold; a fee line
+--     cannot be added to a void invoice (definer check under the header
+--     lock), whatever the caller may read.
 --
 -- Deploy: apply once, after 20260927000001 and 20260927000002, each file in
 -- its own transaction (000001 adds an enum value that 000002 uses). The
@@ -68,10 +75,22 @@
 --     fee_invoices_invoice_header_id_fkey) from 20260820000001;
 --   * previous definitions: settle_gateway_payment and verify_document in
 --     20260820000001; apply_payment_to_invoice, submit/decide/execute and the
---     guards in 20260927000002.
+--     guards in 20260927000002 (restoring payments_manual_approval_gate
+--     means re-creating its function and trigger from there);
+--   * the provider_ref indexes: drop payments_provider_ref_uq and
+--     payments_manual_ref_uq and re-create the single global index
+--     `payments_provider_ref_uq on payments (provider_ref) where provider_ref
+--     is not null` (20260713000010) -- check for per-school duplicates first;
+--   * the approval_requests checks: re-create status_check and
+--     decided_has_checker from 20260927000002 and drop
+--     approval_requests_tenant_scope (after removing 'cancelled' rows);
+--   * approval_requests_transition_guard refuses every out-of-order write,
+--     even as postgres: an operator data fix runs
+--     `alter table approval_requests disable trigger approval_requests_transition_guard`
+--     and enables it again in the same transaction.
 -- ============================================================================
 
-set lock_timeout = '5s';
+set local lock_timeout = '5s';
 
 -- ------------------------------------------------------ 1. tenant binding --
 alter table public.invoice_headers add constraint invoice_headers_id_tenant_key unique (id, tenant_id);
@@ -213,14 +232,27 @@ begin
   return new;
 end $$;
 
--- Every payment insert: lock the header, refuse a void invoice, and refuse a
--- client cash/bank payment above the open balance less the cash/bank
--- payments already waiting for approval on it. Trusted paths (service_role
--- Edge Functions) are not limited: an admission payment is recorded as
--- declared.
+-- Every payment insert: lock the header, refuse a void invoice, and, for a
+-- client cash/bank payment, refuse an amount above the open balance less the
+-- cash/bank payments already waiting for approval on it, then apply the
+-- approval threshold (5) to the day's running total. Trusted paths
+-- (service_role Edge Functions) are not limited: an admission payment is
+-- recorded as declared.
+--
+-- One SECURITY DEFINER trigger does all of it, after the header lock
+-- (review round 2, PAY-R2-1/SC-R2-1/SEC-R2-1): the running total must count
+-- a concurrent payment on the same invoice (the lock serialises them) and
+-- every payment of the tenant, not only the rows the recorder's RLS lets
+-- them read. The client test is current_setting('role') as for every
+-- definer (CLAUDE.md), so a future definer RPC that inserts a payment for a
+-- user is treated as a client, not as trusted code (PAY-R2-4). It replaces
+-- 20260927000002's invoker payments_manual_approval_gate.
+drop trigger payments_manual_approval_gate on public.payments;
+drop function public.payments_manual_approval_gate();
+
 create or replace function public.payments_reject_void_invoice()
 returns trigger language plpgsql security definer set search_path = public, pg_temp as $$
-declare v_lines int; v_open int; v_balance numeric; v_pending numeric;
+declare v_lines int; v_open int; v_balance numeric; v_pending numeric; v_today numeric;
   v_client boolean := coalesce(current_setting('role', true), 'none') not in ('none', 'service_role', 'postgres', 'supabase_admin');
 begin
   -- A client row for another tenant is refused by RLS (WITH CHECK runs after
@@ -247,20 +279,11 @@ begin
     if new.amount > v_balance - v_pending then
       raise exception 'amount_exceeds_balance' using errcode = '22023';
     end if;
-  end if;
-  return new;
-end $$;
-
--- 5. The threshold applies to the day's running total on the invoice.
-create or replace function public.payments_manual_approval_gate()
-returns trigger language plpgsql set search_path = public, pg_temp as $$
-declare v_today numeric;
-begin
-  if current_user not in ('postgres', 'service_role', 'supabase_admin') and new.provider in ('cash', 'bank') then
-    select coalesce(sum(p.amount), 0) into v_today from public.payments p
-     where p.invoice_id = new.invoice_id and p.tenant_id = new.tenant_id
-       and p.provider in ('cash', 'bank') and p.status in ('pending', 'succeeded')
-       and (p.created_at at time zone 'Africa/Addis_Ababa')::date = (now() at time zone 'Africa/Addis_Ababa')::date;
+    -- 5. The threshold applies to the day's (Addis) running total on the invoice.
+    select coalesce(sum(amount), 0) into v_today from public.payments
+     where invoice_id = new.invoice_id and tenant_id = new.tenant_id
+       and provider in ('cash', 'bank') and status in ('pending', 'succeeded')
+       and (created_at at time zone 'Africa/Addis_Ababa')::date = (now() at time zone 'Africa/Addis_Ababa')::date;
     if new.status = 'pending'
        or coalesce(public.approval_required(new.tenant_id, 'manual_payment_accept', new.amount + v_today), true) then
       new.status := 'pending';
@@ -352,10 +375,6 @@ begin
       raise exception 'invoice_amounts_locked' using errcode = '42501',
         hint = 'A new fee line starts unpaid; payments credit it.';
     end if;
-    if exists (select 1 from public.fee_invoices where invoice_header_id = new.invoice_header_id)
-       and not exists (select 1 from public.fee_invoices where invoice_header_id = new.invoice_header_id and status <> 'void') then
-      raise exception 'invoice_void' using errcode = '22023';
-    end if;
   elsif new.status = 'void' or old.status = 'void' then
     raise exception 'approval_required' using errcode = '42501',
       hint = 'Voiding an invoice needs an approved invoice_void request (submit_approval).';
@@ -367,6 +386,32 @@ begin
   end if;
   return new;
 end $$;
+
+-- No line is added to a void invoice, by anyone. SECURITY DEFINER so the
+-- check sees every line whatever the caller may read (SEC-R2-2), and it takes
+-- the header lock (FOR SHARE, header first) so an insert racing an approved
+-- void waits for it and then sees the void (SC-R2-2). Fires before
+-- fee_invoices_void_guard (name order).
+create function public.fee_invoices_header_open_check()
+returns trigger language plpgsql security definer set search_path = public, pg_temp as $$
+begin
+  -- As TI-R2-1: read nothing of another tenant for a client; RLS refuses the row.
+  if coalesce(current_setting('role', true), 'none') not in ('none', 'service_role', 'postgres', 'supabase_admin')
+     and new.tenant_id is distinct from public.get_tenant_id_for_user(auth.uid()) then
+    return new;
+  end if;
+  perform 1 from public.invoice_headers where id = new.invoice_header_id and tenant_id = new.tenant_id for share;
+  if found
+     and exists (select 1 from public.fee_invoices where invoice_header_id = new.invoice_header_id and tenant_id = new.tenant_id)
+     and not exists (select 1 from public.fee_invoices
+                      where invoice_header_id = new.invoice_header_id and tenant_id = new.tenant_id and status <> 'void') then
+    raise exception 'invoice_void' using errcode = '22023';
+  end if;
+  return new;
+end $$;
+revoke execute on function public.fee_invoices_header_open_check() from public, anon, authenticated;
+create trigger fee_invoices_header_open_check before insert on public.fee_invoices
+  for each row execute function public.fee_invoices_header_open_check();
 
 -- ------------------------------------------------ 6. published results --
 create or replace function public.grades_publication_approval_gate()
@@ -864,6 +909,13 @@ create unique index payments_manual_ref_uq on public.payments (tenant_id, provid
 create index approval_requests_checker on public.approval_requests (checker_id);
 create index approval_requests_action on public.approval_requests (action);
 revoke truncate on public.fee_invoices, public.invoice_headers, public.payments from anon, authenticated;
+-- Round 2 (SEC-R2-4): the other tables WP-09 protects, as defence in depth
+-- (PostgREST cannot issue TRUNCATE).
+revoke truncate on public.grades, public.exams, public.students, public.subjects,
+  public.academic_terms, public.classes, public.approval_requests, public.tenant_configs from anon, authenticated;
+-- DB-R2-1: the composite FK and the per-insert balance and running-total
+-- scans read payments by invoice.
+create index payments_invoice_tenant_idx on public.payments (invoice_id, tenant_id);
 
 -- ------------------------------------------------------------------ grants --
 revoke execute on function
@@ -882,4 +934,3 @@ grant execute on function
   public.cancel_approval(uuid)
 to authenticated;
 
-reset lock_timeout;

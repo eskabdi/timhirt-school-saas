@@ -4,14 +4,15 @@
 -- assertion. IDs in the descriptions are the review findings.
 -- ============================================================================
 begin;
-select plan(64);
+select plan(71);
 
 insert into auth.users (id, email) values
   ('0000000f-0000-0000-0000-0000000a0001', 'mh-admin1@example.test'),
   ('0000000f-0000-0000-0000-0000000a0002', 'mh-admin2@example.test'),
   ('0000000f-0000-0000-0000-0000000a0003', 'mh-acc1@example.test'),
   ('0000000f-0000-0000-0000-0000000a0004', 'mh-acc2@example.test'),
-  ('0000000f-0000-0000-0000-0000000b0001', 'mh-adminb@example.test');
+  ('0000000f-0000-0000-0000-0000000b0001', 'mh-adminb@example.test'),
+  ('0000000f-0000-0000-0000-0000000a0009', 'mh-reg@example.test');
 insert into public.tenants (id, name, slug, status, tier_key) values
   ('0000000f-0000-0000-0000-00000000000a', 'MH Tenant A', 'mh-a', 'active', 'premium'),
   ('0000000f-0000-0000-0000-00000000000b', 'MH Tenant B', 'mh-b', 'active', 'premium');
@@ -20,7 +21,16 @@ insert into public.users (id, tenant_id, role, full_name, email) values
   ('0000000f-0000-0000-0000-0000000a0002', '0000000f-0000-0000-0000-00000000000a', 'school_admin', 'MH Admin Two', 'mh-admin2@example.test'),
   ('0000000f-0000-0000-0000-0000000a0003', '0000000f-0000-0000-0000-00000000000a', 'accountant',   'MH Acc One',   'mh-acc1@example.test'),
   ('0000000f-0000-0000-0000-0000000a0004', '0000000f-0000-0000-0000-00000000000a', 'accountant',   'MH Acc Two',   'mh-acc2@example.test'),
-  ('0000000f-0000-0000-0000-0000000b0001', '0000000f-0000-0000-0000-00000000000b', 'school_admin', 'MH Admin B',   'mh-adminb@example.test');
+  ('0000000f-0000-0000-0000-0000000b0001', '0000000f-0000-0000-0000-00000000000b', 'school_admin', 'MH Admin B',   'mh-adminb@example.test'),
+  ('0000000f-0000-0000-0000-0000000a0009', '0000000f-0000-0000-0000-00000000000a', 'registrar',    'MH Reg Cashier', 'mh-reg@example.test');
+-- A registrar made a cashier: may record payments and add fee lines, but
+-- (role-based SELECT policies) reads no payments and, here, no fee lines.
+insert into public.user_permission_overrides (tenant_id, user_id, permission_id, granted)
+select '0000000f-0000-0000-0000-00000000000a', '0000000f-0000-0000-0000-0000000a0009', id, true
+from public.permissions where (resource, action) in (('payments', 'create'), ('payments', 'read'), ('fee_invoices', 'create'));
+insert into public.user_permission_overrides (tenant_id, user_id, permission_id, granted)
+select '0000000f-0000-0000-0000-00000000000a', '0000000f-0000-0000-0000-0000000a0009', id, false
+from public.permissions where (resource, action) = ('fee_invoices', 'read');
 
 insert into public.academic_years (id, tenant_id, ec_year, starts_on, ends_on, status) values
   ('0000000f-0000-0000-0001-000000000001', '0000000f-0000-0000-0000-00000000000a', 2018, '2025-09-11', '2026-09-10', 'active'),
@@ -50,16 +60,16 @@ update public.academic_terms set results_published = true where id = '0000000f-0
 insert into public.fee_structures (id, tenant_id, name_i18n, amount, billing_cycle) values
   ('0000000f-0000-0000-0008-000000000001', '0000000f-0000-0000-0000-00000000000a', '{"en":"Tuition"}', 800, 'monthly'),
   ('0000000f-0000-0000-0008-0000000000b1', '0000000f-0000-0000-0000-00000000000b', '{"en":"Tuition"}', 4000, 'monthly');
--- Headers 1-6 in A (one per scenario), 9 in B.
+-- Headers 1-7 in A (one per scenario), 9 in B.
 insert into public.invoice_headers (id, tenant_id, student_id, due_date)
 select ('0000000f-0000-0000-0009-00000000000' || n)::uuid, '0000000f-0000-0000-0000-00000000000a', '0000000f-0000-0000-0005-000000000001', '2026-08-01'
-from generate_series(1, 6) n;
+from generate_series(1, 7) n;
 insert into public.invoice_headers (id, tenant_id, student_id, due_date) values
   ('0000000f-0000-0000-0009-000000000009', '0000000f-0000-0000-0000-00000000000b', '0000000f-0000-0000-0005-0000000000b1', '2026-08-01');
 insert into public.fee_invoices (id, tenant_id, student_id, fee_structure_id, amount_due, due_date, invoice_header_id)
 select ('0000000f-0000-0000-000a-00000000000' || n)::uuid, '0000000f-0000-0000-0000-00000000000a', '0000000f-0000-0000-0005-000000000001',
        '0000000f-0000-0000-0008-000000000001', 800, '2026-08-01', ('0000000f-0000-0000-0009-00000000000' || n)::uuid
-from generate_series(1, 6) n;
+from generate_series(1, 7) n;
 insert into public.fee_invoices (id, tenant_id, student_id, fee_structure_id, amount_due, due_date, invoice_header_id) values
   ('0000000f-0000-0000-000a-000000000009', '0000000f-0000-0000-0000-00000000000b', '0000000f-0000-0000-0005-0000000000b1',
    '0000000f-0000-0000-0008-0000000000b1', 4000, '2026-08-01', '0000000f-0000-0000-0009-000000000009');
@@ -174,6 +184,19 @@ insert into public.payments (id, tenant_id, invoice_id, amount, provider, status
 reset role;
 select is((select array_agg(status::text order by id) from public.payments where invoice_id = '0000000f-0000-0000-0009-000000000004'),
   array['succeeded', 'succeeded', 'pending'], 'SEC-05: the payment that takes the day''s total over the threshold waits for approval');
+-- SEC-R2-1: a recorder whose RLS shows them no payments still gets the
+-- day's total (the check runs as definer code, under the header lock).
+select pg_temp.act_as('0000000f-0000-0000-0000-0000000a0009');
+select is((select count(*)::int from public.payments), 0, 'SEC-R2-1: the cashier registrar reads no payments');
+insert into public.payments (id, tenant_id, invoice_id, amount, provider, status) values
+  ('0000000f-0000-0000-000b-000000000071', '0000000f-0000-0000-0000-00000000000a', '0000000f-0000-0000-0009-000000000007', 300, 'cash', 'succeeded');
+insert into public.payments (id, tenant_id, invoice_id, amount, provider, status) values
+  ('0000000f-0000-0000-000b-000000000072', '0000000f-0000-0000-0000-00000000000a', '0000000f-0000-0000-0009-000000000007', 300, 'cash', 'succeeded');
+reset role;
+select is((select array_agg(status::text order by id) from public.payments where invoice_id = '0000000f-0000-0000-0009-000000000007'),
+  array['succeeded', 'pending'], 'SEC-R2-1: ... and cannot split past the threshold either');
+select is((select count(*)::int from public.approval_requests where entity_id = '0000000f-0000-0000-000b-000000000072'), 1,
+  'SEC-R2-1: ... the second payment files its approval request');
 select pg_temp.act_as('0000000f-0000-0000-0000-0000000a0001');
 select lives_ok($$ select public.set_approval_settings(true, 0) $$, '(threshold back to 0)');
 reset role;
@@ -325,6 +348,28 @@ update public.payments set invoice_id = '0000000f-0000-0000-0009-000000000006' w
 set local session_replication_role = origin;
 select is(public.settle_gateway_payment('mh-tx-1', 'chapa', 800), 'invoice_void', 'SC-01: gateway settlement does not credit a void invoice');
 select is((select status::text from public.fee_invoices where id = '0000000f-0000-0000-000a-000000000006'), 'void', 'SC-01: ... which stays void');
+
+
+-- SEC-R2-2 / SC-R2-2: no fee line is added to a void invoice, whatever the
+-- caller can read, and not by trusted code either.
+select pg_temp.act_as('0000000f-0000-0000-0000-0000000a0009');
+select throws_ok($$ insert into public.fee_invoices (tenant_id, student_id, fee_structure_id, amount_due, due_date, invoice_header_id)
+                    values ('0000000f-0000-0000-0000-00000000000a', '0000000f-0000-0000-0005-000000000001', '0000000f-0000-0000-0008-000000000001',
+                            800, '2026-08-01', '0000000f-0000-0000-0009-000000000006') $$,
+  '22023', 'invoice_void', 'SEC-R2-2: a user who cannot read the lines still cannot add one to a void invoice');
+reset role;
+set local role service_role;
+select throws_ok($$ insert into public.fee_invoices (tenant_id, student_id, fee_structure_id, amount_due, due_date, invoice_header_id)
+                    values ('0000000f-0000-0000-0000-00000000000a', '0000000f-0000-0000-0005-000000000001', '0000000f-0000-0000-0008-000000000001',
+                            800, '2026-08-01', '0000000f-0000-0000-0009-000000000006') $$,
+  '22023', 'invoice_void', 'SC-R2-2: ... nor can trusted code (generate-fee-invoices racing a void)');
+reset role;
+
+-- DB-R2-1 / SEC-R2-4
+select has_index('public', 'payments', 'payments_invoice_tenant_idx', 'DB-R2-1: payments are indexed by (invoice_id, tenant_id)');
+select ok(not has_table_privilege('authenticated', 'public.grades', 'TRUNCATE')
+          and not has_table_privilege('authenticated', 'public.approval_requests', 'TRUNCATE'),
+  'SEC-R2-4: clients cannot TRUNCATE the tables WP-09 protects');
 
 select * from finish();
 rollback;

@@ -6,7 +6,7 @@ Grantees exclude the owner (postgres). `Private` functions are reachable by sign
 (cron as postgres, or nothing); trigger functions need no EXECUTE grant.
 The reviewed grant list is `definer_allowlist.sql`; `catalog_definer_security.sql` keeps the two in step.
 
-77 functions.
+78 functions.
 
 | Function | Class | EXECUTE | Policies | Triggers | App callers | Edge Function callers | search_path |
 |---|---|---|---|---|---|---|---|
@@ -44,6 +44,7 @@ The reviewed grant list is `definer_allowlist.sql`; `catalog_definer_security.sq
 | `expire_approvals()` | Internal (service_role) | service_role | 0 | 0 | — | — | `search_path=public, pg_temp` |
 | `expire_approvals_for(uuid)` | Internal (service_role) | service_role | 0 | 0 | — | — | `search_path=public, pg_temp` |
 | `fail_job(uuid,text)` | Internal (service_role) | service_role | 0 | 0 | — | _shared | `search_path=public, pg_temp` |
+| `fee_invoices_header_open_check()` | Trigger-only | service_role | 0 | 1 | — | — | `search_path=public, pg_temp` |
 | `get_class_rank(uuid,uuid)` | Private (authenticated) | authenticated service_role | 0 | 0 | academic-record.ts | — | `search_path=public, pg_temp` |
 | `get_config(text,uuid)` | Internal (service_role) | service_role | 0 | 0 | — | — | `search_path=public, pg_temp` |
 | `get_email_for_user(uuid)` | Private (authenticated) | authenticated service_role | 1 | 0 | — | — | `search_path=public, pg_temp` |

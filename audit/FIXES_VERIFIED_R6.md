@@ -805,3 +805,21 @@ All six returned FAIL (`audit/evidence/reviews/wp09-r1-*.md`). Every Critical/Hi
 | SEC-06, SC-09, TI-05, DB-3, DB-4, DB-7, DB-8, DB-9, PAY-9, SC-06, SC-07 | Info/minor | Trusted-role allow-list in every enforcement trigger; request immutability and forward-only status (all roles); tenant_id null only for platform actions; `lock_timeout`; forward-fix plan in the header; a failed payment frees its reference; indexes on `checker_id` and `action`; TRUNCATE revoked on the invoice tables; amounts to the cent; per-row gradebook submission; the inbox reloads after a failed decision. |
 | AZ-06, AZ-07 = SEC-08, DB-5, DB-10, DB-11, SC-10, PAY-10 | Info/minor | Backlog (WP-07, WP-04) or deploy runbook: production has 0 pending cash/bank payments (checked 2026-09-27); 000001, 000002 and 000003 are applied as separate transactions, once each. |
 
+### WP-09 review round 2 (all six reviewers again, at `e2c9117`/`01401ca`)
+
+Tenant isolation FAILED at `28ee1ba` (TI-R2-1) and authz passed with two Low findings; both fixed in `e2c9117`/`01401ca`. At `01401ca` security, payments, db migration and state/concurrency all FAILED on findings that converge on one Medium: the day's running total was read by the invoker gate before the invoice lock and through the recorder's RLS (`audit/evidence/reviews/wp09-r2-*.md`). All fixed in the same undeployed `20260927000003`; `maker_checker_hardening.sql` now has 71 assertions, 6 of which fail on `01401ca` and pass after the fix. The reviewer's two-session probes, re-run on the fixed schema, give "second payment pending, 1 request" and "line into a voiding invoice: `invoice_void`" (`audit/evidence/wp09-r2-race-probes.txt`). Full harness green (114 migrations, 66 suites).
+
+| Findings | Severity | Fix |
+|---|---|---|
+| TI-R2-1 | High | `payments_reject_void_invoice` reads nothing for a client row that claims another tenant (RLS refuses it), so its errors disclose nothing. |
+| TI-R2-2..5 | Low/Info | Cash/bank references unique per school, gateway references platform-wide; settlement never touches a parked manual payment; deciding an expired request closes only that request. |
+| AZ-R2-1, AZ-R2-2 | Low/Info | A published exam's `category` is locked; `cancel_approval` checks the module. |
+| PAY-R2-1 = SC-R2-1 = SEC-R2-1 (+ PAY-R2-4) | Medium | `payments_manual_approval_gate` removed; the balance limit and the threshold run in the one SECURITY DEFINER trigger after the header lock, over every payment of the tenant, with the definer client test (`current_setting('role')`). |
+| SEC-R2-2 = SC-R2-2 | Low | New definer trigger `fee_invoices_header_open_check`: takes the header FOR SHARE and refuses a line in a void invoice for every caller. |
+| DB-R2-1 | Medium | Index `payments_invoice_tenant_idx (invoice_id, tenant_id)` (reviewer's measurement: 640 ms → 22 ms per insert at 300k rows). |
+| DB-R2-2, DB-R2-3, SEC-R2-4 | Low/Info | Forward-fix notes for the reference indexes, request checks and transition guard; `set local lock_timeout`; TRUNCATE revoked on the other WP-09 tables. |
+| PAY-R2-2 | Low | `record-fee-payment` maps a duplicate reference to 409 `duplicate_reference`; the invoice page says so. |
+| PAY-R2-3 = DB-R2-4 | Low (pre-existing) | `enroll-finalize-billing` credits the admission payment to the invoice header, and reuses only a line that is not void. |
+| SC-R2-3 | Low | The gradebook keeps a row whose correction is already waiting and says so (withdraw it to change it). |
+| SEC-R2-3, SC-R2-4, SC-R2-5, PAY-R2-5 | Info | Backlog: WP-14 `student_withdrawal` covers every status leaving active; trusted-role writes to a decided request; WP-16 scheduler; splitting across days or headers is outside the per-invoice-day rule. |
+

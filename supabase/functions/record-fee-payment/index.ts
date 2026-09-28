@@ -93,6 +93,11 @@ Deno.serve(async (req) => {
     if (payErr && /amount_exceeds_balance|invoice_void/.test(payErr.message ?? "")) {
       return json({ error: /invoice_void/.test(payErr.message ?? "") ? "invoice_void" : "amount_exceeds_balance" }, 400);
     }
+    // The school already recorded a payment with this receipt / bank reference
+    // (payments_manual_ref_uq).
+    if (payErr && (payErr as { code?: string }).code === "23505") {
+      return json({ error: "duplicate_reference" }, 409);
+    }
     if (payErr) throw payErr;
     // R6 WP-09: above the tenant's threshold the database parks the payment
     // as 'pending' and files a manual_payment_accept request; it credits the

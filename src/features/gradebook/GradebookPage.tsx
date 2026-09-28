@@ -80,9 +80,9 @@ export function GradebookPage() {
           if (grade) await submitApproval("grade_edit_after_publish", grade.id, { score }, reason.trim());
           else await submitApproval("grade_entry_after_publish", examId, { student_id: sid, subject_id: subjectId, score }, reason.trim());
         } catch (err) {
-          const key = approvalErrorKey(err);
-          // Already waiting for approval: nothing more to send for this row.
-          if (key !== "approval_already_pending") failed.push({ sid, key });
+          // approval_already_pending counts as a failure too: the waiting
+          // request carries the earlier score, not this one (SC-R2-3).
+          failed.push({ sid, key: approvalErrorKey(err) });
         }
       }
       return { outcome: corrections.length ? "corrections" as const : "saved" as const, failed };
