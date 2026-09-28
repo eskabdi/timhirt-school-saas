@@ -4,7 +4,7 @@
 -- assertion. IDs in the descriptions are the review findings.
 -- ============================================================================
 begin;
-select plan(63);
+select plan(64);
 
 insert into auth.users (id, email) values
   ('0000000f-0000-0000-0000-0000000a0001', 'mh-admin1@example.test'),
@@ -203,6 +203,8 @@ select throws_ok($$ update public.exams set weight = 3 where id = '0000000f-0000
   '42501', 'results_published_locked', 'AZ-02: a published exam''s weight cannot change');
 select throws_ok($$ update public.exams set academic_term_id = '0000000f-0000-0000-0002-000000000001' where id = '0000000f-0000-0000-0006-000000000002' $$,
   '42501', 'results_published_locked', 'AZ-02: an exam cannot be moved into a published term');
+select throws_ok($$ update public.exams set category = case when category = 'final' then 'ca' else 'final' end where id = '0000000f-0000-0000-0006-000000000001' $$,
+  '42501', 'results_published_locked', 'AZ-R2-1: a published exam cannot be re-labelled CA/Final');
 select throws_ok($$ delete from public.exams where id = '0000000f-0000-0000-0006-000000000001' $$,
   '42501', 'results_published_locked', 'a published exam cannot be deleted');
 select lives_ok($$ update public.exams set max_score = 80 where id = '0000000f-0000-0000-0006-000000000002' $$,

@@ -409,8 +409,9 @@ begin
     end if;
     return old;
   end if;
-  if (new.academic_term_id, new.max_score, new.weight, new.class_id, new.tenant_id)
-     is distinct from (old.academic_term_id, old.max_score, old.weight, old.class_id, old.tenant_id) then
+  -- category splits a report card into CA and Final (review AZ-R2-1).
+  if (new.academic_term_id, new.max_score, new.weight, new.class_id, new.tenant_id, new.category)
+     is distinct from (old.academic_term_id, old.max_score, old.weight, old.class_id, old.tenant_id, old.category) then
     select t.results_published into v_new_published from public.academic_terms t where t.id = new.academic_term_id;
     if coalesce(public.exam_results_published(old.id), true) or coalesce(v_new_published, true) then
       raise exception 'results_published_locked' using errcode = '42501',
@@ -827,7 +828,8 @@ begin
   if v_uid is null then raise exception 'not_authenticated' using errcode = '42501'; end if;
   select * into r from public.approval_requests where id = p_id for update;
   if not found or r.maker_id is distinct from v_uid
-     or r.tenant_id is distinct from public.get_tenant_id_for_user(v_uid) then
+     or r.tenant_id is distinct from public.get_tenant_id_for_user(v_uid)
+     or not public.approval_action_module_on(r.tenant_id, r.action) then   -- AZ-R2-2
     raise exception 'not_allowed' using errcode = '42501';
   end if;
   if r.status <> 'pending' then raise exception 'approval_not_pending' using errcode = '22023'; end if;
