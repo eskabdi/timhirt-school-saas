@@ -282,9 +282,9 @@ export function InvoiceDetailPage() {
       {awaitingApproval && (
         <p role="status" className="text-sm text-late">{t("fees.paymentAwaitingApproval")}</p>
       )}
-      {lastReceiptUrl && (
+      {lastReceiptUrl && httpsHref(lastReceiptUrl) && (
         <p className="text-sm text-ok">
-          <a href={lastReceiptUrl} target="_blank" rel="noreferrer" className="hover:underline">{t("fees.receipt")}: {t("fees.downloadReceipt")}</a>
+          <a href={httpsHref(lastReceiptUrl)!} target="_blank" rel="noopener noreferrer" className="hover:underline">{t("fees.receipt")}: {t("fees.downloadReceipt")}</a>
         </p>
       )}
 

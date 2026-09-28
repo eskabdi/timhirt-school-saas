@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { tField } from "@/lib/i18n";
+import { formatETB, tField } from "@/lib/i18n";
 import { useSession } from "@/features/auth/useSession";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
@@ -209,13 +209,22 @@ function ApprovalCard({ request: r, myId, onDecided }: { request: ApprovalReques
   );
 }
 
+const MONEY_FIELDS = new Set(["amount", "amount_due", "amount_paid"]);
+
 function DiffValue({ row, side }: { row: DiffRow; side: "from" | "to" }) {
   const { t, i18n } = useTranslation();
   const v = row[side];
   if (v === null || v === undefined || v === "") return <span className="text-ink-soft">—</span>;
   // Names stored as {en, am, om} (exam, subject).
-  if (typeof v === "object" && !Array.isArray(v)) return <>{tField(v as Record<string, string>, i18n.resolvedLanguage ?? "en")}</>;
+  // The jsonb shape is not CHECKed, so anything but a string renders as "—"
+  // rather than taking the whole inbox down (FS-1).
+  if (typeof v === "object") {
+    const text: unknown = Array.isArray(v) ? null : tField(v as Record<string, string>, i18n.resolvedLanguage ?? "en");
+    return typeof text === "string" && text ? <>{text}</> : <span className="text-ink-soft">—</span>;
+  }
   if (row.field === "transferred_on" && typeof v === "string") return <EthDate value={v} />;
   if (row.field === "status" && typeof v === "string") return <>{t(`approvals.value.${v}`, { defaultValue: v })}</>;
+  if (row.field === "provider" && typeof v === "string") return <>{t(`fees.paymentProvider.${v}`, { defaultValue: v })}</>;
+  if (MONEY_FIELDS.has(row.field) && Number.isFinite(Number(v))) return <>{formatETB(Number(v), i18n.resolvedLanguage ?? "en")}</>;
   return <>{String(v)}</>;
 }

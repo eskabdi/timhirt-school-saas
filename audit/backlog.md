@@ -100,3 +100,7 @@
 | WP-02 frontend FE-3 | Password policy is enforced only in the browser; set `minimum_password_length`/`password_requirements` in Supabase Auth. | WP-07 (§7.2) |
 | WP-02 frontend FE-4 | Each `useSecuritySettings()` call adds its own `useSession()` subscription; read the user id from shared session state. | WP-14 |
 | WP-02 supply-chain SC-2 | `app-rpc-grants.py` sees only literal RPC names; fail on a non-literal `.rpc(` outside the allow-listed dashboard wrapper. | WP-12 |
+| WP-09 conventions CG-3 | `<EthDate>` reads an instant's UTC fields, so approval `created_at`/`decided_at`/`expires_at` (and every other `*_at` in the app) shows the previous EC day between 00:00 and 03:00 Addis time. Add an instant-to-Addis-date helper and use it for timestamptz values. | WP-14 |
+| WP-09 conventions CG-6 | `dashboard_finance` (redefined in `20260927000002`, first in `20260729000002`) splits overdue vs to-collect on `current_date` (UTC); use `(now() at time zone 'Africa/Addis_Ababa')::date`. | WP-14 |
+| WP-09 frontend FS-1 (root cause) | `name_i18n` jsonb columns have no shape CHECK; a non-string value crashes any `tField()` render. `DiffValue` now guards it; add a CHECK (all values strings, keys in en/am/om) and harden `tField`. | WP-14 |
+| WP-09 frontend FS-3 | Fee pages fall back to the raw `Error.message` for an unmapped error; map to a generic translated message. | WP-14 |
