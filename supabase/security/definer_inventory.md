@@ -6,7 +6,7 @@ Grantees exclude the owner (postgres). `Private` functions are reachable by sign
 (cron as postgres, or nothing); trigger functions need no EXECUTE grant.
 The reviewed grant list is `definer_allowlist.sql`; `catalog_definer_security.sql` keeps the two in step.
 
-78 functions.
+79 functions.
 
 | Function | Class | EXECUTE | Policies | Triggers | App callers | Edge Function callers | search_path |
 |---|---|---|---|---|---|---|---|
@@ -16,7 +16,8 @@ The reviewed grant list is `definer_allowlist.sql`; `catalog_definer_security.sq
 | `attendance_guard()` | Trigger-only | service_role | 0 | 1 | — | — | `search_path=public, pg_temp` |
 | `attendance_notify_guardians()` | Trigger-only | service_role | 0 | 1 | — | — | `search_path=public, pg_temp` |
 | `attendance_retroactive_edit_window_days(uuid)` | Private (authenticated) | authenticated service_role | 1 | 0 | — | — | `search_path=public, pg_temp` |
-| `audit_trigger()` | Trigger-only | service_role | 0 | 32 | — | — | `search_path=public, pg_temp` |
+| `audit_approval_requests()` | Trigger-only | service_role | 0 | 1 | — | — | `search_path=public, pg_temp` |
+| `audit_trigger()` | Trigger-only | service_role | 0 | 31 | — | — | `search_path=public, pg_temp` |
 | `auto_assign_exam_seats(uuid,integer,integer)` | Private (authenticated) | authenticated service_role | 0 | 0 | ExamsPage.tsx | — | `search_path=public, pg_temp` |
 | `cancel_approval(uuid)` | Private (authenticated) | authenticated service_role | 0 | 0 | approvals.ts | — | `search_path=public, pg_temp` |
 | `check_staff_employee_linkage()` | Private (authenticated) | authenticated service_role | 0 | 0 | HealthMonitoringPage.tsx | — | `search_path=public, pg_temp` |

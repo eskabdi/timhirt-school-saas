@@ -46,8 +46,8 @@ const Payload = z.object({
   bank_verification: z.object({
     payment_method: z.enum(["cbe", "awash_bank", "telebirr"]),
     verification_url: z.string().trim().url().max(2048), // https is enforced below (FS-1)
-  }).optional(),
-});
+  }).strict().optional(),
+}).strict(); // an unknown key (e.g. "provider_ref") is a 400, not silently dropped (AC9-1)
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });

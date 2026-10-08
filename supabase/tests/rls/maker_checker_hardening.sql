@@ -4,7 +4,7 @@
 -- assertion. IDs in the descriptions are the review findings.
 -- ============================================================================
 begin;
-select plan(82);
+select plan(88);
 
 insert into auth.users (id, email) values
   ('0000000f-0000-0000-0000-0000000a0001', 'mh-admin1@example.test'),
@@ -437,6 +437,38 @@ select is((select jsonb_build_object('student', payload -> 'student', 'exam', pa
                      'exam', (select name_i18n from public.exams where id = '0000000f-0000-0000-0006-000000000001'),
                      'subject', '{"en": "Math"}'::jsonb),
   'CQ-2: the request names the student, exam and subject');
+
+-- PRV9-1: the audit copy of a request carries no payload or reasons.
+select ok((select count(*) > 0 and bool_and(not coalesce(new_data, '{}') ?| array['payload', 'reason', 'decision_reason']
+                                     and not coalesce(old_data, '{}') ?| array['payload', 'reason', 'decision_reason'])
+             from public.audit_logs where table_name = 'approval_requests'),
+  'PRV9-1: audit_logs keeps no payload, reason or decision_reason of a request');
+select ok(exists (select 1 from public.audit_logs where table_name = 'approval_requests'
+                    and new_data ->> 'payload_hash' is not null and new_data ->> 'status' is not null),
+  'PRV9-1: ... but keeps the hash and the status');
+
+-- PRV9-2: requests are never deleted, not even with the service key.
+set local role service_role;
+select throws_ok($$ delete from public.approval_requests $$, '42501', 'approval_request_immutable',
+  'PRV9-2: service_role cannot delete a request');
+reset role;
+select ok(not has_table_privilege('service_role', 'public.approval_requests', 'TRUNCATE'),
+  'PRV9-2: ... nor truncate the table');
+
+-- TI-R3-1: B's void status is no more visible than its balance: a row
+-- claiming tenant B gets the RLS error, not invoice_void.
+set local session_replication_role = replica;
+update public.fee_invoices set status = 'void' where id = '0000000f-0000-0000-000a-000000000009';
+set local session_replication_role = origin;
+select pg_temp.act_as('0000000f-0000-0000-0000-0000000a0003');
+select throws_ok($$ insert into public.payments (tenant_id, invoice_id, amount, provider, status)
+                    values ('0000000f-0000-0000-0000-00000000000b', '0000000f-0000-0000-0009-000000000009', 1, 'cash', 'pending') $$,
+  '42501', null, 'TI-R3-1: a payment claiming tenant B on B''s void invoice gets the RLS error, not invoice_void');
+select throws_ok($$ insert into public.fee_invoices (tenant_id, student_id, fee_structure_id, amount_due, due_date, invoice_header_id)
+                    values ('0000000f-0000-0000-0000-00000000000b', '0000000f-0000-0000-0005-000000000001', '0000000f-0000-0000-0008-000000000001',
+                            100, '2026-08-01', '0000000f-0000-0000-0009-000000000009') $$,
+  '42501', null, 'TI-R3-1: ... and so does a fee line claiming tenant B');
+reset role;
 
 select * from finish();
 rollback;

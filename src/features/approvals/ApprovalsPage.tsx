@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -85,6 +85,19 @@ function ApprovalCard({ request: r, myId, onDecided }: { request: ApprovalReques
   const [rejecting, setRejecting] = useState(false);
   const [reason, setReason] = useState("");
   const [result, setResult] = useState<string | null>(null);
+  // Keyboard users keep their place (WCAG 2.4.3): the control they pressed is
+  // swapped out, so focus moves to what replaces it instead of <body>.
+  const [focusTarget, setFocusTarget] = useState<"reason" | "reject" | "status" | null>(null);
+  const reasonRef = useRef<HTMLTextAreaElement>(null);
+  const statusRef = useRef<HTMLParagraphElement>(null);
+  const rejectId = useId();
+  useEffect(() => {
+    if (!focusTarget) return;
+    if (focusTarget === "reason") reasonRef.current?.focus();
+    else if (focusTarget === "reject") document.getElementById(rejectId)?.focus();
+    else statusRef.current?.focus();
+    setFocusTarget(null);
+  }, [focusTarget, rejectId]);
   const expired = isExpired(r);
   const status = expired ? "expired" : r.status;
   const canDecide = r.status === "pending" && !expired && r.maker_id !== myId;
@@ -99,7 +112,7 @@ function ApprovalCard({ request: r, myId, onDecided }: { request: ApprovalReques
       }
       return outcome;
     },
-    onSuccess: (outcome) => { setResult(outcome); setRejecting(false); onDecided(); },
+    onSuccess: (outcome) => { setResult(outcome); setRejecting(false); setFocusTarget("status"); onDecided(); },
     // Another checker may have decided it, or it expired or the record moved
     // on: reload so the card shows where it stands now.
     onError: () => onDecided(),
@@ -108,7 +121,7 @@ function ApprovalCard({ request: r, myId, onDecided }: { request: ApprovalReques
   // The maker withdraws a request they no longer want decided.
   const withdraw = useMutation({
     mutationFn: () => cancelApproval(r.id),
-    onSuccess: (outcome) => { setResult(outcome); onDecided(); },
+    onSuccess: (outcome) => { setResult(outcome); setFocusTarget("status"); onDecided(); },
     onError: () => onDecided(),
   });
   const canWithdraw = r.status === "pending" && !expired && r.maker_id === myId;
@@ -180,7 +193,7 @@ function ApprovalCard({ request: r, myId, onDecided }: { request: ApprovalReques
           {rejecting && (
             <label className="block text-sm">
               <span className="text-ink">{t("approvals.rejectReason")}</span>
-              <textarea value={reason} onChange={(e) => setReason(e.target.value)} maxLength={500} rows={2} required
+              <textarea ref={reasonRef} value={reason} onChange={(e) => setReason(e.target.value)} maxLength={500} rows={2} required
                 className="mt-1 w-full rounded-control border border-line bg-card px-3 py-2 text-sm text-ink" />
             </label>
           )}
@@ -193,15 +206,15 @@ function ApprovalCard({ request: r, myId, onDecided }: { request: ApprovalReques
                 <Button variant="danger" onClick={() => decide.mutate("rejected")} disabled={decide.isPending || !reason.trim()}>
                   {t("approvals.confirmReject")}
                 </Button>
-                <Button variant="tertiary" onClick={() => setRejecting(false)}>{t("approvals.cancel")}</Button>
+                <Button variant="tertiary" onClick={() => { setRejecting(false); setFocusTarget("reject"); }}>{t("approvals.cancel")}</Button>
               </>
             ) : (
-              <Button variant="tertiary" onClick={() => setRejecting(true)} disabled={decide.isPending}>{t("approvals.reject")}</Button>
+              <Button id={rejectId} variant="tertiary" onClick={() => { setRejecting(true); setFocusTarget("reason"); }} disabled={decide.isPending}>{t("approvals.reject")}</Button>
             )}
           </div>
         </div>
       )}
-      <p role="status" className="mt-2 text-sm text-ok">{result ? t(`approvals.outcome.${result}`) : ""}</p>
+      <p ref={statusRef} tabIndex={-1} role="status" className="mt-2 text-sm text-ok focus:outline-none">{result ? t(`approvals.outcome.${result}`) : ""}</p>
       {(decide.isError || withdraw.isError) && (
         <p role="alert" className="mt-1 text-sm text-danger">{t(`approvals.error.${approvalErrorKey(decide.error ?? withdraw.error)}`)}</p>
       )}

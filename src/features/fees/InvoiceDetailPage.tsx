@@ -174,8 +174,12 @@ export function InvoiceDetailPage() {
   const recordPayment = useMutation({
     mutationFn: async () => {
       const amt = Number(amount);
-      if (!amt || amt <= 0) throw new Error(t("fees.errors.invalidAmount"));
-      if (Math.round(amt * 100) > Math.round(payable * 100)) throw new Error(t("fees.errors.overpayment"));
+      // The server's limits (record-fee-payment): positive, at most
+      // 10,000,000 ETB, to the cent. Checked here so the message is translated.
+      if (!Number.isFinite(amt) || amt <= 0 || amt > 10_000_000 || Math.abs(amt * 100 - Math.round(amt * 100)) > 1e-6) {
+        throw new Error("invalid_amount");
+      }
+      if (Math.round(amt * 100) > Math.round(payable * 100)) throw new Error("amount_exceeds_balance");
       return recordFeePayment({
         invoiceId: id!, amount: amt, provider, reference: reference.trim() || undefined,
         bankVerification: provider === "bank" && bankUrl.trim()
@@ -191,10 +195,16 @@ export function InvoiceDetailPage() {
       qc.invalidateQueries({ queryKey: ["invoice-payments", id] });
     },
     onError: (err: unknown) => {
+      // Codes only: the server's generic 400 is English, so anything not
+      // mapped here shows the translated generic message (I18N9-2).
       const message = err instanceof Error ? err.message : String(err);
-      setManualError(message === "amount_exceeds_balance" ? t("fees.errors.overpayment")
+      setManualError(message === "invalid_amount" ? t("fees.errors.invalidAmount")
+        // Payments waiting for approval count too, so say so when there are any.
+        : message === "amount_exceeds_balance"
+          ? t(waitingForApproval > 0 ? "approvals.error.amount_exceeds_balance" : "fees.errors.overpayment")
         : message === "invoice_void" ? t("approvals.error.invoice_void")
-        : message === "duplicate_reference" ? t("fees.errors.duplicateReference") : message);
+        : message === "duplicate_reference" ? t("fees.errors.duplicateReference")
+        : t("errors.generic"));
     },
   });
 

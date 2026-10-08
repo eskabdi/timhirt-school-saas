@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { approvalErrorKey, submitApproval } from "@/features/approvals/approvals";
@@ -23,6 +23,10 @@ export function TransferStudentModal({ studentId, open, onClose }: {
   // person with students:approve applies it (the database refuses a direct
   // status change to 'transferred').
   const [submitted, setSubmitted] = useState(false);
+  // The modal stays mounted while closed: start each opening fresh (I18N9-5).
+  useEffect(() => {
+    if (open) { setSubmitted(false); setError(null); }
+  }, [open]);
   const submit = useMutation({
     mutationFn: async () => {
       if (!transferredTo.trim() || !date) return;
@@ -57,7 +61,7 @@ export function TransferStudentModal({ studentId, open, onClose }: {
         {error && <p role="alert" className="text-sm text-danger">{error}</p>}
         <p role="status" className="text-sm text-ok">{submitted ? t("students.transfer.submittedForApproval") : ""}</p>
         <div className="flex justify-end gap-2">
-          <Button variant="tertiary" onClick={onClose}>{t("students.cancel")}</Button>
+          <Button variant="tertiary" onClick={onClose}>{submitted ? t("actions.close") : t("students.cancel")}</Button>
           <Button variant="danger" onClick={() => submit.mutate()} disabled={!transferredTo.trim() || !date || submit.isPending}>
             {submit.isPending ? t("students.transfer.submitting") : t("students.transfer.submit")}
           </Button>

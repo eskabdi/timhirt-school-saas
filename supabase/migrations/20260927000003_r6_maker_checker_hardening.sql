@@ -86,6 +86,13 @@
 --   * the approval_requests checks: re-create status_check and
 --     decided_has_checker from 20260927000002 and drop
 --     approval_requests_tenant_scope (after removing 'cancelled' rows);
+--   * approval_requests_select (PERF9-1): the earlier per-row form had, in
+--     place of the two `action = any(...)` lists,
+--     `approval_action_module_on(tenant_id, action)` and
+--     `has_resource_permission(auth.uid(), <the action's checker_resource>, 'approve')`;
+--     the plain (maker_id) index is in 20260927000002;
+--   * the approval_requests audit copy: re-point audit_approval_requests at
+--     public.audit_trigger() (20260927000002) to log the full row again;
 --   * approval_requests_transition_guard refuses every out-of-order write,
 --     even as postgres: an operator data fix runs
 --     `alter table approval_requests disable trigger approval_requests_transition_guard`
@@ -141,6 +148,47 @@ revoke execute on function public.approval_requests_transition_guard() from publ
 create trigger approval_requests_transition_guard before update on public.approval_requests
   for each row execute function public.approval_requests_transition_guard();
 
+-- PRV9-2: a request is never deleted or truncated, by anyone (service_role
+-- included): who asked and who decided is the control. TRUNCATE fires no row
+-- trigger, so it is revoked as well as guarded. An erasure for a data-subject
+-- request is an operator step: `alter table approval_requests disable trigger
+-- approval_requests_no_delete`, the delete, and enable it again, in one
+-- transaction.
+create function public.approval_requests_no_delete()
+returns trigger language plpgsql set search_path = public, pg_temp as $$
+begin
+  raise exception 'approval_request_immutable' using errcode = '42501';
+end $$;
+revoke execute on function public.approval_requests_no_delete() from public, anon, authenticated;
+create trigger approval_requests_no_delete before delete on public.approval_requests
+  for each row execute function public.approval_requests_no_delete();
+create trigger approval_requests_no_truncate before truncate on public.approval_requests
+  for each statement execute function public.approval_requests_no_delete();
+revoke truncate on public.approval_requests from service_role;
+
+-- PRV9-1: the audit copy of a request keeps who, what, when, the status and
+-- the payload hash, not the payload or either reason. Those carry a minor's
+-- name, scores and transfer reason, and audit_logs is read by every
+-- school_admin and, across schools, by super_admin (who cannot read the
+-- requests themselves). The request row is immutable and retained, so the
+-- audit trail loses nothing it cannot point back to.
+create function public.audit_approval_requests()
+returns trigger language plpgsql security definer set search_path = public, pg_temp as $$
+declare
+  v_drop text[] := array['payload', 'reason', 'decision_reason'];
+begin
+  insert into public.audit_logs (tenant_id, actor_id, action, table_name, row_id, old_data, new_data)
+  values (coalesce((to_jsonb(new) ->> 'tenant_id')::uuid, (to_jsonb(old) ->> 'tenant_id')::uuid),
+          auth.uid(), lower(tg_op), tg_table_name,
+          coalesce((to_jsonb(new) ->> 'id')::uuid, (to_jsonb(old) ->> 'id')::uuid),
+          to_jsonb(old) - v_drop, to_jsonb(new) - v_drop);
+  return coalesce(new, old);
+end $$;
+revoke execute on function public.audit_approval_requests() from public, anon, authenticated;
+drop trigger audit_approval_requests on public.approval_requests;
+create trigger audit_approval_requests after insert or update or delete on public.approval_requests
+  for each row execute function public.audit_approval_requests();
+
 -- ------------------------------------------------------ 8. module gating --
 alter table public.approval_actions add column module text;
 update public.approval_actions set module = case
@@ -168,15 +216,26 @@ revoke execute on function public.approval_action_module_on(uuid, text) from pub
 grant execute on function public.approval_action_module_on(uuid, text) to authenticated;
 
 drop policy approval_requests_select on public.approval_requests;
+-- PERF9-1: the action lists (module on for the caller's school; actions the
+-- caller may approve) are computed once per query as initplans, not per row:
+-- the inbox's History view went from 1.2 s to 20 ms at 20k requests a school.
+-- Same rows as the per-row form (module null = always visible; the caller's
+-- tenant is the row's tenant by the first conjunct).
 create policy approval_requests_select on public.approval_requests for select to authenticated using (
   (tenant_id is null and (select public.get_role_for_user(auth.uid())) = 'super_admin')
   or (tenant_id = (select public.get_tenant_id_for_user(auth.uid()))
-      and public.approval_action_module_on(tenant_id, action)
-      and (maker_id = auth.uid()
-           or public.has_resource_permission(auth.uid(),
-                (select a.checker_resource from public.approval_actions a where a.action = approval_requests.action),
-                'approve')))
+      and action = any ((select array(
+            select a.action from public.approval_actions a
+             where a.module is null
+                or public.has_module((select public.get_tenant_id_for_user(auth.uid())), a.module)))::text[])
+      and (maker_id = (select auth.uid())
+           or action = any ((select array(
+                 select a.action from public.approval_actions a
+                  where public.has_resource_permission((select auth.uid()), a.checker_resource, 'approve')))::text[])))
 );
+-- The "My requests" view: newest first, stops at the page limit (PERF9-1).
+drop index public.approval_requests_maker;
+create index approval_requests_maker on public.approval_requests (maker_id, created_at desc);
 
 -- ------------------------------------------------------------- 7. expiry --
 -- Expires the pending requests past expires_at (one tenant, or all when

@@ -21,7 +21,7 @@ export function GradebookPage() {
   const [subjectId, setSubjectId] = useState("");
   const [scores, setScores] = useState<Record<string, number>>({});
   const [reason, setReason] = useState("");
-  const [result, setResult] = useState<{ outcome: "saved" | "corrections"; failed: { sid: string; key: string }[] } | null>(null);
+  const [result, setResult] = useState<{ outcome: "saved" | "corrections"; failed: { sid: string; key: string }[]; sent: string[] } | null>(null);
 
   const { data: exams } = useQuery({
     queryKey: ["exams"],
@@ -74,18 +74,25 @@ export function GradebookPage() {
         if (error) throw error;
       }
       const failed: { sid: string; key: string }[] = [];
-      for (const [sid, score] of corrections) {
+      const sent: string[] = [];
+      const submitOne = async ([sid, score]: [string, number]) => {
         const grade = existing?.get(sid);
         try {
           if (grade) await submitApproval("grade_edit_after_publish", grade.id, { score }, reason.trim());
           else await submitApproval("grade_entry_after_publish", examId, { student_id: sid, subject_id: subjectId, score }, reason.trim());
+          sent.push(sid);
         } catch (err) {
           // approval_already_pending counts as a failure too: the waiting
           // request carries the earlier score, not this one (SC-R2-3).
           failed.push({ sid, key: approvalErrorKey(err) });
         }
+      };
+      // A few at a time rather than one round trip per student (PERF9-2);
+      // each request is for a different grade, so order does not matter.
+      for (let i = 0; i < corrections.length; i += 4) {
+        await Promise.all(corrections.slice(i, i + 4).map(submitOne));
       }
-      return { outcome: corrections.length ? "corrections" as const : "saved" as const, failed };
+      return { outcome: corrections.length ? "corrections" as const : "saved" as const, failed, sent };
     },
     onSuccess: (res) => {
       setResult(res);
@@ -98,6 +105,10 @@ export function GradebookPage() {
   });
 
   const needsReason = corrections.length > 0 && !reason.trim();
+  // Per-row outcome of the last correction batch (I18N9-4): which rows failed
+  // and why, and which went to a second person (they show the old score).
+  const failedBy = new Map((result?.failed ?? []).map((f) => [f.sid, f.key]));
+  const sentSet = new Set(result?.sent ?? []);
 
   return (
     <div className="space-y-4">
@@ -119,9 +130,20 @@ export function GradebookPage() {
             <tbody className="divide-y divide-line">
               {students?.map((s) => (
                 <tr key={s.id}>
-                  <td className="py-2 font-medium text-ink">{fullName(s)}</td>
+                  <td className="py-2 font-medium text-ink">
+                    {fullName(s)}
+                    {failedBy.has(s.id) && (
+                      <span id={`grade-err-${s.id}`} className="block text-xs font-normal text-danger">
+                        {t(`approvals.error.${failedBy.get(s.id)}`)}
+                      </span>
+                    )}
+                    {sentSet.has(s.id) && (
+                      <span className="block text-xs font-normal text-late">{t("gradebook.pendingApproval")}</span>
+                    )}
+                  </td>
                   <td className="py-2">
-                    <input type="number" min={0} max={selectedExam?.max_score ?? undefined} aria-label={t("gradebook.scoreFor", { name: fullName(s) })}
+                    <input type="number" aria-invalid={failedBy.has(s.id) || undefined}
+                      aria-describedby={failedBy.has(s.id) ? `grade-err-${s.id}` : undefined} min={0} max={selectedExam?.max_score ?? undefined} aria-label={t("gradebook.scoreFor", { name: fullName(s) })}
                       className="w-20 rounded-control border border-line bg-card px-2 py-1 text-sm text-ink"
                       value={scores[s.id] ?? existing?.get(s.id)?.score ?? ""}
                       onChange={(e) => {
