@@ -5,9 +5,25 @@ authority, or a decision that is yours to make. Claude keeps this file current
 as the fix plan runs. Each item says what to do, why, and how to tell Claude
 it is done. Tick the box when finished.
 
-Last updated: 2026-09-26 (WP-01 round 3; WP-02 and WP-09 in progress).
+Last updated: 2026-10-08 (both Supabase projects found paused; WP-09 review finishing).
 
 ---
+
+## 0. Urgent: the live app is down
+
+- [ ] **A0. Restore the two paused Supabase projects.** On 2026-10-08 both
+  `timhirt-saas` (production, `livqynxlibmccaycseer`) and
+  `timhirt-saas-staging` (`ekebibapffrhzibidbnr`) report status **INACTIVE**:
+  the Free plan pauses a project after about 7 days without database
+  activity. While paused, sign-in, every page that loads data and every Edge
+  Function fail, so the live app at edux.et does not work. Claude's attempt to
+  restore them through the Management API was blocked by this session's
+  permission policy, so this one is yours. **How:** Supabase dashboard → each
+  project → **Restore project** (production first; it takes a few minutes).
+  To stop it recurring, move production to the **Pro plan**: Pro projects are
+  never paused, and the plan also turns on daily backups (production has none
+  today, see C-items). Tell Claude "projects restored" and the WP-09 deploy
+  (staging dry run, then production) continues.
 
 ## A. Do now (security hygiene)
 
