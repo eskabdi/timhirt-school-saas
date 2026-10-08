@@ -46,7 +46,14 @@ export function ApprovalsPage() {
     },
   });
 
-  const onDecided = () => {
+  // The outcome of a decision is announced here, outside the list: in the
+  // "waiting" view the decided card leaves the list on refetch, taking any
+  // focus or message inside it along (I18N9R-1).
+  const [notice, setNotice] = useState<{ tone: "ok" | "error"; text: string; seq: number } | null>(null);
+  const noticeRef = useRef<HTMLParagraphElement>(null);
+  useEffect(() => { if (notice) noticeRef.current?.focus(); }, [notice]);
+  const onDecided = (n?: { tone: "ok" | "error"; text: string }) => {
+    if (n) setNotice((prev) => ({ ...n, seq: (prev?.seq ?? 0) + 1 }));
     qc.invalidateQueries({ queryKey: ["approval-requests"] });
     qc.invalidateQueries({ queryKey: ["approvals-pending-count"] });
   };
@@ -66,6 +73,10 @@ export function ApprovalsPage() {
           { value: "history", label: t("approvals.view.history") },
         ]}
       />
+      <p ref={noticeRef} tabIndex={-1} role={notice?.tone === "error" ? "alert" : "status"}
+        className={`text-sm focus:outline-none ${notice?.tone === "error" ? "text-danger" : "text-ok"}`}>
+        {notice?.text ?? ""}
+      </p>
       {isError && <p role="alert" className="text-sm text-danger">{t("approvals.loadFailed")}</p>}
       {isPending && <p className="text-sm text-ink-soft">{t("approvals.loading")}</p>}
       {!isPending && !isError && requests?.length === 0 && (
@@ -80,24 +91,26 @@ export function ApprovalsPage() {
   );
 }
 
-function ApprovalCard({ request: r, myId, onDecided }: { request: ApprovalRequest; myId: string; onDecided: () => void }) {
+function ApprovalCard({ request: r, myId, onDecided }: {
+  request: ApprovalRequest; myId: string; onDecided: (notice?: { tone: "ok" | "error"; text: string }) => void;
+}) {
   const { t } = useTranslation();
   const [rejecting, setRejecting] = useState(false);
   const [reason, setReason] = useState("");
   const [result, setResult] = useState<string | null>(null);
   // Keyboard users keep their place (WCAG 2.4.3): the control they pressed is
   // swapped out, so focus moves to what replaces it instead of <body>.
-  const [focusTarget, setFocusTarget] = useState<"reason" | "reject" | "status" | null>(null);
+  // The outcome itself goes to the page's notice region (onDecided).
+  const [focusTarget, setFocusTarget] = useState<"reason" | "reject" | null>(null);
   const reasonRef = useRef<HTMLTextAreaElement>(null);
-  const statusRef = useRef<HTMLParagraphElement>(null);
   const rejectId = useId();
   useEffect(() => {
     if (!focusTarget) return;
     if (focusTarget === "reason") reasonRef.current?.focus();
-    else if (focusTarget === "reject") document.getElementById(rejectId)?.focus();
-    else statusRef.current?.focus();
+    else document.getElementById(rejectId)?.focus();
     setFocusTarget(null);
   }, [focusTarget, rejectId]);
+  const failed = (err: unknown) => onDecided({ tone: "error", text: t(`approvals.error.${approvalErrorKey(err)}`) });
   const expired = isExpired(r);
   const status = expired ? "expired" : r.status;
   const canDecide = r.status === "pending" && !expired && r.maker_id !== myId;
@@ -112,17 +125,17 @@ function ApprovalCard({ request: r, myId, onDecided }: { request: ApprovalReques
       }
       return outcome;
     },
-    onSuccess: (outcome) => { setResult(outcome); setRejecting(false); setFocusTarget("status"); onDecided(); },
+    onSuccess: (outcome) => { setResult(outcome); setRejecting(false); onDecided({ tone: "ok", text: t(`approvals.outcome.${outcome}`) }); },
     // Another checker may have decided it, or it expired or the record moved
     // on: reload so the card shows where it stands now.
-    onError: () => onDecided(),
+    onError: failed,
   });
 
   // The maker withdraws a request they no longer want decided.
   const withdraw = useMutation({
     mutationFn: () => cancelApproval(r.id),
-    onSuccess: (outcome) => { setResult(outcome); setFocusTarget("status"); onDecided(); },
-    onError: () => onDecided(),
+    onSuccess: (outcome) => { setResult(outcome); onDecided({ tone: "ok", text: t(`approvals.outcome.${outcome}`) }); },
+    onError: failed,
   });
   const canWithdraw = r.status === "pending" && !expired && r.maker_id === myId;
 
@@ -213,10 +226,6 @@ function ApprovalCard({ request: r, myId, onDecided }: { request: ApprovalReques
             )}
           </div>
         </div>
-      )}
-      <p ref={statusRef} tabIndex={-1} role="status" className="mt-2 text-sm text-ok focus:outline-none">{result ? t(`approvals.outcome.${result}`) : ""}</p>
-      {(decide.isError || withdraw.isError) && (
-        <p role="alert" className="mt-1 text-sm text-danger">{t(`approvals.error.${approvalErrorKey(decide.error ?? withdraw.error)}`)}</p>
       )}
     </Card>
   );

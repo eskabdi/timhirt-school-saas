@@ -148,6 +148,8 @@ export function GradebookPage() {
                       value={scores[s.id] ?? existing?.get(s.id)?.score ?? ""}
                       onChange={(e) => {
                         save.reset();
+                        // An edited row is no longer the one that failed (I18N9R-3).
+                        setResult((r) => r && { ...r, failed: r.failed.filter((f) => f.sid !== s.id) });
                         const raw = e.target.value;
                         // An emptied box is "no edit", not a score of 0 (review CQ-4).
                         setScores((sc) => {

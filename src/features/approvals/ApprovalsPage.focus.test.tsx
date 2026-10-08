@@ -15,12 +15,17 @@ const request = {
   created_at: new Date().toISOString(), maker: { full_name: "Abebe Kebede Tadesse" }, checker: null,
 };
 
+// Like the server: once decided, the request leaves the "waiting" list, so
+// its card unmounts on refetch (review I18N9R-1).
+const state = vi.hoisted(() => ({ decided: false }));
 vi.mock("@/lib/supabase", () => {
   type Chain = Record<string, unknown>;
   const chain: Chain = {};
   for (const m of ["select", "order", "limit", "eq", "neq", "in", "gt", "lt"]) chain[m] = () => chain;
-  chain.then = (resolve: (v: unknown) => void) => resolve({ data: [request], error: null });
-  return { supabase: { from: () => chain, rpc: async () => ({ data: "executed", error: null }) } };
+  chain.then = (resolve: (v: unknown) => void) => resolve({ data: state.decided ? [] : [request], error: null });
+  return {
+    supabase: { from: () => chain, rpc: async () => { state.decided = true; return { data: "executed", error: null }; } },
+  };
 });
 vi.mock("@/features/auth/useSession", () => ({ useSession: () => ({ profile: { id: "me" } }) }));
 vi.mock("@/features/fees/api", () => ({ issueFeeDocumentUrl: async () => null }));
@@ -58,7 +63,10 @@ describe("ApprovalsPage keyboard focus", () => {
     approve!.focus();
     await act(async () => { approve!.click(); });
     await flush();
+    await flush();
+    expect(host.querySelectorAll("li")).toHaveLength(0); // the decided card is gone
     expect(document.activeElement?.getAttribute("role")).toBe("status");
+    expect(document.activeElement?.textContent).toBe("Approved. The change has been applied.");
 
     act(() => root.unmount());
     host.remove();
