@@ -108,12 +108,15 @@ as $$
   end
 $$;
 
+comment on function public.normalize_calendar_settings(jsonb) is
+  'Canonical tenant_configs.settings.calendar (snake_case keys, numerals latn|arab, no Ge''ez; show_hijri and hijri_holidays strict booleans). 20260925000002, extended by 20261008000001.';
+
 -- ------------------------------------------------------------ authorities --
 create table public.edu_authorities (
   id         uuid primary key default gen_random_uuid(),
   kind       text not null check (kind in ('moe', 'region')),
   code       text not null unique check (code ~ '^[A-Z]{2,8}$'),
-  name_i18n  jsonb not null check (jsonb_typeof(name_i18n) = 'object' and name_i18n ? 'en'),
+  name_i18n  jsonb not null check (jsonb_typeof(name_i18n) = 'object' and jsonb_typeof(name_i18n -> 'en') = 'string'),
   parent_id  uuid references public.edu_authorities (id),
   created_at timestamptz not null default now(),
   constraint edu_authorities_shape check ((kind = 'moe') = (parent_id is null))
@@ -127,7 +130,7 @@ alter table public.tenants add column edu_authority_id uuid references public.ed
 -- ------------------------------------------------- event-type catalogue --
 create table public.calendar_day_types (
   code                      text primary key check (code ~ '^[a-z][a-z0-9_]{1,39}$'),
-  label_i18n                jsonb not null check (jsonb_typeof(label_i18n) = 'object' and label_i18n ? 'en'),
+  label_i18n                jsonb not null check (jsonb_typeof(label_i18n) = 'object' and jsonb_typeof(label_i18n -> 'en') = 'string'),
   color                     text not null check (color ~ '^#[0-9a-fA-F]{6}$'),
   category                  text not null check (category in ('teaching', 'rest', 'holiday', 'break', 'exam', 'admin',
                                                               'staff', 'event', 'milestone', 'closure')),
@@ -150,13 +153,23 @@ create table public.holiday_rules (
   kind           text not null check (kind in ('ec_fixed', 'gregorian_fixed')),
   params         jsonb not null,
   day_type_code  text not null references public.calendar_day_types (code),
-  name_i18n      jsonb not null check (jsonb_typeof(name_i18n) = 'object' and name_i18n ? 'en'),
+  name_i18n      jsonb not null check (jsonb_typeof(name_i18n) = 'object' and jsonb_typeof(name_i18n -> 'en') = 'string'),
   active_from_ec integer not null default 2000,
   active_to_ec   integer,
-  constraint holiday_rules_params check (case kind
-    when 'ec_fixed' then (params ->> 'month')::integer between 1 and 13 and (params ->> 'day')::integer between 1 and 30
-    when 'gregorian_fixed' then (params ->> 'month')::integer between 1 and 12 and (params ->> 'day')::integer between 1 and 31
-  end)
+  -- coalesce(…, false): a CHECK passes on NULL, so a missing or non-numeric
+  -- month/day must not slip through. Pagume has 5 days (6 in a leap year).
+  constraint holiday_rules_params check (
+    jsonb_typeof(params) = 'object'
+    and jsonb_typeof(params -> 'month') = 'number' and jsonb_typeof(params -> 'day') = 'number'
+    and coalesce(case kind
+      when 'ec_fixed' then (params ->> 'month')::integer between 1 and 13
+                           and (params ->> 'day')::integer between 1 and case when (params ->> 'month')::integer = 13 then 6 else 30 end
+      when 'gregorian_fixed' then (params ->> 'month')::integer between 1 and 12
+                           and (params ->> 'day')::integer between 1 and case when (params ->> 'month')::integer = 2 then 29
+                                                                             when (params ->> 'month')::integer in (4, 6, 9, 11) then 30
+                                                                             else 31 end
+    end, false)),
+  constraint holiday_rules_active check (active_to_ec is null or active_to_ec >= active_from_ec)
 );
 
 -- ---------------------------------------------------- authority calendars --
@@ -165,7 +178,10 @@ create table public.authority_calendars (
   authority_id      uuid not null references public.edu_authorities (id),
   ec_year           integer not null check (ec_year between 2000 and 2100),
   weekend_days      smallint[] not null default '{6,7}'
-                    check (cardinality(weekend_days) <= 3 and weekend_days <@ '{1,2,3,4,5,6,7}'::smallint[]),
+                    check (array_ndims(weekend_days) = 1 and array_lower(weekend_days, 1) = 1
+                           and cardinality(weekend_days) between 1 and 3 and weekend_days <@ '{1,2,3,4,5,6,7}'::smallint[]
+                           and (cardinality(weekend_days) < 2 or weekend_days[1] <> weekend_days[2])
+                           and (cardinality(weekend_days) < 3 or (weekend_days[3] <> weekend_days[1] and weekend_days[3] <> weekend_days[2]))),
   session_starts_on date not null,
   session_ends_on   date not null,
   status            text not null default 'draft' check (status in ('draft', 'published', 'closed')),
@@ -176,7 +192,9 @@ create table public.authority_calendars (
   created_at        timestamptz not null default now(),
   unique (authority_id, ec_year),
   constraint authority_calendars_session check (session_ends_on > session_starts_on
-                                                and session_ends_on - session_starts_on <= 420),
+                                                and session_ends_on - session_starts_on <= 420
+                                                and extract(year from session_starts_on) between ec_year + 6 and ec_year + 7
+                                                and extract(year from session_ends_on) between ec_year + 7 and ec_year + 8),
   constraint authority_calendars_published check (status = 'draft' or published_at is not null)
 );
 
@@ -186,7 +204,7 @@ create table public.authority_calendar_entries (
   day_type_code      text not null references public.calendar_day_types (code),
   starts_on          date not null,
   ends_on            date not null,
-  name_i18n          jsonb not null check (jsonb_typeof(name_i18n) = 'object' and name_i18n ? 'en'),
+  name_i18n          jsonb not null check (jsonb_typeof(name_i18n) = 'object' and jsonb_typeof(name_i18n -> 'en') = 'string'),
   source             text not null default 'authored' check (source in ('authored', 'computed')),
   rule_code          text references public.holiday_rules (code),
   locked             boolean not null default false,
@@ -207,7 +225,10 @@ create table public.school_calendars (
   origin                  text not null check (origin in ('moe', 'previous_year', 'custom')),
   copied_from_calendar_id uuid references public.school_calendars (id),
   weekend_days            smallint[] check (weekend_days is null
-                                            or (cardinality(weekend_days) <= 3 and weekend_days <@ '{1,2,3,4,5,6,7}'::smallint[])),
+                                            or (array_ndims(weekend_days) = 1 and array_lower(weekend_days, 1) = 1
+                                                and cardinality(weekend_days) between 1 and 3 and weekend_days <@ '{1,2,3,4,5,6,7}'::smallint[]
+                                                and (cardinality(weekend_days) < 2 or weekend_days[1] <> weekend_days[2])
+                                                and (cardinality(weekend_days) < 3 or (weekend_days[3] <> weekend_days[1] and weekend_days[3] <> weekend_days[2])))),
   status                  text not null default 'draft' check (status in ('draft', 'published', 'closed')),
   version                 integer not null default 1 check (version >= 1),
   published_at            timestamptz,
@@ -216,7 +237,9 @@ create table public.school_calendars (
   created_by              uuid references public.users (id),
   created_at              timestamptz not null default now(),
   unique (tenant_id, ec_year),
-  unique (id, tenant_id)
+  unique (id, tenant_id),
+  constraint school_calendars_published check (status = 'draft' or published_at is not null),
+  constraint school_calendars_closed check (status <> 'closed' or closed_at is not null)
 );
 
 create table public.school_calendar_entries (
@@ -226,7 +249,7 @@ create table public.school_calendar_entries (
   day_type_code      text not null references public.calendar_day_types (code),
   starts_on          date not null,
   ends_on            date not null,
-  name_i18n          jsonb not null check (jsonb_typeof(name_i18n) = 'object' and name_i18n ? 'en'
+  name_i18n          jsonb not null check (jsonb_typeof(name_i18n) = 'object' and jsonb_typeof(name_i18n -> 'en') = 'string'
                                            and length(name_i18n::text) <= 1000),
   -- Replaces (or, suppressed, removes) an unlocked MoE/regional entry.
   overrides_entry_id uuid references public.authority_calendar_entries (id),
@@ -385,7 +408,11 @@ create trigger authority_calendars_guard before update or delete on public.autho
 -- weekend and the session. Only published (or closed) authority calendars
 -- count, explicitly, so a SECURITY DEFINER caller sees what a user does. With
 -- no calendar at all the school's academic_years row gives the session.
--- Invoker: RLS limits tenants and school_calendars to the caller's school.
+-- Invoker: RLS limits tenants and school_calendars to the caller's school,
+-- and p_tenant is refused (not_allowed) for an end user asking about another
+-- school, so isolation does not rest on RLS alone. Trusted contexts (none,
+-- service_role, postgres, supabase_admin) and the platform admin may name any
+-- school.
 create function public.calendar_year_settings(p_ec_year integer, p_tenant uuid default null)
 returns table (
   tenant_id uuid, ec_year integer,
@@ -393,9 +420,11 @@ returns table (
   region_calendar_id uuid, region_code text, moe_calendar_id uuid,
   weekend_days smallint[], session_starts_on date, session_ends_on date
 )
+rows 1
 language plpgsql stable set search_path = public, pg_temp as $$
 declare
-  v_tenant uuid := coalesce(p_tenant, public.get_tenant_id_for_user(auth.uid()));
+  v_own uuid := public.get_tenant_id_for_user(auth.uid());
+  v_tenant uuid := coalesce(p_tenant, v_own);
   v_authority uuid;
   v_moe uuid;
   v_school_id uuid; v_school_status text; v_school_origin text; v_school_weekend smallint[];
@@ -403,6 +432,11 @@ declare
   v_moe_id uuid; v_moe_weekend smallint[]; v_moe_from date; v_moe_to date;
   v_year_from date; v_year_to date;
 begin
+  if p_tenant is distinct from v_own and p_tenant is not null
+     and coalesce(current_setting('role', true), 'none') not in ('none', 'service_role', 'postgres', 'supabase_admin')
+     and public.get_role_for_user(auth.uid()) is distinct from 'super_admin' then
+    raise exception 'not_allowed' using errcode = '42501';
+  end if;
   select a.id into v_moe from public.edu_authorities a where a.kind = 'moe';
   if v_tenant is not null then
     select t.edu_authority_id into v_authority from public.tenants t where t.id = v_tenant;
@@ -443,7 +477,8 @@ returns table (
   entry_id uuid, level text, source_code text, day_type_code text,
   starts_on date, ends_on date, name_i18n jsonb, locked boolean
 )
-language sql stable set search_path = public, pg_temp as $$
+rows 60
+language sql stable set search_path = public, pg_temp set jit = off as $$
   with s as (select * from public.calendar_year_settings(p_ec_year, p_tenant)),
   auth as (
     select e.*, case when e.calendar_id = s.moe_calendar_id then 'moe' else 'region' end as level, a.code
@@ -472,22 +507,28 @@ $$;
 revoke execute on function public.effective_calendar_entries(integer, uuid) from public, anon;
 grant execute on function public.effective_calendar_entries(integer, uuid) to authenticated;
 
--- Every day from p_from to p_to (at most 400) classified exactly as the grid
+-- Every day from p_from to p_to (at most 400, within 1900-2199) classified exactly as the grid
 -- engine does (src/features/academic-calendar/grid.ts): the shown type is the
 -- strongest covering entry (closure > holiday > break > admin > staff > exam
 -- > milestone > event), else weekend, instructional or out of session. A day
 -- counts as a school day when it is in session, not a weekend day, and every
 -- covering entry counts as instructional. A day belongs to the session that
--- covers it (the MoE's session starts in the previous EC year's Nehase);
--- in_session is null when no calendar or academic year defines one.
+-- covers it (the MoE's session starts in the previous EC year's Nehase), and
+-- only that year's entries apply to it, as in the grid; a day outside every
+-- session belongs to its own EC year, and in_session is null when that year
+-- has no session defined (no calendar, no academic year). Row
+-- estimates and jit = off on these functions: with the default 1000-row
+-- guess the planner JIT-compiles even a one-day lookup (~1.5 s against 10 ms).
 create function public.calendar_days(p_from date, p_to date, p_tenant uuid default null)
 returns table (
   day date, ec_year integer, day_type_code text, category text, in_session boolean, counts boolean,
   blocks_student_attendance boolean, blocks_staff_attendance boolean
 )
-language plpgsql stable set search_path = public, pg_temp as $$
+rows 31
+language plpgsql stable set search_path = public, pg_temp set jit = off as $$
 begin
-  if p_from is null or p_to is null or p_to < p_from or p_to - p_from > 400 then
+  if p_from is null or p_to is null or p_to < p_from or p_to - p_from > 400
+     or p_from < date '1900-01-01' or p_to > date '2199-12-31' then
     raise exception 'invalid_range' using errcode = '22023';
   end if;
   return query
@@ -496,7 +537,7 @@ begin
   ),
   st as (select y.y, s.* from years y cross join lateral public.calendar_year_settings(y.y, p_tenant) s),
   ents as (
-    select e.*, t.category, t.counts_as_instructional, t.blocks_student_attendance, t.blocks_staff_attendance,
+    select y.y as yr, e.*, t.category, t.counts_as_instructional, t.blocks_student_attendance, t.blocks_staff_attendance,
            case t.category when 'closure' then 1 when 'holiday' then 2 when 'break' then 3 when 'admin' then 4
                            when 'staff' then 5 when 'exam' then 6 when 'milestone' then 7 else 8 end as rank
       from years y
@@ -509,8 +550,7 @@ begin
   placed as (
     select dd.day,
            (select s.y from st s where dd.day between s.session_starts_on and s.session_ends_on order by s.y desc limit 1) as session_year,
-           (public.gregorian_to_ec(dd.day)).ec_year as own_year,
-           exists (select 1 from st s where s.session_starts_on is not null) as session_known
+           (public.gregorian_to_ec(dd.day)).ec_year as own_year
       from days dd
   )
   select p.day,
@@ -520,23 +560,23 @@ begin
                        when p.session_year is not null then 'instructional'
                        else 'out_of_session' end),
          coalesce(top.category, case when wk.is_weekend then 'rest' when p.session_year is not null then 'teaching' end),
-         case when p.session_year is not null then true when p.session_known then false end,
+         case when p.session_year is not null then true when s.session_starts_on is not null then false end,
          p.session_year is not null and not wk.is_weekend and coalesce(agg.all_count, true),
-         wk.is_weekend or coalesce(agg.any_student, false) or (p.session_year is null and p.session_known),
+         wk.is_weekend or coalesce(agg.any_student, false) or (p.session_year is null and s.session_starts_on is not null),
          wk.is_weekend or coalesce(agg.any_staff, false)
     from placed p
     join st s on s.y = coalesce(p.session_year, p.own_year)
     cross join lateral (select extract(isodow from p.day)::smallint = any (s.weekend_days) as is_weekend) wk
     left join lateral (
       select e.day_type_code, e.category from ents e
-       where p.day between e.starts_on and e.ends_on
+       where e.yr = s.y and p.day between e.starts_on and e.ends_on
        order by e.rank, e.starts_on, e.entry_id limit 1
     ) top on true
     left join lateral (
       select bool_and(e.counts_as_instructional) as all_count,
              bool_or(e.blocks_student_attendance) as any_student,
              bool_or(e.blocks_staff_attendance) as any_staff
-        from ents e where p.day between e.starts_on and e.ends_on
+        from ents e where e.yr = s.y and p.day between e.starts_on and e.ends_on
     ) agg on true
    order by p.day;
 end $$;
@@ -548,21 +588,22 @@ returns table (
   day date, ec_year integer, day_type_code text, category text, in_session boolean, counts boolean,
   blocks_student_attendance boolean, blocks_staff_attendance boolean
 )
-language sql stable set search_path = public, pg_temp as $$
+rows 1
+language sql stable set search_path = public, pg_temp set jit = off as $$
   select * from public.calendar_days(p_date, p_date, p_tenant)
 $$;
 revoke execute on function public.calendar_day_status(date, uuid) from public, anon;
 grant execute on function public.calendar_day_status(date, uuid) to authenticated;
 
 create function public.instructional_days(p_from date, p_to date, p_tenant uuid default null)
-returns integer language sql stable set search_path = public, pg_temp as $$
+returns integer language sql stable set search_path = public, pg_temp set jit = off as $$
   select count(*)::integer from public.calendar_days(p_from, p_to, p_tenant) where counts
 $$;
 revoke execute on function public.instructional_days(date, date, uuid) from public, anon;
 grant execute on function public.instructional_days(date, date, uuid) to authenticated;
 
--- School entries: a closed calendar never changes; tenant_id follows the
--- calendar; an override targets an unlocked entry of this school's own
+-- School entries: a closed calendar never changes; tenant_id must be the
+-- calendar's; an override targets an unlocked entry of this school's own
 -- layers for that year; authority-only and derived types are not entered;
 -- at most 500 entries; dates within the EC year and 60 days either side.
 create function public.school_calendar_entries_guard()
@@ -584,7 +625,9 @@ begin
   if tg_op = 'UPDATE' and (new.calendar_id, new.tenant_id) is distinct from (old.calendar_id, old.tenant_id) then
     raise exception 'calendar_closed' using errcode = '42501';
   end if;
-  new.tenant_id := v_cal.tenant_id;
+  if new.tenant_id is distinct from v_cal.tenant_id then
+    raise exception 'invalid_calendar' using errcode = '22023';
+  end if;
   select t.authority_only, t.derived into v_type from public.calendar_day_types t where t.code = new.day_type_code;
   if not found or v_type.derived or (v_type.authority_only and not new.suppressed) then
     raise exception 'invalid_day_type' using errcode = '22023';
@@ -596,7 +639,8 @@ begin
   if new.overrides_entry_id is not null then
     select * into v_settings from public.calendar_year_settings(v_cal.ec_year, v_cal.tenant_id);
     select e.locked, e.calendar_id into v_target from public.authority_calendar_entries e where e.id = new.overrides_entry_id;
-    if not found or v_target.calendar_id not in (v_settings.moe_calendar_id, coalesce(v_settings.region_calendar_id, v_settings.moe_calendar_id)) then
+    -- NULL-safe: with no published layer for the year nothing is a valid target.
+    if not found or not coalesce(v_target.calendar_id = any (array[v_settings.moe_calendar_id, v_settings.region_calendar_id]), false) then
       raise exception 'invalid_override' using errcode = '22023';
     end if;
     if v_target.locked then
@@ -676,7 +720,10 @@ begin
   select * into v_cal from public.school_calendars
    where tenant_id = v_tenant and ec_year = p_ec_year for update;
   if found then
-    if v_cal.status <> 'draft' then
+    -- Recreating a draft discards its entries: only someone who can see and
+    -- edit the draft (academic_calendar:update) may do that.
+    if v_cal.status <> 'draft'
+       or not coalesce(public.has_resource_permission(v_uid, 'academic_calendar', 'update'), false) then
       raise exception 'calendar_exists' using errcode = '23505';
     end if;
     delete from public.school_calendar_entries where calendar_id = v_cal.id;
@@ -774,6 +821,8 @@ values
   ('other',                 '{"en": "Other", "am": "ሌላ", "om": "Kan Biraa"}',                                          '#e7e6e6', 'event',     true,  false, false, false, false, false, 18);
 
 -- Fixed-date national holiday rules (src/lib/ethiopian-holidays.ts NATIONAL_HOLIDAY_RULES).
+-- Ginbot 20 is not one: the MoE calendar counts it as a school day (owner,
+-- 2026-10-09: follow the MoE).
 insert into public.holiday_rules (code, kind, params, day_type_code, name_i18n) values
   ('enkutatash',    'ec_fixed',        '{"month": 1, "day": 1}',   'national_holiday',  '{"en": "Enkutatash (New Year)", "am": "እንቁጣጣሽ (ዘመን መለወጫ)", "om": "Ayyaana Waggaa Haaraa"}'),
   ('meskel',        'ec_fixed',        '{"month": 1, "day": 17}',  'religious_holiday', '{"en": "Meskel", "am": "መስቀል", "om": "Masqala"}'),
@@ -781,13 +830,12 @@ insert into public.holiday_rules (code, kind, params, day_type_code, name_i18n) 
   ('timket',        'ec_fixed',        '{"month": 5, "day": 11}',  'religious_holiday', '{"en": "Timket (Epiphany)", "am": "ጥምቀት", "om": "Cuuphaa"}'),
   ('adwa',          'ec_fixed',        '{"month": 6, "day": 23}',  'national_holiday',  '{"en": "Adwa Victory Day", "am": "የዓድዋ ድል በዓል", "om": "Ayyaana Injifannoo Adwaa"}'),
   ('labour_day',    'gregorian_fixed', '{"month": 5, "day": 1}',   'national_holiday',  '{"en": "International Labour Day", "am": "የዓለም የሠራተኞች ቀን", "om": "Guyyaa Hojjettootaa Addunyaa"}'),
-  ('patriots_day',  'ec_fixed',        '{"month": 8, "day": 27}',  'national_holiday',  '{"en": "Patriots'' Victory Day", "am": "የአርበኞች ቀን", "om": "Guyyaa Injifannoo Gootota Biyyaa"}'),
-  ('derg_downfall', 'ec_fixed',        '{"month": 9, "day": 20}',  'national_holiday',  '{"en": "Downfall of the Derg", "am": "ግንቦት 20", "om": "Kufaatii Dargii"}');
+  ('patriots_day',  'ec_fixed',        '{"month": 8, "day": 27}',  'national_holiday',  '{"en": "Patriots'' Victory Day", "am": "የአርበኞች ቀን", "om": "Guyyaa Injifannoo Gootota Biyyaa"}');
 
 -- The MoE's published 2019 EC calendar ("Present Academic Year"), as the
 -- sheet gives it: session from Nehase 25, 2018 (its lead-in row) to Sene 30,
--- 2019. Meskel and Labour Day fall on a weekend that year; the sheet keeps
--- Ginbot 20 (a Friday) as a school day, so it is not entered. Siklet and the
+-- 2019. Meskel and Labour Day fall on a weekend that year; Ginbot 20 (a
+-- Friday) is a school day, as in every MoE calendar. Siklet and the
 -- two Eids are the dates the MoE published (no computation).
 insert into public.authority_calendars (authority_id, ec_year, session_starts_on, session_ends_on, status, published_at)
 values ((select id from public.edu_authorities where code = 'MOE'), 2019,

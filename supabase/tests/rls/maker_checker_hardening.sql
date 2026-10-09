@@ -4,7 +4,7 @@
 -- assertion. IDs in the descriptions are the review findings.
 -- ============================================================================
 begin;
-select plan(88);
+select plan(92);
 
 insert into auth.users (id, email) values
   ('0000000f-0000-0000-0000-0000000a0001', 'mh-admin1@example.test'),
@@ -394,11 +394,16 @@ select ok(not has_function_privilege('authenticated', 'public.approval_required(
 
 
 -- TV-1: deciding needs <resource>:approve (a same-tenant user without it,
--- on a real pending request, is refused and nothing is credited).
+-- on a real pending request, is refused and nothing is credited). The id and
+-- hash are read as the owner first (GK-1): the teacher cannot see the
+-- request, and a NULL id would be refused before the permission check.
+create temp table tv1_pay as select id, payload_hash from public.approval_requests
+  where entity_id = '0000000f-0000-0000-000b-000000000082' and status = 'pending';
+grant select on tv1_pay to authenticated;
+select is((select count(*)::int from tv1_pay where id is not null and payload_hash is not null), 1,
+  'TV-1: (the pending payment request exists, so the probe below reaches the permission check)');
 select pg_temp.act_as('0000000f-0000-0000-0000-0000000a0010');
-select throws_ok(format('select public.decide_approval(%L, %L, %L)',
-                        (pg_temp.req('0000000f-0000-0000-000b-000000000082')).id, 'approved',
-                        (pg_temp.req('0000000f-0000-0000-000b-000000000082')).payload_hash),
+select throws_ok($$ select public.decide_approval((select id from tv1_pay), 'approved', (select payload_hash from tv1_pay)) $$,
   '42501', 'not_allowed', 'TV-1: a teacher (no invoices:approve) cannot approve a payment');
 reset role;
 select is((select status::text from public.payments where id = '0000000f-0000-0000-000b-000000000082'), 'pending',
@@ -437,6 +442,21 @@ select is((select jsonb_build_object('student', payload -> 'student', 'exam', pa
                      'exam', (select name_i18n from public.exams where id = '0000000f-0000-0000-0006-000000000001'),
                      'subject', '{"en": "Math"}'::jsonb),
   'CQ-2: the request names the student, exam and subject');
+
+-- TV-1 (grades): a teacher without grades:approve cannot decide a grade
+-- correction either; id and hash read as the owner (GK-1).
+create temp table tv1_grade as select id, payload_hash from public.approval_requests
+  where action = 'grade_edit_after_publish' and entity_id = '0000000f-0000-0000-0007-000000000001' and status = 'pending';
+grant select on tv1_grade to authenticated;
+create temp table tv1_score as select score from public.grades where id = '0000000f-0000-0000-0007-000000000001';
+select is((select count(*)::int from tv1_grade where id is not null and payload_hash is not null), 1,
+  'TV-1: (the pending grade correction exists)');
+select pg_temp.act_as('0000000f-0000-0000-0000-0000000a0010');
+select throws_ok($$ select public.decide_approval((select id from tv1_grade), 'approved', (select payload_hash from tv1_grade)) $$,
+  '42501', 'not_allowed', 'TV-1: a teacher (no grades:approve) cannot approve a grade correction');
+reset role;
+select is((select score from public.grades where id = '0000000f-0000-0000-0007-000000000001'), (select score from tv1_score),
+  'TV-1: ... and the grade is unchanged');
 
 -- PRV9-1: the audit copy of a request carries no payload or reasons.
 select ok((select count(*) > 0 and bool_and(not coalesce(new_data, '{}') ?| array['payload', 'reason', 'decision_reason']

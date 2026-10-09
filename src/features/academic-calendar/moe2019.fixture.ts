@@ -7,8 +7,9 @@
 // The sheet's legend lists Meskerem 1, Tahsas 29, Tir 11, Yekatit 23,
 // Yekatit 30, Miyazia 22, Miyazia 27 and Ginbot 08 as holidays; Meskel
 // (Meskerem 17) and Labour Day (Miyazia 23) fall on a weekend that year and
-// are added for completeness without changing any total. The sheet does NOT
-// keep Ginbot 20 (a Friday) as a holiday: its Ginbot total of 21 counts it.
+// are added for completeness without changing any total. Ginbot 20 (a
+// Friday) is a school day, as the sheet's Ginbot total of 21 shows; the engine
+// follows the MoE and has no rule for it.
 import { toGregorian } from "@/lib/ethiopian-date";
 import type { GridEntry } from "./grid";
 

@@ -880,3 +880,37 @@ Suite: 88 assertions (6 new). Gates on the fix: harness 114 migrations / 66 suit
 Re-checks on `691f581`: authz/security PASS (`wp09-r2-az.md`; the initplan policy shows exactly the old per-row policy's rows in a 260-request, 16-user parity probe covering custom roles, user-level grants and revokes, a module-off school, a suspended school, platform rows and a null `auth.uid()`; the audit trigger and delete guard probed). i18n/a11y FAIL (`wp09-r2-i18n.md`): I18N9R-1 (Medium) — in the default "waiting" view the decided card left the list on refetch, taking the focused outcome with it. Fixed: the outcome (and any error) is announced in one page-level region outside the list, which takes focus; the focus test's mock now drops a decided request like the server does, and the test fails on `691f581` (`null` instead of `status`). I18N9R-2/3 (info): the transfer modal resets as it closes; editing a failed grade row clears its error. The performance re-check is on the same commit.
 
 i18n/a11y round 3 on `faf7d93` (the last round allowed): FAIL (`wp09-r3-i18n.md`). I18N9R-1 and I18N9R-2 verified fixed; the I18N9R-3 fix caused I18N9R3-1 (Medium): editing a failed row emptied the failure list, so the gradebook announced "Corrections sent for approval." when nothing was sent. Fixed: edits clear only that row's marks (a separate set); the save's outcome is unchanged until the next save. New `GradebookPage.test.tsx` (2 tests) fails on `faf7d93` and passes after. I18N9R3-2/3 (info): the inbox notice clears on a view switch and remounts per decision, so an identical outcome is announced again.
+
+### Release gatekeeper — WP-09 (2026-10-09, code at `e40f87b`): FAIL on one test, fixed
+
+`audit/evidence/reviews/wp09-gk.md`. Every gate green and every required reviewer has a verdict; one blocking item.
+
+| Finding | Severity | Fix |
+|---|---|---|
+| GK-1 | Major | The TV-1 assertion was vacuous: it read the request id through an invoker helper while acting as the teacher, who cannot see the request, so `decide_approval(NULL, …)` failed at "not found" before the permission check. The row above saying TV-1's assertion fails on `a6d673e` was wrong. The id and hash are now read as the owner into a temp table first (the `mh_pay` pattern), with an assertion that the request exists, and a second case covers `grades:approve` (a teacher deciding a grade correction; the grade is unchanged). Proof: with the `<resource>:approve` check in `decide_approval` replaced by `if false`, assertions 76–77 fail; with it skipped only for `grades`, 85–86 fail; restored, 92/92. |
+
+Suite: 92 assertions. The gatekeeper's deploy preconditions stand: owner action A0 (restore the paused projects), production preflights re-run at deploy time, staging dry run first, owner notice B1a, and only WP-09's scope (not the calendar migration) in that deploy.
+
+## F-01 — Academic Calendar Engine, slice 1 (MoE → Region → School, read-only grid)
+
+Plan: `/root/.claude/plans/hazy-stirring-lobster.md` (owner-approved; revised 2026-10-09: no Bahire Hasab, Hijri holidays optional per school). Migration `20261008000001_academic_calendar_engine.sql` (not deployed). Owner decision 2026-10-09: **Ginbot 20 follows the MoE (a school day)**, so it is not a national holiday rule (removed from `holiday_rules` and `NATIONAL_HOLIDAY_RULES`; asserted in both suites).
+
+### Review round 1 (at `806c59b`)
+
+Security PASS (`cal1-sec.md`, 3 Low, 1 Info), tenant isolation PASS (`cal1-ti.md`, 3 minor, 2 info), db migration FAIL (`cal1-db.md`, 1 Medium, 4 Low, 1 Info). All fixed in the undeployed migration:
+
+| Findings | Severity | Fix |
+|---|---|---|
+| CAL-DB-01 = CAL-SEC-03 | Medium | Set-returning functions had no row estimates (1000 assumed), so `effective_calendar_entries` seq-scanned every school's entries and `calendar_days` JIT-compiled (1.2–3.9 s per call at volume). `rows` estimates (`calendar_year_settings` 1, `effective_calendar_entries` 60, `calendar_days` 31, `calendar_day_status` 1) and `set jit = off`. Re-measured with JIT on at 300 schools / 60,000 school entries / 5,416 authority entries: 24 ms, 22 ms (one day), 76 ms (a year), no seq scan (`audit/evidence/calendar/cal-db-01-timing.txt`). |
+| CAL-SEC-01 | Low | A user with only `academic_calendar:create` could discard a draft they cannot see by recreating it. Recreating an existing draft now needs `update` too (else `calendar_exists`). |
+| CAL-SEC-02 = CAL-TI-2 = CAL-DB-02 | Low | The override-target check was NULL (and passed) when the year had no published layer; now `coalesce(… = any(…), false)`. |
+| CAL-TI-1 | Minor | The entry guard silently re-homed a row naming another school; now `invalid_calendar`. |
+| CAL-TI-3 | Info | `p_tenant` on the invoker functions is refused (`not_allowed`) for an end user naming another school, so isolation no longer rests on RLS alone; trusted contexts and the platform admin may name any school. |
+| CAL-DB-03 | Low | A day's "session known" depended on the query window; it is now its own year's. |
+| CAL-DB-04 | Low | `calendar_days` applied every year's entries in the window; a day now uses only its session year's entries, as the grid does. |
+| CAL-DB-05 | Low | CHECKs: holiday rule params fail closed (missing/non-numeric month or day, Pagume > 6, impossible Gregorian days, `active_to_ec < active_from_ec`); weekend days one-dimensional, 1–3, distinct; an authority session must lie in its EC year; a school calendar published/closed needs its timestamp; every `name_i18n.en`/`label_i18n.en` is a string. |
+| CAL-SEC-04 | Info | `calendar_days` refuses dates outside 1900–2199 (`invalid_range`) instead of a raw "date out of range" error. |
+| CAL-DB-06 | Info | Stale function comment refreshed; small-table index gaps and the rule_code/date tie are backlog (slice 2). |
+| CAL-TI-5 | Minor | Probes added: B naming A in `effective_calendar_entries`, `calendar_days`, `instructional_days`; tenant mismatch; create-only recreate; override with no published layer. |
+
+Suite: 51 assertions (14 new). Each new assertion was shown to fail with its fix reverted in the database (TI-3: 3, TI-1: 1, SEC-02: 1, SEC-01: 2, DB-03: 1, DB-04: 1). Harness: 115 migrations, 67 suites green; app-rpc-grants 27 RPCs, 0 findings.

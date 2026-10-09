@@ -40,7 +40,10 @@ export interface HolidayDraft {
 
 const iso = (d: Date) => d.toISOString().slice(0, 10);
 
-/** The fixed-date national holidays, seeded into `holiday_rules` too. */
+/**
+ * The fixed-date national holidays, seeded into `holiday_rules` too. Ginbot 20
+ * is not one: the MoE calendar counts it as a school day (owner, 2026-10-09).
+ */
 export const NATIONAL_HOLIDAY_RULES: readonly HolidayRule[] = [
   { kind: "ec_fixed", code: "enkutatash", dayType: "national_holiday", month: 1, day: 1 },
   { kind: "ec_fixed", code: "meskel", dayType: "religious_holiday", month: 1, day: 17 },
@@ -49,7 +52,6 @@ export const NATIONAL_HOLIDAY_RULES: readonly HolidayRule[] = [
   { kind: "ec_fixed", code: "adwa", dayType: "national_holiday", month: 6, day: 23 },
   { kind: "gregorian_fixed", code: "labour_day", dayType: "national_holiday", month: 5, day: 1 },
   { kind: "ec_fixed", code: "patriots_day", dayType: "national_holiday", month: 8, day: 27 },
-  { kind: "ec_fixed", code: "derg_downfall", dayType: "national_holiday", month: 9, day: 20 },
 ];
 
 /** Fixed-date holidays of an EC year from a rule set, in date order. */

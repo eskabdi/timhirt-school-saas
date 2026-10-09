@@ -7,7 +7,7 @@
 -- for the golden-sheet assertions.
 -- ============================================================================
 begin;
-select plan(37);
+select plan(51);
 
 create function pg_temp.y() returns integer language sql stable as $$
   select (public.gregorian_to_ec((now() at time zone 'Africa/Addis_Ababa')::date)).ec_year
@@ -130,20 +130,46 @@ select throws_ok($$ insert into public.school_calendar_entries (tenant_id, calen
                     select tenant_id, id, 'national_holiday', pg_temp.ec(2, 2), pg_temp.ec(2, 2), '{"en": "x"}'
                       from public.school_calendars where tenant_id = '0000000c-0000-0000-0000-00000000000a' $$,
   '22023', 'invalid_day_type', 'a school cannot declare a national holiday');
+select throws_ok($$ insert into public.school_calendar_entries (tenant_id, calendar_id, day_type_code, starts_on, ends_on, name_i18n)
+                    select '0000000c-0000-0000-0000-00000000000b', id, 'school_holiday', pg_temp.ec(2, 2), pg_temp.ec(2, 2), '{"en": "x"}'
+                      from public.school_calendars where tenant_id = '0000000c-0000-0000-0000-00000000000a' $$,
+  '22023', 'invalid_calendar', 'an entry naming another school is refused, not silently re-homed (CAL-TI-1)');
+
+-- A user granted only academic_calendar:create cannot see the draft, so may
+-- not discard it by recreating it (CAL-SEC-01).
+insert into public.user_permission_overrides (tenant_id, user_id, permission_id, granted)
+select '0000000c-0000-0000-0000-00000000000a', '0000000c-0000-0000-0000-0000000a0002', id, true
+  from public.permissions where key = 'academic_calendar:create';
+select pg_temp.act_as('0000000c-0000-0000-0000-0000000a0002');
+select throws_ok($$ select public.create_school_calendar(pg_temp.y(), 'moe') $$, '23505', 'calendar_exists',
+  'create without update cannot recreate an existing draft');
+reset role;
+select is((select origin from public.school_calendars where tenant_id = '0000000c-0000-0000-0000-00000000000a'), 'custom',
+  '... and the draft is untouched');
 
 -- ======================================================= tenant isolation ==
 select pg_temp.act_as('0000000c-0000-0000-0000-0000000b0001');
 select is((select count(*)::integer from public.school_calendars), 0, 'school B sees none of school A''s calendars');
-select is((select count(*)::integer from public.effective_calendar_entries(pg_temp.y(), '0000000c-0000-0000-0000-00000000000a')
-            where level in ('school', 'region')), 0,
-  'asking for school A''s calendar shows B neither A''s entries nor A''s region');
+select throws_ok($$ select count(*) from public.effective_calendar_entries(pg_temp.y(), '0000000c-0000-0000-0000-00000000000a') $$,
+  '42501', 'not_allowed', 'B cannot ask for school A''s calendar');
+select throws_ok($$ select count(*) from public.calendar_days(pg_temp.ec(1, 1), pg_temp.ec(1, 30), '0000000c-0000-0000-0000-00000000000a') $$,
+  '42501', 'not_allowed', '... nor for A''s days (CAL-TI-3)');
+select throws_ok($$ select public.instructional_days(pg_temp.ec(1, 1), pg_temp.ec(1, 30), '0000000c-0000-0000-0000-00000000000a') $$,
+  '42501', 'not_allowed', '... nor for A''s school-day count');
 select lives_ok($$ select public.create_school_calendar(pg_temp.y(), 'moe') $$, 'school B chooses its own calendar');
 select is((select count(*)::integer from public.school_calendars), 1, '... and sees only its own');
+select lives_ok($$ select public.create_school_calendar(pg_temp.y() + 1, 'moe') $$, 'school B drafts next year, which no authority has published');
 reset role;
+-- With no published layer for that year, nothing is a valid override target
+-- (CAL-SEC-02: the check used to be NULL and let it through).
+select throws_ok($$ insert into public.school_calendar_entries (tenant_id, calendar_id, day_type_code, starts_on, ends_on, name_i18n, overrides_entry_id, suppressed)
+                    select tenant_id, id, 'mid_term_break', pg_temp.ec(3, 20, 1), pg_temp.ec(3, 24, 1), '{"en": "x"}', '0000000c-0000-0000-0002-000000000002', true
+                      from public.school_calendars where tenant_id = '0000000c-0000-0000-0000-00000000000b' and ec_year = pg_temp.y() + 1 $$,
+  '22023', 'invalid_override', 'an override of an entry outside the school''s published layers is refused');
 
 -- ============================================================ module gate ==
-insert into public.school_calendars (tenant_id, ec_year, origin, status)
-values ('0000000c-0000-0000-0000-00000000000c', pg_temp.y(), 'moe', 'published');
+insert into public.school_calendars (tenant_id, ec_year, origin, status, published_at)
+values ('0000000c-0000-0000-0000-00000000000c', pg_temp.y(), 'moe', 'published', now());
 select pg_temp.act_as('0000000c-0000-0000-0000-0000000c0001');
 select is((select count(*)::integer from public.school_calendars), 0, 'without the events module a school reads no calendar');
 select throws_ok($$ select public.create_school_calendar(pg_temp.y() + 1, 'moe') $$, '42501', 'not_allowed',
@@ -195,6 +221,41 @@ select is(public.normalize_calendar_settings('{"calendar": {"hijri_holidays": "y
 select ok(not has_function_privilege('anon', 'public.effective_calendar_entries(integer, uuid)', 'EXECUTE')
           and not has_function_privilege('anon', 'public.create_school_calendar(integer, text)', 'EXECUTE'),
   'anon reaches no calendar function');
+
+-- ===================================================== CHECKs (CAL-DB-05) ==
+select throws_ok($$ insert into public.holiday_rules (code, kind, params, day_type_code, name_i18n)
+                    values ('x_rule', 'ec_fixed', '{}', 'national_holiday', '{"en": "x"}') $$,
+  '23514', null, 'a holiday rule without a month and day is refused (NULL does not pass the CHECK)');
+select throws_ok($$ insert into public.holiday_rules (code, kind, params, day_type_code, name_i18n)
+                    values ('x_rule', 'ec_fixed', '{"month": 13, "day": 30}', 'national_holiday', '{"en": "x"}') $$,
+  '23514', null, '... nor Pagume 30');
+select throws_ok($$ insert into public.authority_calendars (authority_id, ec_year, weekend_days, session_starts_on, session_ends_on)
+                    values ((select id from public.edu_authorities where code = 'AA'), 2031, '{6,6}', '2038-09-01', '2039-07-01') $$,
+  '23514', null, 'a weekend listing a day twice is refused');
+select throws_ok($$ insert into public.authority_calendars (authority_id, ec_year, session_starts_on, session_ends_on)
+                    values ((select id from public.edu_authorities where code = 'AA'), 2050, '2037-09-01', '2038-07-01') $$,
+  '23514', null, 'a session outside its EC year is refused');
+
+-- ==================================== one day, one answer (CAL-DB-03/04) ==
+-- Meskerem 10 of last year has no session of its own: alone or inside a
+-- window reaching this year's session, it is "session unknown".
+select ok((select in_session from public.calendar_day_status(pg_temp.ec(1, 10, -1))) is null
+          and (select in_session from public.calendar_days(pg_temp.ec(1, 10, -1), pg_temp.ec(1, 10, -1) + 400)
+                where day = pg_temp.ec(1, 10, -1)) is null,
+  'a day''s session status does not depend on the window it is asked in');
+-- Last year's school entries do not reach into this year's session (its
+-- lead-in starts in last year's Nehase), as in the grid.
+create temp table leadin as select public.instructional_days(pg_temp.ec(12, 25, -1), pg_temp.ec(12, 30, -1), '0000000c-0000-0000-0000-00000000000b') as n;
+insert into public.school_calendar_entries (tenant_id, calendar_id, day_type_code, starts_on, ends_on, name_i18n) values
+  ('0000000c-0000-0000-0000-00000000000b', '0000000c-0000-0000-0003-000000000001', 'registration', pg_temp.ec(12, 25, -1), pg_temp.ec(12, 30, -1), '{"en": "Registration"}');
+select is(public.instructional_days(pg_temp.ec(12, 25, -1), pg_temp.ec(12, 30, -1), '0000000c-0000-0000-0000-00000000000b'), (select n from leadin),
+  'a day in this year''s session counts by this year''s entries only');
+
+-- Owner, 2026-10-09: follow the MoE. Ginbot 20 is a school day, so no rule
+-- generates it.
+select is((select count(*)::integer from public.holiday_rules
+            where kind = 'ec_fixed' and (params ->> 'month')::int = 9 and (params ->> 'day')::int = 20), 0,
+  'Ginbot 20 is not a national holiday rule (the MoE counts it as a school day)');
 
 select * from finish();
 rollback;

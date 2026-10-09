@@ -17,6 +17,10 @@ describe("generateHolidays (fixed-date national holidays)", () => {
     expect(ec("patriots_day")).toEqual(["8/27"]);
   });
 
+  it("follows the MoE: Ginbot 20 is a school day, not a holiday", () => {
+    expect(h2019.some((h) => h.ec.month === 9 && h.ec.day === 20)).toBe(false);
+  });
+
   it("computes no movable feasts (no Bahire Hasab, no Hijri)", () => {
     const codes = new Set(h2019.map((h) => h.code));
     for (const c of ["siklet", "fasika", "eid_al_fitr", "eid_al_adha", "mawlid"]) expect(codes.has(c)).toBe(false);
@@ -32,7 +36,7 @@ describe("generateHolidays (fixed-date national holidays)", () => {
     for (const y of [2016, 2017, 2018, 2019, 2020]) {
       const { first, last } = ecYearSpan(y);
       const list = generateHolidays(y);
-      expect(list).toHaveLength(8);
+      expect(list).toHaveLength(7);
       for (const h of list) {
         expect(h.date >= iso(first) && h.date <= iso(last), `${h.code} ${y}`).toBe(true);
         expect(toEthiopian(new Date(`${h.date}T00:00:00Z`)).year).toBe(y);

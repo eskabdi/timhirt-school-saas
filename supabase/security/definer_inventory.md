@@ -28,7 +28,7 @@ The reviewed grant list is `definer_allowlist.sql`; `catalog_definer_security.sq
 | `create_export_job(uuid,text)` | Private (authenticated) | authenticated service_role | 0 | 0 | ImportExportPage.tsx | — | `search_path=public, pg_temp` |
 | `create_health_alert(uuid,text,text,text)` | Internal (service_role) | service_role | 0 | 0 | — | — | `search_path=public, pg_temp` |
 | `create_import_job(uuid,text,integer)` | Private (authenticated) | authenticated service_role | 0 | 0 | ImportExportPage.tsx | — | `search_path=public, pg_temp` |
-| `create_school_calendar(integer,text)` | Private (authenticated) | authenticated service_role | 0 | 0 | — | — | `search_path=public, pg_temp` |
+| `create_school_calendar(integer,text)` | Private (authenticated) | authenticated service_role | 0 | 0 | api.ts | — | `search_path=public, pg_temp` |
 | `dashboard_alerts(date,date)` | Private (authenticated) | authenticated service_role | 0 | 0 | useDashboardData.ts | — | `search_path=public, pg_temp` |
 | `dashboard_attendance_week(date)` | Private (authenticated) | authenticated service_role | 0 | 0 | useDashboardData.ts | — | `search_path=public, pg_temp` |
 | `dashboard_billing(date,date)` | Private (authenticated) | authenticated service_role | 0 | 0 | useDashboardData.ts | — | `search_path=public, pg_temp` |
