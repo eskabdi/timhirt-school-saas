@@ -53,6 +53,7 @@ import { LibrarySettingsPage } from "@/features/library/LibrarySettingsPage";
 import { StudentLibraryPage } from "@/features/portal/StudentLibraryPage";
 import { TransportPage } from "@/features/transport/TransportPage";
 import { EventsCalendarPage } from "@/features/events/EventsCalendarPage";
+import { AcademicYearGridPage } from "@/features/academic-calendar/AcademicYearGridPage";
 import { ReportsPage } from "@/features/reports/ReportsPage";
 import { IDCardBatchPage } from "@/features/id-cards/IDCardBatchPage";
 import { LeavingCertificatesPage } from "@/features/students/LeavingCertificatesPage";
@@ -152,6 +153,16 @@ export const router = createBrowserRouter([
           {
             element: <RequireRole roles={STAFF} />,
             children: [{ path: "approvals", element: <ApprovalsPage /> }],
+          },
+          // Academic calendar (MoE -> region -> school): every staff role
+          // reads the published calendar; RLS hides drafts from those who
+          // cannot edit them, and create_school_calendar checks its permission.
+          {
+            element: <RequireRole roles={STAFF} />,
+            children: [{
+              element: <RequireModule module="events" />,
+              children: [{ path: "academic-calendar", element: <AcademicYearGridPage /> }],
+            }],
           },
 
           // Same "not a toggleable module, RLS is the real gate" call as
