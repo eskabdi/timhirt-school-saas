@@ -5,9 +5,10 @@ TanStack Query on Supabase (Postgres + RLS + Edge Functions + Storage), no
 custom API server.
 
 > **Deployed state (verified 2026-09-27):** production runs the R6 WP-01 frontend
-> (`c4ecfac`, served `<meta name="app-commit">`) and 111 of the repo's 114
+> (`c4ecfac`, served `<meta name="app-commit">`) and 111 of the repo's 115
 > migrations (WP-01 `20260925000002`/`…03` and WP-02 `20260926000001` applied
-> 2026-09-27; WP-09 `20260927000001`/`…02`/`…03` pending its review). 28/28 Edge
+> 2026-09-27; WP-09 `20260927000001`/`…02`/`…03` and the Academic Calendar
+> Engine `20261008000001` pending review). 28/28 Edge
 > Functions match the repo (names and `verify_jwt`); the 9 WP-01 functions run
 > the `c4ecfac` code. Evidence: `audit/evidence/wp01-wp02-deploy-*.txt`. The
 > staging project (`timhirt-saas-staging`, ref `ekebibapffrhzibidbnr`,
@@ -171,7 +172,7 @@ npx vitest run
 npm run check:i18n                  # must be 0
 npm run check:locales               # parity + no wholesale reformat
 npm run build
-PGHOST=… ./supabase/tests/run.sh    # 114 migrations + 66 pgTAP suites
+PGHOST=… ./supabase/tests/run.sh    # 115 migrations + 67 pgTAP suites
 python3 scripts/ci/app-rpc-grants.py      # after run.sh, same PG* env
 bash scripts/ci/deno-check.sh       # Edge Function types (ratchet)
 python3 scripts/ci/semgrep-rule-test.py   # needs semgrep 1.95.0
