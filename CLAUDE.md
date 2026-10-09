@@ -4,17 +4,19 @@ Timhirt — multi-tenant Ethiopian school management SaaS. React + Vite +
 TanStack Query on Supabase (Postgres + RLS + Edge Functions + Storage), no
 custom API server.
 
-> **Deployed state (verified 2026-09-27):** production runs the R6 WP-01 frontend
-> (`c4ecfac`, served `<meta name="app-commit">`) and 111 of the repo's 115
-> migrations (WP-01 `20260925000002`/`…03` and WP-02 `20260926000001` applied
-> 2026-09-27; WP-09 `20260927000001`/`…02`/`…03` and the Academic Calendar
-> Engine `20261008000001` pending review). 28/28 Edge
-> Functions match the repo (names and `verify_jwt`); the 9 WP-01 functions run
-> the `c4ecfac` code. Evidence: `audit/evidence/wp01-wp02-deploy-*.txt`. The
+> **Deployed state (verified 2026-10-09):** production runs the R6 WP-09 frontend
+> (`e40f87b`, served `<meta name="app-commit">`) and 114 of the repo's 115
+> migrations (WP-09 `20260927000001`/`…02`/`…03` applied 2026-10-09; the
+> Academic Calendar Engine `20261008000001` is pending review). 28/28 Edge
+> Functions match the repo (names and `verify_jwt`); the 4 WP-09 functions run
+> the `e40f87b` code. Evidence: `audit/evidence/wp09-deploy-*.txt`. The
 > staging project (`timhirt-saas-staging`, ref `ekebibapffrhzibidbnr`,
-> sign-up disabled) has the same 111 migrations and no data; it is the dry run
-> for every production migration. Production has **PITR off and no backups**
-> (Free plan). Public sign-up is **disabled** (invite-only). Vercel (Hobby)
+> sign-up disabled) has the same 114 migrations, no data and no Edge
+> Functions; it is the dry run for every production migration. Both projects
+> are on the Free plan, which **pauses a project after ~7 days without
+> database activity** (both were paused 2026-10-08 and restored by the owner
+> 2026-10-09). Production has **PITR off and no backups**. Public sign-up is
+> **disabled** (invite-only). Vercel (Hobby)
 > refuses to build a commit authored by Claude: deploy from a `git archive` of
 > the reviewed commit with `--build-env VITE_COMMIT_SHA=<sha>`. The R6 fix plan
 > is `docs/audits/timhirt-production-fix-plan.md`; progress is in

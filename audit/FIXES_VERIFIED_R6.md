@@ -895,6 +895,17 @@ Independent re-check of GK-1 on `c8a388d`: test-verifier PASS (`wp09-tv-gk.md`):
 
 Suite: 93 assertions. The gatekeeper's deploy preconditions stand: owner action A0 (restore the paused projects), production preflights re-run at deploy time, staging dry run first, owner notice B1a, and only WP-09's scope (not the calendar migration) in that deploy.
 
+### Deployed (2026-10-09): WP-09, verified-staging and verified-prod
+
+After the owner restored both paused projects (A0). Staging dry run `audit/evidence/wp09-deploy-staging-20261009T113238Z.txt` (3 migrations, post-state clean, definer grants identical to the allow-list). Production pre-deploy capture `wp09-predeploy-20261009T113336Z.txt` (preflights all 0: no payment/line tenant mismatch with its header, no orphan payment, no pending cash/bank payment, no duplicate manual or gateway reference; row counts and md5 of payments, fee_invoices, invoice_headers, grades, students, academic_terms, tenant_configs). Production `wp09-deploy-20261009T113433Z.txt`:
+
+- Migrations `20260927000001`/`…02`/`…03` from the reviewed `e40f87b`, each in its own transaction: 114 migrations, 79 definer functions, 0 anon-executable, 0 unpinned, 0 tables without FORCE RLS; definer grants identical to `definer_allowlist.sql` at `e40f87b` (32 rows, 0 anon); 18 approval actions, `approval_required` closed to clients. Every table checksum equals the pre-deploy capture (no existing row changed).
+- Edge Functions from `e40f87b`: record-fee-payment v9, issue-fee-document v6, generate-fee-invoices v3, enroll-finalize-billing v6; 28/28 deployed, 0 `verify_jwt` mismatches; each answers 401 without a token.
+- Frontend: `git archive` of `e40f87b` built on Vercel; www.edux.et serves `app-commit` `e40f87bc…`, bundle contains `submit_approval`/`decide_approval`, not the calendar RPCs; project ref baked in; anon JWT present; Tayitu font 200.
+- Live anon probes: `submit_approval`, `decide_approval`, `cancel_approval` → 401 `42501`; `approval_requests` select → 401 `42501`.
+
+Owner notice B1a now applies: with no threshold set, every cash or bank payment needs a second person's approval.
+
 ## F-01 — Academic Calendar Engine, slice 1 (MoE → Region → School, read-only grid)
 
 Plan: `/root/.claude/plans/hazy-stirring-lobster.md` (owner-approved; revised 2026-10-09: no Bahire Hasab, Hijri holidays optional per school). Migration `20261008000001_academic_calendar_engine.sql` (not deployed). Owner decision 2026-10-09: **Ginbot 20 follows the MoE (a school day)**, so it is not a national holiday rule (removed from `holiday_rules` and `NATIONAL_HOLIDAY_RULES`; asserted in both suites).

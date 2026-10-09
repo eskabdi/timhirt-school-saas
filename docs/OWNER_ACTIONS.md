@@ -5,7 +5,7 @@ authority, or a decision that is yours to make. Claude keeps this file current
 as the fix plan runs. Each item says what to do, why, and how to tell Claude
 it is done. Tick the box when finished.
 
-Last updated: 2026-10-09 (both Supabase projects restored by the owner; WP-09 deploy next).
+Last updated: 2026-10-09 (projects restored; WP-09 deployed to production).
 
 ---
 
@@ -57,7 +57,7 @@ Last updated: 2026-10-09 (both Supabase projects restored by the owner; WP-09 de
   Gregorian equivalent. A school admin can switch it off in Settings →
   Calendar Preferences, or tell Claude to switch it off for all schools.
   **Decided 2026-09-27:** the owner merged PR #9 and wrote "Do not wait for my approval, you have permission to commit - deploy live to Supabase and Vercel if required". Standing approval for releases that have passed their release gate. Claude still ships each work package only after its own review and gate; WP-09 (maker-checker) is merged but waits for its review before it ships. **WP-01 and WP-02 were deployed on 2026-09-27** (staging dry run first; evidence `audit/evidence/wp01-wp02-deploy-*.txt`).
-- [ ] **B1a. Heads-up for the WP-09 deploy (maker-checker).** After it ships,
+- [ ] **B1a. Heads-up: WP-09 (maker-checker) is live since 2026-10-09.** Now that it has shipped,
   every cash or bank payment staff record waits for a *second* person
   (another accountant or a school admin) to approve it before it counts
   against the invoice; a school admin can set an amount below which payments
