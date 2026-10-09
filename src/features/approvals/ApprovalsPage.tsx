@@ -66,14 +66,14 @@ export function ApprovalsPage() {
       </div>
       <SegmentedControl<View>
         value={view}
-        onChange={setView}
+        onChange={(v) => { setView(v); setNotice(null); }}
         options={[
           { value: "waiting", label: t("approvals.view.waiting") },
           { value: "mine", label: t("approvals.view.mine") },
           { value: "history", label: t("approvals.view.history") },
         ]}
       />
-      <p ref={noticeRef} tabIndex={-1} role={notice?.tone === "error" ? "alert" : "status"}
+      <p key={notice?.seq ?? 0} ref={noticeRef} tabIndex={-1} role={notice?.tone === "error" ? "alert" : "status"}
         className={`text-sm focus:outline-none ${notice?.tone === "error" ? "text-danger" : "text-ok"}`}>
         {notice?.text ?? ""}
       </p>

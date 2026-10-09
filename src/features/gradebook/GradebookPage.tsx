@@ -22,6 +22,9 @@ export function GradebookPage() {
   const [scores, setScores] = useState<Record<string, number>>({});
   const [reason, setReason] = useState("");
   const [result, setResult] = useState<{ outcome: "saved" | "corrections"; failed: { sid: string; key: string }[]; sent: string[] } | null>(null);
+  // Rows edited since the last save: their failure marks clear, but the save's
+  // own outcome (what was and was not sent) stays as it was (I18N9R3-1).
+  const [editedSince, setEditedSince] = useState<ReadonlySet<string>>(new Set());
 
   const { data: exams } = useQuery({
     queryKey: ["exams"],
@@ -56,7 +59,7 @@ export function GradebookPage() {
     },
   });
 
-  useEffect(() => { setScores({}); setResult(null); }, [examId, subjectId]);
+  useEffect(() => { setScores({}); setResult(null); setEditedSince(new Set()); }, [examId, subjectId]);
 
   const changed = Object.entries(scores).filter(([sid, score]) => existing?.get(sid)?.score !== score);
   const corrections = published ? changed : [];
@@ -96,6 +99,7 @@ export function GradebookPage() {
     },
     onSuccess: (res) => {
       setResult(res);
+      setEditedSince(new Set());
       const keep = new Set(res.failed.map((f) => f.sid));
       setScores((sc) => Object.fromEntries(Object.entries(sc).filter(([sid]) => keep.has(sid))));
       if (!keep.size) setReason("");
@@ -107,7 +111,7 @@ export function GradebookPage() {
   const needsReason = corrections.length > 0 && !reason.trim();
   // Per-row outcome of the last correction batch (I18N9-4): which rows failed
   // and why, and which went to a second person (they show the old score).
-  const failedBy = new Map((result?.failed ?? []).map((f) => [f.sid, f.key]));
+  const failedBy = new Map((result?.failed ?? []).filter((f) => !editedSince.has(f.sid)).map((f) => [f.sid, f.key]));
   const sentSet = new Set(result?.sent ?? []);
 
   return (
@@ -149,7 +153,7 @@ export function GradebookPage() {
                       onChange={(e) => {
                         save.reset();
                         // An edited row is no longer the one that failed (I18N9R-3).
-                        setResult((r) => r && { ...r, failed: r.failed.filter((f) => f.sid !== s.id) });
+                        setEditedSince((prev) => new Set(prev).add(s.id));
                         const raw = e.target.value;
                         // An emptied box is "no edit", not a score of 0 (review CQ-4).
                         setScores((sc) => {
