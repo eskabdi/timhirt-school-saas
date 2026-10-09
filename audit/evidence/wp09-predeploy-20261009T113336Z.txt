@@ -1,0 +1,22 @@
+# WP-09 production pre-deploy capture (20261009T113336Z), read-only Management API. PITR off, no backups (D-03): WP-09 changes no existing row (enum value, new tables, constraints, triggers), so row counts + md5 per touched table prove the data is unchanged afterwards.
+## state
+migrations | 111
+definer fns | 65
+anon-exec definers | 0
+unpinned definers | 0
+tables w/o FORCE RLS | 0
+merge_tenant_settings auth/anon | true/false
+default acl - | {postgres=X/postgres}
+default acl public | {postgres=X/postgres,service_role=X/postgres}
+default acl extensions | {=X/postgres}
+default acl storage | {postgres=X/postgres,service_role=X/postgres}
+## preflight (must all be 0): pay/header tenant mismatch, orphan payments, line/header tenant mismatch, pending cash/bank, duplicate manual refs, duplicate gateway refs | tenants payments headers
+0 | 0 | 0 | 0 | 0 | 0 | 4 | 10 | 68
+## table checksums
+academic_terms | 9 | c69a9ff3ed401e04eb77c0bc1a902602
+fee_invoices | 61 | 90291f3d0ecd99a8b0c0ee2590cfb0f5
+grades | 24 | e8d8429bc3ac9785f7e7eaa34265dbb0
+invoice_headers | 68 | e783bfb4ff0ea993d589bafa004e17f6
+payments | 10 | 513fcbaad2dbe2f694578c6cf914f9bf
+students | 12 | b92d4202b1b38cb3485ca3bbbec44b59
+tenant_configs | 4 | e30b3d2408e53069947e81feda266d3d

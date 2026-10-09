@@ -1,0 +1,48 @@
+# WP-09 staging dry run 20261009T113238Z (ekebibapffrhzibidbnr), migrations from e40f87b
+applied 20260927000001_r6_invoice_void_status.sql
+applied 20260927000002_r6_maker_checker.sql
+applied 20260927000003_r6_maker_checker_hardening.sql
+-- postcheck
+migrations | 114
+definer fns | 79
+anon-exec definers | 0
+unpinned definers | 0
+tables w/o FORCE RLS | 0
+merge_tenant_settings auth/anon | true/false
+default acl - | {postgres=X/postgres}
+default acl public | {postgres=X/postgres,service_role=X/postgres}
+default acl extensions | {=X/postgres}
+default acl storage | {postgres=X/postgres,service_role=X/postgres}
+-- definer-grant drift (docs/DEPLOYMENT.md) vs definer_allowlist.sql at e40f87b: 32 rows, identical, 0 anon
+acknowledge_alert(uuid)|authenticated
+attendance_retroactive_edit_window_days(uuid)|authenticated
+auto_assign_exam_seats(uuid,integer,integer)|authenticated
+cancel_approval(uuid)|authenticated
+check_staff_employee_linkage()|authenticated
+create_export_job(uuid,text)|authenticated
+create_import_job(uuid,text,integer)|authenticated
+dashboard_alerts(date,date)|authenticated
+dashboard_attendance_week(date)|authenticated
+dashboard_billing(date,date)|authenticated
+dashboard_high_absence(date,date,numeric,integer)|authenticated
+dashboard_lowest_gpa(integer)|authenticated
+dashboard_missing_attendance(date,date)|authenticated
+dashboard_overview(uuid)|authenticated
+decide_approval(uuid,text,text,text)|authenticated
+exam_results_published(uuid)|authenticated
+get_class_rank(uuid,uuid)|authenticated
+get_email_for_user(uuid)|authenticated
+get_role_for_user(uuid)|authenticated
+get_role_for_user(uuid)|timhirt_view_owner
+get_security_settings()|authenticated
+get_student_grade_history(uuid)|authenticated
+get_tenant_id_for_user(uuid)|authenticated
+get_tenant_id_for_user(uuid)|timhirt_view_owner
+has_module(uuid,text)|authenticated
+has_resource_permission(uuid,text,text)|authenticated
+is_guardian_of(uuid)|authenticated
+is_teacher_of_class(uuid)|authenticated
+jwt_user_id()|authenticated
+jwt_user_id()|timhirt_view_owner
+set_approval_settings(boolean,numeric)|authenticated
+submit_approval(text,uuid,jsonb,text)|authenticated

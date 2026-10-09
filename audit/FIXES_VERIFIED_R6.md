@@ -889,7 +889,11 @@ i18n/a11y round 3 on `faf7d93` (the last round allowed): FAIL (`wp09-r3-i18n.md`
 |---|---|---|
 | GK-1 | Major | The TV-1 assertion was vacuous: it read the request id through an invoker helper while acting as the teacher, who cannot see the request, so `decide_approval(NULL, …)` failed at "not found" before the permission check. The row above saying TV-1's assertion fails on `a6d673e` was wrong. The id and hash are now read as the owner into a temp table first (the `mh_pay` pattern), with an assertion that the request exists, and a second case covers `grades:approve` (a teacher deciding a grade correction; the grade is unchanged). Proof: with the `<resource>:approve` check in `decide_approval` replaced by `if false`, assertions 76–77 fail; with it skipped only for `grades`, 85–86 fail; restored, 92/92. |
 
-Suite: 92 assertions. The gatekeeper's deploy preconditions stand: owner action A0 (restore the paused projects), production preflights re-run at deploy time, staging dry run first, owner notice B1a, and only WP-09's scope (not the calendar migration) in that deploy.
+Independent re-check of GK-1 on `c8a388d`: test-verifier PASS (`wp09-tv-gk.md`): both probes reach `has_resource_permission` (a distinct refusal message at the permission check is what 76 and 85 catch); the pre-fix suite passes 88/88 with the check removed, confirming GK-1. TV-GK-1 (minor): with the whole check removed, the unwrapped admin approval after the probe raised and aborted the suite before the grade probe; it is now a `lives_ok` plus a status assertion, so that mutation fails 76, 77, 80, 82, 86, 87 with no abort. TV-GK-2 (info): the maker check comes after the permission check (brief wording only).
+
+**WP-09 release gate: PASS** (2026-10-09; GK-1 closed by the re-check above; every other reviewer verdict as listed in `wp09-gk.md`).
+
+Suite: 93 assertions. The gatekeeper's deploy preconditions stand: owner action A0 (restore the paused projects), production preflights re-run at deploy time, staging dry run first, owner notice B1a, and only WP-09's scope (not the calendar migration) in that deploy.
 
 ## F-01 — Academic Calendar Engine, slice 1 (MoE → Region → School, read-only grid)
 

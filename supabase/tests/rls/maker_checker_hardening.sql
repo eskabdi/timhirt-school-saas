@@ -4,7 +4,7 @@
 -- assertion. IDs in the descriptions are the review findings.
 -- ============================================================================
 begin;
-select plan(92);
+select plan(93);
 
 insert into auth.users (id, email) values
   ('0000000f-0000-0000-0000-0000000a0001', 'mh-admin1@example.test'),
@@ -421,10 +421,14 @@ select has_trigger('public', 'payments', 'payments_client_write_guard', 'TV-2: p
 insert into public.guardians (tenant_id, student_id, user_id, relationship) values
   ('0000000f-0000-0000-0000-00000000000a', '0000000f-0000-0000-0005-000000000001', '0000000f-0000-0000-0000-0000000a0011', 'mother');
 select pg_temp.act_as('0000000f-0000-0000-0000-0000000a0001');
-select is(public.decide_approval((pg_temp.req('0000000f-0000-0000-000b-000000000082')).id, 'approved',
-                                 (pg_temp.req('0000000f-0000-0000-000b-000000000082')).payload_hash),
-  'executed', 'an admin approves the parked payment');
+-- Wrapped (TV-GK-1): if the TV-1 probe above ever lets the teacher through,
+-- this call fails as an assertion instead of aborting the suite before the
+-- grade probe below runs.
+select lives_ok($$ select public.decide_approval((select id from tv1_pay), 'approved', (select payload_hash from tv1_pay)) $$,
+  'an admin approves the parked payment');
 reset role;
+select is((select status::text from public.payments where id = '0000000f-0000-0000-000b-000000000082'), 'succeeded',
+  '... and it is credited');
 select is((select count(*)::int from public.portal_notifications
             where recipient_id = '0000000f-0000-0000-0000-0000000a0011' and kind = 'payment_received'
               and payment_id = '0000000f-0000-0000-000b-000000000082'), 1,

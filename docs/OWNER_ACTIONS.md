@@ -5,13 +5,13 @@ authority, or a decision that is yours to make. Claude keeps this file current
 as the fix plan runs. Each item says what to do, why, and how to tell Claude
 it is done. Tick the box when finished.
 
-Last updated: 2026-10-08 (both Supabase projects found paused; WP-09 review finishing).
+Last updated: 2026-10-09 (both Supabase projects restored by the owner; WP-09 deploy next).
 
 ---
 
-## 0. Urgent: the live app is down
+## 0. The live app was down (resolved)
 
-- [ ] **A0. Restore the two paused Supabase projects.** On 2026-10-08 both
+- [x] **A0. Restore the two paused Supabase projects.** **Done 2026-10-09:** the owner restored both; the Management API reports both `ACTIVE_HEALTHY`, each still at 111 migrations. Moving production to Pro (no pausing, daily backups) is still recommended. On 2026-10-08 both
   `timhirt-saas` (production, `livqynxlibmccaycseer`) and
   `timhirt-saas-staging` (`ekebibapffrhzibidbnr`) report status **INACTIVE**:
   the Free plan pauses a project after about 7 days without database
