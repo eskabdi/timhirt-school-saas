@@ -67,6 +67,47 @@ grant execute on function public.ec_to_gregorian(integer, integer, integer) to a
 grant execute on function public.gregorian_to_ec(date) to authenticated;
 grant execute on function public.ec_days_in_month(integer, integer) to authenticated;
 
+-- ------------------------------------------- optional Hijri holidays flag --
+-- settings.calendar.hijri_holidays (the school's choice, default off): the
+-- academic calendar marks Eid al-Fitr, Eid al-Adha and Mawlid as tentative
+-- Hijri dates where the MoE has not published them. Display only: nothing is
+-- stored or counted. The calendar normaliser (20260925000002) now also keeps
+-- this key a strict boolean; every other key is unchanged.
+create or replace function public.normalize_calendar_settings(p_settings jsonb)
+returns jsonb
+language sql
+immutable
+set search_path = pg_catalog, pg_temp
+as $$
+  select case
+    when p_settings is null or jsonb_typeof(p_settings) <> 'object' or not (p_settings ? 'calendar')
+      then p_settings
+    else jsonb_set(p_settings, '{calendar}', (
+      with c as (
+        select case when jsonb_typeof(p_settings->'calendar') = 'object'
+                    then p_settings->'calendar' else '{}'::jsonb end as cal
+      )
+      select (c.cal - 'geezNumerals' - 'secondaryVisible' - 'showHijri'
+                    - 'numerals' - 'show_hijri' - 'secondary_visible' - 'hijri_holidays')
+             || jsonb_build_object(
+                  'secondary_visible',
+                    case when jsonb_typeof(c.cal->'secondary_visible') = 'boolean' then c.cal->'secondary_visible'
+                         when jsonb_typeof(c.cal->'secondaryVisible') = 'boolean' then c.cal->'secondaryVisible'
+                         else 'true'::jsonb end,
+                  'numerals',
+                    case when c.cal->>'numerals' in ('latn', 'arab') and jsonb_typeof(c.cal->'numerals') = 'string'
+                         then c.cal->'numerals' else '"latn"'::jsonb end,
+                  'show_hijri',
+                    case when jsonb_typeof(c.cal->'show_hijri') = 'boolean' then c.cal->'show_hijri'
+                         when jsonb_typeof(c.cal->'showHijri') = 'boolean' then c.cal->'showHijri'
+                         else 'false'::jsonb end,
+                  'hijri_holidays',
+                    case when jsonb_typeof(c.cal->'hijri_holidays') = 'boolean' then c.cal->'hijri_holidays'
+                         else 'false'::jsonb end)
+      from c))
+  end
+$$;
+
 -- ------------------------------------------------------------ authorities --
 create table public.edu_authorities (
   id         uuid primary key default gen_random_uuid(),
@@ -103,8 +144,9 @@ create table public.calendar_day_types (
 create table public.holiday_rules (
   code           text primary key check (code ~ '^[a-z][a-z0-9_]{1,39}$'),
   -- Fixed-date national holidays only (owner decision 2026-10-09: no Bahire
-  -- Hasab and no Hijri computation). Siklet, Fasika and the Eids move every
-  -- year; they enter a calendar only as the dates the MoE publishes.
+  -- Hasab). Siklet, Fasika and the Eids move every year; they enter a
+  -- calendar only as the dates the MoE publishes (a school may opt in to
+  -- tentative Hijri suggestions, display only: settings.calendar.hijri_holidays).
   kind           text not null check (kind in ('ec_fixed', 'gregorian_fixed')),
   params         jsonb not null,
   day_type_code  text not null references public.calendar_day_types (code),

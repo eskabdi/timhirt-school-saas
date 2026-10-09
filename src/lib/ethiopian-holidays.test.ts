@@ -41,3 +41,18 @@ describe("generateHolidays (fixed-date national holidays)", () => {
     }
   });
 });
+
+describe("hijriHolidaySuggestions (optional, the school's choice)", () => {
+  it("finds the two Eids within a day of the dates the MoE published for 2019 EC", async () => {
+    const { hijriHolidaySuggestions } = await import("@/lib/ethiopian-holidays");
+    const s = hijriHolidaySuggestions(2019);
+    const near = (code: string, published: string) => {
+      const diffs = s.filter((h) => h.code === code).map((h) => Math.abs(Date.parse(h.date) - Date.parse(published)) / 86_400_000);
+      expect(Math.min(...diffs), code).toBeLessThanOrEqual(1);
+    };
+    near("eid_al_fitr", "2027-03-09"); // Yekatit 30, 2019
+    near("eid_al_adha", "2027-05-16"); // Ginbot 8, 2019
+    const { first, last } = ecYearSpan(2019);
+    for (const h of s) expect(h.date >= iso(first) && h.date <= iso(last)).toBe(true);
+  });
+});

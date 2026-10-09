@@ -8,12 +8,15 @@
 //   gregorian_fixed same Gregorian month/day (Genna = Jan 7, Labour Day = May 1),
 //                   which moves by a day in EC around a 6-day Pagume
 //
-// Owner decision (2026-10-09): no Bahire Hasab and no Hijri computation.
-// Siklet, Fasika and the Eids move every year; they enter a calendar only as
-// the dates the MoE publishes. Generation is an explicit action, so a
-// published calendar never drifts.
+// Owner decisions (2026-10-09): no Bahire Hasab, so Siklet and Fasika enter a
+// calendar only as the dates the MoE publishes. Hijri holidays are optional,
+// chosen by each school (settings.calendar.hijri_holidays): when on, the
+// academic calendar marks Eid al-Fitr, Eid al-Adha and Mawlid as tentative
+// dates from the Hijri calendar (hijriHolidaySuggestions) where the MoE has
+// not published them. Suggestions are never stored and never counted.
+// Generation is an explicit action, so a published calendar never drifts.
 // ============================================================================
-import { daysInEthMonth, toEthiopian, toGregorian, type EthDate } from "@/lib/ethiopian-date";
+import { daysInEthMonth, toEthiopian, toGregorian, toHijri, type EthDate } from "@/lib/ethiopian-date";
 
 /** First and last day (Gregorian) of an EC year, Meskerem 1 to the last day of Pagume. */
 export function ecYearSpan(ecYear: number): { first: Date; last: Date } {
@@ -67,4 +70,37 @@ export function generateHolidays(ecYear: number, rules: readonly HolidayRule[] =
     }
   }
   return out.sort((a, b) => a.date.localeCompare(b.date) || a.code.localeCompare(b.code));
+}
+
+// ------------------------------------------------- optional Hijri holidays --
+
+export interface HijriHolidaySuggestion {
+  code: "eid_al_fitr" | "eid_al_adha" | "mawlid";
+  /** ISO yyyy-mm-dd, Gregorian. */
+  date: string;
+  ec: EthDate;
+}
+
+const HIJRI_HOLIDAYS: readonly { code: HijriHolidaySuggestion["code"]; month: number; day: number }[] = [
+  { code: "eid_al_fitr", month: 10, day: 1 },
+  { code: "eid_al_adha", month: 12, day: 10 },
+  { code: "mawlid", month: 3, day: 12 },
+];
+
+/**
+ * Tentative Islamic holidays in an EC year from the runtime's Umm al-Qura
+ * calendar (Ethiopia fixes them by local moon sighting, often a day apart).
+ * Only for schools that opt in; empty where the runtime has no Islamic
+ * calendar. A Hijri year is ~11 days shorter, so a holiday can fall twice.
+ */
+export function hijriHolidaySuggestions(ecYear: number): HijriHolidaySuggestion[] {
+  const { first, last } = ecYearSpan(ecYear);
+  const out: HijriHolidaySuggestion[] = [];
+  for (let d = first; d.getTime() <= last.getTime(); d = new Date(d.getTime() + 86_400_000)) {
+    const h = toHijri(d);
+    if (!h) return [];
+    const hit = HIJRI_HOLIDAYS.find((r) => r.month === h.month && r.day === h.day);
+    if (hit) out.push({ code: hit.code, date: iso(d), ec: toEthiopian(d) });
+  }
+  return out;
 }

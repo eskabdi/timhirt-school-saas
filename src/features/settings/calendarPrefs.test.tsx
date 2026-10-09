@@ -55,22 +55,27 @@ const saveButton = () => [...$().querySelectorAll("button")].find((b) => b.textC
 describe("parseCalendarPrefs / serializeCalendarPrefs", () => {
   it("reads the stored snake_case keys", () => {
     expect(parseCalendarPrefs({ secondary_visible: false, numerals: "arab", show_hijri: true }))
-      .toEqual({ secondaryVisible: false, numerals: "arab", showHijri: true });
+      .toEqual({ secondaryVisible: false, numerals: "arab", showHijri: true, hijriHolidays: false });
   });
   it("still reads the legacy camelCase keys", () => {
     expect(parseCalendarPrefs({ secondaryVisible: false, showHijri: true }))
-      .toEqual({ secondaryVisible: false, numerals: "latn", showHijri: true });
+      .toEqual({ secondaryVisible: false, numerals: "latn", showHijri: true, hijriHolidays: false });
   });
   it("never yields Ge'ez numerals, whatever is stored", () => {
     expect(parseCalendarPrefs({ numerals: "geez", geezNumerals: true }).numerals).toBe("latn");
   });
   it("defaults junk", () => {
-    expect(parseCalendarPrefs("junk")).toEqual({ secondaryVisible: true, numerals: "latn", showHijri: false });
-    expect(parseCalendarPrefs([1])).toEqual({ secondaryVisible: true, numerals: "latn", showHijri: false });
+    expect(parseCalendarPrefs("junk")).toEqual({ secondaryVisible: true, numerals: "latn", showHijri: false, hijriHolidays: false });
+    expect(parseCalendarPrefs([1])).toEqual({ secondaryVisible: true, numerals: "latn", showHijri: false, hijriHolidays: false });
   });
   it("writes snake_case only", () => {
-    expect(serializeCalendarPrefs({ secondaryVisible: false, numerals: "arab", showHijri: true }))
-      .toEqual({ secondary_visible: false, numerals: "arab", show_hijri: true });
+    expect(serializeCalendarPrefs({ secondaryVisible: false, numerals: "arab", showHijri: true, hijriHolidays: true }))
+      .toEqual({ secondary_visible: false, numerals: "arab", show_hijri: true, hijri_holidays: true });
+  });
+  it("reads the optional Hijri holidays choice, off unless stored as true", () => {
+    expect(parseCalendarPrefs({ hijri_holidays: true }).hijriHolidays).toBe(true);
+    expect(parseCalendarPrefs({ hijri_holidays: "yes" }).hijriHolidays).toBe(false);
+    expect(parseCalendarPrefs({}).hijriHolidays).toBe(false);
   });
 });
 
@@ -122,7 +127,7 @@ describe("<CalendarPreferencesPage/>", () => {
     await act(async () => { saveButton().click(); });
     await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
     expect(db.rpc).toHaveBeenCalledWith("merge_tenant_settings", {
-      p_section: "calendar", p_value: { secondary_visible: true, numerals: "arab", show_hijri: false },
+      p_section: "calendar", p_value: { secondary_visible: true, numerals: "arab", show_hijri: false, hijri_holidays: false },
     });
     expect($().querySelector('[role="status"]')?.textContent).toBe(i18n.t("calendarPrefs.saved"));
   });

@@ -14,7 +14,7 @@
 //     parent meeting does; a holiday or break does not).
 // Dates are Gregorian ISO strings (§17.2); EC is computed here for layout.
 // ============================================================================
-import { daysInEthMonth, toEthiopian, toGregorian } from "@/lib/ethiopian-date";
+import { daysInEthMonth, toEthiopian, toGregorian, toHijri, type HijriDate } from "@/lib/ethiopian-date";
 
 export const GRID_COLUMNS = 37;
 
@@ -52,6 +52,10 @@ export interface GridCell {
   counts: boolean;
   entryIds: string[];
   isToday: boolean;
+  /** The Hijri date, when the school shows Hijri dates (settings.calendar.show_hijri). */
+  hijri: HijriDate | null;
+  /** Tentative Hijri holidays on this day (opt-in); never counted, never stored. */
+  tentative: string[];
 }
 
 export interface GridRow {
@@ -81,6 +85,14 @@ export interface BuildYearGridInput {
   /** ISO weekdays that are rest days, 1 = Monday … 7 = Sunday. */
   weekendDays?: readonly number[];
   today?: string;
+  /** Show each day's Hijri date (the school's choice). */
+  showHijri?: boolean;
+  /**
+   * Tentative Hijri holidays (the school's choice, hijriHolidaySuggestions).
+   * One is dropped when a published holiday already lies within two days of
+   * it: the MoE has fixed that feast by moon sighting.
+   */
+  tentativeHolidays?: readonly { code: string; date: string }[];
 }
 
 const DAY_MS = 86_400_000;
@@ -92,6 +104,12 @@ export function buildYearGrid(input: BuildYearGridInput): YearGrid {
   const { ecYear, sessionStartsOn, sessionEndsOn, entries, today } = input;
   const weekend = new Set((input.weekendDays ?? [6, 7]).map((d) => d - 1));
   const types = new Map(input.dayTypes.map((t) => [t.code, t]));
+  const publishedHolidayNear = (iso: string) => {
+    const t = dateOf(iso).getTime();
+    return entries.some((e) => types.get(e.dayTypeCode)?.category === "holiday"
+      && dateOf(e.startsOn).getTime() - 2 * DAY_MS <= t && dateOf(e.endsOn).getTime() + 2 * DAY_MS >= t);
+  };
+  const tentative = (input.tentativeHolidays ?? []).filter((h) => !publishedHolidayNear(h.date));
 
   const cellFor = (d: Date): GridCell => {
     const iso = isoOf(d);
@@ -111,6 +129,8 @@ export function buildYearGrid(input: BuildYearGridInput): YearGrid {
     return {
       ecDay: ec.day, ecMonth: ec.month, ecYear: ec.year, isoDate: iso, weekday, dayType: shown, counts,
       entryIds: covering.map((e) => e.id), isToday: iso === today,
+      hijri: input.showHijri ? toHijri(d) : null,
+      tentative: tentative.filter((h) => h.date === iso).map((h) => h.code),
     };
   };
 

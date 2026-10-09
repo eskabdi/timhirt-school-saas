@@ -72,3 +72,35 @@ describe("buildYearGrid — MoE 2019 EC golden sheet", () => {
     expect(todays.map((c) => `${c!.ecMonth}/${c!.ecDay}`)).toEqual(["1/4"]);
   });
 });
+
+describe("buildYearGrid — optional Hijri (the school's choice)", () => {
+  const base = {
+    ecYear: 2019, sessionStartsOn: MOE_2019_SESSION.startsOn, sessionEndsOn: MOE_2019_SESSION.endsOn,
+    entries: MOE_2019_ENTRIES, dayTypes: DAY_TYPES,
+  };
+
+  it("adds no Hijri data unless the school asks for it", () => {
+    const cells = buildYearGrid(base).rows.flatMap((r) => r.cells).filter(Boolean);
+    expect(cells.every((c) => c!.hijri === null && c!.tentative.length === 0)).toBe(true);
+  });
+
+  it("shows each day's Hijri date when enabled", () => {
+    const g = buildYearGrid({ ...base, showHijri: true });
+    const h = g.rows.find((r) => r.kind === "month" && r.ecMonth === 1)!.cells.find((c) => c?.ecDay === 1)!.hijri;
+    expect(h?.month).toBe(3); // Meskerem 1, 2019 (2026-09-11) is in Rabi al-Awwal 1448
+  });
+
+  it("marks tentative Hijri holidays, drops ones the MoE published, and never counts them", () => {
+    const g = buildYearGrid({
+      ...base,
+      tentativeHolidays: [
+        { code: "eid_al_fitr", date: "2027-03-10" }, // a day off the MoE's Yekatit 30 (2027-03-09): dropped
+        { code: "mawlid", date: "2026-08-25" },      // before the session, outside the grid's months
+        { code: "eid_al_adha", date: "2027-07-20" }, // no published holiday near it: kept
+      ],
+    });
+    const marked = g.rows.flatMap((r) => r.cells).filter((c) => c && c.tentative.length);
+    expect(marked.map((c) => [c!.isoDate, c!.tentative])).toEqual([["2027-07-20", ["eid_al_adha"]]]);
+    expect(g.total).toBe(210);
+  });
+});
