@@ -1,0 +1,46 @@
+# R6 WP-01 + WP-02 production deploy (20260927T165645Z)
+# Owner approval 2026-09-27: "Do not wait for my approval, you have permission to commit - deploy live to Supabase and Vercel if required" (after merging PR #9).
+# Scope: WP-01 (reviewed at c4ecfac, gate re-run: owner B4 A) and WP-02 (gate at 98b78e3 + GK-2 reviewers PASS, owner B6 A).
+# Not in this release: WP-09 (maker-checker) — merged, review round 1 in progress; its migrations 20260927000001/2, frontend and Edge Function changes wait.
+
+## Dry run: staging (timhirt-saas-staging, ekebibapffrhzibidbnr, PG 17)
+All 111 migrations through 20260926000001 applied in order, each in its own transaction. Post-state identical to production's below (0 anon definers, 0 unpinned, 0 without FORCE, grants 24 authenticated + 3 view owner).
+
+## Pre-deploy capture
+audit/evidence/wp01-wp02-predeploy-20260927T164711Z.txt (tenant_configs full rows as the restore point, definer ACLs, FORCE state, the 4 policies WP-02 drops).
+Before: 108 migrations; 42 anon-executable definer functions; 11 tables without FORCE RLS; default ACL public/storage granted anon+authenticated.
+
+## Steps
+1. Migrations (Management API, one transaction each with its schema_migrations row): 20260925000002 r6_calendar_numerals, 20260925000003 r6_tenant_settings_merge, 20260926000001 r6_definer_lockdown (from the merged head 74bf75f; identical to the reviewed final version).
+2. Edge Functions from c4ecfac (supabase CLI 2.117.0, --use-api, verify_jwt from config.toml): activate-sso-user v2, enroll-finalize-billing v5, issue-fee-document v5, issue-id-card v7, onboard-tenant v9, process-export-job v4, process-import-job v3, provision-portal-accounts v4, record-fee-payment v8.
+3. Frontend: c4ecfac, built on Vercel (log: Running "npm run build"), aliased to https://www.edux.et. Two earlier attempts were BLOCKED by Vercel (Hobby plan: "the commit author doesn't have permission", author = Claude); the deploy went from a git archive of c4ecfac with the owner's token, stamped VITE_COMMIT_SHA=c4ecfac.
+
+## Post-deploy (database)
+migrations | 111
+definer fns | 65
+anon-exec definers | 0
+unpinned definers | 0
+tables w/o FORCE RLS | 0
+merge_tenant_settings auth/anon | true/false
+default acl - | {postgres=X/postgres}
+default acl public | {postgres=X/postgres,service_role=X/postgres}
+default acl extensions | {=X/postgres}
+default acl storage | {postgres=X/postgres,service_role=X/postgres}
+definer grants besides owner/service_role:
+authenticated | 24
+timhirt_view_owner | 3
+calendar camelCase keys left / tenants: 0 / 4
+dropped policies still present: 0
+
+## Post-deploy (functions)
+deployed 28 / repo 28; missing []; extra []; verify_jwt mismatches []
+POST onboard-tenant / record-fee-payment / process-import-job (no token) -> 401 each
+
+## Live PostgREST probes as anon (Report 3 Appendix A-1)
+get_email_for_user, get_security_settings, create_health_alert, complete_job, cleanup_old_audit_logs, get_config, merge_tenant_settings -> 401 / 42501 each
+
+## Post-deploy (served frontend, https://www.edux.et)
+<meta name="app-commit" content="c4ecfac66874a8b189e9474aa4f787cbc194d02a">
+main bundle assets/index-Cvbn47Mq.js; project-ref hits 21; anon JWT present
+markers: merge_tenant_settings 1; calendarPrefs loadFailed 3; submit_approval (WP-09) 0
+/fonts/Tayitu.ttf 200, 139088 bytes, magic 00010000

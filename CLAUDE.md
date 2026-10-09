@@ -4,19 +4,23 @@ Timhirt — multi-tenant Ethiopian school management SaaS. React + Vite +
 TanStack Query on Supabase (Postgres + RLS + Edge Functions + Storage), no
 custom API server.
 
-> **Deployed state (verified 2026-09-25):** production runs commit `da6055e`
-> (R6 WP-00 and its closeout, PR #8). 108 of the repo's 113 migrations are applied
-> (`20260925000002`, `20260925000003` R6 WP-01, `20260926000001` R6 WP-02 and
-> `20260927000001`/`…02` R6 WP-09 are pending deploy), and 28/28
-> Edge Functions match the repo (names and `verify_jwt`). The frontend is built
-> on Vercel from `da6055e`. See `audit/prod-drift-2026-09-24.md` §5 and
-> `audit/evidence/wp00-closeout-deploy-20260925T072419Z.txt`. A staging project
-> exists but is **empty** (`timhirt-saas-staging`, ref `ekebibapffrhzibidbnr`,
-> created 2026-09-26, sign-up disabled). R6 WP-17 loads the schema into it.
-> Production has **PITR off and no backups**, because the org is on the Free
-> plan. Public sign-up is **disabled** (invite-only, DR-1 closed
-> 2026-09-25). The R6 fix plan is `docs/audits/timhirt-production-fix-plan.md`;
-> progress is in `audit/FIXES_VERIFIED_R6.md`.
+> **Deployed state (verified 2026-10-09):** production runs the R6 WP-09 frontend
+> (`e40f87b`, served `<meta name="app-commit">`) and 114 of the repo's 115
+> migrations (WP-09 `20260927000001`/`…02`/`…03` applied 2026-10-09; the
+> Academic Calendar Engine `20261008000001` is pending review). 28/28 Edge
+> Functions match the repo (names and `verify_jwt`); the 4 WP-09 functions run
+> the `e40f87b` code. Evidence: `audit/evidence/wp09-deploy-*.txt`. The
+> staging project (`timhirt-saas-staging`, ref `ekebibapffrhzibidbnr`,
+> sign-up disabled) has the same 114 migrations, no data and no Edge
+> Functions; it is the dry run for every production migration. Both projects
+> are on the Free plan, which **pauses a project after ~7 days without
+> database activity** (both were paused 2026-10-08 and restored by the owner
+> 2026-10-09). Production has **PITR off and no backups**. Public sign-up is
+> **disabled** (invite-only). Vercel (Hobby)
+> refuses to build a commit authored by Claude: deploy from a `git archive` of
+> the reviewed commit with `--build-env VITE_COMMIT_SHA=<sha>`. The R6 fix plan
+> is `docs/audits/timhirt-production-fix-plan.md`; progress is in
+> `audit/FIXES_VERIFIED_R6.md`.
 
 The architecture blueprint is [`docs/school-saas-architecture-blueprint.md`](docs/school-saas-architecture-blueprint.md).
 Code comments cite it by section (§6.2 route guards, §17.2 canonical date
@@ -170,7 +174,7 @@ npx vitest run
 npm run check:i18n                  # must be 0
 npm run check:locales               # parity + no wholesale reformat
 npm run build
-PGHOST=… ./supabase/tests/run.sh    # 113 migrations + 65 pgTAP suites
+PGHOST=… ./supabase/tests/run.sh    # 115 migrations + 67 pgTAP suites
 python3 scripts/ci/app-rpc-grants.py      # after run.sh, same PG* env
 bash scripts/ci/deno-check.sh       # Edge Function types (ratchet)
 python3 scripts/ci/semgrep-rule-test.py   # needs semgrep 1.95.0
@@ -202,8 +206,17 @@ measuring nothing. Prove a gate fails before trusting that it passed.
   threshold, voiding an invoice, changing a grade after results are published
   and transferring a student out go through `approval_requests`
   (`submit_approval` → `decide_approval`); the database refuses the direct
-  write from a client. The enforcement triggers are SECURITY INVOKER and test
-  `current_user` (a definer RPC or service_role path is trusted). A new
+  write from a client. Two kinds of enforcement trigger. The SECURITY INVOKER ones
+  (grades, students, invoice amounts and status, the payment write guard)
+  trust only `current_user` in (`postgres`, `service_role`, `supabase_admin`),
+  i.e. a definer RPC or the service key. The SECURITY DEFINER ones
+  (`payments_reject_void_invoice`, `fee_invoices_header_open_check`) see
+  `current_user = postgres` always, so they trust `current_setting('role')` in
+  (`none`, `service_role`, `postgres`, `supabase_admin`) instead; a definer RPC
+  called by a signed-in user is a client there. Every other role is a client. Invoice
+  amounts and status are written only by payments and approved requests, and
+  an approval re-checks the record it acts on (the state the checker saw)
+  under the invoice-header lock: header first, then its lines by created_at. A new
   sensitive action is registered in `approval_actions` and wired the same way,
   never gated only in the UI.
 - Deploy tokens: never commit, never echo, shred after use.

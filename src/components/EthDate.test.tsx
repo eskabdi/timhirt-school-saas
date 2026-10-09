@@ -23,7 +23,7 @@ async function render(node: React.ReactNode): Promise<string> {
   return text;
 }
 
-const prefs = (p: Partial<CalendarPrefs>): CalendarPrefs => ({ secondaryVisible: false, numerals: "latn", showHijri: false, ...p });
+const prefs = (p: Partial<CalendarPrefs>): CalendarPrefs => ({ secondaryVisible: false, numerals: "latn", showHijri: false, hijriHolidays: false, ...p });
 
 describe("<EthDate/> calendar display settings (R6 WP-01 round 2)", () => {
   beforeAll(async () => { await i18n.changeLanguage("en"); });

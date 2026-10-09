@@ -53,6 +53,13 @@ export function CalendarPreferencesPage() {
           </label>
           <p className="ml-6 text-xs text-ink-soft">{t("calendarPrefs.hijriNote")}</p>
         </div>
+        <div>
+          <label className="flex min-h-6 items-center gap-2 py-1 text-sm">
+            <input type="checkbox" checked={prefs.hijriHolidays} onChange={(e) => edit({ hijriHolidays: e.target.checked })} />
+            {t("calendarPrefs.hijriHolidays")}
+          </label>
+          <p className="ml-6 text-xs text-ink-soft">{t("calendarPrefs.hijriHolidaysNote")}</p>
+        </div>
         <fieldset className="space-y-1 text-sm">
           <legend className="mb-1 font-medium text-ink">{t("calendarPrefs.numerals")}</legend>
           {numeralOptions.map((o) => (

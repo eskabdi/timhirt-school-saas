@@ -107,8 +107,9 @@ Deno.serve(async (req) => {
     if (totalMatched === 0) return json({ created_count: 0, skipped_count: 0, total_matched: 0 }, 200);
 
     // One batch dedup read instead of N single-row checks.
+    // A voided line does not count: that student can be invoiced again (R6 WP-09).
     const { data: existing } = await admin.from("fee_invoices")
-      .select("student_id").eq("fee_structure_id", structure.id).in("student_id", studentIds);
+      .select("student_id").eq("fee_structure_id", structure.id).neq("status", "void").in("student_id", studentIds);
     const already = new Set((existing ?? []).map((r) => r.student_id));
     const toCreate = studentIds.filter((id) => !already.has(id));
 
@@ -129,7 +130,7 @@ Deno.serve(async (req) => {
       ? await admin.from("fee_invoices").select("invoice_header_id, status").in("invoice_header_id", headerIds)
       : { data: [] as { invoice_header_id: string; status: string }[] };
     const openHeaderIds = new Set(
-      (lineRows ?? []).filter((r) => r.status !== "paid").map((r) => r.invoice_header_id),
+      (lineRows ?? []).filter((r) => r.status !== "paid" && r.status !== "void").map((r) => r.invoice_header_id),
     );
     const openHeaderByStudent = new Map<string, string>();
     for (const h of headerRows ?? []) {
@@ -157,6 +158,9 @@ Deno.serve(async (req) => {
     }));
 
     const { error: insErr } = await admin.from("fee_invoices").insert(rows);
+    // A header chosen above was voided meanwhile (fee_invoices_header_open_check):
+    // nothing was written; running it again gives that student a new header.
+    if (insErr && /invoice_void/.test(insErr.message ?? "")) return json({ error: "invoice_changed_retry" }, 409);
     if (insErr) throw insErr;
 
     return json({

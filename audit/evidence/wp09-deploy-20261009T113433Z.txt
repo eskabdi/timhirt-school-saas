@@ -1,0 +1,61 @@
+# R6 WP-09 production deploy (20261009T113433Z)
+# Owner standing approval 2026-09-27 (B1). Release gate PASS 2026-10-09 (wp09-gk.md + wp09-tv-gk.md). Staging dry run: wp09-deploy-staging-*.txt. Pre-deploy capture: wp09-predeploy-*.txt.
+# Scope: WP-09 as reviewed at e40f87b (migrations 20260927000001/2/3, 4 Edge Functions, frontend). Not in this release: the Academic Calendar Engine (20261008000001 and its UI).
+## 1. migrations
+applied 20260927000001_r6_invoice_void_status.sql
+applied 20260927000002_r6_maker_checker.sql
+applied 20260927000003_r6_maker_checker_hardening.sql
+## post-deploy (database)
+migrations | 114
+definer fns | 79
+anon-exec definers | 0
+unpinned definers | 0
+tables w/o FORCE RLS | 0
+merge_tenant_settings auth/anon | true/false
+default acl - | {postgres=X/postgres}
+default acl public | {postgres=X/postgres,service_role=X/postgres}
+default acl extensions | {=X/postgres}
+default acl storage | {postgres=X/postgres,service_role=X/postgres}
+## table checksums (must equal the pre-deploy capture)
+academic_terms | 9 | c69a9ff3ed401e04eb77c0bc1a902602
+fee_invoices | 61 | 90291f3d0ecd99a8b0c0ee2590cfb0f5
+grades | 24 | e8d8429bc3ac9785f7e7eaa34265dbb0
+invoice_headers | 68 | e783bfb4ff0ea993d589bafa004e17f6
+payments | 10 | 513fcbaad2dbe2f694578c6cf914f9bf
+students | 12 | b92d4202b1b38cb3485ca3bbbec44b59
+tenant_configs | 4 | e30b3d2408e53069947e81feda266d3d
+## definer-grant drift vs definer_allowlist.sql at e40f87b: identical, 32 rows, 0 anon
+18 | 0 | False | True
+## 2. Edge Functions from e40f87b (supabase CLI 2.117.0, --use-api)
+deployed 28 / repo 28; missing []; extra []; verify_jwt mismatches []
+record-fee-payment v9 verify_jwt True
+issue-fee-document v6 verify_jwt True
+generate-fee-invoices v3 verify_jwt True
+enroll-finalize-billing v6 verify_jwt True
+POST record-fee-payment (no token) -> 401
+POST issue-fee-document (no token) -> 401
+POST generate-fee-invoices (no token) -> 401
+POST enroll-finalize-billing (no token) -> 401
+## 3. Frontend: git archive of e40f87b, built on Vercel (vercel CLI 63.1.0, --build-env VITE_COMMIT_SHA), deployment dpl_5FbCdMdmt8W7h5gL5rG1kuWdhHD3 READY, production
+## post-deploy (served frontend, https://www.edux.et)
+<meta name="app-commit" content="e40f87bc2a86c8b51b39bd59d6bdefa21f10673a">
+bundle files 1; main index-DCaXbQrN.js
+project-ref hits 21; supabaseUrl undefined: 1
+marker submit_approval: 1
+marker decide_approval: 1
+marker approval_requests: 5
+marker effective_calendar_entries: 0
+marker create_school_calendar: 0
+/fonts/Tayitu.ttf 200 139088
+## Live PostgREST probes as anon
+rpc/submit_approval -> 404 PGRST202
+rpc/decide_approval -> 404 PGRST202
+rpc/cancel_approval -> 404 PGRST202
+rpc/approval_required -> 404 PGRST202
+rpc/execute_approval -> 404 PGRST202
+table approval_requests (anon select) -> 401 {"code":"42501","details":null,"hint":"Grant the required privileges to the current role with: GRANT SELECT ON public.ap
+## anon probes with real signatures
+rpc/submit_approval {"p_action":"invoice_void","p_entity_id":"00000000-0000-0000-0000-000000000000","p_payload":{},"p_reason":"x"} -> 404 PGRST202 Could not find the function public.submit_approval(p_action,
+rpc/decide_approval {"p_id":"00000000-0000-0000-0000-000000000000","p_decision":"approved","p_payload_hash":"x","p_reason":"x"} -> 401 42501 permission denied for function decide_approval
+rpc/cancel_approval {"p_id":"00000000-0000-0000-0000-000000000000"} -> 401 42501 permission denied for function cancel_approval
+rpc/submit_approval (p_changes) -> 401 42501 permission denied for function submit_approval

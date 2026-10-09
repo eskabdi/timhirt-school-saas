@@ -1,0 +1,107 @@
+# WP-09 round-2 fixes: two-session race probes re-run on the fixed 20260927000003 (2026-09-28T07:52:25Z)
+# Probes from the sc reviewer (rD: threshold split, threshold 3000; rF: line insert racing an approved void). Fixture /tmp/rv1-wp09-sc/fixture.sql + setup.sql.
+## rD s1
+begin;
+BEGIN
+select rv_act_as('0000000e-0000-0000-0000-0000000a0003');
+ rv_act_as 
+-----------
+ 
+(1 row)
+insert into payments (tenant_id, invoice_id, amount, provider, provider_ref, status) values
+ ('0000000e-0000-0000-0000-00000000000a','0000000e-0000-0000-0009-000000000024',2000,'cash','rD1','succeeded') returning status;
+  status   
+-----------
+ succeeded
+(1 row)
+INSERT 0 1
+select pg_sleep(3);
+ pg_sleep 
+----------
+ 
+(1 row)
+commit;
+COMMIT
+## rD s2
+select pg_sleep(1);
+ pg_sleep 
+----------
+ 
+(1 row)
+select rv_act_as('0000000e-0000-0000-0000-0000000a0004');
+ rv_act_as 
+-----------
+ 
+(1 row)
+insert into payments (tenant_id, invoice_id, amount, provider, provider_ref, status) values
+ ('0000000e-0000-0000-0000-00000000000a','0000000e-0000-0000-0009-000000000024',2000,'cash','rD2','succeeded') returning status;
+ status  
+---------
+ pending
+(1 row)
+INSERT 0 1
+reset role;
+RESET
+select amount, status from payments where invoice_id='0000000e-0000-0000-0009-000000000024';
+ amount  |  status   
+---------+-----------
+ 2000.00 | succeeded
+ 2000.00 | pending
+(2 rows)
+select amount_paid, status from fee_invoices where invoice_header_id='0000000e-0000-0000-0009-000000000024';
+ amount_paid | status  
+-------------+---------
+     2000.00 | partial
+(1 row)
+select count(*) as requests from approval_requests where action='manual_payment_accept' and payload->>'invoice_id'='0000000e-0000-0000-0009-000000000024';
+ requests 
+----------
+        1
+(1 row)
+## rF s1
+begin;
+BEGIN
+select rv_act_as('0000000e-0000-0000-0000-0000000a0002');
+ rv_act_as 
+-----------
+ 
+(1 row)
+select decide_approval(id,'approved',payload_hash) from approval_requests where entity_id='0000000e-0000-0000-0009-000000000027';
+ decide_approval 
+-----------------
+ executed
+(1 row)
+select pg_sleep(3);
+ pg_sleep 
+----------
+ 
+(1 row)
+commit;
+COMMIT
+## rF s2
+select pg_sleep(1);
+ pg_sleep 
+----------
+ 
+(1 row)
+select rv_act_as('0000000e-0000-0000-0000-0000000a0001');
+ rv_act_as 
+-----------
+ 
+(1 row)
+insert into fee_invoices (tenant_id, student_id, fee_structure_id, amount_due, amount_paid, due_date, status, invoice_header_id) values
+ ('0000000e-0000-0000-0000-00000000000a','0000000e-0000-0000-0005-000000000001','0000000e-0000-0000-0008-000000000001',700,0,'2026-09-01','pending','0000000e-0000-0000-0009-000000000027') returning status, clock_timestamp();
+psql:rF_s2.sql:4: ERROR:  invoice_void
+CONTEXT:  PL/pgSQL function fee_invoices_header_open_check() line 13 at RAISE
+reset role;
+RESET
+select amount_due, status from fee_invoices where invoice_header_id='0000000e-0000-0000-0009-000000000027' order by created_at;
+ amount_due | status 
+------------+--------
+    5000.00 | void
+(1 row)
+select status from approval_requests where entity_id='0000000e-0000-0000-0009-000000000027';
+  status  
+----------
+ executed
+(1 row)

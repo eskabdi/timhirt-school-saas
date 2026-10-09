@@ -1,0 +1,15 @@
+# CAL-DB-01 re-measure after the fix (2026-10-09T11:28:47Z, local PG16, jit=on)
+Volume: 300 tenants, 60000 school entries, 5416 authority entries, as a school admin.
+Reviewer's numbers before the fix: effective_calendar_entries 1182 ms, calendar_day_status 3677 ms, instructional_days(year) 3880 ms.
+
+on
+Aggregate (actual time=22.600..22.601 rows=1 loops=1)
+  ->  Function Scan on effective_calendar_entries (actual time=22.560..22.579 rows=456 loops=1)
+Planning Time: 0.102 ms
+Execution Time: 22.732 ms
+Function Scan on calendar_day_status (actual time=17.253..17.254 rows=1 loops=1)
+Planning Time: 0.554 ms
+Execution Time: 17.267 ms
+Result (actual time=86.290..86.291 rows=1 loops=1)
+Planning Time: 0.163 ms
+Execution Time: 86.298 ms

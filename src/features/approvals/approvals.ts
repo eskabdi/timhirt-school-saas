@@ -8,9 +8,10 @@ export type ApprovalAction =
   | "manual_payment_accept"
   | "invoice_void"
   | "grade_edit_after_publish"
+  | "grade_entry_after_publish"
   | "student_transfer_out";
 
-export type ApprovalStatus = "pending" | "approved" | "rejected" | "expired" | "executed";
+export type ApprovalStatus = "pending" | "approved" | "rejected" | "expired" | "executed" | "cancelled";
 
 export interface ApprovalRequest {
   id: string;
@@ -38,7 +39,7 @@ export const APPROVAL_SELECT =
 export interface DiffRow { field: string; from: unknown; to: unknown }
 
 /** Context keys used for linking, not for display. */
-const HIDDEN_FIELDS = new Set(["invoice_id"]);
+const HIDDEN_FIELDS = new Set(["invoice_id", "exam_id", "student_id", "subject_id"]);
 
 /** The `from`/`to` pair the server stored, one row per field that changes,
  * plus any top-level context fields (amount, provider…) as unchanged rows. */
@@ -67,7 +68,9 @@ export const APPROVAL_ERRORS = [
   "approval_already_pending", "entity_changed", "invoice_has_payments", "invoice_already_void",
   "invoice_void", "approval_not_needed", "invalid_score", "invalid_remark", "no_change",
   "invalid_state", "invalid_transferred_to", "invalid_transferred_on", "reason_too_long",
-  "invalid_settings",
+  "invalid_settings", "amount_exceeds_balance", "invoice_amounts_locked", "results_published_locked",
+  "approval_settings_rpc_only", "grade_exists", "approval_action_unavailable", "invalid_changes",
+  "results_unpublish_blocked", "no_tenant",
 ] as const;
 export type ApprovalErrorKey = (typeof APPROVAL_ERRORS)[number] | "unknown";
 
@@ -92,11 +95,20 @@ export async function submitApproval(action: Exclude<ApprovalAction, "manual_pay
   return data as string;
 }
 
+/** "executed" | "rejected", or "expired" when the request had run out: the
+ * server records the expiry instead of refusing. */
 export async function decideApproval(req: Pick<ApprovalRequest, "id" | "payload_hash">,
   decision: "approved" | "rejected", reason: string | null): Promise<string> {
   const { data, error } = await supabase.rpc("decide_approval", {
     p_id: req.id, p_decision: decision, p_payload_hash: req.payload_hash, p_reason: reason,
   });
+  if (error) throw error;
+  return data as string;
+}
+
+/** The maker withdraws their own pending request: "cancelled" (or "expired"). */
+export async function cancelApproval(id: string): Promise<string> {
+  const { data, error } = await supabase.rpc("cancel_approval", { p_id: id });
   if (error) throw error;
   return data as string;
 }

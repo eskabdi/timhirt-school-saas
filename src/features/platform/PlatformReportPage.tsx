@@ -46,7 +46,7 @@ export function PlatformReportPage() {
         supabase.from("tenants").select("id, name, slug, status, tier_key, created_at").limit(1000),
         supabase.from("users").select("id, tenant_id, role").limit(20000),
         supabase.from("students").select("id, tenant_id, status").limit(50000),
-        supabase.from("fee_invoices").select("tenant_id, amount_due, amount_paid").limit(50000),
+        supabase.from("fee_invoices").select("tenant_id, amount_due, amount_paid").neq("status", "void").limit(50000),
         supabase.from("subscription_tiers").select("key, display_name, sort_order").order("sort_order"),
         supabase.from("platform_integrations").select("provider, display_name, configured"),
         supabase.from("audit_logs").select("id, tenant_id, action, table_name, created_at")

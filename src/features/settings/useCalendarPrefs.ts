@@ -4,7 +4,7 @@
 // prop.
 //
 // Stored keys are snake_case (fix plan §0 Rule 8): secondary_visible,
-// numerals, show_hijri. Migration 20260925000002 and its trigger normalise
+// numerals, show_hijri, hijri_holidays. Migration 20260925000002 and its trigger normalise
 // every write, including the camelCase keys older clients send, and drop the
 // old Ge'ez-numerals flag (Ge'ez numerals are not a choice). The reader still
 // accepts the camelCase spelling, so a stale row can never switch a
@@ -21,9 +21,16 @@ export interface CalendarPrefs {
   numerals: NumeralSystem;
   /** Show the Hijri (Islamic) date alongside EC dates. */
   showHijri: boolean;
+  /**
+   * Mark Eid al-Fitr, Eid al-Adha and Mawlid on the academic calendar from the
+   * Hijri calendar, as tentative dates, where the MoE has not published them
+   * yet. Off by default; the school chooses. Never stored as entries and
+   * never counted as holidays (moon sighting fixes the real date).
+   */
+  hijriHolidays: boolean;
 }
 
-export const DEFAULT_CALENDAR_PREFS: CalendarPrefs = { secondaryVisible: true, numerals: "latn", showHijri: false };
+export const DEFAULT_CALENDAR_PREFS: CalendarPrefs = { secondaryVisible: true, numerals: "latn", showHijri: false, hijriHolidays: false };
 
 type StoredCalendar = Record<string, unknown>;
 
@@ -36,12 +43,13 @@ export function parseCalendarPrefs(raw: unknown): CalendarPrefs {
     secondaryVisible: bool(c.secondary_visible, bool(c.secondaryVisible, DEFAULT_CALENDAR_PREFS.secondaryVisible)),
     numerals: c.numerals === "arab" ? "arab" : "latn",
     showHijri: bool(c.show_hijri, bool(c.showHijri, false)),
+    hijriHolidays: bool(c.hijri_holidays, false),
   };
 }
 
 /** The stored (snake_case) shape of CalendarPrefs. */
 export function serializeCalendarPrefs(p: CalendarPrefs): StoredCalendar {
-  return { secondary_visible: p.secondaryVisible, numerals: p.numerals, show_hijri: p.showHijri };
+  return { secondary_visible: p.secondaryVisible, numerals: p.numerals, show_hijri: p.showHijri, hijri_holidays: p.hijriHolidays };
 }
 
 /**
