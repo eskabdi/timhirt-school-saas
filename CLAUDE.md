@@ -259,8 +259,9 @@ node scripts/e2e-live.mjs --creds ~/e2e-creds.json --out <scratch dir>
 - **Production holds real schools.** The harness is non-mutating: it never
   POSTs to `submit-admission` (writes an applicant, 5/h per IP) or
   `telebirr-notify` (inbound signature is *not* verified — an unsigned
-  `Completed` event settles a real invoice), and never calls a JWT-gated
-  function. Writes happen only when a person explicitly authorizes them, and
+  `Completed` event settles a real invoice), and sends JWT-gated functions
+  only bodyless GETs, which every one rejects (method check or `requireRole`)
+  before doing any work. Writes happen only when a person explicitly authorizes them, and
   only in a dedicated QA tenant (prior audits: `qa-harar-model`, cleaned up by
   `audit/cleanup_qa_school.sql`).
 - **One login per account.** `check-login-attempt` allows 5 attempts per
