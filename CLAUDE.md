@@ -55,8 +55,10 @@ supabase/
   functions/      32 Deno Edge Functions + _shared/ (security.ts, dates)
   tests/          run.sh + rls/ pgTAP suites (55)
 
-scripts/          check-locales.mjs, i18n-audit.mjs, i18n-review-export.mjs
+scripts/          check-locales.mjs, i18n-audit.mjs, i18n-review-export.mjs,
+                  e2e-live.mjs (live end-to-end harness — see "Live end-to-end test")
 docs/             architecture blueprint, DEPLOYMENT.md
+.claude/          agents/ (5 subagents) + skills/ (verify, deploy) — see "Subagents"
 ```
 
 Auth is three composable guards in `src/features/auth/`: `RequireAuth`
@@ -190,6 +192,92 @@ configured lint scope. `npx eslint src` is the project's command.
 was found by driving the app in a browser or hitting the endpoint, not by
 reading the diff. Twice a "green" result turned out to be a runner that was
 measuring nothing. Prove a gate fails before trusting that it passed.
+
+These gates say nothing about production. **After a deploy**, run the
+`deploy-checker` agent, then the `live-e2e-tester` agent (or at minimum
+`node scripts/e2e-live.mjs --expect '<string only the new build contains>'`).
+If you changed `scripts/e2e-live.mjs`, `node scripts/e2e-live.mjs --self-test`
+must report every planted defect caught.
+
+---
+
+## Subagents
+
+Defined in `.claude/agents/`; each reads this file first.
+
+- **`code-reviewer`** — after any meaningful change, before calling it done;
+  migrations, RLS, Edge Functions, money, dates and i18n especially.
+- **`rls-tenant-isolation-reviewer`** — any migration that adds, drops or
+  rewrites a `create policy`; run one per file, in parallel.
+- **`plan-tester`** — stress-tests a written plan against the real code
+  before a large or risky implementation starts.
+- **`deploy-checker`** — right after a deploy: did each piece actually ship
+  (bundle has the change and the env, functions deployed and gated).
+- **`live-e2e-tester`** — after `deploy-checker`, before a release or an INSA
+  test window, or when asked to "test the live site": the complete live
+  end-to-end run below, then per-role critical journeys and root-cause triage
+  of every failure. Tests and reports; never fixes.
+
+Skills (`.claude/skills/`): `verify` (local Postgres + pgTAP, headless page
+harness) and `deploy` (the production runbook).
+
+---
+
+## Live end-to-end test
+
+`scripts/e2e-live.mjs` drives the **deployed** system — Vercel frontend and
+Supabase PostgREST / Auth / Storage / Edge Functions — as a browser and as an
+attacker holding the public anon key would. The `live-e2e-tester` agent runs
+it, then goes further by hand. What the harness expects (functions and their
+`verify_jwt`, tables/views, buckets, security headers) is derived from
+`supabase/config.toml`, `supabase/migrations/` and `vercel.json` at run time,
+so it can't drift from the code.
+
+```bash
+node scripts/e2e-live.mjs --self-test           # must catch every planted defect
+node scripts/e2e-live.mjs --expect '<marker>'   # anonymous layers vs production
+node scripts/e2e-live.mjs --creds ~/e2e-creds.json --out <scratch dir>
+```
+
+- **Layers**: `frontend` (env baked in, no `service_role` JWT, headers equal
+  `vercel.json`, SPA rewrite, fonts are real TTFs), `functions` (every repo
+  function deployed; verify_jwt=true → 401 bare and non-2xx for the anon key;
+  verify_jwt=false → reachable), `rest` (zero anon-readable rows in every
+  relation; anon RPC/grant surface), `storage` (private buckets unlistable),
+  `public` (anonymous endpoints sane), `ui` (Chromium on public pages: page
+  errors, CSP violations, Ge'ez numerals, en/am/om switching with an
+  Ethiopic font loaded), `auth` (per role: real two-step login, profile role,
+  token lifetime, crawl of every nav link, forbidden routes bounce, privilege
+  probes, cross-tenant RLS + storage probes, logout revokes the refresh token).
+- **Credentials**: a `chmod 600` JSON file outside the repo (the harness
+  refuses a group/world-readable one) —
+  `{"tenant_slug": "…", "accounts": {"school_admin": {"email": "…", "password": "…"}, …}}`.
+  Keys: `super_admin`, `school_admin`, `school_admin_b` (a second tenant —
+  enables the cross-tenant probes), `teacher`, `student`, `parent`,
+  `hr_officer`, `accountant`, `registrar`, `librarian`. Without it the `auth`
+  layer is reported **skipped** — not passed.
+- **Production holds real schools.** The harness is non-mutating: it never
+  POSTs to `submit-admission` (writes an applicant, 5/h per IP) or
+  `telebirr-notify` (inbound signature is *not* verified — an unsigned
+  `Completed` event settles a real invoice), and sends JWT-gated functions
+  only bodyless GETs, which every one rejects (method check or `requireRole`)
+  before doing any work. Writes happen only when a person explicitly authorizes them, and
+  only in a dedicated QA tenant (prior audits: `qa-harar-model`, cleaned up by
+  `audit/cleanup_qa_school.sql`).
+- **One login per account.** `check-login-attempt` allows 5 attempts per
+  email and 20 per IP per 15 min and fails closed; proxy egress IPs are
+  shared. A locked-out or rejected account is reported, never retried.
+- **Proxy**: Chromium ignores `HTTPS_PROXY`; launch it with
+  `proxy: { server: process.env.HTTPS_PROXY }` and it reaches the live site.
+  Node's `fetch` needs `NODE_USE_ENV_PROXY=1` (the harness re-execs itself with
+  it). Realtime (WebSocket) cannot pass the proxy and is not covered live.
+- **Hand-maintained lists** in the harness: `FORBIDDEN` mirrors the role
+  constants in `src/app/router.tsx`; `NEVER_FOR_FAMILY` / `PLATFORM_ONLY` name
+  relations outside a role. Update them with the router/policies, and give
+  every new check a planted defect in `--self-test`.
+- Output: a summary on stdout, `report.json` and per-page screenshots in
+  `--out` (default under the OS temp dir). Screenshots can contain PII — never
+  commit them. Exit code 1 on any FAIL.
 
 ---
 
