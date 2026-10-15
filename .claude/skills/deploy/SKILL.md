@@ -48,13 +48,11 @@ columns, `relrowsecurity`, the policy names, the enum labels.
 
 ## 2. Edge Functions
 
-All 32 share `_shared/security.ts`, so a change there means redeploying all of
+All 14 share `_shared/security.ts`, so a change there means redeploying all of
 them. Each deploy is a multipart POST carrying the entrypoint plus the shared
-files, with `verify_jwt` matching `supabase/config.toml` — the public
-endpoints (`check-admission-status`, `check-login-attempt`,
-`sso-domain-lookup`, `submit-admission`, `telebirr-notify`,
-`upload-admission-document`, `verify-admission-bank-url`, `verify-id`) are
-`false`; everything else `true`.
+files, with `verify_jwt` matching what is already live — public endpoints
+(`chapa-webhook`, `check-admission-status`, `submit-admission`,
+`upload-admission-document`, `verify-id`) are `false`; everything else `true`.
 
 ```bash
 curl -X POST -H "Authorization: Bearer $SB" \
@@ -107,14 +105,8 @@ missing assets, and Ethiopic silently falls back to a font with no Ethiopic
 glyphs.
 
 Then hit the endpoints the change touched. Public ones need no auth:
-`submit-admission?tenant_slug=…` returns the grade and fee lists. Never POST
-to `telebirr-notify` to test it — it does not verify the inbound signature
-yet, and an unsigned `Completed` event settles a real invoice.
-
-Finally run the `live-e2e-tester` agent (or `node scripts/e2e-live.mjs
---expect '<marker>'`): it checks every function's gate in both directions,
-the anon RLS/storage surface and every role's pages against what just
-shipped.
+`chapa-webhook` with no signature must be 401; `submit-admission?tenant_slug=…`
+returns the grade and fee lists.
 
 ## What "done" means
 

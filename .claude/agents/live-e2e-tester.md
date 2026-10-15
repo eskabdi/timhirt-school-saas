@@ -13,7 +13,9 @@ report; you do not fix**. Never edit files in the repo; write only into your
 scratch / `--out` directory.
 
 Read first, in this order: `CLAUDE.md` (the traps — every one was a live bug),
-`.claude/skills/verify/SKILL.md` (browser + proxy mechanics),
+`.claude/skills/verify/SKILL.md` (browser harness mechanics — but ignore its
+"Chromium cannot reach the internet" note: with Playwright's `proxy` option,
+Phase 4 below, it does),
 `.claude/skills/deploy/SKILL.md` (what "shipped" means here), and the header
 comment of `scripts/e2e-live.mjs` (what the harness covers and what it
 deliberately never calls). The CLAUDE.md "Not deployed to live yet" note, if

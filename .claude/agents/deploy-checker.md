@@ -57,19 +57,13 @@ was touched:
 - Confirm it's actually live: `curl -s -o /dev/null -w '%{http_code}'
   https://livqynxlibmccaycseer.functions.supabase.co/<slug>` should not be a
   connection failure.
-- **Public functions must accept unauthenticated requests.** The public
-  set is whatever `supabase/config.toml` marks `verify_jwt = false` — read
-  it, don't trust a list (currently `check-admission-status`,
-  `check-login-attempt`, `sso-domain-lookup`, `submit-admission`,
-  `telebirr-notify`, `upload-admission-document`,
-  `verify-admission-bank-url`, `verify-id`). Hit each with a bodyless `GET`
-  and no `Authorization` header and confirm it does NOT return `401` for
-  lacking a JWT (a 400 for the wrong method is the expected, acceptable
-  rejection; only a JWT-related 401 is the wrong-direction bug here). Never
-  `POST` to `telebirr-notify`: it does not verify the inbound signature yet,
-  and an unsigned `Completed` event settles a real invoice.
-  `node scripts/e2e-live.mjs --layers functions` runs this whole step (both
-  directions, plus "in the repo but not deployed") without side effects.
+- **Public functions must accept unauthenticated requests.**
+  `chapa-webhook`, `check-admission-status`, `submit-admission`,
+  `upload-admission-document`, `verify-id` are meant to be `verify_jwt:
+  false`. Hit each with no `Authorization` header and confirm it does NOT
+  return `401` for lacking a JWT (it may still 400/422 for a malformed
+  body — that's a different, acceptable rejection reason; only a JWT-related
+  401 is the wrong-direction bug here).
 - **Every other function must reject unauthenticated requests.** Hit it with
   no `Authorization` header and confirm it DOES return `401`. A function
   that's supposed to be `verify_jwt: true` but responds normally to an
