@@ -106,9 +106,15 @@ content while throwing is the normal failure mode here, not a blank screen.
 
 ## Live site
 
-Outbound browsing is proxied and Chromium cannot reach the internet here, so
-mirror the deployed bytes and serve them locally rather than pointing the
-browser at production:
+Chromium ignores `HTTPS_PROXY` on its own, but reaches the live site through
+the agent proxy when Playwright launches it with
+`proxy: { server: process.env.HTTPS_PROXY }`. For a full live pass — every
+layer, every role — use the `live-e2e-tester` agent or
+`node scripts/e2e-live.mjs` (see CLAUDE.md, "Live end-to-end test"); production
+holds real schools, so read its safety rules before driving it by hand.
+
+To exercise a deployed bundle without touching production at all, mirror the
+bytes and serve them locally:
 
 ```bash
 curl -s https://timhirt-school-saas.vercel.app/ -o index.html

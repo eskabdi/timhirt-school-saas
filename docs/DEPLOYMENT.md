@@ -251,4 +251,16 @@ accountant, teacher, parent, student) to exercise the RLS cross-tenant matrix.
 
 ## 7. Post-deploy checklist
 
+Run the live end-to-end harness against what just shipped (non-mutating; see
+`CLAUDE.md` → "Live end-to-end test" for credentials and safety rules):
+
+```bash
+node scripts/e2e-live.mjs --self-test            # must catch every planted defect
+node scripts/e2e-live.mjs --expect '<marker>' --creds ~/e2e-creds.json
+```
+
+Any FAIL blocks calling the deploy done. In a Claude Code session, the
+`deploy-checker` agent followed by the `live-e2e-tester` agent does this and
+triages each failure.
+
 See `README.md` → "Pre-go-live checklist" for the full compliance/statutory sign-off list.
