@@ -1,0 +1,7 @@
+copy_outside_year: 0 failing [] ['psql:/home/user/timhirt-school-saas/supabase/tests/rls/academic_calendar_engine.sql:257: ERROR:  invalid_range', 'psql:/home/user/timhirt-school-saas/supabase/tests/rls/academic_calendar_engine.sql:258: ERROR:  current transaction is aborted, commands ignored until end of transaction block']
+ec_year_immutable: 1 failing ["not ok 67 - an authority calendar's year never changes, even with a matching session (CAL-DB3-04)"] []
+ay_bounds: 1 failing ['not ok 76 - ... and is ignored when it reaches into the next year'] []
+readside_lock: 1 failing ['not ok 74 - a suppression row never removes a locked entry from the effective calendar'] []
+invite_pw: 1 failing ["not ok 1 - only tenant A's school_admins; an opened link without a password is not accepted"] []
+entries_select_true: 3 failing ["not ok 33 - a teacher reads none of a draft's entries", "not ok 35 - school B reads none of school A's entries", 'not ok 46 - ... nor its entries (module gate on entries)'] []
+auth_entries_select_true: 1 failing ['not ok 13 - ... and so are its entries (CAL-TV-02)'] []

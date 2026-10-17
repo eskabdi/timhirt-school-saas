@@ -1,0 +1,10 @@
+# Release: invite fixes + platform "Resend invite" (2026-10-17)
+Frontend release commit 463b241 = e40f87b (deployed WP-09) + cherry-picks of 1f01cee (onboarding periods),
+8c30a21 (invite template, school_name), 0f515a3 (invite status + resend). The Academic Calendar work on the
+branch is NOT in this release (unreviewed). Gates in the release tree: tsc, eslint, vitest 106/106, i18n 0,
+locales, build. Deployed from a git archive with VITE_COMMIT_SHA=463b241.
+Served www.edux.et: app-commit 463b24184379b9c076f0de74471493d5998c92d3; bundle contains the resend action and
+"Resend invite", no calendar RPCs (effective_calendar_entries 0); project ref baked in (21).
+invite-tenant-admin from 0f515a3: verify_jwt true, POST without a token -> 401.
+Config: APP_URL = https://www.edux.et; auth redirect allow-list += www.edux.et/accept-invite, www.edux.et/**, edux.et/**.
+Pending admin of Future Generation School re-invited 15:20:01Z with the edux.et redirect (template live since 15:13:17Z).

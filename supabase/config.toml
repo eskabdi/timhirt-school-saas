@@ -20,6 +20,15 @@ refresh_token_reuse_interval = 10
 [auth.email]
 enable_confirmations = true
 
+# The invite email. Production's copy is set through the Management API
+# (mailer_templates_invite_content); keep the two the same. The button must
+# be {{ .ConfirmationURL }}, the one-time link that signs the invitee in and
+# opens /accept-invite to set a password (it pointed at {{ .SiteURL }}, the
+# login page, until 2026-10-17).
+[auth.email.template.invite]
+subject = "You've been invited By Edux.et"
+content_path = "./supabase/templates/invite.html"
+
 [auth.mfa.totp]
 enroll_enabled = true
 verify_enabled = true

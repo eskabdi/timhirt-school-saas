@@ -51,8 +51,11 @@ export default i18n;
 
 /** Resolve a jsonb i18n field ({en, am, om}) client-side — mirrors SQL t_field(). */
 export function tField(field: Record<string, string> | null | undefined, locale: string): string {
-  if (!field) return "";
-  return field[locale] ?? field.en ?? field.am ?? field.om ?? "";
+  if (!field || typeof field !== "object") return "";
+  // Only strings: a malformed jsonb value (an object, a number) must not reach
+  // React as a child, which would throw and blank the page.
+  const str = (v: unknown) => (typeof v === "string" ? v : undefined);
+  return str(field[locale]) ?? str(field.en) ?? str(field.am) ?? str(field.om) ?? "";
 }
 
 /** ETB currency in the active locale (§16.5). */

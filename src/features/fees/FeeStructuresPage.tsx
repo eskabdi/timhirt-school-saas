@@ -182,7 +182,8 @@ export function FeeStructuresPage() {
     mutationFn: (feeStructureId: string) => generateFeeInvoices(feeStructureId),
     onSuccess: (res, feeStructureId) =>
       setGenerateResult({ id: feeStructureId, created: res.created_count, skipped: res.skipped_count, total: res.total_matched }),
-    onError: (e: unknown) => setError(e instanceof Error ? e.message : "Failed to generate invoices"),
+    onError: (e: unknown) => setError(e instanceof Error && e.message === "invoice_changed_retry"
+      ? t("fees.errors.invoiceChangedRetry") : e instanceof Error ? e.message : "Failed to generate invoices"),
   });
 
   const scopeLabel = (f: FeeRow) => {

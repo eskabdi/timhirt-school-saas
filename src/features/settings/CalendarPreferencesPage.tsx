@@ -48,10 +48,17 @@ export function CalendarPreferencesPage() {
         </label>
         <div>
           <label className="flex min-h-6 items-center gap-2 py-1 text-sm">
-            <input type="checkbox" checked={prefs.showHijri} onChange={(e) => edit({ showHijri: e.target.checked })} />
+            <input type="checkbox" checked={prefs.showHijri} aria-describedby="cal-hijri-note" onChange={(e) => edit({ showHijri: e.target.checked })} />
             {t("calendarPrefs.showHijri")}
           </label>
-          <p className="ml-6 text-xs text-ink-soft">{t("calendarPrefs.hijriNote")}</p>
+          <p id="cal-hijri-note" className="ml-6 text-xs text-ink-soft">{t("calendarPrefs.hijriNote")}</p>
+        </div>
+        <div>
+          <label className="flex min-h-6 items-center gap-2 py-1 text-sm">
+            <input type="checkbox" checked={prefs.hijriHolidays} aria-describedby="cal-hijri-holidays-note" onChange={(e) => edit({ hijriHolidays: e.target.checked })} />
+            {t("calendarPrefs.hijriHolidays")}
+          </label>
+          <p id="cal-hijri-holidays-note" className="ml-6 text-xs text-ink-soft">{t("calendarPrefs.hijriHolidaysNote")}</p>
         </div>
         <fieldset className="space-y-1 text-sm">
           <legend className="mb-1 font-medium text-ink">{t("calendarPrefs.numerals")}</legend>
