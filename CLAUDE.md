@@ -16,7 +16,10 @@ custom API server.
 > are on the Free plan, which **pauses a project after ~7 days without
 > database activity** (both were paused 2026-10-08 and restored by the owner
 > 2026-10-09). Production has **PITR off and no backups**. Public sign-up is
-> **disabled** (invite-only). Vercel (Hobby)
+> **disabled** (invite-only). The Edge Function secret `APP_URL` is
+> `https://www.edux.et` (invite redirects, document and ID-card verify links;
+> since 2026-10-17, was the vercel.app domain), and both domains are in the
+> auth redirect allow-list. Vercel (Hobby)
 > refuses to build a commit authored by Claude: deploy from a `git archive` of
 > the reviewed commit with `--build-env VITE_COMMIT_SHA=<sha>`. The R6 fix plan
 > is `docs/audits/timhirt-production-fix-plan.md`; progress is in
