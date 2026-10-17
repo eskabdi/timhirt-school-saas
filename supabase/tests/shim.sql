@@ -98,7 +98,8 @@ create table if not exists auth.users (
   phone                       text,
   phone_confirmed_at          timestamptz,
   banned_until                timestamptz,
-  deleted_at                  timestamptz
+  deleted_at                  timestamptz,
+  is_sso_user                 boolean not null default false
 );
 
 -- RLS reads the caller's identity from these. The GUCs are what PostgREST sets

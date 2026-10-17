@@ -16,9 +16,10 @@
 //   resend           — send a pending school_admin a fresh link (the old one
 //                      is single-use and expires). Refused once the invite was
 //                      accepted; at most 3 per admin per hour.
-// Accepted = a password was set (tenant_admin_invite_states). Opening the link
-// confirms the email and signs in before any password exists, and a mail
-// scanner that prefetches it does the same, so neither counts.
+// Accepted = a password was set, or the admin signs in through SSO (never a
+// password) — tenant_admin_invite_states. Opening the link confirms the email
+// and signs in before any password exists, and a mail scanner that prefetches
+// it does the same, so neither counts.
 // ============================================================================
 import { z } from "npm:zod@3";
 import { requireRole, errors, json, rateLimit, corsHeaders } from "../_shared/security.ts";
@@ -38,7 +39,10 @@ const Resend = z.object({ action: z.literal("resend"), tenant_id: z.string().uui
 const RATE_LIMITED = "Too many invite emails sent recently — Supabase's default email sender is rate-limited. "
   + "Try again shortly, or configure custom SMTP in the Supabase dashboard (Authentication -> Emails) for production use.";
 
-interface InviteState { user_id: string; password_set: boolean; email_confirmed: boolean; invited_at: string | null }
+interface InviteState { user_id: string; password_set: boolean; sso_user: boolean; email_confirmed: boolean; invited_at: string | null }
+const accepted = (s: InviteState) => s.password_set || s.sso_user;
+/** GoTrue's own limits answer 429 (the per-address one says "only request this after N seconds"). */
+const isRateLimited = (e: { status?: number; message: string }) => e.status === 429 || /rate limit|request this after/i.test(e.message);
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -61,8 +65,8 @@ Deno.serve(async (req) => {
     // and falls back to Site URL anyway.
     const appUrl = Deno.env.get("APP_URL") ?? "https://www.edux.et";
     const redirectTo = `${appUrl}/accept-invite`;
-    const inviteStates = async (tenantId: string): Promise<InviteState[]> => {
-      const { data, error } = await db.rpc("tenant_admin_invite_states", { p_tenant: tenantId });
+    const inviteStates = async (tenantId: string, userId?: string): Promise<InviteState[]> => {
+      const { data, error } = await db.rpc("tenant_admin_invite_states", { p_tenant: tenantId, p_user: userId ?? null });
       if (error) throw error;
       return (data ?? []) as InviteState[];
     };
@@ -72,7 +76,7 @@ Deno.serve(async (req) => {
       const parsed = Status.safeParse(body);
       if (!parsed.success) return errors.badRequest();
       const states = await inviteStates(parsed.data.tenant_id);
-      return json({ admins: states.map((s) => ({ user_id: s.user_id, pending: !s.password_set, invited_at: s.invited_at })) }, 200);
+      return json({ admins: states.map((s) => ({ user_id: s.user_id, pending: !accepted(s), invited_at: s.invited_at })) }, 200);
     }
 
     // ---------------------------------------------------------------- resend
@@ -83,9 +87,9 @@ Deno.serve(async (req) => {
       const { data: tenant } = await db.from("tenants").select("id, name").eq("id", tenant_id).maybeSingle();
       const { data: profile } = await db.from("users").select("id, full_name")
         .eq("id", user_id).eq("tenant_id", tenant_id).eq("role", "school_admin").maybeSingle();
-      const state = (await inviteStates(tenant_id)).find((s) => s.user_id === user_id);
+      const [state] = await inviteStates(tenant_id, user_id);
       if (!tenant || !profile || !state) return errors.badRequest();
-      if (state.password_set) {
+      if (accepted(state)) {
         return json({ error: "This admin has already accepted the invite.", code: "already_accepted" }, 409);
       }
       const { data: authData, error: getErr } = await db.auth.admin.getUserById(user_id);
@@ -100,7 +104,7 @@ Deno.serve(async (req) => {
           redirectTo,
         });
         if (uErr) {
-          if (/rate limit/i.test(uErr.message)) return json({ error: RATE_LIMITED }, 429);
+          if (isRateLimited(uErr)) return json({ error: RATE_LIMITED }, 429);
           throw uErr;
         }
         if (invited.user.id !== user_id) throw new Error("resend returned a different user");
@@ -110,7 +114,7 @@ Deno.serve(async (req) => {
         // (recovery) link to the same /accept-invite page instead.
         const { error: rErr } = await db.auth.resetPasswordForEmail(email, { redirectTo });
         if (rErr) {
-          if (/rate limit/i.test(rErr.message)) return json({ error: RATE_LIMITED }, 429);
+          if (isRateLimited(rErr)) return json({ error: RATE_LIMITED }, 429);
           throw rErr;
         }
       }

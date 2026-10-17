@@ -120,7 +120,7 @@ describe("TenantDetailPage invite status and resend", () => {
     const btn = [...row(host, "Pending Admin Person").querySelectorAll("button")].find((b) => b.textContent === "Resend invite")!;
     await act(async () => { btn.click(); });
     await flush();
-    expect(host.querySelector('[role="alert"]')?.textContent).toBe("Too many invite emails were sent recently. Wait an hour and try again.");
+    expect(host.querySelector('[role="alert"]')?.textContent).toBe("Too many invite emails were sent recently. Wait a while (up to an hour) and try again.");
     done();
   });
 });

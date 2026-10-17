@@ -14,7 +14,7 @@
 //     parent meeting does; a holiday or break does not).
 // Dates are Gregorian ISO strings (§17.2); EC is computed here for layout.
 // ============================================================================
-import { daysInEthMonth, toEthiopian, toGregorian, toHijri, type HijriDate } from "@/lib/ethiopian-date";
+import { daysInEthMonth, fromIsoDate, toEthiopian, toGregorian, toHijri, toIsoDate, type HijriDate } from "@/lib/ethiopian-date";
 
 export const GRID_COLUMNS = 37;
 
@@ -103,11 +103,8 @@ export interface BuildYearGridInput {
 }
 
 const DAY_MS = 86_400_000;
-const isoOf = (d: Date) => d.toISOString().slice(0, 10);
-/** A stored (Gregorian, §17.2) date as UTC midnight. */
-export const dateOf = (iso: string) => new Date(`${iso}T00:00:00Z`);
-/** The stored date `days` days later (earlier when negative). */
-export const shiftIso = (iso: string, days: number) => isoOf(new Date(dateOf(iso).getTime() + days * DAY_MS));
+const isoOf = toIsoDate;
+const dateOf = fromIsoDate;
 const mondayFirst = (d: Date) => (d.getUTCDay() + 6) % 7;
 
 export function buildYearGrid(input: BuildYearGridInput): YearGrid {

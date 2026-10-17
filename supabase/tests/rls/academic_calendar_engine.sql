@@ -7,7 +7,7 @@
 -- for the golden-sheet assertions.
 -- ============================================================================
 begin;
-select plan(76);
+select plan(79);
 
 create function pg_temp.y() returns integer language sql stable as $$
   select (public.gregorian_to_ec((now() at time zone 'Africa/Addis_Ababa')::date)).ec_year
@@ -293,13 +293,16 @@ select throws_ok($$ insert into public.authority_calendar_entries (calendar_id, 
   '22023', 'invalid_range', 'an authority entry far outside its calendar''s year is refused');
 
 -- ==================================== one day, one answer (CAL-DB-03/04) ==
--- Hamle 15 of last year has no session (after last year's Sene, before this
--- year's Nehase lead-in; for every year, the 2019 seed included, CAL-DB3-01):
--- alone or inside a window reaching this year's session, it is "session
--- unknown".
-select ok((select in_session from public.calendar_day_status(pg_temp.ec(11, 15, -1))) is null
-          and (select in_session from public.calendar_days(pg_temp.ec(11, 15, -1), pg_temp.ec(11, 15, -1) + 400)
-                where day = pg_temp.ec(11, 15, -1)) is null,
+-- Hamle 15 of last year lies after last year's session (if any) and before
+-- this year's Nehase lead-in: asked alone or inside a window reaching this
+-- year's session, the answer is the same row, and never "in session". No
+-- expectation depends on which years have a seeded session, so it holds in
+-- every EC year (CAL-DB3-01, CAL-DB4-01).
+select ok((select row(x.*)::text from public.calendar_day_status(pg_temp.ec(11, 15, -1)) x)
+            is not distinct from
+          (select row(w.*)::text from public.calendar_days(pg_temp.ec(11, 15, -1), pg_temp.ec(11, 15, -1) + 400) w
+            where w.day = pg_temp.ec(11, 15, -1))
+          and (select in_session from public.calendar_day_status(pg_temp.ec(11, 15, -1))) is not true,
   'a day''s session status does not depend on the window it is asked in');
 -- Last year's school entries do not reach into this year's session (its
 -- lead-in starts in last year's Nehase), as in the grid.
@@ -330,6 +333,9 @@ select throws_ok($c$ insert into public.authority_calendar_entries (calendar_id,
 select throws_ok($c$ update public.authority_calendars set ec_year = 2031, session_starts_on = '2038-08-31', session_ends_on = '2039-07-07'
                       where ec_year = 2030 $c$,
   '22023', 'invalid_range', 'an authority calendar''s year never changes, even with a matching session (CAL-DB3-04)');
+select throws_ok($c$ update public.authority_calendars set authority_id = (select id from public.edu_authorities where code = 'AA')
+                      where ec_year = 2030 $c$,
+  '22023', 'invalid_range', '... nor its authority (CAL-DB4-06)');
 update public.authority_calendars set status = 'closed', closed_at = now() where id = '0000000c-0000-0000-0001-000000000001';
 select throws_ok($c$ insert into public.authority_calendar_entries (calendar_id, day_type_code, starts_on, ends_on, name_i18n)
                      values ('0000000c-0000-0000-0001-000000000001', 'regional_holiday', pg_temp.ec(2, 2), pg_temp.ec(2, 2), '{"en": "x"}') $c$,
@@ -375,9 +381,18 @@ insert into public.academic_years (tenant_id, ec_year, starts_on, ends_on)
 values ('0000000c-0000-0000-0000-00000000000b', pg_temp.y() + 3, pg_temp.ec(1, 1, 3), pg_temp.ec(13, 5, 3));
 select is((select session_starts_on from public.calendar_year_settings(pg_temp.y() + 3, '0000000c-0000-0000-0000-00000000000b')), pg_temp.ec(1, 1, 3),
   'a school''s academic year inside its EC year is its session when no authority has one');
+-- ... also for the school's own signed-in admin (the fallback's helper is
+-- executable by authenticated; CAL-DB4-02).
+select pg_temp.act_as('0000000c-0000-0000-0000-0000000b0001');
+select is((select session_starts_on from public.calendar_year_settings(pg_temp.y() + 3)), pg_temp.ec(1, 1, 3),
+  '... as the school''s own admin too');
+reset role;
 update public.academic_years set ends_on = pg_temp.ec(6, 1, 4) where tenant_id = '0000000c-0000-0000-0000-00000000000b' and ec_year = pg_temp.y() + 3;
 select is((select session_starts_on from public.calendar_year_settings(pg_temp.y() + 3, '0000000c-0000-0000-0000-00000000000b')), null,
   '... and is ignored when it reaches into the next year');
+update public.academic_years set starts_on = pg_temp.ec(12, 1, 2), ends_on = pg_temp.ec(13, 5, 3) where tenant_id = '0000000c-0000-0000-0000-00000000000b' and ec_year = pg_temp.y() + 3;
+select is((select session_starts_on from public.calendar_year_settings(pg_temp.y() + 3, '0000000c-0000-0000-0000-00000000000b')), null,
+  '... or starts in the previous year''s Nehase (the lead-in is for authority calendars; INV-SEC-02)');
 
 select * from finish();
 rollback;

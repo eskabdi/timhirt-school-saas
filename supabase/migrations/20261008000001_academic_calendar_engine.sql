@@ -411,8 +411,9 @@ create trigger authority_calendar_entries_guard before insert or update or delet
 
 -- A closed authority calendar is immutable. The session lies in its EC year
 -- (ec_session_in_year; the CHECK on the table only bounds the Gregorian
--- years), and the year never changes, since the entries were checked against
--- it (CAL-DB3-04).
+-- years), and neither the year nor the authority ever changes, since the
+-- entries and regional overrides were checked against them (CAL-DB3-04,
+-- CAL-DB4-06).
 create function public.authority_calendars_guard()
 returns trigger language plpgsql set search_path = public, pg_temp as $$
 begin
@@ -422,7 +423,7 @@ begin
   if tg_op = 'DELETE' then
     return old;
   end if;
-  if (tg_op = 'UPDATE' and new.ec_year is distinct from old.ec_year)
+  if (tg_op = 'UPDATE' and (new.ec_year, new.authority_id) is distinct from (old.ec_year, old.authority_id))
      or not public.ec_session_in_year(new.ec_year, new.session_starts_on, new.session_ends_on) then
     raise exception 'invalid_range' using errcode = '22023';
   end if;
@@ -485,12 +486,14 @@ begin
    where c.authority_id = v_moe and c.ec_year = p_ec_year and c.status in ('published', 'closed');
   if v_tenant is not null and v_region_id is null and v_moe_id is null then
     -- The school's own academic year is used only when it lies in its EC
-    -- year: a school can write academic_years, and a span reaching into the
-    -- next year would capture its days, locked MoE holidays included
-    -- (CAL-DB3-03).
+    -- year and starts no earlier than Meskerem 1 (the Nehase lead-in is for
+    -- authority calendars): a school can write academic_years, and a span
+    -- reaching into another year would capture its days, locked MoE holidays
+    -- included (CAL-DB3-03, INV-SEC-02).
     select y.starts_on, y.ends_on into v_year_from, v_year_to
       from public.academic_years y
      where y.tenant_id = v_tenant and y.ec_year = p_ec_year
+       and y.starts_on >= public.ec_to_gregorian(p_ec_year, 1, 1)
        and public.ec_session_in_year(p_ec_year, y.starts_on, y.ends_on);
   end if;
   return query select

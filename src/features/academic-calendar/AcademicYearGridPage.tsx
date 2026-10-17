@@ -22,9 +22,11 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { EthDate } from "@/components/EthDate";
 import { tField } from "@/lib/i18n";
-import { formatDigits, formatEth, formatHijri, toIsoDate, today, todayEthiopian, type NumeralSystem } from "@/lib/ethiopian-date";
+import {
+  addDaysIso, formatDigits, formatEth, formatHijri, fromIsoDate, toIsoDate, today, todayEthiopian, type NumeralSystem,
+} from "@/lib/ethiopian-date";
 import { hijriHolidaySuggestions } from "@/lib/ethiopian-holidays";
-import { buildYearGrid, dateOf, GRID_COLUMNS, shiftIso, type GridCell } from "./grid";
+import { buildYearGrid, GRID_COLUMNS, type GridCell } from "./grid";
 import { DAY_TYPE_MARKS, OUT_OF_SESSION_FILL } from "./dayTypes";
 import { textOn } from "./contrast";
 import {
@@ -43,7 +45,8 @@ const patternFor = (dayType: string): CSSProperties =>
     : dayType === "out_of_session" ? { backgroundImage: DOTS, backgroundSize: "5px 5px" }
     : dayType === "next_session" ? { backgroundImage: STRIPES }
     : {};
-/** Selected: a white and a black ring, so one of them shows on any fill (≥3:1, WCAG 1.4.11). */
+/** Selected: a white and a black ring, so one of them shows on any fill (≥3:1, WCAG 1.4.11). Drawn on an
+ * overlay, so the button's own focus ring (also a box-shadow) still shows on the selected cell (2.4.7). */
 const SELECTED_RING: CSSProperties = { boxShadow: "inset 0 0 0 2px #ffffff, inset 0 0 0 4px #111111" };
 
 export function AcademicYearGridPage() {
@@ -124,7 +127,7 @@ export function AcademicYearGridPage() {
 
   useEffect(() => { if (created) noticeRef.current?.focus(); }, [created]);
 
-  const loading = settings.isPending || entries.isPending || dayTypes.isPending;
+  const loading = settings.isPending || entries.isPending || dayTypes.isPending || nextSettings.isPending;
   const failed = settings.isError || entries.isError || dayTypes.isError;
   const months = tc("months", { returnObjects: true }) as string[];
   const weekdays = tc("weekdaysShort", { returnObjects: true }) as string[]; // Sunday-first
@@ -141,7 +144,7 @@ export function AcademicYearGridPage() {
 
   // Every cell's name, once per grid and language (not on every keystroke).
   const cellNames = useMemo(() => new Map(allCells.map((c) => {
-    const date = dateOf(c.isoDate);
+    const date = fromIsoDate(c.isoDate);
     const parts = [
       weekdayNames[date.getUTCDay()],
       formatEth(date, { numerals: digits, monthNames: months, eraSuffix: tc("eraSuffix") }),
@@ -180,7 +183,7 @@ export function AcademicYearGridPage() {
       return (cells.find((x) => x.ecDay === c.ecDay) ?? cells[cells.length - 1])?.isoDate;
     };
     const target: Record<string, string | undefined> = {
-      ArrowLeft: shiftIso(c.isoDate, -1), ArrowRight: shiftIso(c.isoDate, 1),
+      ArrowLeft: addDaysIso(c.isoDate, -1), ArrowRight: addDaysIso(c.isoDate, 1),
       ArrowUp: sameColumn(here.row - 1), ArrowDown: sameColumn(here.row + 1),
       Home: rowCells[0]?.isoDate, End: rowCells[rowCells.length - 1]?.isoDate,
       PageUp: sameDay(here.row - 1), PageDown: sameDay(here.row + 1),
@@ -278,7 +281,8 @@ export function AcademicYearGridPage() {
                             onClick={() => { setSelected(c); setFocusIso(c.isoDate); }}
                             onKeyDown={(e) => onCellKey(e, c)}
                             className={`relative block w-full min-w-6 px-0.5 py-1 focus-visible:z-20 ${isSelected ? "z-10" : ""}`}
-                            style={{ backgroundColor: fill, color: textOn(fill), ...patternFor(c.dayType), ...(isSelected ? SELECTED_RING : {}) }}>
+                            style={{ backgroundColor: fill, color: textOn(fill), ...patternFor(c.dayType) }}>
+                            {isSelected && <span aria-hidden data-selected-ring className="pointer-events-none absolute inset-0" style={SELECTED_RING} />}
                             {mark && <span aria-hidden className="absolute left-0.5 top-0 text-[10px] leading-none">{mark}</span>}
                             {c.isToday && <TodayBar />}
                             {num(c.ecDay)}
@@ -321,7 +325,7 @@ export function AcademicYearGridPage() {
 }
 
 function CreatedNotice({ result, num, lang }: { result: CreateCalendarResult; num: (v: number) => string; lang: string }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   return (
     <Card>
       <p className="text-sm text-ok">{t("academicCalendar.choose.created", { count: result.copied, n: num(result.copied) })}</p>
@@ -333,7 +337,7 @@ function CreatedNotice({ result, num, lang }: { result: CreateCalendarResult; nu
             {result.dropped.map((d, i) => (
               <li key={i} className="flex min-w-0 flex-wrap gap-x-1">
                 <EthDate value={d.starts_on} />
-                <span>— {tField(d.name, lang)} ({t(`academicCalendar.choose.droppedReason.${d.reason}`, { defaultValue: "" })})</span>
+                <span>— {tField(d.name, lang)}{i18n.exists(`academicCalendar.choose.droppedReason.${d.reason}`) ? ` (${t(`academicCalendar.choose.droppedReason.${d.reason}`)})` : ""}</span>
               </li>
             ))}
           </ul>
@@ -375,7 +379,7 @@ function DayInspector({ cell, entries, typeLabel, lang }: {
 
 /** Today: a black bar edged in white along the cell's foot, visible on any fill and distinct from the selected ring. */
 function TodayBar() {
-  return <span aria-hidden className="absolute inset-x-1 bottom-0.5 h-[3px] rounded-sm bg-[#111111] shadow-[0_0_0_1px_#ffffff]" />;
+  return <span aria-hidden className="absolute inset-x-1 bottom-0.5 h-[3px] rounded-sm bg-[#111111] shadow-[0_0_0_2px_#ffffff]" />;
 }
 
 function Swatch({ color, dayType }: { color: string; dayType: string }) {

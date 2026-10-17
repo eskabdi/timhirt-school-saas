@@ -5,3 +5,12 @@ readside_lock: 1 failing ['not ok 74 - a suppression row never removes a locked 
 invite_pw: 1 failing ["not ok 1 - only tenant A's school_admins; an opened link without a password is not accepted"] []
 entries_select_true: 3 failing ["not ok 33 - a teacher reads none of a draft's entries", "not ok 35 - school B reads none of school A's entries", 'not ok 46 - ... nor its entries (module gate on entries)'] []
 auth_entries_select_true: 1 failing ['not ok 13 - ... and so are its entries (CAL-TV-02)'] []
+--- round 4 (fake year + new assertions)
+year2020: 79 ok, 0 failing [] []
+year2021: 79 ok, 0 failing [] []
+year2024: 79 ok, 0 failing [] []
+revoke_session_helper: 76 ok, 0 failing [] ['psql:/tmp/mut5_revoke_session_helper.sql.suite:388: ERROR:  permission denied for function ec_session_in_year']
+no_meskerem_floor: 78 ok, 1 failing ["not ok 79 - ... or starts in the previous year's Nehase (the lead-in is for authority calendars; INV-SEC-02)"] []
+authority_id_mutable: 78 ok, 1 failing ['not ok 68 - ... nor its authority (CAL-DB4-06)'] []
+sso_dropped: 10 ok, 1 failing ["not ok 1 - only tenant A's school_admins; an opened link without a password is not accepted"] []
+p_user_ignored: 9 ok, 2 failing ['not ok 3 - p_user narrows to that one admin (a resend reads one row)', 'not ok 4 - ... and only within the named tenant'] []

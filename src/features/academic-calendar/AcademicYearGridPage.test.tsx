@@ -188,6 +188,10 @@ describe("AcademicYearGridPage", () => {
     reset();
     const { host, done } = await render();
     await act(async () => { cell(host, /^Friday — Meskerem 1, 2019/).click(); });
+    const picked = cell(host, /^Friday — Meskerem 1, 2019/);
+    // The selection ring is an overlay, never the button's own box-shadow, which the focus ring uses (2.4.7).
+    expect(picked.style.boxShadow).toBe("");
+    expect(picked.querySelector("[data-selected-ring]")).not.toBeNull();
     const inspector = host.querySelector("[aria-live=polite]")!;
     expect(inspector.textContent).toContain("Enkutatash (New Year)");
     expect(inspector.textContent).toContain("Ministry of Education");
