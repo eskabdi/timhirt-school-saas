@@ -57,6 +57,9 @@ export function AcademicYearGridPage() {
   const [selected, setSelected] = useState<GridCell | null>(null);
   const [focusIso, setFocusIso] = useState<string | null>(null);
   const [created, setCreated] = useState<{ year: number; result: CreateCalendarResult } | null>(null);
+  // The outcome of Choose Calendar lives here, not in the chooser: choosing
+  // a calendar makes the chooser disappear (the school now has one), and the
+  // outcome, with the days it had to leave out, must survive that.
   const noticeRef = useRef<HTMLDivElement>(null);
   const cellRefs = useRef(new Map<string, HTMLButtonElement>());
   const captionId = useId();
@@ -190,9 +193,6 @@ export function AcademicYearGridPage() {
       {failed && <p role="alert" className="text-sm text-danger">{t("academicCalendar.loadFailed")}</p>}
       {loading && <p className="text-sm text-ink-soft">{t("academicCalendar.loading")}</p>}
 
-      {/* Outside the conditional below: choosing a calendar makes Choose
-          Calendar disappear (the school now has one), and its outcome, with
-          the days it had to leave out, must survive that. */}
       <div ref={noticeRef} tabIndex={-1} role="status" className="outline-none focus-visible:ring-2 focus-visible:ring-navy">
         {created && created.year === year && <CreatedNotice result={created.result} num={num} lang={lang} />}
       </div>
