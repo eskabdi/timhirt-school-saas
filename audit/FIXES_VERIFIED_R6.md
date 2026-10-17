@@ -906,6 +906,10 @@ After the owner restored both paused projects (A0). Staging dry run `audit/evide
 
 Owner notice B1a now applies: with no threshold set, every cash or bank payment needs a second person's approval.
 
+### Hotfix (2026-10-17): tenant onboarding failed with a 500
+
+Owner report: tenant creation and admin invite (platform admin) not working. Production logs: `onboard-tenant` failed on `periods.is_break` NOT NULL because the 9-row default-period bulk insert set `is_break` only on the Break row, and PostgREST sends NULL for a key a row lacks; the rollback then deleted the new school and its invited admin, so the invite was lost too. Fixed in `1f01cee` (default periods in `_shared/default-periods.ts`, every row carries every column, Deno test; `invite-tenant-admin` lower-cases and checks the email case-insensitively). Reproduced and verified locally; deployed `onboard-tenant` v10 and `invite-tenant-admin` v6 (`audit/evidence/hotfix-onboard-periods-20261017T144300Z.txt`).
+
 ## F-01 — Academic Calendar Engine, slice 1 (MoE → Region → School, read-only grid)
 
 Plan: `/root/.claude/plans/hazy-stirring-lobster.md` (owner-approved; revised 2026-10-09: no Bahire Hasab, Hijri holidays optional per school). Migration `20261008000001_academic_calendar_engine.sql` (not deployed). Owner decision 2026-10-09: **Ginbot 20 follows the MoE (a school day)**, so it is not a national holiday rule (removed from `holiday_rules` and `NATIONAL_HOLIDAY_RULES`; asserted in both suites).

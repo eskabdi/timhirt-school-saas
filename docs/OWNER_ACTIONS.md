@@ -11,7 +11,7 @@ Last updated: 2026-10-09 (projects restored; WP-09 deployed to production).
 
 ## 0. The live app was down (resolved)
 
-- [x] **A0. Restore the two paused Supabase projects.** **Done 2026-10-09:** the owner restored both; the Management API reports both `ACTIVE_HEALTHY`, each still at 111 migrations. Moving production to Pro (no pausing, daily backups) is still recommended. On 2026-10-08 both
+- [x] **A0. Restore the two paused Supabase projects.** **Done 2026-10-09:** the owner restored both; the Management API reports both `ACTIVE_HEALTHY`, each still at 111 migrations. Moving production to Pro (no pausing, daily backups) is still recommended. **2026-10-17:** staging (`timhirt-saas-staging`) is paused again (INACTIVE); production is active. Restore staging before the next deploy, or move to Pro. On 2026-10-08 both
   `timhirt-saas` (production, `livqynxlibmccaycseer`) and
   `timhirt-saas-staging` (`ekebibapffrhzibidbnr`) report status **INACTIVE**:
   the Free plan pauses a project after about 7 days without database
