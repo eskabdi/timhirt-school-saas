@@ -914,6 +914,10 @@ Owner report: tenant creation and admin invite (platform admin) not working. Pro
 
 Owner report after the onboarding fix: the school was created and the invite sent, but the link opened the login page instead of "set password". The custom invite template in production linked its button to `{{ .SiteURL }}` and never used `{{ .ConfirmationURL }}`. Fixed in `8c30a21`: the template is versioned in `supabase/templates/invite.html`, every link uses the one-time confirmation URL (which lands on `/accept-invite`), and the school name comes from `school_name` in the invite metadata. Deployed (template read back identical; functions v11/v7) and the one pending school admin re-invited (`audit/evidence/hotfix-invite-link-20261017T151543Z.txt`).
 
+### Release (2026-10-17): invite links on edux.et and "Resend invite"
+
+Owner asked for invite links on www.edux.et (`APP_URL` and the auth redirect allow-list) and a working resend action in the platform console. `invite-tenant-admin` gained `status` and `resend` (super_admin only; resend refused once accepted, 3 per admin per hour); the tenant page shows Invite pending / Active and a Resend invite button. Frontend shipped as `463b241` (deployed WP-09 `e40f87b` plus the three invite fixes only; the calendar is not in it). Evidence: `audit/evidence/release-invite-resend-20261017T153023Z.txt`.
+
 ## F-01 — Academic Calendar Engine, slice 1 (MoE → Region → School, read-only grid)
 
 Plan: `/root/.claude/plans/hazy-stirring-lobster.md` (owner-approved; revised 2026-10-09: no Bahire Hasab, Hijri holidays optional per school). Migration `20261008000001_academic_calendar_engine.sql` (not deployed). Owner decision 2026-10-09: **Ginbot 20 follows the MoE (a school day)**, so it is not a national holiday rule (removed from `holiday_rules` and `NATIONAL_HOLIDAY_RULES`; asserted in both suites).

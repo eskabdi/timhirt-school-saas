@@ -4,8 +4,8 @@ Timhirt — multi-tenant Ethiopian school management SaaS. React + Vite +
 TanStack Query on Supabase (Postgres + RLS + Edge Functions + Storage), no
 custom API server.
 
-> **Deployed state (verified 2026-10-09):** production runs the R6 WP-09 frontend
-> (`e40f87b`, served `<meta name="app-commit">`) and 114 of the repo's 115
+> **Deployed state (verified 2026-10-17):** production runs frontend `463b241`
+> (the WP-09 `e40f87b` plus the 2026-10-17 invite fixes; served `<meta name="app-commit">`) and 114 of the repo's 115
 > migrations (WP-09 `20260927000001`/`…02`/`…03` applied 2026-10-09; the
 > Academic Calendar Engine `20261008000001` is pending review). 28/28 Edge
 > Functions match the repo (names and `verify_jwt`); the 4 WP-09 functions run
