@@ -3,6 +3,7 @@
 // create_school_calendar derives the tenant from auth.uid().
 import { supabase } from "@/lib/supabase";
 import type { DayCategory, GridDayType, GridEntry } from "./grid";
+import { safeColor } from "./contrast";
 
 export interface YearSettings {
   school_calendar_id: string | null;
@@ -54,7 +55,21 @@ export async function fetchDayTypes(): Promise<DayTypeRow[]> {
     .select("code,label_i18n,color,category,counts_as_instructional,legend_order")
     .order("legend_order");
   if (error) throw error;
-  return (data as DayTypeRow[] | null) ?? [];
+  // Only #rrggbb reaches a style (the DB CHECK says so too; defence in depth).
+  return ((data as DayTypeRow[] | null) ?? []).map((d) => ({ ...d, color: safeColor(d.color) }));
+}
+
+/**
+ * Whether the signed-in user may choose the school's calendar: the same
+ * check create_school_calendar makes (academic_calendar:create, which custom
+ * roles and per-user grants can carry), not a role name.
+ */
+export async function fetchCanCreateCalendar(userId: string): Promise<boolean> {
+  const { data, error } = await supabase.rpc("has_resource_permission", {
+    p_user_id: userId, p_resource: "academic_calendar", p_action: "create",
+  });
+  if (error) throw error;
+  return data === true;
 }
 
 export async function fetchAuthorities(): Promise<{ code: string; name_i18n: Record<string, string> }[]> {
@@ -67,6 +82,8 @@ export type CalendarOrigin = "moe" | "previous_year" | "custom";
 
 export interface CreateCalendarResult {
   calendar_id: string;
+  status: string;
+  origin: CalendarOrigin;
   copied: number;
   dropped: { name: Record<string, string>; starts_on: string; ends_on: string; reason: string }[];
 }
@@ -79,10 +96,14 @@ export async function createSchoolCalendar(ecYear: number, origin: CalendarOrigi
 
 const CREATE_ERRORS = ["not_allowed", "invalid_origin", "invalid_year", "no_previous_calendar", "calendar_exists"] as const;
 
-/** The server's error code, or "unknown" (never raw server text). */
+/**
+ * The server's error code, or "unknown" (never raw server text). The RPC
+ * raises the bare code as the message, so only an exact match counts: a
+ * message that merely contains a code (say, a column name) is "unknown".
+ */
 export function calendarErrorKey(err: unknown): (typeof CREATE_ERRORS)[number] | "unknown" {
   const message = err && typeof err === "object" && "message" in err ? String((err as { message: unknown }).message) : "";
-  return CREATE_ERRORS.find((k) => message.includes(k)) ?? "unknown";
+  return CREATE_ERRORS.find((k) => message === k) ?? "unknown";
 }
 
 export const toGridDayTypes = (rows: readonly DayTypeRow[]): GridDayType[] =>

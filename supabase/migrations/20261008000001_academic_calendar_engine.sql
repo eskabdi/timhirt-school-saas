@@ -817,7 +817,7 @@ values
   ('result_publication',    '{"en": "Result Publication", "am": "የውጤት ይፋ መሆን", "om": "Ifa Ba''uu Bu''aa"}',             '#a9dcd5', 'milestone', true,  false, false, false, false, false, 14),
   ('academic_year_opening', '{"en": "Academic Year Opening", "am": "የትምህርት ዘመን መክፈቻ", "om": "Banama Waggaa Barnootaa"}',  '#fff2cc', 'milestone', true,  false, false, true,  true,  false, 15),
   ('academic_year_closing', '{"en": "Academic Year Closing", "am": "የትምህርት ዘመን መዝጊያ", "om": "Cufama Waggaa Barnootaa"}',  '#fff2cc', 'milestone', true,  false, false, true,  true,  false, 16),
-  ('special_closure',       '{"en": "Special Closure", "am": "ልዩ መዘጋት", "om": "Cufama Addaa"}',                         '#7f7f7f', 'closure',   false, true,  true,  false, false, false, 17),
+  ('special_closure',       '{"en": "Special Closure", "am": "ልዩ መዘጋት", "om": "Cufama Addaa"}',                         '#595959', 'closure',   false, true,  true,  false, false, false, 17),
   ('other',                 '{"en": "Other", "am": "ሌላ", "om": "Kan Biraa"}',                                          '#e7e6e6', 'event',     true,  false, false, false, false, false, 18);
 
 -- Fixed-date national holiday rules (src/lib/ethiopian-holidays.ts NATIONAL_HOLIDAY_RULES).

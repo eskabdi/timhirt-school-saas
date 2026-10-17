@@ -38,8 +38,24 @@ export const DAY_TYPES: readonly DayTypeDef[] = [
   t("result_publication",     "milestone", "#a9dcd5", true,  false, false, false, false),
   t("academic_year_opening",  "milestone", "#fff2cc", true,  false, false, true,  true),
   t("academic_year_closing",  "milestone", "#fff2cc", true,  false, false, true,  true),
-  t("special_closure",        "closure",   "#7f7f7f", false, true,  true,  false, false),
+  t("special_closure",        "closure",   "#595959", false, true,  true,  false, false),
   t("other",                  "event",     "#e7e6e6", true,  false, false, false, false),
 ];
 
+/** Days outside the session (and the next year's session), drawn with a dot pattern too. */
+export const OUT_OF_SESSION_FILL = "#f3f4f6";
+
 export const DAY_TYPE_BY_CODE: ReadonlyMap<string, DayTypeDef> = new Map(DAY_TYPES.map((d) => [d.code, d]));
+
+/**
+ * A mark per type, drawn in the cell and the legend, so the type does not
+ * rest on colour alone (WCAG 1.4.1): the two public-holiday types share the
+ * MoE sheet's blue, and some fills are close to white. Shapes, not letters,
+ * so they read the same in en/am/om.
+ */
+export const DAY_TYPE_MARKS: Readonly<Record<string, string>> = {
+  national_holiday: "●", religious_holiday: "◆", regional_holiday: "▲", school_holiday: "■",
+  mid_term_break: "◐", semester_break: "◑", examination: "✎", registration: "▣",
+  teacher_training: "△", staff_development: "◇", parent_meeting: "○", result_publication: "✓",
+  academic_year_opening: "▶", academic_year_closing: "◀", special_closure: "✕", other: "•",
+};

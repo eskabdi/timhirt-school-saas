@@ -63,6 +63,22 @@ describe("buildYearGrid — MoE 2019 EC golden sheet", () => {
     expect(sixDay.rows[1]!.cells.find((c) => c?.ecDay === 5)?.dayType).toBe("instructional"); // Meskerem 5 is a Tuesday either way
   });
 
+  it("hands this year's last Nehase days to the next session once it is published (as SQL does)", () => {
+    const next2020 = "2027-09-01"; // Nehase 26, 2019: the 2020 lead-in
+    const g = buildYearGrid({
+      ecYear: 2019, sessionStartsOn: MOE_2019_SESSION.startsOn, sessionEndsOn: MOE_2019_SESSION.endsOn,
+      entries: [...MOE_2019_ENTRIES, { id: "reg", dayTypeCode: "registration", startsOn: "2027-08-31", endsOn: "2027-09-05" }],
+      dayTypes: DAY_TYPES, nextSessionStartsOn: next2020,
+    });
+    const nehase = g.rows.find((r) => r.kind === "month" && r.ecMonth === 12)!;
+    const d = (day: number) => nehase.cells.find((c) => c?.ecDay === day)!;
+    expect(d(25).dayType).toBe("registration");   // still this year's
+    expect(d(26).dayType).toBe("next_session");   // the next year's session from here
+    expect(d(26).entryIds).toEqual([]);
+    expect(d(30).counts).toBe(false);
+    expect(g.total).toBe(210);
+  });
+
   it("marks today", () => {
     const g = buildYearGrid({
       ecYear: 2019, sessionStartsOn: MOE_2019_SESSION.startsOn, sessionEndsOn: MOE_2019_SESSION.endsOn,

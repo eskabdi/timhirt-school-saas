@@ -47,7 +47,7 @@ export interface GridCell {
   ecYear: number;
   isoDate: string;
   weekday: number; // 0 = Monday … 6 = Sunday
-  /** Shown type: an entry's day-type code, "weekend", "instructional" or "out_of_session". */
+  /** Shown type: an entry's day-type code, "weekend", "instructional", "out_of_session" or "next_session". */
   dayType: string;
   counts: boolean;
   entryIds: string[];
@@ -93,6 +93,13 @@ export interface BuildYearGridInput {
    * it: the MoE has fixed that feast by moon sighting.
    */
   tentativeHolidays?: readonly { code: string; date: string }[];
+  /**
+   * Where the next year's published session starts (its lead-in, in this
+   * year's Nehase). Those days belong to the next year, as in SQL
+   * `calendar_days`: shown "next_session", never counted, and this year's
+   * entries do not apply to them.
+   */
+  nextSessionStartsOn?: string | null;
 }
 
 const DAY_MS = 86_400_000;
@@ -115,6 +122,12 @@ export function buildYearGrid(input: BuildYearGridInput): YearGrid {
     const iso = isoOf(d);
     const ec = toEthiopian(d);
     const weekday = mondayFirst(d);
+    if (input.nextSessionStartsOn && iso >= input.nextSessionStartsOn && iso > sessionEndsOn) {
+      return {
+        ecDay: ec.day, ecMonth: ec.month, ecYear: ec.year, isoDate: iso, weekday, dayType: "next_session", counts: false,
+        entryIds: [], isToday: iso === today, hijri: input.showHijri ? toHijri(d) : null, tentative: [],
+      };
+    }
     const inSession = iso >= sessionStartsOn && iso <= sessionEndsOn;
     const covering = entries.filter((e) => e.startsOn <= iso && e.endsOn >= iso && types.has(e.dayTypeCode));
     let shown = inSession ? "instructional" : "out_of_session";
