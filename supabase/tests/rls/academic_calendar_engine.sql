@@ -7,7 +7,7 @@
 -- for the golden-sheet assertions.
 -- ============================================================================
 begin;
-select plan(51);
+select plan(53);
 
 create function pg_temp.y() returns integer language sql stable as $$
   select (public.gregorian_to_ec((now() at time zone 'Africa/Addis_Ababa')::date)).ec_year
@@ -40,6 +40,27 @@ insert into public.users (id, tenant_id, role, full_name, email) values
   ('0000000c-0000-0000-0000-0000000b0001', '0000000c-0000-0000-0000-00000000000b', 'school_admin', 'CE Admin B', 'ce-admin-b@example.test'),
   ('0000000c-0000-0000-0000-0000000c0001', '0000000c-0000-0000-0000-00000000000c', 'school_admin', 'CE Admin C', 'ce-admin-c@example.test');
 
+-- ============================================================ golden sheet ==
+-- First, before any fixture adds a calendar for the current year: from
+-- 2020 EC on, that calendar's lead-in would claim 2019's Nehase (CAL-DB2-01).
+select is((select string_agg(n::text, ',' order by ord) from (
+             select 0 as ord, public.instructional_days(public.ec_to_gregorian(2018, 12, 25), public.ec_to_gregorian(2018, 13, 5)) as n
+             union all
+             select m, public.instructional_days(public.ec_to_gregorian(2019, m, 1), public.ec_to_gregorian(2019, m, 30))
+               from generate_series(1, 12) m) x),
+  '9,20,21,22,21,14,20,22,19,21,21,0,0',
+  'the MoE 2019 EC sheet: ድምር per row, exactly as published');
+select is(public.instructional_days(public.ec_to_gregorian(2018, 12, 25), public.ec_to_gregorian(2019, 10, 30)), 210,
+  '... 210 school days in the year');
+select is((select row(day_type_code, counts, blocks_student_attendance, blocks_staff_attendance)::text
+             from public.calendar_day_status(public.ec_to_gregorian(2019, 5, 25))),
+  '(semester_break,f,t,f)', 'a semester-break day blocks students, not staff, and is not a school day');
+select is((select row(day_type_code, counts)::text from public.calendar_day_status(public.ec_to_gregorian(2019, 5, 22))),
+  '(examination,f)', 'an exam on a Saturday shows as an exam but does not count (same as the grid engine)');
+select is((select row(ec_year, ec_month, ec_day)::text from public.gregorian_to_ec('2026-09-11')), '(2019,1,1)',
+  'SQL EC conversion: 2026-09-11 is Meskerem 1, 2019');
+select is(public.ec_to_gregorian(2019, 13, 6), '2027-09-11'::date, 'SQL EC conversion: Pagume 6 of a leap year');
+
 -- The MoE calendar for the current year (2019 is seeded; another year gets a
 -- minimal one) and an Oromia calendar with one locked and two unlocked entries.
 insert into public.authority_calendars (authority_id, ec_year, session_starts_on, session_ends_on, status, published_at)
@@ -61,25 +82,6 @@ insert into public.authority_calendar_entries (id, calendar_id, day_type_code, s
 -- An authority draft for a far year: not visible to schools.
 insert into public.authority_calendars (authority_id, ec_year, session_starts_on, session_ends_on)
 values ((select id from public.edu_authorities where code = 'MOE'), 2030, '2037-08-31', '2038-07-07');
-
--- ============================================================ golden sheet ==
-select is((select string_agg(n::text, ',' order by ord) from (
-             select 0 as ord, public.instructional_days(public.ec_to_gregorian(2018, 12, 25), public.ec_to_gregorian(2018, 13, 5)) as n
-             union all
-             select m, public.instructional_days(public.ec_to_gregorian(2019, m, 1), public.ec_to_gregorian(2019, m, 30))
-               from generate_series(1, 12) m) x),
-  '9,20,21,22,21,14,20,22,19,21,21,0,0',
-  'the MoE 2019 EC sheet: ድምር per row, exactly as published');
-select is(public.instructional_days(public.ec_to_gregorian(2018, 12, 25), public.ec_to_gregorian(2019, 10, 30)), 210,
-  '... 210 school days in the year');
-select is((select row(day_type_code, counts, blocks_student_attendance, blocks_staff_attendance)::text
-             from public.calendar_day_status(public.ec_to_gregorian(2019, 5, 25))),
-  '(semester_break,f,t,f)', 'a semester-break day blocks students, not staff, and is not a school day');
-select is((select row(day_type_code, counts)::text from public.calendar_day_status(public.ec_to_gregorian(2019, 5, 22))),
-  '(examination,f)', 'an exam on a Saturday shows as an exam but does not count (same as the grid engine)');
-select is((select row(ec_year, ec_month, ec_day)::text from public.gregorian_to_ec('2026-09-11')), '(2019,1,1)',
-  'SQL EC conversion: 2026-09-11 is Meskerem 1, 2019');
-select is(public.ec_to_gregorian(2019, 13, 6), '2027-09-11'::date, 'SQL EC conversion: Pagume 6 of a leap year');
 
 -- ================================================================ layers ==
 select pg_temp.act_as('0000000c-0000-0000-0000-0000000a0001');
@@ -234,7 +236,14 @@ select throws_ok($$ insert into public.authority_calendars (authority_id, ec_yea
   '23514', null, 'a weekend listing a day twice is refused');
 select throws_ok($$ insert into public.authority_calendars (authority_id, ec_year, session_starts_on, session_ends_on)
                     values ((select id from public.edu_authorities where code = 'AA'), 2050, '2037-09-01', '2038-07-01') $$,
-  '23514', null, 'a session outside its EC year is refused');
+  '22023', 'invalid_range', 'a session outside its EC year is refused');
+select throws_ok($$ insert into public.authority_calendars (authority_id, ec_year, session_starts_on, session_ends_on)
+                    values ((select id from public.edu_authorities where code = 'AA'), 2025, '2031-09-06', '2032-07-08') $$,
+  '22023', 'invalid_range', '... including one inside the right Gregorian years but in another EC year (CAL-DB2-03)');
+select throws_ok($$ insert into public.authority_calendar_entries (calendar_id, day_type_code, starts_on, ends_on, name_i18n)
+                    select c.id, 'regional_holiday', '2000-01-01', '2000-01-01', '{"en": "x"}'
+                      from public.authority_calendars c where c.id = '0000000c-0000-0000-0001-000000000001' $$,
+  '22023', 'invalid_range', 'an authority entry far outside its calendar''s year is refused');
 
 -- ==================================== one day, one answer (CAL-DB-03/04) ==
 -- Meskerem 10 of last year has no session of its own: alone or inside a

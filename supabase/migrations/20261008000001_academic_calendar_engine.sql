@@ -346,7 +346,8 @@ on conflict do nothing;
 
 -- ------------------------------------------------------- guard triggers --
 -- Authority entries: lockable types are locked when an authority enters
--- them; a closed calendar never changes; a regional override must target an
+-- them; a closed calendar never changes; dates lie within the EC year and 60
+-- days either side (as school entries); a regional override must target an
 -- unlocked entry of the MoE calendar for the same year.
 create function public.authority_calendar_entries_guard()
 returns trigger language plpgsql set search_path = public, pg_temp as $$
@@ -371,6 +372,10 @@ begin
   if not found then
     raise exception 'invalid_day_type' using errcode = '22023';
   end if;
+  if new.starts_on < public.ec_to_gregorian(v_year, 1, 1) - 60
+     or new.ends_on > public.ec_to_gregorian(v_year, 13, public.ec_days_in_month(v_year, 13)) + 60 then
+    raise exception 'invalid_range' using errcode = '22023';
+  end if;
   if new.overrides_entry_id is not null then
     select e.locked, c.ec_year, a.kind into v_target
       from public.authority_calendar_entries e
@@ -390,17 +395,30 @@ revoke execute on function public.authority_calendar_entries_guard() from public
 create trigger authority_calendar_entries_guard before insert or update or delete on public.authority_calendar_entries
   for each row execute function public.authority_calendar_entries_guard();
 
--- A closed authority calendar is immutable.
+-- A closed authority calendar is immutable. The session lies in its EC
+-- year: it may start in the previous year's Nehase (the MoE lead-in) and no
+-- later than Tikimt, and it ends between Ginbot and the end of Pagume. (The
+-- CHECK on the table only bounds the Gregorian years; calendar_days assigns
+-- a day to the latest session that covers it, so a session in the wrong
+-- year would capture another year's days.)
 create function public.authority_calendars_guard()
 returns trigger language plpgsql set search_path = public, pg_temp as $$
 begin
-  if old.status = 'closed' then
+  if tg_op in ('UPDATE', 'DELETE') and old.status = 'closed' then
     raise exception 'calendar_closed' using errcode = '42501';
   end if;
-  return coalesce(new, old);
+  if tg_op = 'DELETE' then
+    return old;
+  end if;
+  if new.session_starts_on not between public.ec_to_gregorian(new.ec_year - 1, 12, 1) and public.ec_to_gregorian(new.ec_year, 2, 30)
+     or new.session_ends_on not between public.ec_to_gregorian(new.ec_year, 9, 1)
+                                    and public.ec_to_gregorian(new.ec_year, 13, public.ec_days_in_month(new.ec_year, 13)) then
+    raise exception 'invalid_range' using errcode = '22023';
+  end if;
+  return new;
 end $$;
 revoke execute on function public.authority_calendars_guard() from public, anon, authenticated;
-create trigger authority_calendars_guard before update or delete on public.authority_calendars
+create trigger authority_calendars_guard before insert or update or delete on public.authority_calendars
   for each row execute function public.authority_calendars_guard();
 
 -- ------------------------------------------------------- year settings --
