@@ -13,7 +13,9 @@ import { requireRole, errors, json, rateLimit, corsHeaders } from "../_shared/se
 
 const Payload = z.object({
   tenant_id: z.string().uuid(),
-  admin_email: z.string().email().max(254),
+  // GoTrue stores addresses lower-case; so do we, and the duplicate check
+  // below is case-insensitive (as in onboard-tenant).
+  admin_email: z.string().trim().email().max(254).transform((s) => s.toLowerCase()),
   admin_full_name: z.string().trim().min(1).max(120),
   default_locale: z.enum(["en", "am", "om"]).default("am"),
 });
@@ -44,7 +46,8 @@ Deno.serve(async (req) => {
     // message. Since every active account in this app has a matching
     // public.users row (§ the "chicken-and-egg" note in DEPLOYMENT.md),
     // checking there is enough to catch this before it ever calls invite.
-    const { data: existing } = await db.from("users").select("id").eq("email", p.admin_email).maybeSingle();
+    const { data: existing } = await db.from("users").select("id")
+      .ilike("email", p.admin_email.replace(/[\\%_]/g, (m) => `\\${m}`)).limit(1).maybeSingle();
     if (existing) return json({ error: "This email is already registered to a user in the system." }, 400);
 
     // Without an explicit redirectTo, Supabase falls back to the project's
