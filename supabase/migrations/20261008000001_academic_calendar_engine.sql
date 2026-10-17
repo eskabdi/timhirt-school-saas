@@ -60,12 +60,26 @@ returns integer language sql immutable strict set search_path = public, pg_temp 
   select case when p_month = 13 then case when p_year % 4 = 3 then 6 else 5 end else 30 end
 $$;
 
+-- A session belongs to its EC year: it may start in the previous year's
+-- Nehase (the MoE lead-in) and no later than Tikimt, and it ends between
+-- Ginbot and the end of Pagume. calendar_days assigns a day to the latest
+-- session that covers it, so a session in the wrong year would capture
+-- another year's days (CAL-DB2-03, CAL-DB3-03).
+create function public.ec_session_in_year(p_ec_year integer, p_from date, p_to date)
+returns boolean language sql immutable strict set search_path = public, pg_temp as $$
+  select p_from between public.ec_to_gregorian(p_ec_year - 1, 12, 1) and public.ec_to_gregorian(p_ec_year, 2, 30)
+     and p_to between public.ec_to_gregorian(p_ec_year, 9, 1)
+                  and public.ec_to_gregorian(p_ec_year, 13, public.ec_days_in_month(p_ec_year, 13))
+$$;
+
 revoke execute on function public.ec_to_gregorian(integer, integer, integer) from public, anon;
 revoke execute on function public.gregorian_to_ec(date) from public, anon;
 revoke execute on function public.ec_days_in_month(integer, integer) from public, anon;
+revoke execute on function public.ec_session_in_year(integer, date, date) from public, anon;
 grant execute on function public.ec_to_gregorian(integer, integer, integer) to authenticated;
 grant execute on function public.gregorian_to_ec(date) to authenticated;
 grant execute on function public.ec_days_in_month(integer, integer) to authenticated;
+grant execute on function public.ec_session_in_year(integer, date, date) to authenticated;
 
 -- ------------------------------------------- optional Hijri holidays flag --
 -- settings.calendar.hijri_holidays (the school's choice, default off): the
@@ -395,12 +409,10 @@ revoke execute on function public.authority_calendar_entries_guard() from public
 create trigger authority_calendar_entries_guard before insert or update or delete on public.authority_calendar_entries
   for each row execute function public.authority_calendar_entries_guard();
 
--- A closed authority calendar is immutable. The session lies in its EC
--- year: it may start in the previous year's Nehase (the MoE lead-in) and no
--- later than Tikimt, and it ends between Ginbot and the end of Pagume. (The
--- CHECK on the table only bounds the Gregorian years; calendar_days assigns
--- a day to the latest session that covers it, so a session in the wrong
--- year would capture another year's days.)
+-- A closed authority calendar is immutable. The session lies in its EC year
+-- (ec_session_in_year; the CHECK on the table only bounds the Gregorian
+-- years), and the year never changes, since the entries were checked against
+-- it (CAL-DB3-04).
 create function public.authority_calendars_guard()
 returns trigger language plpgsql set search_path = public, pg_temp as $$
 begin
@@ -410,9 +422,8 @@ begin
   if tg_op = 'DELETE' then
     return old;
   end if;
-  if new.session_starts_on not between public.ec_to_gregorian(new.ec_year - 1, 12, 1) and public.ec_to_gregorian(new.ec_year, 2, 30)
-     or new.session_ends_on not between public.ec_to_gregorian(new.ec_year, 9, 1)
-                                    and public.ec_to_gregorian(new.ec_year, 13, public.ec_days_in_month(new.ec_year, 13)) then
+  if (tg_op = 'UPDATE' and new.ec_year is distinct from old.ec_year)
+     or not public.ec_session_in_year(new.ec_year, new.session_starts_on, new.session_ends_on) then
     raise exception 'invalid_range' using errcode = '22023';
   end if;
   return new;
@@ -473,8 +484,14 @@ begin
     from public.authority_calendars c
    where c.authority_id = v_moe and c.ec_year = p_ec_year and c.status in ('published', 'closed');
   if v_tenant is not null and v_region_id is null and v_moe_id is null then
+    -- The school's own academic year is used only when it lies in its EC
+    -- year: a school can write academic_years, and a span reaching into the
+    -- next year would capture its days, locked MoE holidays included
+    -- (CAL-DB3-03).
     select y.starts_on, y.ends_on into v_year_from, v_year_to
-      from public.academic_years y where y.tenant_id = v_tenant and y.ec_year = p_ec_year;
+      from public.academic_years y
+     where y.tenant_id = v_tenant and y.ec_year = p_ec_year
+       and public.ec_session_in_year(p_ec_year, y.starts_on, y.ends_on);
   end if;
   return query select
     v_tenant, p_ec_year,
@@ -773,7 +790,14 @@ begin
                    least(v_from.ec_day, public.ec_days_in_month(v_from.ec_year + 1, v_from.ec_month)));
       v_end := public.ec_to_gregorian(v_to.ec_year + 1, v_to.ec_month,
                  least(v_to.ec_day, public.ec_days_in_month(v_to.ec_year + 1, v_to.ec_month)));
-      if exists (select 1 from public.effective_calendar_entries(p_ec_year, v_tenant) x
+      -- The same window the entry guard enforces: a date that moves outside
+      -- it (a Pagume-6 shift, an entry near the edge of last year) is left
+      -- out and reported, not an error that aborts the whole copy (CAL-TV-12).
+      if v_start < public.ec_to_gregorian(p_ec_year, 1, 1) - 60
+         or v_end > public.ec_to_gregorian(p_ec_year, 13, public.ec_days_in_month(p_ec_year, 13)) + 60 then
+        v_dropped := v_dropped || jsonb_build_object('name', e.name_i18n, 'starts_on', v_start, 'ends_on', v_end,
+                                                     'reason', 'outside_year');
+      elsif exists (select 1 from public.effective_calendar_entries(p_ec_year, v_tenant) x
                   where x.locked and x.starts_on <= v_end and x.ends_on >= v_start) then
         v_dropped := v_dropped || jsonb_build_object('name', e.name_i18n, 'starts_on', v_start, 'ends_on', v_end,
                                                      'reason', 'locked_date');

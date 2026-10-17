@@ -7,9 +7,11 @@
 //
 // Accessibility: each day's type is shown by colour *and* a mark (legend
 // keys both); text colour is picked for contrast; the grid is one tab stop
-// (arrow keys move, Enter/Space opens the day in the inspector, a live
-// region); every cell's name is its full date, type, Hijri date and school-day
-// status; the table scrolls inside its own labelled region.
+// (arrow keys move as drawn: left/right a day, up/down the same column in the
+// month above or below; Enter/Space opens the day in the inspector, a live
+// region), and a hint says so; every cell's name is its weekday, full date,
+// type, Hijri date and school-day status; the table scrolls inside its own
+// labelled region, which is positioned so nothing in it widens the page.
 import { useEffect, useId, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -22,7 +24,7 @@ import { EthDate } from "@/components/EthDate";
 import { tField } from "@/lib/i18n";
 import { formatDigits, formatEth, formatHijri, toIsoDate, today, todayEthiopian, type NumeralSystem } from "@/lib/ethiopian-date";
 import { hijriHolidaySuggestions } from "@/lib/ethiopian-holidays";
-import { buildYearGrid, GRID_COLUMNS, type GridCell } from "./grid";
+import { buildYearGrid, dateOf, GRID_COLUMNS, shiftIso, type GridCell } from "./grid";
 import { DAY_TYPE_MARKS, OUT_OF_SESSION_FILL } from "./dayTypes";
 import { textOn } from "./contrast";
 import {
@@ -35,14 +37,14 @@ const WEEKEND_FALLBACK = "#f4b183";
 /** Non-colour cues for the derived kinds of day (WCAG 1.4.1). */
 const HATCH = "repeating-linear-gradient(135deg, rgb(0 0 0 / 0.10) 0 2px, transparent 2px 6px)";
 const DOTS = "radial-gradient(rgb(0 0 0 / 0.22) 1px, transparent 1.2px)";
+const STRIPES = "repeating-linear-gradient(90deg, rgb(0 0 0 / 0.14) 0 1px, transparent 1px 4px)";
 const patternFor = (dayType: string): CSSProperties =>
   dayType === "weekend" ? { backgroundImage: HATCH }
-    : dayType === "out_of_session" || dayType === "next_session" ? { backgroundImage: DOTS, backgroundSize: "5px 5px" }
+    : dayType === "out_of_session" ? { backgroundImage: DOTS, backgroundSize: "5px 5px" }
+    : dayType === "next_session" ? { backgroundImage: STRIPES }
     : {};
-
-const dateOf = (iso: string) => new Date(`${iso}T00:00:00Z`);
-const DAY_MS = 86_400_000;
-const shiftIso = (iso: string, days: number) => new Date(dateOf(iso).getTime() + days * DAY_MS).toISOString().slice(0, 10);
+/** Selected: a white and a black ring, so one of them shows on any fill (≥3:1, WCAG 1.4.11). */
+const SELECTED_RING: CSSProperties = { boxShadow: "inset 0 0 0 2px #ffffff, inset 0 0 0 4px #111111" };
 
 export function AcademicYearGridPage() {
   const { t, i18n } = useTranslation();
@@ -61,9 +63,10 @@ export function AcademicYearGridPage() {
   // a calendar makes the chooser disappear (the school now has one), and the
   // outcome, with the days it had to leave out, must survive that.
   const noticeRef = useRef<HTMLDivElement>(null);
-  const cellRefs = useRef(new Map<string, HTMLButtonElement>());
+  const regionRef = useRef<HTMLDivElement>(null);
   const captionId = useId();
   const inspectorId = useId();
+  const hintId = useId();
 
   // Scoped to the school and user, so a session switch never shows another
   // school's cached calendar (§6.3).
@@ -71,7 +74,6 @@ export function AcademicYearGridPage() {
   const settingsKey = (y: number) => ["academic-calendar", ...scope, "settings", y];
   const settings = useQuery({ queryKey: settingsKey(year), queryFn: () => fetchYearSettings(year) });
   const nextSettings = useQuery({ queryKey: settingsKey(year + 1), queryFn: () => fetchYearSettings(year + 1) });
-  const prevSettings = useQuery({ queryKey: settingsKey(year - 1), queryFn: () => fetchYearSettings(year - 1) });
   const entries = useQuery({ queryKey: ["academic-calendar", ...scope, "entries", year], queryFn: () => fetchEffectiveEntries(year) });
   const dayTypes = useQuery({ queryKey: ["academic-calendar", "day-types"], queryFn: fetchDayTypes, staleTime: 3_600_000 });
   const authorities = useQuery({ queryKey: ["academic-calendar", "authorities"], queryFn: fetchAuthorities, staleTime: 3_600_000 });
@@ -80,6 +82,10 @@ export function AcademicYearGridPage() {
     queryFn: () => fetchCanCreateCalendar(profile!.id),
     enabled: !!profile?.id,
   });
+  // Only the chooser needs last year (is there a published calendar to copy?).
+  const prevSettings = useQuery({
+    queryKey: settingsKey(year - 1), queryFn: () => fetchYearSettings(year - 1), enabled: canCreate.data === true,
+  });
 
   const s = settings.data;
   const typeByCode = useMemo(() => new Map((dayTypes.data ?? []).map((d) => [d.code, d])), [dayTypes.data]);
@@ -87,7 +93,9 @@ export function AcademicYearGridPage() {
   const nextSessionStartsOn = nextSettings.data?.session_starts_on ?? null;
 
   const grid = useMemo(() => {
-    if (!s?.session_starts_on || !s.session_ends_on || !dayTypes.data || !entries.data) return null;
+    // Wait for next year's session too, or its lead-in days would first show
+    // as this year's and then flip (and the totals with them).
+    if (!s?.session_starts_on || !s.session_ends_on || !dayTypes.data || !entries.data || nextSettings.isPending) return null;
     return buildYearGrid({
       ecYear: year,
       sessionStartsOn: s.session_starts_on,
@@ -100,16 +108,17 @@ export function AcademicYearGridPage() {
       tentativeHolidays: prefs.hijriHolidays ? hijriHolidaySuggestions(year) : [],
       nextSessionStartsOn,
     });
-  }, [s, dayTypes.data, entries.data, year, prefs.showHijri, prefs.hijriHolidays, nextSessionStartsOn]);
+  }, [s, dayTypes.data, entries.data, year, prefs.showHijri, prefs.hijriHolidays, nextSessionStartsOn, nextSettings.isPending]);
 
-  // Every day in grid order, and each day's row, for keyboard movement.
+  // Each day's row and column, for keyboard movement.
   const nav = useMemo(() => {
-    const byIso = new Map<string, { cell: GridCell; row: number }>();
-    grid?.rows.forEach((r, row) => r.cells.forEach((c) => { if (c) byIso.set(c.isoDate, { cell: c, row }); }));
+    const byIso = new Map<string, { cell: GridCell; row: number; col: number }>();
+    grid?.rows.forEach((r, row) => r.cells.forEach((c, col) => { if (c) byIso.set(c.isoDate, { cell: c, row, col }); }));
     return byIso;
   }, [grid]);
-  const firstIso = grid?.rows.flatMap((r) => r.cells).find(Boolean)?.isoDate ?? null;
-  const todayIso = grid?.rows.flatMap((r) => r.cells).find((c) => c?.isToday)?.isoDate ?? null;
+  const allCells = useMemo(() => grid?.rows.flatMap((r) => r.cells).filter((c): c is GridCell => !!c) ?? [], [grid]);
+  const firstIso = allCells[0]?.isoDate ?? null;
+  const todayIso = allCells.find((c) => c.isToday)?.isoDate ?? null;
   const activeIso = (focusIso && nav.has(focusIso) ? focusIso : null) ?? (selected && nav.has(selected.isoDate) ? selected.isoDate : null)
     ?? todayIso ?? firstIso;
 
@@ -130,36 +139,51 @@ export function AcademicYearGridPage() {
   const authorityName = (code: string) => tField(authorities.data?.find((a) => a.code === code)?.name_i18n, lang) || code;
   const source = authorityName(s?.region_code ?? "MOE");
 
-  const cellName = (c: GridCell) => {
+  // Every cell's name, once per grid and language (not on every keystroke).
+  const cellNames = useMemo(() => new Map(allCells.map((c) => {
     const date = dateOf(c.isoDate);
     const parts = [
+      weekdayNames[date.getUTCDay()],
       formatEth(date, { numerals: digits, monthNames: months, eraSuffix: tc("eraSuffix") }),
       typeLabel(c.dayType),
       c.hijri ? formatHijri(date, { numerals: digits, monthNames: hijriMonths, eraSuffix: tc("hijriEraSuffix") }) : null,
-      ...c.tentative.map((code) => `${t(`academicCalendar.hijriHoliday.${code}`)} (${t("academicCalendar.tentative")})`),
+      ...c.tentative.map((code) => `${t(`academicCalendar.hijriHoliday.${code}`)}: ${t("academicCalendar.tentative")}`),
       c.dayType === "instructional" ? null : c.counts ? t("academicCalendar.schoolDay") : t("academicCalendar.notSchoolDay"),
     ];
-    return parts.filter(Boolean).join(" — ");
-  };
+    return [c.isoDate, parts.filter(Boolean).join(" — ")] as const;
+  // typeLabel, months and the other lookups follow lang and the loaded types.
+  })), [allCells, lang, digits, typeByCode]);
 
   const moveTo = (iso: string | undefined | null) => {
     if (!iso || !nav.has(iso)) return;
     setFocusIso(iso);
-    cellRefs.current.get(iso)?.focus();
+    regionRef.current?.querySelector<HTMLButtonElement>(`button[data-iso="${iso}"]`)?.focus();
   };
   const onCellKey = (e: KeyboardEvent<HTMLButtonElement>, c: GridCell) => {
     const here = nav.get(c.isoDate);
     if (!here || !grid) return;
     const rowCells = grid.rows[here.row]!.cells.filter((x): x is GridCell => !!x);
-    const inRow = (r: number) => {
+    // Up/down: the same column in the row above/below, or the nearest day in
+    // that row when the column is empty there.
+    const sameColumn = (r: number) => {
+      const cells = grid.rows[r]?.cells;
+      if (!cells) return undefined;
+      let best: GridCell | null = null;
+      cells.forEach((x, col) => {
+        if (x && (!best || Math.abs(col - here.col) < Math.abs(nav.get(best.isoDate)!.col - here.col))) best = x;
+      });
+      return (best as GridCell | null)?.isoDate;
+    };
+    // Page up/down: the same day of the month above/below.
+    const sameDay = (r: number) => {
       const cells = grid.rows[r]?.cells.filter((x): x is GridCell => !!x) ?? [];
       return (cells.find((x) => x.ecDay === c.ecDay) ?? cells[cells.length - 1])?.isoDate;
     };
     const target: Record<string, string | undefined> = {
       ArrowLeft: shiftIso(c.isoDate, -1), ArrowRight: shiftIso(c.isoDate, 1),
-      ArrowUp: shiftIso(c.isoDate, -7), ArrowDown: shiftIso(c.isoDate, 7),
+      ArrowUp: sameColumn(here.row - 1), ArrowDown: sameColumn(here.row + 1),
       Home: rowCells[0]?.isoDate, End: rowCells[rowCells.length - 1]?.isoDate,
-      PageUp: inRow(here.row - 1), PageDown: inRow(here.row + 1),
+      PageUp: sameDay(here.row - 1), PageDown: sameDay(here.row + 1),
     };
     if (e.key in target) {
       e.preventDefault();
@@ -205,8 +229,12 @@ export function AcademicYearGridPage() {
       )}
 
       {grid && (
-        <Card className="p-0">
-          <div role="region" aria-labelledby={captionId} tabIndex={0} className="overflow-x-auto focus-visible:ring-2 focus-visible:ring-navy">
+        <div className="rounded-panel bg-card shadow-ambient">
+          <p id={hintId} className="px-3 pt-2 text-xs text-ink-soft">{t("academicCalendar.keyboardHint")}</p>
+          {/* relative: the sr-only weekday names are absolutely positioned and
+              would otherwise widen the page past the scroller (WCAG 1.4.10). */}
+          <div ref={regionRef} role="region" aria-labelledby={captionId} aria-describedby={hintId} tabIndex={0}
+            className="relative overflow-x-auto focus-visible:ring-2 focus-visible:ring-navy">
             <table className="w-full border-collapse text-center text-xs">
               <caption id={captionId} className="sr-only">{t("academicCalendar.caption", { year: num(year) })}</caption>
               <thead>
@@ -243,15 +271,16 @@ export function AcademicYearGridPage() {
                       const mark = DAY_TYPE_MARKS[c.dayType];
                       return (
                         <td key={i} className="p-0">
-                          <button type="button" ref={(el) => { if (el) cellRefs.current.set(c.isoDate, el); else cellRefs.current.delete(c.isoDate); }}
+                          <button type="button" data-iso={c.isoDate}
                             tabIndex={c.isoDate === activeIso ? 0 : -1}
-                            aria-label={cellName(c)} aria-controls={inspectorId}
+                            aria-label={cellNames.get(c.isoDate)} aria-controls={inspectorId}
                             aria-current={c.isToday ? "date" : undefined}
                             onClick={() => { setSelected(c); setFocusIso(c.isoDate); }}
                             onKeyDown={(e) => onCellKey(e, c)}
-                            className={`relative block w-full min-w-6 px-0.5 py-1 focus-visible:z-20 ${c.isToday ? "outline outline-2 -outline-offset-2 outline-navy" : ""} ${isSelected ? "z-10 ring-2 ring-inset ring-ink" : ""}`}
-                            style={{ backgroundColor: fill, color: textOn(fill), ...patternFor(c.dayType) }}>
-                            {mark && <span aria-hidden className="absolute left-0.5 top-0 text-[8px] leading-none">{mark}</span>}
+                            className={`relative block w-full min-w-6 px-0.5 py-1 focus-visible:z-20 ${isSelected ? "z-10" : ""}`}
+                            style={{ backgroundColor: fill, color: textOn(fill), ...patternFor(c.dayType), ...(isSelected ? SELECTED_RING : {}) }}>
+                            {mark && <span aria-hidden className="absolute left-0.5 top-0 text-[10px] leading-none">{mark}</span>}
+                            {c.isToday && <TodayBar />}
                             {num(c.ecDay)}
                             {c.hijri && <span aria-hidden className="block text-[10px] leading-none">{num(c.hijri.day)}</span>}
                             {c.tentative.length > 0 && <span aria-hidden className="absolute right-0 top-0 text-[9px]">☾</span>}
@@ -271,7 +300,7 @@ export function AcademicYearGridPage() {
               </tfoot>
             </table>
           </div>
-        </Card>
+        </div>
       )}
 
       {/* Always mounted, so the first selection is announced too. */}
@@ -284,7 +313,8 @@ export function AcademicYearGridPage() {
 
       {grid && dayTypes.data && entries.data && (
         <Legend dayTypes={dayTypes.data} entries={entries.data} lang={lang}
-          derived={[...new Set(grid.rows.flatMap((r) => r.cells).map((c) => c?.dayType).filter((d): d is string => d === "out_of_session" || d === "next_session"))]} />
+          derived={[...new Set(allCells.map((c) => c.dayType).filter((d) => d === "out_of_session" || d === "next_session"))]}
+          hasToday={todayIso !== null} hasTentative={allCells.some((c) => c.tentative.length > 0)} />
       )}
     </div>
   );
@@ -303,7 +333,7 @@ function CreatedNotice({ result, num, lang }: { result: CreateCalendarResult; nu
             {result.dropped.map((d, i) => (
               <li key={i} className="flex min-w-0 flex-wrap gap-x-1">
                 <EthDate value={d.starts_on} />
-                <span>— {tField(d.name, lang)}</span>
+                <span>— {tField(d.name, lang)} ({t(`academicCalendar.choose.droppedReason.${d.reason}`, { defaultValue: "" })})</span>
               </li>
             ))}
           </ul>
@@ -343,6 +373,11 @@ function DayInspector({ cell, entries, typeLabel, lang }: {
   );
 }
 
+/** Today: a black bar edged in white along the cell's foot, visible on any fill and distinct from the selected ring. */
+function TodayBar() {
+  return <span aria-hidden className="absolute inset-x-1 bottom-0.5 h-[3px] rounded-sm bg-[#111111] shadow-[0_0_0_1px_#ffffff]" />;
+}
+
 function Swatch({ color, dayType }: { color: string; dayType: string }) {
   const mark = DAY_TYPE_MARKS[dayType];
   return (
@@ -353,7 +388,9 @@ function Swatch({ color, dayType }: { color: string; dayType: string }) {
   );
 }
 
-function Legend({ dayTypes, entries, lang, derived }: { dayTypes: DayTypeRow[]; entries: EffectiveEntry[]; lang: string; derived: string[] }) {
+function Legend({ dayTypes, entries, lang, derived, hasToday, hasTentative }: {
+  dayTypes: DayTypeRow[]; entries: EffectiveEntry[]; lang: string; derived: string[]; hasToday: boolean; hasTentative: boolean;
+}) {
   const { t } = useTranslation();
   const used = new Set(entries.map((e) => e.day_type_code));
   const holidays = entries
@@ -375,6 +412,18 @@ function Legend({ dayTypes, entries, lang, derived }: { dayTypes: DayTypeRow[]; 
             {t(`academicCalendar.derived.${code}`)}
           </li>
         ))}
+        {hasToday && (
+          <li className="flex items-center gap-1.5">
+            <span aria-hidden className="relative inline-block h-4 w-4 rounded-sm border border-line bg-card"><TodayBar /></span>
+            {t("academicCalendar.legendToday")}
+          </li>
+        )}
+        {hasTentative && (
+          <li className="flex items-center gap-1.5">
+            <span aria-hidden className="inline-flex h-4 w-4 items-center justify-center rounded-sm border border-line text-[10px]">☾</span>
+            {t("academicCalendar.legendTentative")}
+          </li>
+        )}
       </ul>
       {holidays.length > 0 && (
         <>

@@ -13,9 +13,12 @@
 //   status           — which of the tenant's school_admins have not accepted
 //                      their invite yet (auth.users is not readable from the
 //                      browser, so the platform console asks here).
-//   resend           — send a pending school_admin a fresh invite email (the
-//                      old link is single-use and expires). Refused once the
-//                      invite was accepted; at most 3 per admin per hour.
+//   resend           — send a pending school_admin a fresh link (the old one
+//                      is single-use and expires). Refused once the invite was
+//                      accepted; at most 3 per admin per hour.
+// Accepted = a password was set (tenant_admin_invite_states). Opening the link
+// confirms the email and signs in before any password exists, and a mail
+// scanner that prefetches it does the same, so neither counts.
 // ============================================================================
 import { z } from "npm:zod@3";
 import { requireRole, errors, json, rateLimit, corsHeaders } from "../_shared/security.ts";
@@ -35,9 +38,7 @@ const Resend = z.object({ action: z.literal("resend"), tenant_id: z.string().uui
 const RATE_LIMITED = "Too many invite emails sent recently — Supabase's default email sender is rate-limited. "
   + "Try again shortly, or configure custom SMTP in the Supabase dashboard (Authentication -> Emails) for production use.";
 
-/** Accepted = the invitee set a password (email confirmed) or has signed in. */
-const isPending = (u: { email_confirmed_at?: string | null; last_sign_in_at?: string | null }) =>
-  !u.email_confirmed_at && !u.last_sign_in_at;
+interface InviteState { user_id: string; password_set: boolean; email_confirmed: boolean; invited_at: string | null }
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -47,9 +48,12 @@ Deno.serve(async (req) => {
   let invitedUserId: string | undefined;
   try {
     if (req.method !== "POST") return errors.badRequest();
-    if (!(await rateLimit(`invite-admin:${ctx.userId}`, 10, 60_000))) return errors.tooMany();
-
     const body = await req.json().catch(() => null) as { action?: unknown } | null;
+    // The console reads status on every view and window focus; it has its own
+    // budget so browsing never uses up the one for sending email.
+    const bucket = body?.action === "status" ? `invite-status:${ctx.userId}` : `invite-admin:${ctx.userId}`;
+    if (!(await rateLimit(bucket, body?.action === "status" ? 60 : 10, 60_000))) return errors.tooMany();
+
     const db = ctx.adminClient;
     // Without an explicit redirectTo, Supabase falls back to the project's
     // Site URL (Authentication -> URL Configuration). APP_URL must also be in
@@ -57,20 +61,18 @@ Deno.serve(async (req) => {
     // and falls back to Site URL anyway.
     const appUrl = Deno.env.get("APP_URL") ?? "https://www.edux.et";
     const redirectTo = `${appUrl}/accept-invite`;
+    const inviteStates = async (tenantId: string): Promise<InviteState[]> => {
+      const { data, error } = await db.rpc("tenant_admin_invite_states", { p_tenant: tenantId });
+      if (error) throw error;
+      return (data ?? []) as InviteState[];
+    };
 
     // ---------------------------------------------------------------- status
     if (body?.action === "status") {
       const parsed = Status.safeParse(body);
       if (!parsed.success) return errors.badRequest();
-      const { data: admins, error } = await db.from("users").select("id")
-        .eq("tenant_id", parsed.data.tenant_id).eq("role", "school_admin").limit(50);
-      if (error) throw error;
-      const out = [];
-      for (const a of admins ?? []) {
-        const { data } = await db.auth.admin.getUserById(a.id);
-        if (data?.user) out.push({ user_id: a.id, pending: isPending(data.user), invited_at: data.user.invited_at ?? null });
-      }
-      return json({ admins: out }, 200);
+      const states = await inviteStates(parsed.data.tenant_id);
+      return json({ admins: states.map((s) => ({ user_id: s.user_id, pending: !s.password_set, invited_at: s.invited_at })) }, 200);
     }
 
     // ---------------------------------------------------------------- resend
@@ -81,26 +83,39 @@ Deno.serve(async (req) => {
       const { data: tenant } = await db.from("tenants").select("id, name").eq("id", tenant_id).maybeSingle();
       const { data: profile } = await db.from("users").select("id, full_name")
         .eq("id", user_id).eq("tenant_id", tenant_id).eq("role", "school_admin").maybeSingle();
-      if (!tenant || !profile) return errors.badRequest();
-      const { data: authData, error: getErr } = await db.auth.admin.getUserById(user_id);
-      if (getErr || !authData?.user?.email) return errors.badRequest();
-      if (!isPending(authData.user)) {
+      const state = (await inviteStates(tenant_id)).find((s) => s.user_id === user_id);
+      if (!tenant || !profile || !state) return errors.badRequest();
+      if (state.password_set) {
         return json({ error: "This admin has already accepted the invite.", code: "already_accepted" }, 409);
       }
+      const { data: authData, error: getErr } = await db.auth.admin.getUserById(user_id);
+      if (getErr || !authData?.user?.email) return errors.badRequest();
       if (!(await rateLimit(`resend-invite:${user_id}`, 3, 3_600_000))) return errors.tooMany();
-      // For an address with an unconfirmed account, inviteUserByEmail sends a
-      // fresh invite to that same account (a new single-use link).
-      const { data: invited, error: uErr } = await db.auth.admin.inviteUserByEmail(authData.user.email, {
-        data: { full_name: profile.full_name, school_name: tenant.name },
-        redirectTo,
-      });
-      if (uErr) {
-        if (/rate limit/i.test(uErr.message)) return json({ error: RATE_LIMITED }, 429);
-        throw uErr;
+      const email = authData.user.email;
+      if (!state.email_confirmed) {
+        // An unconfirmed account gets a fresh invite to that same account (a
+        // new single-use link).
+        const { data: invited, error: uErr } = await db.auth.admin.inviteUserByEmail(email, {
+          data: { full_name: profile.full_name, school_name: tenant.name },
+          redirectTo,
+        });
+        if (uErr) {
+          if (/rate limit/i.test(uErr.message)) return json({ error: RATE_LIMITED }, 429);
+          throw uErr;
+        }
+        if (invited.user.id !== user_id) throw new Error("resend returned a different user");
+      } else {
+        // The link was opened (or prefetched) but no password was set: GoTrue
+        // refuses to invite a confirmed address, so send a set-password
+        // (recovery) link to the same /accept-invite page instead.
+        const { error: rErr } = await db.auth.resetPasswordForEmail(email, { redirectTo });
+        if (rErr) {
+          if (/rate limit/i.test(rErr.message)) return json({ error: RATE_LIMITED }, 429);
+          throw rErr;
+        }
       }
-      if (invited.user.id !== user_id) throw new Error("resend returned a different user");
-      console.log("invite-tenant-admin: invite resent", { tenant_id, user_id, by: ctx.userId });
-      return json({ user_id, resent: true, invited_at: invited.user.invited_at ?? null }, 200);
+      console.log("invite-tenant-admin: invite resent", { tenant_id, user_id, by: ctx.userId, kind: state.email_confirmed ? "recovery" : "invite" });
+      return json({ user_id, resent: true }, 200);
     }
 
     // ---------------------------------------------------------------- invite

@@ -79,6 +79,17 @@ describe("buildYearGrid — MoE 2019 EC golden sheet", () => {
     expect(g.total).toBe(210);
   });
 
+  it("gives a day both sessions cover to the next year, as SQL does (overlapping sessions)", () => {
+    const g = buildYearGrid({
+      ecYear: 2019, sessionStartsOn: MOE_2019_SESSION.startsOn, sessionEndsOn: "2027-09-08", // Pagume 3, 2019
+      entries: MOE_2019_ENTRIES, dayTypes: DAY_TYPES, nextSessionStartsOn: "2027-09-01",     // Nehase 26, 2019
+    });
+    const nehase = g.rows.find((r) => r.kind === "month" && r.ecMonth === 12)!;
+    expect(nehase.cells.find((c) => c?.ecDay === 26)!.dayType).toBe("next_session");
+    expect(nehase.cells.find((c) => c?.ecDay === 25)!.dayType).not.toBe("next_session");
+    expect(nehase.cells.filter((c) => c && c.ecDay >= 26).every((c) => !c!.counts)).toBe(true); // counted once, in 2020
+  });
+
   it("marks today", () => {
     const g = buildYearGrid({
       ecYear: 2019, sessionStartsOn: MOE_2019_SESSION.startsOn, sessionEndsOn: MOE_2019_SESSION.endsOn,
@@ -117,6 +128,15 @@ describe("buildYearGrid — optional Hijri (the school's choice)", () => {
     });
     const marked = g.rows.flatMap((r) => r.cells).filter((c) => c && c.tentative.length);
     expect(marked.map((c) => [c!.isoDate, c!.tentative])).toEqual([["2027-07-20", ["eid_al_adha"]]]);
+    expect(g.total).toBe(210);
+  });
+
+  it("a tentative holiday on a school day stays a counted school day (display only, CAL-TV-05)", () => {
+    const g = buildYearGrid({ ...base, tentativeHolidays: [{ code: "mawlid", date: "2026-10-20" }] }); // Tikimt 10, 2019: a Tuesday
+    const cell = g.rows.flatMap((r) => r.cells).find((c) => c?.isoDate === "2026-10-20")!;
+    expect(cell.tentative).toEqual(["mawlid"]);
+    expect(cell.dayType).toBe("instructional");
+    expect(cell.counts).toBe(true);
     expect(g.total).toBe(210);
   });
 });

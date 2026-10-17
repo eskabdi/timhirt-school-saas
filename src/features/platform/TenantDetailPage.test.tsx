@@ -100,7 +100,7 @@ describe("TenantDetailPage invite status and resend", () => {
     await act(async () => { btn.click(); });
     await flush();
     expect(calls).toContainEqual({ action: "resend", tenant_id: "t1", user_id: "u-pending" });
-    expect(host.querySelector('[role="status"]')?.textContent).toBe("A new invite email was sent to pending@example.test.");
+    expect(host.querySelector('[role="status"]')?.textContent).toBe("A new link to set a password was sent to pending@example.test.");
     done();
   });
 
@@ -111,6 +111,16 @@ describe("TenantDetailPage invite status and resend", () => {
     await act(async () => { btn.click(); });
     await flush();
     expect(host.querySelector('[role="alert"]')?.textContent).toBe("This admin has already accepted the invite.");
+    done();
+  });
+
+  it("says to wait when the server rate-limits the resend", async () => {
+    resendStatus = 429;
+    const { host, done } = await render();
+    const btn = [...row(host, "Pending Admin Person").querySelectorAll("button")].find((b) => b.textContent === "Resend invite")!;
+    await act(async () => { btn.click(); });
+    await flush();
+    expect(host.querySelector('[role="alert"]')?.textContent).toBe("Too many invite emails were sent recently. Wait an hour and try again.");
     done();
   });
 });

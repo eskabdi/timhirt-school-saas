@@ -56,11 +56,14 @@ async function fetchInviteStatus(tenantId: string): Promise<AdminInviteStatus[]>
   return ((await res.json()) as { admins: AdminInviteStatus[] }).admins;
 }
 
+const RESEND_ERRORS = ["platformPagesX.alreadyAccepted", "platformPagesX.resendRateLimited", "platformPagesX.resendFailed"];
+
 /** Resend a pending admin's invite; the error message is a translation key. */
 async function resendInvite(tenantId: string, userId: string): Promise<void> {
   const res = await postInviteTenantAdmin({ action: "resend", tenant_id: tenantId, user_id: userId });
   if (res.ok) return;
-  throw new Error(res.status === 409 ? "platformPagesX.alreadyAccepted" : "platformPagesX.resendFailed");
+  throw new Error(res.status === 409 ? "platformPagesX.alreadyAccepted"
+    : res.status === 429 ? "platformPagesX.resendRateLimited" : "platformPagesX.resendFailed");
 }
 
 function InviteAdminForm({ tenantId, onDone }: { tenantId: string; onDone: () => void }) {
@@ -173,7 +176,9 @@ export function TenantDetailPage() {
       qc.invalidateQueries({ queryKey: ["tenant-admin-invites", id] });
     },
     onError: (e) => {
-      setResendNotice({ tone: "error", text: t((e as Error).message) });
+      // Only our own keys are shown; a network or session error is generic.
+      const key = (e as Error).message;
+      setResendNotice({ tone: "error", text: t(RESEND_ERRORS.includes(key) ? key : "platformPagesX.resendFailed") });
       qc.invalidateQueries({ queryKey: ["tenant-admin-invites", id] });
     },
   });

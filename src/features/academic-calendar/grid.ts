@@ -95,16 +95,19 @@ export interface BuildYearGridInput {
   tentativeHolidays?: readonly { code: string; date: string }[];
   /**
    * Where the next year's published session starts (its lead-in, in this
-   * year's Nehase). Those days belong to the next year, as in SQL
-   * `calendar_days`: shown "next_session", never counted, and this year's
-   * entries do not apply to them.
+   * year's Nehase or Pagume). From that day on, days belong to the next year,
+   * as in SQL `calendar_days`, even inside this year's session: shown
+   * "next_session", never counted, and this year's entries do not apply.
    */
   nextSessionStartsOn?: string | null;
 }
 
 const DAY_MS = 86_400_000;
 const isoOf = (d: Date) => d.toISOString().slice(0, 10);
-const dateOf = (iso: string) => new Date(`${iso}T00:00:00Z`);
+/** A stored (Gregorian, §17.2) date as UTC midnight. */
+export const dateOf = (iso: string) => new Date(`${iso}T00:00:00Z`);
+/** The stored date `days` days later (earlier when negative). */
+export const shiftIso = (iso: string, days: number) => isoOf(new Date(dateOf(iso).getTime() + days * DAY_MS));
 const mondayFirst = (d: Date) => (d.getUTCDay() + 6) % 7;
 
 export function buildYearGrid(input: BuildYearGridInput): YearGrid {
@@ -122,7 +125,9 @@ export function buildYearGrid(input: BuildYearGridInput): YearGrid {
     const iso = isoOf(d);
     const ec = toEthiopian(d);
     const weekday = mondayFirst(d);
-    if (input.nextSessionStartsOn && iso >= input.nextSessionStartsOn && iso > sessionEndsOn) {
+    // As in SQL calendar_days, a day two sessions cover belongs to the later
+    // year (sessions may overlap within the bounds the database allows).
+    if (input.nextSessionStartsOn && iso >= input.nextSessionStartsOn) {
       return {
         ecDay: ec.day, ecMonth: ec.month, ecYear: ec.year, isoDate: iso, weekday, dayType: "next_session", counts: false,
         entryIds: [], isToday: iso === today, hijri: input.showHijri ? toHijri(d) : null, tentative: [],

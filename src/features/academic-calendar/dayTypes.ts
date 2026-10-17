@@ -1,7 +1,7 @@
 // The platform event-type catalogue (owner's list, in order). Seeded into
 // `calendar_day_types` by the engine migration; this copy feeds the grid
-// engine before data loads and the tests. `catalog parity` in
-// grid.test.ts keeps the two in step with the SQL seed.
+// engine before data loads and the tests. dayTypes.test.ts keeps the two in
+// step with the SQL seed.
 import type { DayCategory, GridDayType } from "./grid";
 
 export interface DayTypeDef extends GridDayType {
