@@ -1,7 +1,10 @@
 // Tenant detail view: identity + status, its school_admin roster, and an
 // "Invite admin" form that calls invite-tenant-admin (adds a school_admin to
 // this EXISTING tenant — distinct from onboard-tenant's "create a brand-new
-// tenant plus its first admin", used on the list page).
+// tenant plus its first admin", used on the list page). The roster shows
+// whether each admin has accepted their invite and offers "Resend invite"
+// for those who have not (invite-tenant-admin actions status / resend; the
+// server refuses a resend once the invite was accepted).
 import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
@@ -30,15 +33,34 @@ const inviteSchema = z.object({
 });
 type InviteInput = z.infer<typeof inviteSchema>;
 
-async function callInviteTenantAdmin(tenantId: string, input: InviteInput) {
+async function postInviteTenantAdmin(body: Record<string, unknown>) {
   const { data: { session } } = await supabase.auth.getSession();
-  const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/invite-tenant-admin`, {
+  return fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/invite-tenant-admin`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token}` },
-    body: JSON.stringify({ tenant_id: tenantId, ...input }),
+    body: JSON.stringify(body),
   });
+}
+
+async function callInviteTenantAdmin(tenantId: string, input: InviteInput) {
+  const res = await postInviteTenantAdmin({ tenant_id: tenantId, ...input });
   if (!res.ok) throw new Error((await res.json().catch(() => null))?.error ?? "Failed to send invite");
   return res.json();
+}
+
+interface AdminInviteStatus { user_id: string; pending: boolean; invited_at: string | null }
+
+async function fetchInviteStatus(tenantId: string): Promise<AdminInviteStatus[]> {
+  const res = await postInviteTenantAdmin({ action: "status", tenant_id: tenantId });
+  if (!res.ok) throw new Error("status");
+  return ((await res.json()) as { admins: AdminInviteStatus[] }).admins;
+}
+
+/** Resend a pending admin's invite; the error message is a translation key. */
+async function resendInvite(tenantId: string, userId: string): Promise<void> {
+  const res = await postInviteTenantAdmin({ action: "resend", tenant_id: tenantId, user_id: userId });
+  if (res.ok) return;
+  throw new Error(res.status === 409 ? "platformPagesX.alreadyAccepted" : "platformPagesX.resendFailed");
 }
 
 function InviteAdminForm({ tenantId, onDone }: { tenantId: string; onDone: () => void }) {
@@ -53,6 +75,7 @@ function InviteAdminForm({ tenantId, onDone }: { tenantId: string; onDone: () =>
     mutationFn: (input: InviteInput) => callInviteTenantAdmin(tenantId, input),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["tenant-admins", tenantId] });
+      qc.invalidateQueries({ queryKey: ["tenant-admin-invites", tenantId] });
       onDone();
     },
   });
@@ -134,6 +157,25 @@ export function TenantDetailPage() {
       return data;
     },
     enabled: !!id,
+  });
+
+  const inviteStatus = useQuery({
+    queryKey: ["tenant-admin-invites", id],
+    queryFn: () => fetchInviteStatus(id!),
+    enabled: !!id,
+  });
+  const pendingById = new Map((inviteStatus.data ?? []).map((s) => [s.user_id, s.pending]));
+  const [resendNotice, setResendNotice] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
+  const resend = useMutation({
+    mutationFn: (admin: { id: string; email: string }) => resendInvite(id!, admin.id),
+    onSuccess: (_r, admin) => {
+      setResendNotice({ tone: "ok", text: t("platformPagesX.inviteResent", { email: admin.email }) });
+      qc.invalidateQueries({ queryKey: ["tenant-admin-invites", id] });
+    },
+    onError: (e) => {
+      setResendNotice({ tone: "error", text: t((e as Error).message) });
+      qc.invalidateQueries({ queryKey: ["tenant-admin-invites", id] });
+    },
   });
 
   const { data: tiers } = useQuery({
@@ -293,10 +335,14 @@ export function TenantDetailPage() {
           </div>
         )}
 
+        <p role={resendNotice?.tone === "error" ? "alert" : "status"}
+          className={cn("mb-2 text-sm", resendNotice?.tone === "error" ? "text-danger" : "text-ok")}>
+          {resendNotice?.text ?? ""}
+        </p>
         <Panel className="overflow-x-auto">
-          <table className="w-full min-w-[480px] text-sm">
+          <table className="w-full min-w-[560px] text-sm">
             <thead className="bg-sidebar text-left text-xs uppercase text-ink-faint">
-              <tr><th className="px-4 py-2">{t("common.name")}</th><th className="px-4 py-2">{t("common.email")}</th><th className="px-4 py-2">{t("common.locale")}</th><th className="px-4 py-2" /></tr>
+              <tr><th className="px-4 py-2">{t("common.name")}</th><th className="px-4 py-2">{t("common.email")}</th><th className="px-4 py-2">{t("common.locale")}</th><th className="px-4 py-2">{t("platformPagesX.inviteStatus")}</th><th className="px-4 py-2" /></tr>
             </thead>
             <tbody className="divide-y divide-line">
               {admins?.map((a) => (
@@ -304,7 +350,18 @@ export function TenantDetailPage() {
                   <td className="px-4 py-2 font-medium text-ink">{a.full_name}</td>
                   <td className="px-4 py-2 text-ink-faint">{a.email}</td>
                   <td className="px-4 py-2 uppercase text-ink">{a.locale}</td>
-                  <td className="px-4 py-2 text-right">
+                  <td className="px-4 py-2">
+                    {pendingById.get(a.id) === true && <Badge tone="late">{t("platformPagesX.invitePending")}</Badge>}
+                    {pendingById.get(a.id) === false && <Badge tone="ok">{t("platformPagesX.inviteAccepted")}</Badge>}
+                  </td>
+                  <td className="space-x-3 whitespace-nowrap px-4 py-2 text-right">
+                    {pendingById.get(a.id) === true && (
+                      <button type="button" className="text-xs text-navy hover:underline disabled:opacity-50"
+                        disabled={resend.isPending}
+                        onClick={() => { setResendNotice(null); resend.mutate({ id: a.id, email: a.email }); }}>
+                        {resend.isPending && resend.variables?.id === a.id ? t("platformPagesX.resending") : t("platformPagesX.resendInvite")}
+                      </button>
+                    )}
                     <button type="button" className="text-xs text-navy hover:underline"
                       onClick={() => { setImpersonating(a); setImpersonateReason(""); setImpersonateError(null); }}>
                       {t("platformPagesX.impersonate")}
@@ -313,7 +370,7 @@ export function TenantDetailPage() {
                 </tr>
               ))}
               {admins?.length === 0 && (
-                <tr><td colSpan={4} className="px-4 py-6 text-center text-ink-faint">{t("platformPagesX.noAdmins")}</td></tr>
+                <tr><td colSpan={5} className="px-4 py-6 text-center text-ink-faint">{t("platformPagesX.noAdmins")}</td></tr>
               )}
             </tbody>
           </table>
