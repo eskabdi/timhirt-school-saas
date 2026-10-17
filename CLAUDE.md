@@ -191,6 +191,55 @@ was found by driving the app in a browser or hitting the endpoint, not by
 reading the diff. Twice a "green" result turned out to be a runner that was
 measuring nothing. Prove a gate fails before trusting that it passed.
 
+**A green suite is not a tested change: every acceptance criterion needs an
+assertion that fails when the code it protects is broken.** The Academic
+Calendar slice 1 suite had 53 passing assertions and the test verifier still
+returned FAIL (CAL-TV, 2026-10-17): seven areas had no test at all. The select
+policy and module gate on `school_calendar_entries` could be replaced with
+`using (true)`, the authority locked/closed/override guards switched off, the
+holiday-over-break precedence swapped, and the "tentative holidays are never
+counted" test passed vacuously (its only date was outside the session). The
+fix, now the rule for every WP:
+- For each new table, policy, guard, RPC and UI behaviour, write the assertion
+  that would catch its removal: cross-tenant reads/writes (tenant B sees 0
+  rows), draft/permission visibility, the module gate, locked/closed guards,
+  precedence, input limits, and the read-side defence as well as the write
+  guard.
+- Add a non-vacuity check next to each "sees 0 rows" probe (the rows exist),
+  and pick fixture dates inside the range the behaviour applies to.
+- Mutation-prove: inside `begin; <mutation>; \i suite.sql` (the suite rolls
+  back) replace the policy with `using (true)`, turn the guard's `if` into
+  `if false`, drop the predicate — each must turn an assertion red (an ERROR
+  that aborts the suite counts). Keep the log in `audit/evidence/`.
+- Time bombs: a fixture that depends on "the current EC year" must still pass
+  when the year is faked forward (2020, 2021…); prefer dates no seeded session
+  covers.
+- UI: test what the user sees (badge, legend, inspector, marks, the error
+  alert, query-key scope), and assert mock arguments (`p_action: "create"`), so
+  a wrong call cannot pass.
+- Keep parity between duplicated sources (a TS copy of a SQL seed) with a test,
+  not a comment.
+
+## Before merge and before deploy (mandatory)
+
+**Before any merge** (to `main` or any shared branch), dispatch all four on
+the commit being merged, fix every confirmed Critical/High/Medium finding, and
+re-run them on the fixed commit:
+1. `code-review` skill — correctness bugs in the diff;
+2. `security-review` skill — exploitable vulnerabilities in the diff;
+3. `tenant-isolation-review` skill (`.claude/skills/tenant-isolation-review`) —
+   no cross-tenant read or write, probed and mutation-proven;
+4. `verify` skill — run it: real Postgres for migrations/RLS, the browser
+   harness for pages.
+
+Their verdicts go in `audit/evidence/reviews/`. A change made after a skill ran
+is not reviewed: re-run the skills on the new commit.
+
+**Every deploy goes through the `deploy` skill** (`.claude/skills/deploy`):
+staging dry run first, then production, then the `deploy-checker` agent and the
+served-bundle grep. Never deploy by hand outside it, and never deploy a commit
+the four pre-merge skills have not passed.
+
 ---
 
 ## Conventions
