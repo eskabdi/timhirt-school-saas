@@ -1,0 +1,49 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge"/>
+<meta name="x-apple-disable-message-reformatting"/>
+<meta name="color-scheme" content="light"/>
+<title>You've been invited to join {{ with .Data.school_name }}{{ . }}{{ else }}your school{{ end }} on {{ .SiteURL }}</title>
+<!--[if mso]><xml><o:OfficeDocumentSettings><o:AllowPNG/><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml><![endif]-->
+<style>
+html,body{margin:0!important;padding:0!important;width:100%!important}
+table,td{mso-table-lspace:0pt!important;mso-table-rspace:0pt!important;border-collapse:collapse!important}
+img9{-ms-interpolation-mode:bicubic;border:0;outline:none;text-decoration:none}
+a{text-decoration:none!important}
+@media only screen and (max-width:620px){table[class="container"]{width:100%!important}td[class="px"]{padding-left:22px!important;padding-right:22px!important}h1[class="h1"]{font-size:22px!important;line-height:30px!important}td[class="copy"]{padding-left:26px!important;padding-right:26px!important}span[class="wordmark"]{font-size:30px!important}}
+</style>
+</head>
+<body style="margin:0;padding:0;width:100%;background-color:#eef0f9" bgcolor="#eef0f9">
+<div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all">You've been invited to join {{ with .Data.school_name }}{{ . }}{{ else }}your school{{ end }} on {{ .SiteURL }} &mdash; set up your account today.</div>
+<center style="width:100%;background-color:#eef0f9">
+<!--[if mso]><table role="presentation" align="center" border="0" cellpadding="0" cellspacing="0" width="600"><tr><td><![endif]-->
+<table role="presentation" align="center" border="0" cellpadding="0" cellspacing="0" width="600" class="container" style="width:600px;max-width:600px;margin:0 auto">
+<tr><td height="28" style="height:28px;font-size:0;line-height:0">&nbsp;</td></tr>
+<tr><td align="center" bgcolor="#4338ca" class="px" style="background-color:#4338ca;border-top:6px solid #fbbf24;border-radius:12px 12px 0 0;box-shadow:0 2px 8px rgba(30,27,75,.18);padding:34px 32px 32px">
+<div align="center" style="font-size:0;line-height:0">
+<!--[if !mso]><!--><svg xmlns="http://www.w3.org/2000/svg" width="92" height="67" viewBox="0 0 96 70" style="display:inline-block;vertical-align:middle;margin:0 10px 0 0"><g fill="none" stroke="#fff" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"><path d="M48 15 C40 7 26 5 10 9 L10 59 C26 55 40 57 48 65 C56 57 70 55 86 59 L86 9 C70 5 56 7 48 15 Z"/><path d="M48 15 L48 65"/><path d="M19 21 C27 19 36 21 41 25"/><path d="M19 31 C27 29 36 31 41 35"/><path d="M19 41 C27 39 36 41 41 45"/><path d="M77 21 C69 19 60 21 55 25"/><path d="M77 31 C69 29 60 31 55 35"/><path d="M77 41 C69 39 60 41 55 45"/></g><path d="M48 16 L55 25 L48 34 L41 25 Z" fill="#fbbf24"/></svg><!--<![endif]-->
+<!--[if mso]><span style="font-family:Arial,Helvetica,sans-serif;font-size:36px;font-weight:bold;color:#fff;letter-spacing:2px;vertical-align:middle">edux</span><![endif]-->
+<!--[if !mso]><!--><span class="wordmark" style="display:inline-block;vertical-align:middle;font-family:Arial,Helvetica,sans-serif;font-size:36px;font-weight:bold;letter-spacing:2px;color:#fff;line-height:40px">edux</span><!--<![endif]-->
+</div>
+<h1 class="h1" style="margin:20px 0 0;font-family:Arial,Helvetica,sans-serif;font-size:26px;line-height:35px;font-weight:bold;color:#fff;text-align:center">You've been invited to join <span style="color:#fbbf24">{{ with .Data.school_name }}{{ . }}{{ else }}your school{{ end }}</span> on <span style="color:#c7d2fe">{{ .SiteURL }}</span></h1>
+</td></tr>
+<tr><td bgcolor="#ffffff" style="background-color:#fff;border-radius:0 0 12px 12px;box-shadow:0 2px 8px rgba(30,27,75,.18)">
+<table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">
+<tr><td align="center" class="copy" style="padding:30px 44px 0"><p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:16px;line-height:26px;color:#4b5565;text-align:center">Use the button below to set up your account. This invitation was sent to <strong style="color:#312e81">{{ .Email }}</strong>.</p></td></tr>
+<tr><td align="center" class="px" style="padding:28px 32px 8px">
+<!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="{{ .ConfirmationURL }}" style="height:52px;v-text-anchor:middle;width:310px" arcsize="12%" strokecolor="#b45309" fillcolor="#f59e0b"><w:anchorlock/><center style="color:#1e1b4b;font-family:Arial,Helvetica,sans-serif;font-size:17px;font-weight:bold">Accept Invitation &amp; Setup Password</center></v:roundrect><![endif]-->
+<!--[if !mso]><!--><a href="{{ .ConfirmationURL }}" target="_blank" style="background-color:#f59e0b;border:1px solid #b45309;border-radius:8px;color:#1e1b4b;display:inline-block;font-family:Arial,Helvetica,sans-serif;font-size:17px;font-weight:bold;height:52px;line-height:52px;padding:0 34px;text-align:center;text-decoration:none">Accept Invitation</a><!--<![endif]-->
+</td></tr>
+<tr><td align="center" class="px" style="padding:14px 32px 0"><p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:20px;color:#6b7280;text-align:center">If the button does not work, copy this link into your browser:<br/><a href="{{ .ConfirmationURL }}" target="_blank" style="color:#4338ca;word-break:break-all">{{ .ConfirmationURL }}</a><br/>The link can be used once and expires after 1 hour.</p></td></tr>
+<tr><td class="px" style="padding:0 32px"><table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%"><tr><td align="center" style="padding:20px 8px 26px;border-top:1px solid #e4e6f4"><p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:20px;color:#8690a3;text-align:center">This is an automated message &mdash; if you were not expecting this invitation, please ignore this email.</p></td></tr></table></td></tr>
+</table>
+</td></tr>
+<tr><td align="center" class="px" style="padding:22px 32px 40px"><p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:18px;color:#98a1b3;text-align:center">&copy; 2026 {{ .SiteURL }}. All rights reserved.</p></td></tr>
+</table>
+<!--[if mso]></td></tr></table><![endif]-->
+</center>
+</body>
+</html>

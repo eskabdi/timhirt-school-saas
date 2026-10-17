@@ -57,7 +57,8 @@ Deno.serve(async (req) => {
     const appUrl = Deno.env.get("APP_URL") ?? "https://timhirt-school-saas.vercel.app";
     const inviteStartedAt = Date.now();
     const { data: invitedData, error: uErr } = await db.auth.admin.inviteUserByEmail(p.admin_email, {
-      data: { full_name: p.admin_full_name },
+      // school_name is shown in the invite email (supabase/templates/invite.html).
+      data: { full_name: p.admin_full_name, school_name: p.name },
       redirectTo: `${appUrl}/accept-invite`,
     });
     if (uErr) throw uErr;

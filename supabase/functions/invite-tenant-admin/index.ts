@@ -35,7 +35,7 @@ Deno.serve(async (req) => {
     const p = parsed.data;
     const db = ctx.adminClient;
 
-    const { data: tenant } = await db.from("tenants").select("id").eq("id", p.tenant_id).maybeSingle();
+    const { data: tenant } = await db.from("tenants").select("id, name").eq("id", p.tenant_id).maybeSingle();
     if (!tenant) return errors.badRequest();
 
     // Check BEFORE inviting: inviteUserByEmail resends an invite (returning
@@ -58,7 +58,8 @@ Deno.serve(async (req) => {
     // this value and falls back to Site URL anyway.
     const appUrl = Deno.env.get("APP_URL") ?? "https://timhirt-school-saas.vercel.app";
     const { data: invited, error: uErr } = await db.auth.admin.inviteUserByEmail(p.admin_email, {
-      data: { full_name: p.admin_full_name },
+      // school_name is shown in the invite email (supabase/templates/invite.html).
+      data: { full_name: p.admin_full_name, school_name: tenant.name },
       redirectTo: `${appUrl}/accept-invite`,
     });
     if (uErr) {
