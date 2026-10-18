@@ -23,14 +23,17 @@ insert into auth.users (id, email, encrypted_password, email_confirmed_at, last_
   ('00000000-0000-0000-0000-0000000017b1', 'other@example.test', '', null, null, now());
 -- signs in through the school's SSO: never a password, but accepted
 insert into auth.users (id, email, encrypted_password, email_confirmed_at, last_sign_in_at, invited_at, is_sso_user) values
-  ('00000000-0000-0000-0000-0000000017a5', 'sso@example.test', '', now(), now(), null, true);
+  ('00000000-0000-0000-0000-0000000017a5', 'sso@example.test', '', now(), now(), null, true),
+-- confirmed but never signed in (email_confirmed must not be read from last_sign_in_at)
+  ('00000000-0000-0000-0000-0000000017a6', 'confirmed@example.test', '', now(), null, now(), false);
 insert into public.users (id, tenant_id, role, full_name, email) values
   ('00000000-0000-0000-0000-0000000017a1', '00000000-0000-0000-0000-0000000017a0', 'school_admin', 'Set Admin Person', 'set@example.test'),
   ('00000000-0000-0000-0000-0000000017a2', '00000000-0000-0000-0000-0000000017a0', 'school_admin', 'Opened Admin Person', 'opened@example.test'),
   ('00000000-0000-0000-0000-0000000017a3', '00000000-0000-0000-0000-0000000017a0', 'school_admin', 'New Admin Person', 'new@example.test'),
   ('00000000-0000-0000-0000-0000000017a4', '00000000-0000-0000-0000-0000000017a0', 'teacher', 'A Teacher Person', 'teacher@example.test'),
   ('00000000-0000-0000-0000-0000000017b1', '00000000-0000-0000-0000-0000000017b0', 'school_admin', 'Other Admin Person', 'other@example.test'),
-  ('00000000-0000-0000-0000-0000000017a5', '00000000-0000-0000-0000-0000000017a0', 'school_admin', 'Sso Admin Person', 'sso@example.test');
+  ('00000000-0000-0000-0000-0000000017a5', '00000000-0000-0000-0000-0000000017a0', 'school_admin', 'Sso Admin Person', 'sso@example.test'),
+  ('00000000-0000-0000-0000-0000000017a6', '00000000-0000-0000-0000-0000000017a0', 'school_admin', 'Confirmed Admin Person', 'confirmed@example.test');
 
 set local role service_role;
 select is(
@@ -39,7 +42,8 @@ select is(
   array['00000000-0000-0000-0000-0000000017a1:true:false:true',
         '00000000-0000-0000-0000-0000000017a2:false:false:true',
         '00000000-0000-0000-0000-0000000017a3:false:false:false',
-        '00000000-0000-0000-0000-0000000017a5:false:true:true'],
+        '00000000-0000-0000-0000-0000000017a5:false:true:true',
+        '00000000-0000-0000-0000-0000000017a6:false:false:true'],
   'only tenant A''s school_admins; an opened link without a password is not accepted');
 select is((select count(*)::int from public.tenant_admin_invite_states('00000000-0000-0000-0000-0000000017b0')), 1,
   'tenant B sees only its own admin');

@@ -7,7 +7,7 @@
 -- for the golden-sheet assertions.
 -- ============================================================================
 begin;
-select plan(79);
+select plan(94);
 
 create function pg_temp.y() returns integer language sql stable as $$
   select (public.gregorian_to_ec((now() at time zone 'Africa/Addis_Ababa')::date)).ec_year
@@ -28,7 +28,8 @@ insert into auth.users (id, email) values
   ('0000000c-0000-0000-0000-0000000a0001', 'ce-admin-a@example.test'),
   ('0000000c-0000-0000-0000-0000000a0002', 'ce-teacher-a@example.test'),
   ('0000000c-0000-0000-0000-0000000b0001', 'ce-admin-b@example.test'),
-  ('0000000c-0000-0000-0000-0000000c0001', 'ce-admin-c@example.test');
+  ('0000000c-0000-0000-0000-0000000c0001', 'ce-admin-c@example.test'),
+  ('0000000c-0000-0000-0000-0000000f0001', 'ce-platform@example.test');
 insert into public.tenants (id, name, slug, status, tier_key, edu_authority_id) values
   ('0000000c-0000-0000-0000-00000000000a', 'CE School A (Oromia)', 'ce-a', 'active', 'premium',
    (select id from public.edu_authorities where code = 'OR')),
@@ -38,7 +39,8 @@ insert into public.users (id, tenant_id, role, full_name, email) values
   ('0000000c-0000-0000-0000-0000000a0001', '0000000c-0000-0000-0000-00000000000a', 'school_admin', 'CE Admin A', 'ce-admin-a@example.test'),
   ('0000000c-0000-0000-0000-0000000a0002', '0000000c-0000-0000-0000-00000000000a', 'teacher', 'CE Teacher A', 'ce-teacher-a@example.test'),
   ('0000000c-0000-0000-0000-0000000b0001', '0000000c-0000-0000-0000-00000000000b', 'school_admin', 'CE Admin B', 'ce-admin-b@example.test'),
-  ('0000000c-0000-0000-0000-0000000c0001', '0000000c-0000-0000-0000-00000000000c', 'school_admin', 'CE Admin C', 'ce-admin-c@example.test');
+  ('0000000c-0000-0000-0000-0000000c0001', '0000000c-0000-0000-0000-00000000000c', 'school_admin', 'CE Admin C', 'ce-admin-c@example.test'),
+  ('0000000c-0000-0000-0000-0000000f0001', null, 'super_admin', 'CE Platform Admin', 'ce-platform@example.test');
 
 -- ============================================================ golden sheet ==
 -- First, before any fixture adds a calendar for the current year: from
@@ -60,6 +62,24 @@ select is((select row(day_type_code, counts)::text from public.calendar_day_stat
 select is((select row(ec_year, ec_month, ec_day)::text from public.gregorian_to_ec('2026-09-11')), '(2019,1,1)',
   'SQL EC conversion: 2026-09-11 is Meskerem 1, 2019');
 select is(public.ec_to_gregorian(2019, 13, 6), '2027-09-11'::date, 'SQL EC conversion: Pagume 6 of a leap year');
+-- Session bounds (CAL-TV2-05): from Nehase 1 of the previous year to Tikimt
+-- 30, ending between Ginbot 1 and the end of Pagume (2019 has a Pagume 6).
+select is(array[
+    public.ec_session_in_year(2019, public.ec_to_gregorian(2018, 12, 1), public.ec_to_gregorian(2019, 9, 1)),
+    public.ec_session_in_year(2019, public.ec_to_gregorian(2018, 12, 1) - 1, public.ec_to_gregorian(2019, 10, 30)),
+    public.ec_session_in_year(2019, public.ec_to_gregorian(2019, 2, 30), public.ec_to_gregorian(2019, 10, 30)),
+    public.ec_session_in_year(2019, public.ec_to_gregorian(2019, 3, 1), public.ec_to_gregorian(2019, 10, 30)),
+    public.ec_session_in_year(2019, public.ec_to_gregorian(2019, 1, 1), public.ec_to_gregorian(2019, 8, 30)),
+    public.ec_session_in_year(2019, public.ec_to_gregorian(2019, 1, 1), public.ec_to_gregorian(2019, 13, 6)),
+    public.ec_session_in_year(2019, public.ec_to_gregorian(2019, 1, 1), public.ec_to_gregorian(2020, 1, 1))],
+  array[true, false, true, false, false, true, false],
+  'a session lies in its EC year: each bound accepted on the day, refused a day beyond');
+-- "Use Previous School Calendar" moves an entry to the same EC date (CAL-TV2-06).
+select is(array[public.ec_same_date_next_year(public.ec_to_gregorian(2018, 1, 10)),
+                public.ec_same_date_next_year(public.ec_to_gregorian(2019, 13, 6)),
+                public.ec_same_date_next_year(public.ec_to_gregorian(2018, 13, 5))],
+          array[public.ec_to_gregorian(2019, 1, 10), public.ec_to_gregorian(2020, 13, 5), public.ec_to_gregorian(2019, 13, 5)],
+  'the same EC month and day next year; Pagume 6 becomes Pagume 5 when the next year has no sixth day');
 -- Precedence (CAL-TV-04), as in grid.ts: a holiday beats a break, and a
 -- school holiday (Parents' Day) beats the closing milestone on Sene 30.
 select is((select day_type_code from public.calendar_day_status(public.ec_to_gregorian(2019, 10, 30))), 'school_holiday',
@@ -95,17 +115,17 @@ insert into public.authority_calendar_entries (id, calendar_id, day_type_code, s
   ('0000000c-0000-0000-0002-000000000003', '0000000c-0000-0000-0001-000000000001', 'parent_meeting',   pg_temp.ec(4, 5),  pg_temp.ec(4, 5),  '{"en": "R parents"}');
 -- An authority draft for a far year: not visible to schools.
 insert into public.authority_calendars (authority_id, ec_year, session_starts_on, session_ends_on)
-values ((select id from public.edu_authorities where code = 'MOE'), 2030, '2037-08-31', '2038-07-07');
+values ((select id from public.edu_authorities where code = 'MOE'), pg_temp.y() + 11, pg_temp.ec(12, 25, 10), pg_temp.ec(10, 30, 11));
 insert into public.authority_calendar_entries (calendar_id, day_type_code, starts_on, ends_on, name_i18n)
-select c.id, 'national_holiday', '2037-09-20', '2037-09-20', '{"en": "Draft holiday"}' from public.authority_calendars c where c.ec_year = 2030;
-select is((select count(*)::integer from public.authority_calendar_entries where starts_on = '2037-09-20'), 1,
+select c.id, 'national_holiday', pg_temp.ec(1, 10, 11), pg_temp.ec(1, 10, 11), '{"en": "Draft holiday"}' from public.authority_calendars c where c.ec_year = pg_temp.y() + 11;
+select is((select count(*)::integer from public.authority_calendar_entries where starts_on = pg_temp.ec(1, 10, 11)), 1,
   'the authority draft holds an entry (so the next probe is not vacuous)');
 
 -- ================================================================ layers ==
 select pg_temp.act_as('0000000c-0000-0000-0000-0000000a0001');
-select is((select count(*)::integer from public.authority_calendars where ec_year = 2030), 0,
+select is((select count(*)::integer from public.authority_calendars where ec_year = pg_temp.y() + 11), 0,
   'an authority''s draft is invisible to a school');
-select is((select count(*)::integer from public.authority_calendar_entries where starts_on = '2037-09-20'), 0,
+select is((select count(*)::integer from public.authority_calendar_entries where starts_on = pg_temp.ec(1, 10, 11)), 0,
   '... and so are its entries (CAL-TV-02)');
 select is((select count(*)::integer from public.effective_calendar_entries(pg_temp.y()) where level = 'region'), 3,
   'school A (Oromia) inherits its regional bureau''s entries live');
@@ -156,6 +176,14 @@ select throws_ok($$ insert into public.school_calendar_entries (tenant_id, calen
                     select '0000000c-0000-0000-0000-00000000000b', id, 'school_holiday', pg_temp.ec(2, 2), pg_temp.ec(2, 2), '{"en": "x"}'
                       from public.school_calendars where tenant_id = '0000000c-0000-0000-0000-00000000000a' $$,
   '22023', 'invalid_calendar', 'an entry naming another school is refused, not silently re-homed (CAL-TI-1)');
+-- ... and the composite FK refuses it even with the guard out of the way
+-- (defence in depth; tenant-isolation review).
+alter table public.school_calendar_entries disable trigger school_calendar_entries_guard;
+select throws_ok($$ insert into public.school_calendar_entries (tenant_id, calendar_id, day_type_code, starts_on, ends_on, name_i18n)
+                    select '0000000c-0000-0000-0000-00000000000b', id, 'school_holiday', pg_temp.ec(2, 2), pg_temp.ec(2, 2), '{"en": "x"}'
+                      from public.school_calendars where tenant_id = '0000000c-0000-0000-0000-00000000000a' $$,
+  '23503', null, 'the composite FK refuses an entry whose school differs from its calendar''s');
+alter table public.school_calendar_entries enable trigger school_calendar_entries_guard;
 
 -- A user granted only academic_calendar:create cannot see the draft, so may
 -- not discard it by recreating it (CAL-SEC-01).
@@ -186,6 +214,32 @@ reset role;
 -- ======================================================= tenant isolation ==
 select pg_temp.act_as('0000000c-0000-0000-0000-0000000b0001');
 select is((select count(*)::integer from public.school_calendars), 0, 'school B sees none of school A''s calendars');
+select throws_ok($c$ insert into public.school_calendars (tenant_id, ec_year, origin) values ('0000000c-0000-0000-0000-00000000000a', pg_temp.y() + 1, 'moe') $c$,
+  '42501', null, 'B cannot create a calendar for A (no client writes; REL-TI-03)');
+select throws_ok($c$ update public.school_calendars set weekend_days = '{7}' where tenant_id = '0000000c-0000-0000-0000-00000000000a' $c$,
+  '42501', null, '... nor change A''s');
+select throws_ok($c$ delete from public.school_calendars where tenant_id = '0000000c-0000-0000-0000-00000000000a' $c$,
+  '42501', null, '... nor delete A''s');
+select throws_ok($c$ update public.school_calendar_entries set name_i18n = '{"en": "y"}' where tenant_id = '0000000c-0000-0000-0000-00000000000a' $c$,
+  '42501', null, '... nor change A''s entries');
+select throws_ok($c$ delete from public.school_calendar_entries where tenant_id = '0000000c-0000-0000-0000-00000000000a' $c$,
+  '42501', null, '... nor delete them');
+select throws_ok($c$ select * from public.calendar_year_settings(pg_temp.y(), '0000000c-0000-0000-0000-00000000000a') $c$,
+  '42501', 'not_allowed', 'B cannot read A''s year settings (REL-TI-05)');
+select throws_ok($c$ select * from public.calendar_day_status(pg_temp.ec(2, 2), '0000000c-0000-0000-0000-00000000000a') $c$,
+  '42501', 'not_allowed', '... nor A''s day status');
+reset role;
+-- The tenant predicate on its own: the platform admin passes the module gate
+-- by role, so only the predicate keeps school A's rows from them (the gate
+-- alone would hide A's rows from school B too; tenant-isolation review,
+-- CAL-TV-15).
+select pg_temp.act_as('0000000c-0000-0000-0000-0000000f0001');
+select is((select count(*)::integer from public.school_calendars where tenant_id = '0000000c-0000-0000-0000-00000000000a'), 0,
+  'the tenant predicate alone hides a school''s calendars from anyone outside it');
+select is((select count(*)::integer from public.school_calendar_entries where tenant_id = '0000000c-0000-0000-0000-00000000000a'), 0,
+  '... and its entries');
+reset role;
+select pg_temp.act_as('0000000c-0000-0000-0000-0000000b0001');
 select throws_ok($$ select count(*) from public.effective_calendar_entries(pg_temp.y(), '0000000c-0000-0000-0000-00000000000a') $$,
   '42501', 'not_allowed', 'B cannot ask for school A''s calendar');
 select throws_ok($$ select count(*) from public.calendar_days(pg_temp.ec(1, 1), pg_temp.ec(1, 30), '0000000c-0000-0000-0000-00000000000a') $$,
@@ -222,6 +276,12 @@ update public.school_calendars set status = 'published', published_at = now()
  where tenant_id = '0000000c-0000-0000-0000-00000000000a';
 select pg_temp.act_as('0000000c-0000-0000-0000-0000000a0002');
 select is((select count(*)::integer from public.school_calendars), 1, 'a published calendar is visible to the whole school');
+reset role;
+-- Published, so the draft rule no longer hides it: only the tenant predicate
+-- keeps it from the platform admin, who passes the module gate by role.
+select pg_temp.act_as('0000000c-0000-0000-0000-0000000f0001');
+select is((select count(*)::integer from public.school_calendars where tenant_id = '0000000c-0000-0000-0000-00000000000a'), 0,
+  'a published calendar stays inside its school (tenant predicate, not just the draft rule)');
 reset role;
 select pg_temp.act_as('0000000c-0000-0000-0000-0000000a0001');
 select throws_ok($$ select public.create_school_calendar(pg_temp.y(), 'moe') $$, '23505', 'calendar_exists',
@@ -330,11 +390,15 @@ select throws_ok($c$ insert into public.authority_calendar_entries (calendar_id,
                      values ('0000000c-0000-0000-0001-000000000001', 'mid_term_break', pg_temp.ec(3, 20), pg_temp.ec(3, 24), '{"en": "x"}',
                              '0000000c-0000-0000-0002-000000000002', true) $c$,
   '22023', 'invalid_override', 'a regional override must target the MoE calendar of the same year');
-select throws_ok($c$ update public.authority_calendars set ec_year = 2031, session_starts_on = '2038-08-31', session_ends_on = '2039-07-07'
-                      where ec_year = 2030 $c$,
+select throws_ok($c$ insert into public.authority_calendar_entries (calendar_id, day_type_code, starts_on, ends_on, name_i18n, overrides_entry_id, suppressed)
+                     select '0000000c-0000-0000-0001-000000000001', 'national_holiday', pg_temp.ec(2, 2), pg_temp.ec(2, 2), '{"en": "x"}', e.id, true
+                       from public.authority_calendar_entries e where e.starts_on = pg_temp.ec(1, 10, 11) $c$,
+  '22023', 'invalid_override', '... not a MoE entry of another year (CAL-TV2-03)');
+select throws_ok($c$ update public.authority_calendars set ec_year = pg_temp.y() + 12, session_starts_on = pg_temp.ec(12, 25, 11), session_ends_on = pg_temp.ec(10, 30, 12)
+                      where ec_year = pg_temp.y() + 11 $c$,
   '22023', 'invalid_range', 'an authority calendar''s year never changes, even with a matching session (CAL-DB3-04)');
 select throws_ok($c$ update public.authority_calendars set authority_id = (select id from public.edu_authorities where code = 'AA')
-                      where ec_year = 2030 $c$,
+                      where ec_year = pg_temp.y() + 11 $c$,
   '22023', 'invalid_range', '... nor its authority (CAL-DB4-06)');
 update public.authority_calendars set status = 'closed', closed_at = now() where id = '0000000c-0000-0000-0001-000000000001';
 select throws_ok($c$ insert into public.authority_calendar_entries (calendar_id, day_type_code, starts_on, ends_on, name_i18n)
@@ -352,6 +416,11 @@ select throws_ok($c$ insert into public.school_calendar_entries (tenant_id, cale
                      select tenant_id, id, 'school_holiday', pg_temp.ec(1, 1, 1) - 61, pg_temp.ec(1, 1, 1) - 61, '{"en": "x"}'
                        from public.school_calendars where tenant_id = '0000000c-0000-0000-0000-00000000000b' and ec_year = pg_temp.y() + 1 $c$,
   '22023', 'invalid_range', 'a school entry more than 60 days before its year is refused');
+select throws_ok($c$ insert into public.school_calendar_entries (tenant_id, calendar_id, day_type_code, starts_on, ends_on, name_i18n)
+                     select tenant_id, id, 'school_holiday', pg_temp.ec(13, public.ec_days_in_month(pg_temp.y() + 1, 13), 1) + 61,
+                            pg_temp.ec(13, public.ec_days_in_month(pg_temp.y() + 1, 13), 1) + 61, '{"en": "x"}'
+                       from public.school_calendars where tenant_id = '0000000c-0000-0000-0000-00000000000b' and ec_year = pg_temp.y() + 1 $c$,
+  '22023', 'invalid_range', '... or more than 60 days after it (CAL-TV2-04)');
 insert into public.school_calendar_entries (tenant_id, calendar_id, day_type_code, starts_on, ends_on, name_i18n)
 select c.tenant_id, c.id, 'school_holiday', pg_temp.ec(2, 1, 1), pg_temp.ec(2, 1, 1), jsonb_build_object('en', 'n' || g)
   from public.school_calendars c, generate_series(1, 500 - (select count(*)::integer from public.school_calendar_entries e

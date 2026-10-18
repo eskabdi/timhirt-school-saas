@@ -11,7 +11,7 @@ import { MemoryRouter } from "react-router-dom";
 import { DAY_TYPES } from "./dayTypes";
 import { MOE_2019_ENTRIES, MOE_2019_SESSION } from "./moe2019.fixture";
 
-const state = vi.hoisted(() => ({ canCreate: false, created: false, previousPublished: false, closed: false, createFails: false }));
+const state = vi.hoisted(() => ({ canCreate: false, created: false, previousPublished: false, closed: false, createFails: false, loadFails: false }));
 vi.mock("@/features/auth/useSession", () => ({
   useSession: () => ({ profile: { id: "u1", tenant_id: "t1", role: "school_admin", full_name: "A B C" } }),
 }));
@@ -49,7 +49,9 @@ vi.mock("@/lib/supabase", () => {
     supabase: {
       from: query,
       rpc: async (fn: string, args: Record<string, unknown>) => {
-        if (fn === "calendar_year_settings") return { data: settings(args.p_ec_year as number), error: null };
+        if (fn === "calendar_year_settings") {
+          return state.loadFails ? { data: null, error: { message: "boom" } } : { data: settings(args.p_ec_year as number), error: null };
+        }
         if (fn === "effective_calendar_entries") {
           return {
             error: null,
@@ -89,7 +91,7 @@ async function render(client = new QueryClient()) {
   await flush(); await flush();
   return { host, client, done: () => { act(() => root.unmount()); host.remove(); } };
 }
-const reset = () => Object.assign(state, { canCreate: false, created: false, previousPublished: false, closed: false, createFails: false });
+const reset = () => Object.assign(state, { canCreate: false, created: false, previousPublished: false, closed: false, createFails: false, loadFails: false });
 const cell = (host: HTMLElement, label: RegExp) => [...host.querySelectorAll<HTMLButtonElement>("tbody button")].find((b) => label.test(b.getAttribute("aria-label") ?? ""))!;
 
 describe("AcademicYearGridPage", () => {
@@ -174,6 +176,15 @@ describe("AcademicYearGridPage", () => {
     expect(weekendTh.length).toBeGreaterThan(0);
     expect(cell(host, /^Friday — Meskerem 29, 2019/).querySelector("span.bottom-0\\.5")).not.toBeNull(); // today's bar
     expect(cell(host, /^Saturday — Meskerem 30, 2019/).querySelector("span.bottom-0\\.5")).toBeNull();
+    done();
+  });
+
+  it("a failed load is announced as an alert, not an empty page", async () => {
+    reset(); state.loadFails = true;
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const { host, done } = await render(client);
+    expect(host.querySelector('[role="alert"]')?.textContent).toBe("Could not load the academic calendar.");
+    expect(host.querySelector("tbody")).toBeNull();
     done();
   });
 

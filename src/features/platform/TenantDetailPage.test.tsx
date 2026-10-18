@@ -42,6 +42,7 @@ import { TenantDetailPage } from "./TenantDetailPage";
 
 const calls: Record<string, unknown>[] = [];
 let resendStatus = 200;
+let resendNetworkError = false;
 const flush = () => act(async () => { await new Promise((r) => setTimeout(r, 20)); });
 
 async function render() {
@@ -75,6 +76,7 @@ describe("TenantDetailPage invite status and resend", () => {
           { user_id: "u-active", pending: false, invited_at: "2026-09-01T08:00:00Z" },
         ] }), { status: 200 });
       }
+      if (body.action === "resend" && resendNetworkError) throw new TypeError("Failed to fetch");
       if (body.action === "resend") {
         return new Response(JSON.stringify(resendStatus === 200 ? { resent: true } : { code: "already_accepted" }), { status: resendStatus });
       }
@@ -111,6 +113,17 @@ describe("TenantDetailPage invite status and resend", () => {
     await act(async () => { btn.click(); });
     await flush();
     expect(host.querySelector('[role="alert"]')?.textContent).toBe("This admin has already accepted the invite.");
+    done();
+  });
+
+  it("shows the generic message, never raw error text, when the request itself fails", async () => {
+    resendNetworkError = true;
+    const { host, done } = await render();
+    const btn = [...row(host, "Pending Admin Person").querySelectorAll("button")].find((b) => b.textContent === "Resend invite")!;
+    await act(async () => { btn.click(); });
+    await flush();
+    expect(host.querySelector('[role="alert"]')?.textContent).toBe("Could not resend the invite. Try again later.");
+    resendNetworkError = false;
     done();
   });
 

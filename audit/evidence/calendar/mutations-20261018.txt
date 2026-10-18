@@ -1,0 +1,24 @@
+# Mutation proofs, 2026-10-18 (release candidate). KILLED = an assertion went red or the suite errored. fake_year_* lines are not mutations: they fake the current EC year and must pass (labelled SURVIVED by the script = all assertions ok).
+KILLED   calendars_select_true: 90 ok, 4 failing ['not ok 24 - a teacher does not see the draft', "not ok 36 - a teacher reads none of a draft's entries"] []
+KILLED   calendars_predicate_dropped: 93 ok, 1 failing ['not ok 60 - a published calendar stays inside its school (tenant predicate, not just the draft rule)'] []
+KILLED   calendars_gate_dropped: 93 ok, 1 failing ['not ok 56 - without the events module a school reads no calendar'] []
+KILLED   entries_select_true: 92 ok, 2 failing ["not ok 36 - a teacher reads none of a draft's entries", 'not ok 48 - ... and its entries'] []
+KILLED   entries_select_and_gate_true: 90 ok, 4 failing ["not ok 36 - a teacher reads none of a draft's entries", "not ok 38 - school B reads none of school A's entries"] []
+KILLED   authority_entries_select_true: 93 ok, 1 failing ['not ok 15 - ... and so are its entries (CAL-TV-02)'] []
+KILLED   client_write_granted: 84 ok, 10 failing ['not ok 24 - a teacher does not see the draft', 'not ok 28 - no client writes school entries directly in this slice'] []
+KILLED   p_tenant_refusal_removed: 89 ok, 5 failing ["not ok 45 - B cannot read A's year settings (REL-TI-05)", "not ok 46 - ... nor A's day status"] []
+KILLED   composite_fk_dropped: 93 ok, 1 failing ["not ok 32 - the composite FK refuses an entry whose school differs from its calendar's"] []
+KILLED   guard_rehomes_tenant: 93 ok, 1 failing ['not ok 31 - an entry naming another school is refused, not silently re-homed (CAL-TI-1)'] []
+KILLED   a6b_other_year_override: 93 ok, 1 failing ['not ok 80 - ... not a MoE entry of another year (CAL-TV2-03)'] []
+KILLED   g6hi_upper_bound: 93 ok, 1 failing ['not ok 88 - ... or more than 60 days after it (CAL-TV2-04)'] []
+KILLED   sessfn_from_upper: 93 ok, 1 failing ['not ok 7 - a session lies in its EC year: each bound accepted on the day, refused a day beyond'] []
+KILLED   sessfn2_to_lower: 93 ok, 1 failing ['not ok 7 - a session lies in its EC year: each bound accepted on the day, refused a day beyond'] []
+KILLED   tv12_clamp_removed: 93 ok, 1 failing ['not ok 8 - the same EC month and day next year; Pagume 6 becomes Pagume 5 when the next year has no sixth day'] []
+KILLED   inv_confirmed_from_signin: 10 ok, 1 failing ["not ok 1 - only tenant A's school_admins; an opened link without a password is not accepted"] []
+SURVIVED fake_year_2020: 94 ok, 0 failing [] []
+SURVIVED fake_year_2021: 94 ok, 0 failing [] []
+SURVIVED fake_year_2030: 94 ok, 0 failing [] []
+SURVIVED fake_year_2031: 94 ok, 0 failing [] []
+
+Frontend: F22b (load-failure role=alert removed) -> 1 failing; T2 (resend error shown without the key allow-list) -> 2 failing.
+Equivalent mutant (documented, not a gap): dropping only the tenant predicate or only the module gate on school_calendar_entries — entries are visible only through EXISTS on a visible school_calendars row, and the composite FK (calendar_id, tenant_id) makes the entry's tenant equal its calendar's, so both policies are implied by the calendar's.

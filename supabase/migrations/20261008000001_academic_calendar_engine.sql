@@ -72,6 +72,17 @@ returns boolean language sql immutable strict set search_path = public, pg_temp 
                   and public.ec_to_gregorian(p_ec_year, 13, public.ec_days_in_month(p_ec_year, 13))
 $$;
 
+-- The same EC month and day one year later (Pagume 6 becomes Pagume 5 when
+-- the next year has no sixth day): how "Use Previous School Calendar" moves a
+-- school's entries. Called only inside create_school_calendar (definer).
+create function public.ec_same_date_next_year(p_date date)
+returns date language sql immutable strict set search_path = public, pg_temp as $$
+  select public.ec_to_gregorian(e.ec_year + 1, e.ec_month,
+                                least(e.ec_day, public.ec_days_in_month(e.ec_year + 1, e.ec_month)))
+    from public.gregorian_to_ec(p_date) e
+$$;
+
+revoke execute on function public.ec_same_date_next_year(date) from public, anon, authenticated;
 revoke execute on function public.ec_to_gregorian(integer, integer, integer) from public, anon;
 revoke execute on function public.gregorian_to_ec(date) from public, anon;
 revoke execute on function public.ec_days_in_month(integer, integer) from public, anon;
@@ -731,8 +742,6 @@ declare
   v_dropped jsonb := '[]'::jsonb;
   v_copied integer := 0;
   e record;
-  v_from record;
-  v_to record;
   v_start date;
   v_end date;
 begin
@@ -787,12 +796,8 @@ begin
        where calendar_id = v_prev and overrides_entry_id is null and not suppressed
        order by starts_on, id
     loop
-      v_from := public.gregorian_to_ec(e.starts_on);
-      v_to := public.gregorian_to_ec(e.ends_on);
-      v_start := public.ec_to_gregorian(v_from.ec_year + 1, v_from.ec_month,
-                   least(v_from.ec_day, public.ec_days_in_month(v_from.ec_year + 1, v_from.ec_month)));
-      v_end := public.ec_to_gregorian(v_to.ec_year + 1, v_to.ec_month,
-                 least(v_to.ec_day, public.ec_days_in_month(v_to.ec_year + 1, v_to.ec_month)));
+      v_start := public.ec_same_date_next_year(e.starts_on);
+      v_end := public.ec_same_date_next_year(e.ends_on);
       -- The same window the entry guard enforces: a date that moves outside
       -- it (a Pagume-6 shift, an entry near the edge of last year) is left
       -- out and reported, not an error that aborts the whole copy (CAL-TV-12).

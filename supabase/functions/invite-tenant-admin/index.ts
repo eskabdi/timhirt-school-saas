@@ -17,12 +17,14 @@
 //                      is single-use and expires). Refused once the invite was
 //                      accepted; at most 3 per admin per hour.
 // Accepted = a password was set, or the admin signs in through SSO (never a
-// password) — tenant_admin_invite_states. Opening the link confirms the email
-// and signs in before any password exists, and a mail scanner that prefetches
-// it does the same, so neither counts.
+// password) — tenant_admin_invite_states; the decisions live in
+// _shared/invite-state.ts (tested). Opening the link confirms the email and
+// signs in before any password exists, and a mail scanner that prefetches it
+// does the same, so neither counts.
 // ============================================================================
 import { z } from "npm:zod@3";
 import { requireRole, errors, json, rateLimit, corsHeaders } from "../_shared/security.ts";
+import { isRateLimited, rateBucket, resendPlan, statusRow, type InviteState } from "../_shared/invite-state.ts";
 
 const Invite = z.object({
   action: z.literal("invite").optional(),
@@ -39,11 +41,6 @@ const Resend = z.object({ action: z.literal("resend"), tenant_id: z.string().uui
 const RATE_LIMITED = "Too many invite emails sent recently — Supabase's default email sender is rate-limited. "
   + "Try again shortly, or configure custom SMTP in the Supabase dashboard (Authentication -> Emails) for production use.";
 
-interface InviteState { user_id: string; password_set: boolean; sso_user: boolean; email_confirmed: boolean; invited_at: string | null }
-const accepted = (s: InviteState) => s.password_set || s.sso_user;
-/** GoTrue's own limits answer 429 (the per-address one says "only request this after N seconds"). */
-const isRateLimited = (e: { status?: number; message: string }) => e.status === 429 || /rate limit|request this after/i.test(e.message);
-
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   const ctxOrRes = await requireRole(req, ["super_admin"]);
@@ -55,8 +52,8 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => null) as { action?: unknown } | null;
     // The console reads status on every view and window focus; it has its own
     // budget so browsing never uses up the one for sending email.
-    const bucket = body?.action === "status" ? `invite-status:${ctx.userId}` : `invite-admin:${ctx.userId}`;
-    if (!(await rateLimit(bucket, body?.action === "status" ? 60 : 10, 60_000))) return errors.tooMany();
+    const bucket = rateBucket(body?.action, ctx.userId);
+    if (!(await rateLimit(bucket.key, bucket.limit, 60_000))) return errors.tooMany();
 
     const db = ctx.adminClient;
     // Without an explicit redirectTo, Supabase falls back to the project's
@@ -76,7 +73,7 @@ Deno.serve(async (req) => {
       const parsed = Status.safeParse(body);
       if (!parsed.success) return errors.badRequest();
       const states = await inviteStates(parsed.data.tenant_id);
-      return json({ admins: states.map((s) => ({ user_id: s.user_id, pending: !accepted(s), invited_at: s.invited_at })) }, 200);
+      return json({ admins: states.map(statusRow) }, 200);
     }
 
     // ---------------------------------------------------------------- resend
@@ -89,14 +86,15 @@ Deno.serve(async (req) => {
         .eq("id", user_id).eq("tenant_id", tenant_id).eq("role", "school_admin").maybeSingle();
       const [state] = await inviteStates(tenant_id, user_id);
       if (!tenant || !profile || !state) return errors.badRequest();
-      if (accepted(state)) {
+      const plan = resendPlan(state);
+      if (plan === "already_accepted") {
         return json({ error: "This admin has already accepted the invite.", code: "already_accepted" }, 409);
       }
       const { data: authData, error: getErr } = await db.auth.admin.getUserById(user_id);
       if (getErr || !authData?.user?.email) return errors.badRequest();
       if (!(await rateLimit(`resend-invite:${user_id}`, 3, 3_600_000))) return errors.tooMany();
       const email = authData.user.email;
-      if (!state.email_confirmed) {
+      if (plan === "invite") {
         // An unconfirmed account gets a fresh invite to that same account (a
         // new single-use link).
         const { data: invited, error: uErr } = await db.auth.admin.inviteUserByEmail(email, {
@@ -118,7 +116,7 @@ Deno.serve(async (req) => {
           throw rErr;
         }
       }
-      console.log("invite-tenant-admin: invite resent", { tenant_id, user_id, by: ctx.userId, kind: state.email_confirmed ? "recovery" : "invite" });
+      console.log("invite-tenant-admin: invite resent", { tenant_id, user_id, by: ctx.userId, kind: plan });
       return json({ user_id, resent: true }, 200);
     }
 
@@ -162,7 +160,10 @@ Deno.serve(async (req) => {
 
     return json({ user_id: invitedUserId, tenant_id: p.tenant_id }, 201);
   } catch (err) {
-    console.error("invite-tenant-admin failed", { message: (err as Error).message });
+    // Auth (GoTrue) errors can quote the address, so they are logged by code
+    // only, as in onboard-tenant (privacy review, WP-01 round 3; REL-TI-04).
+    const e = err as { name?: string; code?: string; message?: string };
+    console.error("invite-tenant-admin failed", e.name?.startsWith("Auth") ? { auth_error: e.code ?? "unknown" } : { message: e.message });
     // Only roll back an auth user we just created ourselves this call --
     // invitedUserId is set exclusively by the invite action above, and the
     // pre-check means we only reach here for a genuinely new user.
