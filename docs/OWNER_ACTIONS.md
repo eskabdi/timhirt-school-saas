@@ -122,6 +122,22 @@ Last updated: 2026-10-09 (projects restored; WP-09 deployed to production).
   and HR only for staff documents; own child only for report cards) ahead of
   the full WP-05.
 
+- [ ] **B-CAL1. Academic calendar release (2026-10-18): three small items for you.**
+  1. **Orphan sign-in account.** Production has one Supabase Auth account with
+     no Timhirt profile (created 2026-08-06, a gmail.com address, password set).
+     Nobody can use it inside the app, and the app will refuse to invite that
+     address ("already registered"). If you know whose it is and they need
+     access, tell Claude; otherwise delete it in Supabase → Authentication →
+     Users (filter by that date).
+  2. **Oromo wording.** Please have an Afaan Oromoo speaker check the calendar
+     page's keyboard hint ("…olii fi gadi utubaa sanuma keessa turu…"); the
+     word for "column" was corrected to *utubaa* by review, not by a native
+     speaker.
+  3. **For your information (no action unless you object):** one test
+     "mutation" survives by design — school calendar entries are visible only
+     through their calendar, so removing the entries' own school filter alone
+     changes nothing. Documented in `audit/evidence/calendar/mutations-20261018.txt`.
+
 ## C. Accounts, services and money (Claude cannot create these)
 
 - [ ] **C1. Staging environment (plan WP-17 / WP-19). Supabase part done

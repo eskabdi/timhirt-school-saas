@@ -1,0 +1,195 @@
+# verify skill on the final commit 61836e2 (src identical to aaec819 and 6c0f215), 2026-10-18T08:35:35Z
+## harness
+    116 migrations applied
+    ok   academic_calendar_engine.sql (94/94 assertions)
+    ok   admission_refund.sql (9/9 assertions)
+    ok   attendance_audit_and_retroactive_gate.sql (7/7 assertions)
+    ok   attendance_guardian_notify.sql (9/9 assertions)
+    ok   bank_verification.sql (11/11 assertions)
+    ok   branding_extended_module.sql (9/9 assertions)
+    ok   catalog_definer_security.sql (10/10 assertions)
+    ok   catalog_module_gate.sql (8/9 assertions, 1 TODO)
+    ok   catalog_rls_coverage.sql (2/2 assertions)
+    ok   catalog_storage_policies.sql (19/20 assertions, 1 TODO)
+    ok   catalog_storage_probe.sql (14/14 assertions)
+    ok   class_rank.sql (9/9 assertions)
+    ok   classes_homeroom_teacher_unique.sql (5/5 assertions)
+    ok   cross_tenant_matrix.sql (7/7 assertions)
+    ok   custom_role_enforcement.sql (12/12 assertions)
+    ok   dashboard_aggregates.sql (22/22 assertions)
+    ok   definer_lockdown.sql (60/60 assertions)
+    ok   document_templates.sql (10/10 assertions)
+    ok   duplicate_applicant_detection.sql (3/3 assertions)
+    ok   exam_class_scoping.sql (5/5 assertions)
+    ok   exam_scheduling_fields.sql (5/5 assertions)
+    ok   exam_seating_charts.sql (9/9 assertions)
+    ok   fee_documents.sql (16/16 assertions)
+    ok   fee_payment_recording.sql (12/12 assertions)
+    ok   grade_cycles.sql (35/35 assertions)
+    ok   grading_scales_lookup.sql (6/6 assertions)
+    ok   guardian_student_user_id_lock.sql (6/6 assertions)
+    ok   hr_clinic_sensitive_views.sql (12/12 assertions)
+    ok   impersonation.sql (6/6 assertions)
+    ok   invoice_consolidation.sql (20/20 assertions)
+    ok   leave_file_on_behalf.sql (11/11 assertions)
+    ok   leaving_certificates.sql (6/6 assertions)
+    ok   library.sql (29/29 assertions)
+    ok   maker_checker.sql (65/65 assertions)
+    ok   maker_checker_hardening.sql (93/93 assertions)
+    ok   messages.sql (14/14 assertions)
+    ok   module_gating.sql (8/8 assertions)
+    ok   operational_mode_shifts.sql (10/10 assertions)
+    ok   payroll_sod.sql (7/7 assertions)
+    ok   per_period_attendance.sql (8/8 assertions)
+    ok   portal_notifications.sql (10/10 assertions)
+    ok   promotion_capacity_atomicity.sql (13/13 assertions)
+    ok   promotion_undo.sql (10/10 assertions)
+    ok   r6_calendar_numerals.sql (15/15 assertions)
+    ok   r6_hotfix.sql (21/21 assertions)
+    ok   r6_hotfix_library_anon.sql (15/15 assertions)
+    ok   resource_permissions.sql (20/20 assertions)
+    ok   resource_permissions_academics.sql (52/52 assertions)
+    ok   resource_permissions_fees_comms_library.sql (38/38 assertions)
+    ok   resource_permissions_hr.sql (37/37 assertions)
+    ok   result_publication_gate.sql (6/6 assertions)
+    ok   roll_number.sql (13/13 assertions)
+    ok   school_reference_tables.sql (11/11 assertions)
+    ok   security_settings.sql (8/8 assertions)
+    ok   staff_id_card_access.sql (4/4 assertions)
+    ok   staff_profile.sql (17/17 assertions)
+    ok   student_grade_history.sql (8/8 assertions)
+    ok   student_leave_requests.sql (12/12 assertions)
+    ok   student_photo_lifecycle.sql (8/8 assertions)
+    ok   student_transfer.sql (4/4 assertions)
+    ok   teacher_cycle_restriction.sql (8/8 assertions)
+    ok   tenant_admin_invite_states.sql (11/11 assertions)
+    ok   tenant_settings_merge.sql (10/10 assertions)
+    ok   tenant_sso_providers.sql (13/13 assertions)
+    ok   tenant_suspension_lockout.sql (6/6 assertions)
+    ok   timetable_periods.sql (10/10 assertions)
+    ok   verification_url_https.sql (5/5 assertions)
+    ok   webhook_settlement.sql (10/10 assertions)
+==> All suites passed
+## browser (360x800, en/am/om)
+{
+ "en": {
+  "before": {
+   "sw": 360,
+   "iw": 360
+  },
+  "afterSelect": {
+   "sw": 360,
+   "iw": 360
+  },
+  "activeLabel": "Sunday — Tikimt 8, 2019 E.C. — Weekend — Jumada al-Ula 7, 1448 AH — Not a school day",
+  "activeCol": 14,
+  "todayBar": true,
+  "selectedRing": null,
+  "totals": "9,20,21,22,21,14,20,22,19,21,21,–,–",
+  "year": "210",
+  "hint": "Keyboard: arrow keys move between days (up and down stay in ",
+  "down": {
+   "label": "Sunday — Hidar 13, 2019 E.C. — Weekend — Jumada al-Akhirah 12, 1448 AH — Not a school day",
+   "col": 14
+  },
+  "regressionScrollWidthIfStatic": 970,
+  "errors": []
+ },
+ "am": {
+  "before": {
+   "sw": 360,
+   "iw": 360
+  },
+  "afterSelect": {
+   "sw": 360,
+   "iw": 360
+  },
+  "activeLabel": "እሑድ — ጥቅምት 8, 2019 ዓ.ም — የሳምንት መጨረሻ — ጀማደል ኡላ 7, 1448 ዓ.ሂ — የትምህርት ቀን አይደለም",
+  "activeCol": 14,
+  "todayBar": true,
+  "selectedRing": null,
+  "totals": "9,20,21,22,21,14,20,22,19,21,21,–,–",
+  "year": "210",
+  "hint": "በቁልፍ ሰሌዳ፦ የቀስት ቁልፎች በቀናት መካከል ያንቀሳቅሳሉ (ላይና ታች በዚያው ዓምድ ይቆያሉ)",
+  "down": {
+   "label": "እሑድ — ኅዳር 13, 2019 ዓ.ም — የሳምንት መጨረሻ — ጀማደል አኺር 12, 1448 ዓ.ሂ — የትምህርት ቀን አይደለም",
+   "col": 14
+  },
+  "regressionScrollWidthIfStatic": 954,
+  "errors": []
+ },
+ "om": {
+  "before": {
+   "sw": 360,
+   "iw": 360
+  },
+  "afterSelect": {
+   "sw": 360,
+   "iw": 360
+  },
+  "activeLabel": "Dilbata — Onkololeessa 8, 2019 ALI — Dhuma Torbanii — Jumaada Uulaa 7, 1448 A.H. — Guyyaa barnootaa miti",
+  "activeCol": 14,
+  "todayBar": true,
+  "selectedRing": null,
+  "totals": "9,20,21,22,21,14,20,22,19,21,21,–,–",
+  "year": "210",
+  "hint": "Kiiboordii: furtuuwwan xiyyaa guyyoota gidduu socho'u (olii ",
+  "down": {
+   "label": "Dilbata — Sadaasa 13, 2019 ALI — Dhuma Torbanii — Jumaada Aakhira 12, 1448 A.H. — Guyyaa barnootaa miti",
+   "col": 14
+  },
+  "regressionScrollWidthIfStatic": 978,
+  "errors": []
+ }
+}
+{
+ "en": {
+  "inGrid": true,
+  "focusVisible": true,
+  "shadow": "rgb(248, 249, 250) 0px 0px 0px 2px, rgb(4, 22, 53) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+  "hasSelectedOverlay": true,
+  "sw": 360,
+  "iw": 360,
+  "navyRingAfterEnter": true,
+  "back": {
+   "focusVisible": true,
+   "shadow": "rgb(248, 249, 250) 0px 0px 0px 2px, rgb(4, 22, 53) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+   "selected": true
+  },
+  "navyRingBackIn": true,
+  "errors": []
+ },
+ "am": {
+  "inGrid": true,
+  "focusVisible": true,
+  "shadow": "rgb(248, 249, 250) 0px 0px 0px 2px, rgb(4, 22, 53) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+  "hasSelectedOverlay": true,
+  "sw": 360,
+  "iw": 360,
+  "navyRingAfterEnter": true,
+  "back": {
+   "focusVisible": true,
+   "shadow": "rgb(248, 249, 250) 0px 0px 0px 2px, rgb(4, 22, 53) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+   "selected": true
+  },
+  "navyRingBackIn": true,
+  "errors": []
+ },
+ "om": {
+  "inGrid": true,
+  "focusVisible": true,
+  "shadow": "rgb(248, 249, 250) 0px 0px 0px 2px, rgb(4, 22, 53) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+  "hasSelectedOverlay": true,
+  "sw": 360,
+  "iw": 360,
+  "navyRingAfterEnter": true,
+  "back": {
+   "focusVisible": true,
+   "shadow": "rgb(248, 249, 250) 0px 0px 0px 2px, rgb(4, 22, 53) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+   "selected": true
+  },
+  "navyRingBackIn": true,
+  "errors": []
+ }
+}
+{"en":{"alert":"Could not load the academic calendar.","grid":false,"sw":360,"errors":[]},"am":{"alert":"የትምህርት ቀን መቁጠሪያውን መጫን አልተቻለም።","grid":false,"sw":360,"errors":[]},"om":{"alert":"Kaalaandarii barnootaa fe'uun hin danda'amne.","grid":false,"sw":360,"errors":[]}}
