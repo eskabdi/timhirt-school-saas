@@ -1,0 +1,67 @@
+# Production deploy (20261018T083831Z): livqynxlibmccaycseer, release 61836e2 (gate PASS cal1-gatekeeper-2.md), files from git archive
+## migrations
+applied 20261008000001_academic_calendar_engine.sql
+applied 20261017000001_tenant_admin_invite_states.sql
+## state after
+migrations | 116
+definer fns | 81
+anon-exec definers | 0
+unpinned definers | 0
+tables w/o FORCE RLS | 0
+merge_tenant_settings auth/anon | true/false
+default acl - | {postgres=X/postgres}
+default acl public | {postgres=X/postgres,service_role=X/postgres}
+default acl extensions | {=X/postgres}
+default acl storage | {postgres=X/postgres,service_role=X/postgres}
+## postgres can SELECT auth.users
+True
+## new objects
+False | False | True | 7
+## golden sheet as owner (rolled back)
+18 | 15 | 16 | 9,20,21,22,21,14,20,22,19,21,21,0,0 | 210
+## invite states as owner (rolled back): per tenant, admins / accepted
+abadir | 3 | 2
+aw-abdal | 0 | 0
+future-generation | 1 | 1
+qa-harar-model | 1 | 1
+sheikh-abubakar | 1 | 1
+## table checksums after (must equal the pre-deploy capture)
+academic_years | 7 | 2beb6b72e106b2951a631f1923d0d2cd
+permissions | 221 | db2486d28c63fae569a79da2f5740832
+resource_default_role_grants | 304 | 0bdfcd3a46a16818fd848ec74c0c9e85
+resource_open_actions | 20 | 4b08b291b769c5be8c05a3dcac4a836b
+teachers | 5 | 362cd71bef6cc75422f4fc10ed0252f3
+tenant_configs | 5 | 7e19dc3050eb73bfaf4143fe778165d6
+tenants (pre-existing columns) | 5 | 8f3a1fb86103b0d32a9741e4279748ee
+users | 31 | 06593a641467ee3f5e07b77a7ed9369a
+## Edge Functions (CLI --use-api from the archive)
+before:
+count 28
+invite-staff verify_jwt True version 5
+invite-tenant-admin verify_jwt True version 9
+onboard-tenant verify_jwt True version 12
+provision-portal-accounts verify_jwt True version 5
+after:
+count 28
+invite-staff verify_jwt True version 6 status ACTIVE
+invite-tenant-admin verify_jwt True version 10 status ACTIVE
+onboard-tenant verify_jwt True version 13 status ACTIVE
+provision-portal-accounts verify_jwt True version 6 status ACTIVE
+repo vs deployed names equal: True
+unauthenticated POST (expect 401 from the gateway):
+invite-tenant-admin 401
+onboard-tenant 401
+invite-staff 401
+provision-portal-accounts 401
+## Frontend (git archive of 61836e2ed8f3220803144206e46db2b1fadebba6, server-side build)
+https://www.edux.et app-commit: 61836e2ed8f3220803144206e46db2b1fadebba6
+https://timhirt-school-saas.vercel.app app-commit: 61836e2ed8f3220803144206e46db2b1fadebba6
+js files fetched: 4
+supabase ref baked in: 6
+effective_calendar_entries (calendar RPC): 1
+keyboard hint (calendar-only string): 1
+resendRateLimited (invite fix): 1
+Tayitu font magic: 
+Tayitu.ttf magic: 00010000 size: 139088
+Jiret.ttf magic: 00010000 size: 185080
+route /academic-calendar serves the SPA: 200

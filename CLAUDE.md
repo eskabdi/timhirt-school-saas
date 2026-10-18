@@ -4,18 +4,22 @@ Timhirt — multi-tenant Ethiopian school management SaaS. React + Vite +
 TanStack Query on Supabase (Postgres + RLS + Edge Functions + Storage), no
 custom API server.
 
-> **Deployed state (verified 2026-10-17):** production runs frontend `463b241`
-> (the WP-09 `e40f87b` plus the 2026-10-17 invite fixes; served `<meta name="app-commit">`) and 114 of the repo's 116
-> migrations (WP-09 `20260927000001`/`…02`/`…03` applied 2026-10-09; the
-> Academic Calendar Engine `20261008000001` and the invite-state `20261017000001` are pending review). 28/28 Edge
-> Functions match the repo (names and `verify_jwt`); the 4 WP-09 functions run
-> the `e40f87b` code. Evidence: `audit/evidence/wp09-deploy-*.txt`. The
+> **Deployed state (verified 2026-10-18):** production runs frontend `61836e2`
+> (served `<meta name="app-commit">` on www.edux.et and the vercel.app domain:
+> the Academic Calendar Engine slice 1 page `/academic-calendar` plus the
+> invite fixes) and all 116 of the repo's migrations (the calendar engine
+> `20261008000001` and the invite state `20261017000001` applied 2026-10-18,
+> staging dry run first). 28/28 Edge Functions match the repo (names and
+> `verify_jwt`); `invite-tenant-admin`, `onboard-tenant`, `invite-staff` and
+> `provision-portal-accounts` run the `61836e2` code. Evidence:
+> `audit/evidence/cal1-predeploy-*.txt`, `cal1-deploy-staging-*.txt`,
+> `cal1-deploy-2*.txt`. The
 > staging project (`timhirt-saas-staging`, ref `ekebibapffrhzibidbnr`,
-> sign-up disabled) has the same 114 migrations, no data and no Edge
+> sign-up disabled) has the same 116 migrations, no data and no Edge
 > Functions; it is the dry run for every production migration. Both projects
 > are on the Free plan, which **pauses a project after ~7 days without
 > database activity** (both were paused 2026-10-08 and restored by the owner
-> 2026-10-09). Production has **PITR off and no backups**. Public sign-up is
+> 2026-10-09; staging again by 2026-10-17). Production has **PITR off and no backups**. Public sign-up is
 > **disabled** (invite-only). The Edge Function secret `APP_URL` is
 > `https://www.edux.et` (invite redirects, document and ID-card verify links;
 > since 2026-10-17, was the vercel.app domain), and both domains are in the

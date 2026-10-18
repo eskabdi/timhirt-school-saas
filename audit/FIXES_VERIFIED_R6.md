@@ -957,3 +957,12 @@ Mutation log: `audit/evidence/calendar/mutations-20261018.txt` (faked EC years 2
 **Release gate round 1 (2026-10-18, `cal1-gatekeeper-1.md`): FAIL, process only** — no open code defect; tenant-isolation-review not re-run after 6c0f215, no code-review verdict file, verify evidence at 6c0f215, three doc nits. Closed: tenant-isolation-review on 61836e2 PASS (`cal1-tenant-isolation-2.md`); code-review verdicts with severities for all seven runs (`cal1-code-review.md`: no High/Medium introduced by this release left open); verify on 61836e2 (`audit/evidence/calendar/verify-20261018-final.txt`: 116 migrations, all suites, calendar 94/94, invite states 11/11; browser en/am/om); INSA doc counts and fail-closed sentence; Oromo check and the production orphan account in `docs/OWNER_ACTIONS.md` B-CAL1.
 
 **Release gate round 2 (2026-10-18, `cal1-gatekeeper-2.md`): PASS for 61836e2.** G-01–G-06 closed (cal1-tenant-isolation-2.md, cal1-code-review.md, verify-20261018-final.txt, INSA counts and fail-closed sentence, backlog G-06, OWNER_ACTIONS B-CAL1). Gates independently re-run green on 61836e2; CI green.
+
+### Deployed to production (2026-10-18, release `61836e2`)
+
+Through the `deploy` skill, in order:
+1. Pre-deploy capture (`audit/evidence/cal1-predeploy-*.txt`): 114 migrations, 79 definers, 0 anon-executable, 0 tables without FORCE RLS; md5 of every touched pre-existing table.
+2. Staging dry run (`cal1-deploy-staging-*.txt`): both migrations applied; 116 migrations, 81 definers; golden sheet 9,20,21,22,21,14,20,22,19,21,21,0,0 / 210.
+3. Production migrations (`cal1-deploy-2*.txt`): `20261008000001`, `20261017000001` applied; 116 migrations, 81 definers, 0 anon-executable definers, 0 tables without FORCE RLS, the 7 calendar tables forced; postgres can still SELECT auth.users; golden sheet identical; `tenant_admin_invite_states` answers per school; every pre-existing table checksum unchanged.
+4. Edge Functions from the archive: invite-tenant-admin v10, onboard-tenant v13, invite-staff v6, provision-portal-accounts v6; `verify_jwt` true (unchanged), 28/28 match the repo; unauthenticated calls 401.
+5. Frontend from `git archive` of `61836e2` (server-side build, `VITE_COMMIT_SHA`): `app-commit` 61836e2 on www.edux.et and the vercel.app domain; the Supabase ref baked in; calendar-only and invite-fix strings present; Tayitu/Jiret fonts real TTFs; `/academic-calendar` serves.
