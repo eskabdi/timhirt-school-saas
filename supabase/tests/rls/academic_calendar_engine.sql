@@ -361,14 +361,17 @@ select ok((select row(x.*)::text from public.calendar_day_status(pg_temp.ec(11, 
             is not distinct from
           (select row(w.*)::text from public.calendar_days(pg_temp.ec(11, 15, -1), pg_temp.ec(11, 15, -1) + 400) w
             where w.day = pg_temp.ec(11, 15, -1))
-          -- and precisely, from the data rather than the engine: "out of
-          -- session" (false) when last year has a published MoE calendar
-          -- (school B follows the MoE and has no academic year then), else
-          -- "session unknown" (NULL), whichever years a migration seeds.
-          and (select case when exists (select 1 from public.authority_calendars c join public.edu_authorities a on a.id = c.authority_id
-                                         where a.code = 'MOE' and c.ec_year = pg_temp.y() - 1 and c.status in ('published', 'closed'))
-                           then x.in_session is false else x.in_session is null end
-                 from public.calendar_day_status(pg_temp.ec(11, 15, -1)) x),
+          -- and precisely, from the data rather than the engine (school B
+          -- follows the MoE and has no academic year then): "in session"
+          -- if last year's published MoE session covers the day, "out of
+          -- session" (false) if that session exists but does not, "session
+          -- unknown" (NULL) if there is none, whichever years are seeded.
+          and (select case when c.id is null then x.in_session is null
+                           else x.in_session = (pg_temp.ec(11, 15, -1) between c.session_starts_on and c.session_ends_on) end
+                 from (select 1) one
+                 left join (public.authority_calendars c join public.edu_authorities a on a.id = c.authority_id and a.kind = 'moe')
+                   on c.ec_year = pg_temp.y() - 1 and c.status in ('published', 'closed')
+                 cross join public.calendar_day_status(pg_temp.ec(11, 15, -1)) x),
   'a day''s session status does not depend on the window it is asked in');
 -- Last year's school entries do not reach into this year's session (its
 -- lead-in starts in last year's Nehase), as in the grid.

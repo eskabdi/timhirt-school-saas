@@ -25,6 +25,7 @@
 import { z } from "npm:zod@3";
 import { requireRole, errors, json, rateLimit, corsHeaders } from "../_shared/security.ts";
 import { isRateLimited, logSafeError } from "../_shared/auth-errors.ts";
+import { createdByThisCall, escapeLike, rollbackInvitedUser, type InviteRollbackClient } from "../_shared/invite-guard.ts";
 import { rateBucket, resendPlan, statusRow, type InviteState } from "../_shared/invite-state.ts";
 
 const Invite = z.object({
@@ -138,10 +139,13 @@ Deno.serve(async (req) => {
     // public.users row (§ the "chicken-and-egg" note in DEPLOYMENT.md),
     // checking there is enough to catch this before it ever calls invite.
     // (A pending admin of this school is re-invited with action "resend".)
-    const { data: existing } = await db.from("users").select("id")
-      .ilike("email", p.admin_email.replace(/[\\%_]/g, (m) => `\\${m}`)).limit(1).maybeSingle();
+    // Fail closed: an unverified duplicate check must never lead to an invite.
+    const { data: existing, error: existErr } = await db.from("users").select("id")
+      .ilike("email", escapeLike(p.admin_email)).limit(1).maybeSingle();
+    if (existErr) throw existErr;
     if (existing) return json({ error: "This email is already registered to a user in the system." }, 400);
 
+    const inviteStartedAt = Date.now();
     const { data: invited, error: uErr } = await db.auth.admin.inviteUserByEmail(p.admin_email, {
       // school_name is shown in the invite email (supabase/templates/invite.html).
       data: { full_name: p.admin_full_name, school_name: tenant.name },
@@ -151,6 +155,8 @@ Deno.serve(async (req) => {
       if (isRateLimited(uErr)) return json({ error: RATE_LIMITED }, 429);
       throw uErr;
     }
+    // An auth account that already existed is never adopted, and so never rolled back.
+    if (!createdByThisCall(invited.user.created_at, inviteStartedAt)) return json({ error: "This email is already registered to a user in the system." }, 400);
     invitedUserId = invited.user.id;
 
     const { error: profileErr } = await db.from("users").insert({
@@ -165,13 +171,9 @@ Deno.serve(async (req) => {
     // Only roll back an auth user we just created ourselves this call --
     // invitedUserId is set exclusively by the invite action above, and the
     // pre-check means we only reach here for a genuinely new user.
+    // The profile insert is the last step, so a failure means it is not ours.
     if (invitedUserId) {
-      try {
-        const { error: delErr } = await ctx.adminClient.auth.admin.deleteUser(invitedUserId);
-        if (delErr) console.error("invite-tenant-admin: rollback of the new auth user failed", { user_id: invitedUserId, ...logSafeError(delErr) });
-      } catch (delErr) {
-        console.error("invite-tenant-admin: rollback of the new auth user failed", { user_id: invitedUserId, ...logSafeError(delErr) });
-      }
+      await rollbackInvitedUser(ctx.adminClient as unknown as InviteRollbackClient, invitedUserId, false, "invite-tenant-admin");
     }
     return errors.internal();
   }

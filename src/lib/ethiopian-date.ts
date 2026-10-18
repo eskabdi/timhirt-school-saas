@@ -204,8 +204,12 @@ export const fromIsoDate = (iso: string): Date => {
   // A timestamp with an offset (Z or ±hh:mm) is an instant: use its UTC day.
   // One without (a Postgres `timestamp`, a datetime-local value) is a local
   // wall-clock reading: its date part is the day, whatever the browser's zone.
-  const offset = day[3] && day[3] !== "Z" && day[3].length === 3 ? `${day[3]}:00` : day[3]; // ±hh -> ±hh:00
-  const instant = offset ? new Date(`${day[1]}T${day[2]}${offset}`) : null;
+  // Rewrite to the ES date-time form every engine parses: ±hh:mm, at most
+  // three fraction digits (Safari rejects ±hhmm and longer fractions).
+  const z = day[3];
+  const offset = !z || z === "Z" ? z : z.length === 3 ? `${z}:00` : z.includes(":") ? z : `${z.slice(0, 3)}:${z.slice(3)}`;
+  const time = day[2]?.replace(/(\.\d{3})\d+$/, "$1");
+  const instant = offset ? new Date(`${day[1]}T${time}${offset}`) : null;
   const date = instant ? (Number.isNaN(instant.getTime()) ? null : toIsoDate(instant)) : day[1]!;
   if (!date) return invalid;
   return new Date(`${date}T00:00:00Z`);

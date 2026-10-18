@@ -26,3 +26,10 @@ KILLED   unknown_becomes_false (calendar_days reports false instead of NULL for 
 
 Round after code review of ca0d8d3..67f541a: next-year-only settings failure test (mutation: drop nextSettings.isError -> 1 failing); Hamle-15 expectation stated by the fixture (y()-1 = 2019 -> false, else NULL); faked 2019/2020/2021/2030: 94/94; y=2020 with last year's session lost -> killed.
 Final round: Hamle-15 expectation read from authority_calendars (data, not the engine); faked 2019/2020/2021/2030 94/94; unknown->false (y=2019) and false->unknown (y=2020) both killed (#75).
+Final round (precise Hamle expectation from the MoE session's own dates):
+fake_year_2019 94 ok [] []
+fake_year_2020 94 ok [] []
+fake_year_2021 94 ok [] []
+fake_year_2030 94 ok [] []
+unknown_becomes_false_y2019 93 ok ["not ok 75 - a day's session status does not depend on the window it is asked in"] []
+false_becomes_unknown_y2020 93 ok ["not ok 75 - a day's session status does not depend on the window it is asked in"] []

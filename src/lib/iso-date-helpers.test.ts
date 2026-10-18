@@ -22,6 +22,7 @@ describe("fromIsoDate / addDaysIso", () => {
     expect(toIsoDate(fromIsoDate("2026-10-17T01:00:00+03"))).toBe("2026-10-16");
     expect(toIsoDate(fromIsoDate("2026-10-17T01:00:00+0300"))).toBe("2026-10-16");
     expect(toIsoDate(fromIsoDate("2026-10-17T01:00:00.123+03:00"))).toBe("2026-10-16");
+    expect(toIsoDate(fromIsoDate("2026-10-17T01:00:00.123456+0300"))).toBe("2026-10-16"); // microseconds, colon-less offset
   });
   it("rejects malformed input and impossible dates", () => {
     for (const bad of ["2026-10-17garbage", "2026-10-170", "17/10/2026", "", "2026-02-30", "2026-02-30T10:00:00Z", "2026-13-01", "2026-10-17Tgarbage", "2026-10-17T99:99", "2026-10-17T10:00:00+3"]) {

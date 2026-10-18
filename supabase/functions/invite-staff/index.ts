@@ -38,6 +38,7 @@
 import { z } from "npm:zod@3";
 import { requireRole, errors, json, rateLimit, corsHeaders, STAFF_NO_REGEX } from "../_shared/security.ts";
 import { isRateLimited, logSafeError, RATE_LIMITED_MESSAGE } from "../_shared/auth-errors.ts";
+import { createdByThisCall, escapeLike, rollbackInvitedUser, type InviteRollbackClient } from "../_shared/invite-guard.ts";
 
 const Payload = z.object({
   // GoTrue stores addresses lower-case; so do we, and the duplicate check
@@ -65,6 +66,7 @@ Deno.serve(async (req) => {
   if (ctxOrRes instanceof Response) return ctxOrRes;
   const ctx = ctxOrRes;
   let invitedUserId: string | undefined;
+  let profileInserted = false;
   try {
     if (req.method !== "POST") return errors.badRequest();
     if (!(await rateLimit(`invite-staff:${ctx.userId}`, 15, 60_000))) return errors.tooMany();
@@ -76,8 +78,10 @@ Deno.serve(async (req) => {
     if (ctx.role === "hr_officer" && !HR_OFFICER_ASSIGNABLE_ROLES.has(p.role)) return errors.forbidden();
     const db = ctx.adminClient;
 
-    const { data: existing } = await db.from("users").select("id")
-      .ilike("email", p.email.replace(/[\\%_]/g, (m) => `\\${m}`)).limit(1).maybeSingle();
+    // Fail closed: an unverified duplicate check must never lead to an invite.
+    const { data: existing, error: existErr } = await db.from("users").select("id")
+      .ilike("email", escapeLike(p.email)).limit(1).maybeSingle();
+    if (existErr) throw existErr;
     if (existing) return json({ error: "This email is already registered to a user in the system." }, 400);
 
     if (p.role === "teacher" && p.staff_no) {
@@ -87,6 +91,7 @@ Deno.serve(async (req) => {
     }
 
     const appUrl = Deno.env.get("APP_URL") ?? "https://timhirt-school-saas.vercel.app";
+    const inviteStartedAt = Date.now();
     const { data: invited, error: uErr } = await db.auth.admin.inviteUserByEmail(p.email, {
       data: { full_name: p.full_name },
       redirectTo: `${appUrl}/accept-invite`,
@@ -97,6 +102,9 @@ Deno.serve(async (req) => {
       }
       throw uErr;
     }
+    // An auth account that already existed (no profile, or one a concurrent
+    // request is creating) is never adopted, and so never rolled back.
+    if (!createdByThisCall(invited.user.created_at, inviteStartedAt)) return json({ error: "This email is already registered to a user in the system." }, 400);
     invitedUserId = invited.user.id;
 
     const { error: profileErr } = await db.from("users").insert({
@@ -104,6 +112,7 @@ Deno.serve(async (req) => {
       full_name: p.full_name, email: p.email, locale: p.default_locale,
     });
     if (profileErr) throw profileErr;
+    profileInserted = true;
 
     if (p.role === "teacher") {
       const { error: teacherErr } = await db.from("teachers").insert({
@@ -117,7 +126,7 @@ Deno.serve(async (req) => {
   } catch (err) {
     console.error("invite-staff failed", logSafeError(err));
     if (invitedUserId) {
-      await ctx.adminClient.auth.admin.deleteUser(invitedUserId).catch(() => {});
+      await rollbackInvitedUser(ctx.adminClient as unknown as InviteRollbackClient, invitedUserId, profileInserted, "invite-staff");
     }
     return errors.internal();
   }
