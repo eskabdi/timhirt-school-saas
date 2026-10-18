@@ -941,3 +941,15 @@ Security PASS (`cal1-sec.md`, 3 Low, 1 Info), tenant isolation PASS (`cal1-ti.md
 | CAL-TI-5 | Minor | Probes added: B naming A in `effective_calendar_entries`, `calendar_days`, `instructional_days`; tenant mismatch; create-only recreate; override with no published layer. |
 
 Suite: 51 assertions (14 new). Each new assertion was shown to fail with its fix reverted in the database (TI-3: 3, TI-1: 1, SEC-02: 1, SEC-01: 2, DB-03: 1, DB-04: 1). Harness: 115 migrations, 67 suites green; app-rpc-grants 27 RPCs, 0 findings.
+
+### Review rounds 2–4 and the pre-merge skills (2026-10-17/18, release candidate `aaec819`)
+
+Reviewer verdicts in `audit/evidence/reviews/`: frontend security round 2 PASS (`cal1-fs2.md`); i18n/a11y round 2 FAIL → round 3 FAIL (`cal1-i18n2.md`, `cal1-i18n3.md`), both fixed (page-wide scroll at 360 px from sr-only weekday names; unbreakable EthDate chain; selection ring hiding the focus ring) and browser-verified; db migration round 3 PASS, round 4 PASS (`cal1-db3.md`, `cal1-db4.md`); test verifier round 1 FAIL, round 2 FAIL (`cal1-tv.md`, `cal1-tv2.md`): every gap closed with a mutation-proven assertion; invite-state security PASS (`cal1-invsec.md`).
+
+**Mandatory pre-merge skills (CLAUDE.md "Before merge and before deploy"):**
+- `code-review`: run on every delta (6133b48 → aaec819, six runs); confirmed defects fixed, notably `invite-staff`'s case-sensitive duplicate check and unguarded rollback, which could delete another school's pending account (now `_shared/invite-guard.ts`, Deno-tested), and GoTrue rate limits returning 500. Remaining items are races/refactors with no data exposed, in `audit/backlog.md` (2026-10-18 rows).
+- `security-review`: 310820a..6133b48, 6133b48..67f541a, 67f541a..23a9fa1, 23a9fa1..6c0f215, 6c0f215..aaec819: **no findings** (`cal1-security-review-skill*.md`).
+- `tenant-isolation-review` (new skill): **PASS** (`cal1-tenant-isolation.md`; auditor rounds `cal1-relti.md` → `cal1-relti2.md` → `cal1-relti3.md`, RLS reviewer `cal1-rlsti.md`): two-tenant probes, client writes refused, the tenant predicate alone, direct `p_tenant` refusals, composite FK alone; 27 mutations, all killed except one documented equivalent mutant.
+- `verify`: real Postgres (116 migrations, all suites; calendar 94/94, invite states 11/11; `audit/evidence/calendar/harness-20261018d.txt`) and the browser harness at 360 px in en/am/om (`verify-browser-20261018d.txt`): ድምር 9, 20, 21, 22, 21, 14, 20, 22, 19, 21, 21, –, – and 210; no horizontal scroll; up/down keep the column; focus ring on the selected cell; load-failure alert.
+
+Mutation log: `audit/evidence/calendar/mutations-20261018.txt` (faked EC years 2019/2020/2021/2030/2031 pass). Also in this release: invite status from the password (`20261017000001_tenant_admin_invite_states.sql`), SSO admins counted as accepted, recovery link for a confirmed admin with no password, Auth errors logged by code only in the auth-calling functions.

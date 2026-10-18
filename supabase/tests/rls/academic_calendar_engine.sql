@@ -356,7 +356,7 @@ select throws_ok($$ insert into public.authority_calendar_entries (calendar_id, 
 -- Hamle 15 of last year lies before this year's Nehase lead-in: asked alone
 -- or inside a window reaching this year's session, the answer is the same
 -- row, and it is in, out of, or with no session exactly as last year's
--- published MoE calendar says (CAL-DB3-01, CAL-DB4-01).
+-- published or closed MoE calendar (one per year) says (CAL-DB3-01, CAL-DB4-01).
 select ok((select row(x.*)::text from public.calendar_day_status(pg_temp.ec(11, 15, -1)) x)
             is not distinct from
           (select row(w.*)::text from public.calendar_days(pg_temp.ec(11, 15, -1), pg_temp.ec(11, 15, -1) + 400) w
