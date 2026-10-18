@@ -13,7 +13,7 @@ import { requireRole, errors, json, rateLimit, corsHeaders } from "../_shared/se
 import { rollbackTenant, type InvitedUser, type RollbackClient } from "../_shared/onboard-rollback.ts";
 import { toEthiopian, toGregorian, todayAddis } from "../_shared/ethiopian-date.ts";
 import { defaultPeriods } from "../_shared/default-periods.ts";
-import { logSafeError } from "../_shared/log-safe.ts";
+import { isRateLimited, logSafeError } from "../_shared/auth-errors.ts";
 
 const Payload = z.object({
   name: z.string().trim().min(2).max(120),
@@ -123,6 +123,8 @@ Deno.serve(async (req) => {
       const failed = await rollbackTenant(ctx.adminClient as unknown as RollbackClient, tenantId, invited);
       if (failed.length) console.error("onboard-tenant: rollback incomplete", { steps: failed });
     }
+    // GoTrue's email limit: nothing was kept (rolled back above); say to retry.
+    if (isRateLimited(err)) return json({ error: "Too many invite emails sent recently. Try again shortly." }, 429);
     return errors.internal();
   }
 });

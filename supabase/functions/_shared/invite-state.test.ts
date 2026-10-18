@@ -1,5 +1,5 @@
 import { assertEquals } from "jsr:@std/assert@1";
-import { isAccepted, isRateLimited, rateBucket, resendPlan, statusRow, type InviteState } from "./invite-state.ts";
+import { isAccepted, rateBucket, resendPlan, statusRow, type InviteState } from "./invite-state.ts";
 
 const st = (o: Partial<InviteState>): InviteState =>
   ({ user_id: "u", password_set: false, sso_user: false, email_confirmed: false, invited_at: "2026-10-17T15:05:12Z", ...o });
@@ -29,11 +29,4 @@ Deno.test("status has its own budget; invite and resend share the email one", ()
   assertEquals(rateBucket("resend", "p1"), { key: "invite-admin:p1", limit: 10 });
   assertEquals(rateBucket(undefined, "p1"), { key: "invite-admin:p1", limit: 10 });
   assertEquals(rateBucket("STATUS", "p1").key, "invite-admin:p1"); // exact action only
-});
-
-Deno.test("GoTrue rate limits: by status 429 or by message, including the per-address cooldown", () => {
-  assertEquals(isRateLimited({ status: 429, message: "anything" }), true);
-  assertEquals(isRateLimited({ message: "Email rate limit exceeded" }), true);
-  assertEquals(isRateLimited({ message: "For security purposes, you can only request this after 42 seconds." }), true);
-  assertEquals(isRateLimited({ status: 500, message: "Database error" }), false);
 });

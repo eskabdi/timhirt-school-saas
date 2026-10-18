@@ -184,10 +184,16 @@ export const todayEthiopian = (): EthDate => toEthiopian(today());
 /** ISO yyyy-mm-dd for API payloads (GC canonical). */
 export const toIsoDate = (d: Date): string => d.toISOString().slice(0, 10);
 
-/** A stored date as UTC midnight, the form the EC helpers read (§17.2). Takes
- *  a bare yyyy-mm-dd or a full ISO instant (only its date part is used), like
- *  `<EthDate/>`; never blindly appends to a timestamp. */
-export const fromIsoDate = (iso: string): Date => new Date(`${iso.slice(0, 10)}T00:00:00Z`);
+/** A stored date as UTC midnight, the form the EC helpers read (§17.2). As in
+ *  `<EthDate/>`: a bare yyyy-mm-dd is that calendar day; a full ISO instant
+ *  is parsed as an instant and its UTC day is used; anything else is an
+ *  Invalid Date (never blindly appends to a timestamp). */
+export const fromIsoDate = (iso: string): Date => {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) return new Date(`${iso}T00:00:00Z`);
+  if (!/^\d{4}-\d{2}-\d{2}T/.test(iso)) return new Date(Number.NaN);
+  const instant = new Date(iso);
+  return Number.isNaN(instant.getTime()) ? instant : new Date(`${toIsoDate(instant)}T00:00:00Z`);
+};
 
 /** The stored date `days` days later (earlier when negative). */
 export const addDaysIso = (iso: string, days: number): string =>

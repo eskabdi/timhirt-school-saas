@@ -362,10 +362,11 @@ select ok((select row(x.*)::text from public.calendar_day_status(pg_temp.ec(11, 
             is not distinct from
           (select row(w.*)::text from public.calendar_days(pg_temp.ec(11, 15, -1), pg_temp.ec(11, 15, -1) + 400) w
             where w.day = pg_temp.ec(11, 15, -1))
-          -- and precisely: "session unknown" (NULL) when the day's own year
-          -- has no session, "out of session" (false) when it has one.
-          and (select case when (select session_starts_on from public.calendar_year_settings(x.ec_year)) is null
-                           then x.in_session is null else x.in_session is false end
+          -- and precisely, stated by the fixture rather than read back from
+          -- the engine: last year has a session only when it is the seeded
+          -- 2019 (MoE), so the day is "out of session" (false) then and
+          -- "session unknown" (NULL) in every other year.
+          and (select case when pg_temp.y() - 1 = 2019 then x.in_session is false else x.in_session is null end
                  from public.calendar_day_status(pg_temp.ec(11, 15, -1)) x),
   'a day''s session status does not depend on the window it is asked in');
 -- Last year's school entries do not reach into this year's session (its

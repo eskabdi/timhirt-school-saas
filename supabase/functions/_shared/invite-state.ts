@@ -31,8 +31,3 @@ export const resendPlan = (s: InviteState): ResendPlan =>
  *  for sending email. */
 export const rateBucket = (action: unknown, userId: string): { key: string; limit: number } =>
   action === "status" ? { key: `invite-status:${userId}`, limit: 60 } : { key: `invite-admin:${userId}`, limit: 10 };
-
-/** GoTrue's own limits answer 429; the per-address one says "you can only
- *  request this after N seconds". */
-export const isRateLimited = (e: { status?: number; message: string }): boolean =>
-  e.status === 429 || /rate limit|request this after/i.test(e.message);

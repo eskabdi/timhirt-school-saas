@@ -11,7 +11,7 @@ import { MemoryRouter } from "react-router-dom";
 import { DAY_TYPES } from "./dayTypes";
 import { MOE_2019_ENTRIES, MOE_2019_SESSION } from "./moe2019.fixture";
 
-const state = vi.hoisted(() => ({ canCreate: false, created: false, previousPublished: false, closed: false, createFails: false, loadFails: false }));
+const state = vi.hoisted(() => ({ canCreate: false, created: false, previousPublished: false, closed: false, createFails: false, loadFails: false, nextFails: false }));
 vi.mock("@/features/auth/useSession", () => ({
   useSession: () => ({ profile: { id: "u1", tenant_id: "t1", role: "school_admin", full_name: "A B C" } }),
 }));
@@ -50,7 +50,8 @@ vi.mock("@/lib/supabase", () => {
       from: query,
       rpc: async (fn: string, args: Record<string, unknown>) => {
         if (fn === "calendar_year_settings") {
-          return state.loadFails ? { data: null, error: { message: "boom" } } : { data: settings(args.p_ec_year as number), error: null };
+          const fails = state.loadFails || (state.nextFails && args.p_ec_year === 2020);
+          return fails ? { data: null, error: { message: "boom" } } : { data: settings(args.p_ec_year as number), error: null };
         }
         if (fn === "effective_calendar_entries") {
           return {
@@ -91,7 +92,7 @@ async function render(client = new QueryClient()) {
   await flush(); await flush();
   return { host, client, done: () => { act(() => root.unmount()); host.remove(); } };
 }
-const reset = () => Object.assign(state, { canCreate: false, created: false, previousPublished: false, closed: false, createFails: false, loadFails: false });
+const reset = () => Object.assign(state, { canCreate: false, created: false, previousPublished: false, closed: false, createFails: false, loadFails: false, nextFails: false });
 const cell = (host: HTMLElement, label: RegExp) => [...host.querySelectorAll<HTMLButtonElement>("tbody button")].find((b) => label.test(b.getAttribute("aria-label") ?? ""))!;
 
 describe("AcademicYearGridPage", () => {
@@ -181,6 +182,15 @@ describe("AcademicYearGridPage", () => {
 
   it("a failed load is announced as an alert, not an empty page", async () => {
     reset(); state.loadFails = true;
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const { host, done } = await render(client);
+    expect(host.querySelector('[role="alert"]')?.textContent).toBe("Could not load the academic calendar.");
+    expect(host.querySelector("tbody")).toBeNull();
+    done();
+  });
+
+  it("if only next year's settings fail, it is still a load failure (the totals would be wrong)", async () => {
+    reset(); state.nextFails = true;
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const { host, done } = await render(client);
     expect(host.querySelector('[role="alert"]')?.textContent).toBe("Could not load the academic calendar.");

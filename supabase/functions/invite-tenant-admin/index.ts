@@ -24,8 +24,8 @@
 // ============================================================================
 import { z } from "npm:zod@3";
 import { requireRole, errors, json, rateLimit, corsHeaders } from "../_shared/security.ts";
-import { logSafeError } from "../_shared/log-safe.ts";
-import { isRateLimited, rateBucket, resendPlan, statusRow, type InviteState } from "../_shared/invite-state.ts";
+import { isRateLimited, logSafeError } from "../_shared/auth-errors.ts";
+import { rateBucket, resendPlan, statusRow, type InviteState } from "../_shared/invite-state.ts";
 
 const Invite = z.object({
   action: z.literal("invite").optional(),

@@ -37,6 +37,7 @@
 // ============================================================================
 import { z } from "npm:zod@3";
 import { requireRole, errors, json, rateLimit, corsHeaders, STAFF_NO_REGEX } from "../_shared/security.ts";
+import { isRateLimited, logSafeError } from "../_shared/auth-errors.ts";
 
 const Payload = z.object({
   email: z.string().email().max(254),
@@ -85,7 +86,7 @@ Deno.serve(async (req) => {
       redirectTo: `${appUrl}/accept-invite`,
     });
     if (uErr) {
-      if (/rate limit/i.test(uErr.message)) {
+      if (isRateLimited(uErr)) {
         return json({ error: "Too many invite emails sent recently. Try again shortly." }, 429);
       }
       throw uErr;
@@ -108,7 +109,7 @@ Deno.serve(async (req) => {
 
     return json({ user_id: invitedUserId }, 201);
   } catch (err) {
-    console.error("invite-staff failed", { message: (err as Error).message });
+    console.error("invite-staff failed", logSafeError(err));
     if (invitedUserId) {
       await ctx.adminClient.auth.admin.deleteUser(invitedUserId).catch(() => {});
     }
