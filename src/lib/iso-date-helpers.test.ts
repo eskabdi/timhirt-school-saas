@@ -13,8 +13,12 @@ describe("fromIsoDate / addDaysIso", () => {
     expect(toIsoDate(fromIsoDate("2026-10-17T01:00:00+03:00"))).toBe("2026-10-16"); // 2026-10-16T22:00Z
     expect(fromIsoDate("2026-10-17T15:05:12Z").toISOString()).toBe("2026-10-17T00:00:00.000Z");
   });
-  it("rejects malformed input", () => {
-    for (const bad of ["2026-10-17garbage", "2026-10-170", "17/10/2026", ""]) {
+  it("keeps the date of a timestamp without an offset, whatever the browser's zone", () => {
+    expect(toIsoDate(fromIsoDate("2026-10-17T00:00:00"))).toBe("2026-10-17");
+    expect(toIsoDate(fromIsoDate("2026-10-17T23:30"))).toBe("2026-10-17");
+  });
+  it("rejects malformed input and impossible dates", () => {
+    for (const bad of ["2026-10-17garbage", "2026-10-170", "17/10/2026", "", "2026-02-30", "2026-02-30T10:00:00Z", "2026-13-01"]) {
       expect(Number.isNaN(fromIsoDate(bad).getTime())).toBe(true);
     }
   });

@@ -27,7 +27,7 @@
 // ============================================================================
 import { z } from "npm:zod@3";
 import { requireRole, errors, json, rateLimit, corsHeaders } from "../_shared/security.ts";
-import { isRateLimited, logSafeError } from "../_shared/auth-errors.ts";
+import { logSafeError } from "../_shared/auth-errors.ts";
 import { fullName } from "../_shared/names.ts";
 
 const Payload = z.object({ student_id: z.string().uuid() });
@@ -132,7 +132,7 @@ Deno.serve(async (req) => {
           redirectTo: `${appUrl}/accept-invite`,
         });
         if (iErr) {
-          if (isRateLimited(iErr)) {
+          if (/rate limit/i.test(iErr.message)) {
             return json({ error: "Too many invite emails sent recently. Try again shortly." }, 429);
           }
           throw iErr;

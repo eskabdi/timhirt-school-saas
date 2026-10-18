@@ -166,7 +166,12 @@ Deno.serve(async (req) => {
     // invitedUserId is set exclusively by the invite action above, and the
     // pre-check means we only reach here for a genuinely new user.
     if (invitedUserId) {
-      await ctx.adminClient.auth.admin.deleteUser(invitedUserId);
+      try {
+        const { error: delErr } = await ctx.adminClient.auth.admin.deleteUser(invitedUserId);
+        if (delErr) console.error("invite-tenant-admin: rollback of the new auth user failed", { user_id: invitedUserId, ...logSafeError(delErr) });
+      } catch (delErr) {
+        console.error("invite-tenant-admin: rollback of the new auth user failed", { user_id: invitedUserId, ...logSafeError(delErr) });
+      }
     }
     return errors.internal();
   }

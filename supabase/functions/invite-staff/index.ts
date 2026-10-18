@@ -37,7 +37,7 @@
 // ============================================================================
 import { z } from "npm:zod@3";
 import { requireRole, errors, json, rateLimit, corsHeaders, STAFF_NO_REGEX } from "../_shared/security.ts";
-import { isRateLimited, logSafeError } from "../_shared/auth-errors.ts";
+import { isRateLimited, logSafeError, RATE_LIMITED_MESSAGE } from "../_shared/auth-errors.ts";
 
 const Payload = z.object({
   email: z.string().email().max(254),
@@ -87,7 +87,7 @@ Deno.serve(async (req) => {
     });
     if (uErr) {
       if (isRateLimited(uErr)) {
-        return json({ error: "Too many invite emails sent recently. Try again shortly." }, 429);
+        return json({ error: RATE_LIMITED_MESSAGE }, 429);
       }
       throw uErr;
     }

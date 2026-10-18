@@ -14,10 +14,13 @@ Deno.test("other errors keep their message; odd thrown values never throw", () =
   assertEquals(logSafeError(null), { message: "null" });
 });
 
-Deno.test("GoTrue rate limits: by status 429 or by message, including the per-address cooldown", () => {
+Deno.test("GoTrue rate limits: status 429, stable codes, or an Auth error's cooldown wording", () => {
+  const auth = (message: string, extra: Record<string, unknown> = {}) => ({ name: "AuthApiError", message, ...extra });
   assertEquals(isRateLimited({ status: 429, message: "anything" }), true);
-  assertEquals(isRateLimited({ message: "Email rate limit exceeded" }), true);
-  assertEquals(isRateLimited({ message: "For security purposes, you can only request this after 42 seconds." }), true);
+  assertEquals(isRateLimited(auth("x", { code: "over_email_send_rate_limit", status: 400 })), true);
+  assertEquals(isRateLimited(auth("Email rate limit exceeded")), true);
+  assertEquals(isRateLimited(auth("For security purposes, you can only request this after 42 seconds.")), true);
+  assertEquals(isRateLimited({ name: "PostgrestError", message: "rate limit table locked" }), false); // not an Auth error
   assertEquals(isRateLimited({ status: 500, message: "Database error" }), false);
   assertEquals(isRateLimited(undefined), false);
 });

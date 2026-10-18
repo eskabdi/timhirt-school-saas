@@ -189,10 +189,18 @@ export const toIsoDate = (d: Date): string => d.toISOString().slice(0, 10);
  *  is parsed as an instant and its UTC day is used; anything else is an
  *  Invalid Date (never blindly appends to a timestamp). */
 export const fromIsoDate = (iso: string): Date => {
-  if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) return new Date(`${iso}T00:00:00Z`);
-  if (!/^\d{4}-\d{2}-\d{2}T/.test(iso)) return new Date(Number.NaN);
-  const instant = new Date(iso);
-  return Number.isNaN(instant.getTime()) ? instant : new Date(`${toIsoDate(instant)}T00:00:00Z`);
+  const invalid = new Date(Number.NaN);
+  const day = /^(\d{4}-\d{2}-\d{2})(T.*)?$/.exec(iso);
+  // The written date must exist (Date rolls 2026-02-30 over to March 2).
+  const real = (ymd: string) => { const t = new Date(`${ymd}T00:00:00Z`); return !Number.isNaN(t.getTime()) && toIsoDate(t) === ymd; };
+  if (!day || !real(day[1]!)) return invalid;
+  // A timestamp with an offset (Z or ±hh:mm) is an instant: use its UTC day.
+  // One without (a Postgres `timestamp`, a datetime-local value) is a local
+  // wall-clock reading: its date part is the day, whatever the browser's zone.
+  const instant = day[2] && /(Z|[+-]\d{2}:?\d{2})$/.test(day[2]) ? new Date(iso) : null;
+  const date = instant ? (Number.isNaN(instant.getTime()) ? null : toIsoDate(instant)) : day[1]!;
+  if (!date) return invalid;
+  return new Date(`${date}T00:00:00Z`);
 };
 
 /** The stored date `days` days later (earlier when negative). */

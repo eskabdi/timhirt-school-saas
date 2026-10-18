@@ -355,9 +355,10 @@ select throws_ok($$ insert into public.authority_calendar_entries (calendar_id, 
 -- ==================================== one day, one answer (CAL-DB-03/04) ==
 -- Hamle 15 of last year lies after last year's session (if any) and before
 -- this year's Nehase lead-in: asked alone or inside a window reaching this
--- year's session, the answer is the same row, and never "in session". No
--- expectation depends on which years have a seeded session, so it holds in
--- every EC year (CAL-DB3-01, CAL-DB4-01).
+-- year's session, the answer is the same row, and never "in session". The
+-- NULL/false expectation below names the seeded years (only MoE 2019 today);
+-- a migration that seeds another year's calendar must add it there
+-- (CAL-DB3-01, CAL-DB4-01).
 select ok((select row(x.*)::text from public.calendar_day_status(pg_temp.ec(11, 15, -1)) x)
             is not distinct from
           (select row(w.*)::text from public.calendar_days(pg_temp.ec(11, 15, -1), pg_temp.ec(11, 15, -1) + 400) w

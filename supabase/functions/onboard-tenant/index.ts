@@ -13,7 +13,7 @@ import { requireRole, errors, json, rateLimit, corsHeaders } from "../_shared/se
 import { rollbackTenant, type InvitedUser, type RollbackClient } from "../_shared/onboard-rollback.ts";
 import { toEthiopian, toGregorian, todayAddis } from "../_shared/ethiopian-date.ts";
 import { defaultPeriods } from "../_shared/default-periods.ts";
-import { isRateLimited, logSafeError } from "../_shared/auth-errors.ts";
+import { isRateLimited, logSafeError, RATE_LIMITED_MESSAGE } from "../_shared/auth-errors.ts";
 
 const Payload = z.object({
   name: z.string().trim().min(2).max(120),
@@ -119,12 +119,15 @@ Deno.serve(async (req) => {
     return json({ tenant_id: tenantId, ec_year: ecYear }, 201);
   } catch (err) {
     console.error("onboard-tenant failed", logSafeError(err));
+    let rolledBack = true;
     if (tenantId) {
       const failed = await rollbackTenant(ctx.adminClient as unknown as RollbackClient, tenantId, invited);
       if (failed.length) console.error("onboard-tenant: rollback incomplete", { steps: failed });
+      rolledBack = failed.length === 0;
     }
-    // GoTrue's email limit: nothing was kept (rolled back above); say to retry.
-    if (isRateLimited(err)) return json({ error: "Too many invite emails sent recently. Try again shortly." }, 429);
+    // GoTrue's email limit, and nothing was kept: say to retry. After an
+    // incomplete rollback a retry would only fail on the slug, so it is a 500.
+    if (rolledBack && isRateLimited(err)) return json({ error: RATE_LIMITED_MESSAGE }, 429);
     return errors.internal();
   }
 });
