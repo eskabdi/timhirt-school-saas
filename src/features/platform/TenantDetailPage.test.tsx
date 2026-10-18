@@ -83,7 +83,7 @@ describe("TenantDetailPage invite status and resend", () => {
       return new Response("{}", { status: 400 });
     });
   });
-  afterEach(() => { calls.length = 0; });
+  afterEach(() => { calls.length = 0; resendStatus = 200; resendNetworkError = false; });
 
   it("marks who is pending and offers Resend only to them", async () => {
     const { host, done } = await render();

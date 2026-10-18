@@ -103,8 +103,6 @@ export interface BuildYearGridInput {
 }
 
 const DAY_MS = 86_400_000;
-const isoOf = toIsoDate;
-const dateOf = fromIsoDate;
 const mondayFirst = (d: Date) => (d.getUTCDay() + 6) % 7;
 
 export function buildYearGrid(input: BuildYearGridInput): YearGrid {
@@ -112,14 +110,14 @@ export function buildYearGrid(input: BuildYearGridInput): YearGrid {
   const weekend = new Set((input.weekendDays ?? [6, 7]).map((d) => d - 1));
   const types = new Map(input.dayTypes.map((t) => [t.code, t]));
   const publishedHolidayNear = (iso: string) => {
-    const t = dateOf(iso).getTime();
+    const t = fromIsoDate(iso).getTime();
     return entries.some((e) => types.get(e.dayTypeCode)?.category === "holiday"
-      && dateOf(e.startsOn).getTime() - 2 * DAY_MS <= t && dateOf(e.endsOn).getTime() + 2 * DAY_MS >= t);
+      && fromIsoDate(e.startsOn).getTime() - 2 * DAY_MS <= t && fromIsoDate(e.endsOn).getTime() + 2 * DAY_MS >= t);
   };
   const tentative = (input.tentativeHolidays ?? []).filter((h) => !publishedHolidayNear(h.date));
 
   const cellFor = (d: Date): GridCell => {
-    const iso = isoOf(d);
+    const iso = toIsoDate(d);
     const ec = toEthiopian(d);
     const weekday = mondayFirst(d);
     // As in SQL calendar_days, a day two sessions cover belongs to the later
@@ -160,9 +158,9 @@ export function buildYearGrid(input: BuildYearGridInput): YearGrid {
 
   // Lead-in: the days of the previous EC year that are in this session (the
   // MoE sheet's "ነሀሴ/2018" row), packed into one row as late as they fit.
-  if (sessionStartsOn < isoOf(yearStart)) {
+  if (sessionStartsOn < toIsoDate(yearStart)) {
     const days: Date[] = [];
-    for (let d = dateOf(sessionStartsOn); d.getTime() < yearStart.getTime(); d = new Date(d.getTime() + DAY_MS)) days.push(d);
+    for (let d = fromIsoDate(sessionStartsOn); d.getTime() < yearStart.getTime(); d = new Date(d.getTime() + DAY_MS)) days.push(d);
     const n = Math.min(days.length, GRID_COLUMNS);
     const shown = days.slice(days.length - n);
     const firstShown = shown[0]!; // the session starts before the year, so at least one day

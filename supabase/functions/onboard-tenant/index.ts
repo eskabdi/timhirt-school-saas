@@ -13,6 +13,7 @@ import { requireRole, errors, json, rateLimit, corsHeaders } from "../_shared/se
 import { rollbackTenant, type InvitedUser, type RollbackClient } from "../_shared/onboard-rollback.ts";
 import { toEthiopian, toGregorian, todayAddis } from "../_shared/ethiopian-date.ts";
 import { defaultPeriods } from "../_shared/default-periods.ts";
+import { logSafeError } from "../_shared/log-safe.ts";
 
 const Payload = z.object({
   name: z.string().trim().min(2).max(120),
@@ -117,12 +118,7 @@ Deno.serve(async (req) => {
 
     return json({ tenant_id: tenantId, ec_year: ecYear }, 201);
   } catch (err) {
-    // Auth (GoTrue) errors can quote the submitted email address, so they are
-    // logged by code only (privacy review, WP-01 round 3).
-    const e = err as { name?: string; code?: string; message?: string };
-    console.error("onboard-tenant failed", e.name === "AuthApiError" || e.name === "AuthError" || e.name?.startsWith("Auth")
-      ? { auth_error: e.code ?? "unknown" }
-      : { message: e.message });
+    console.error("onboard-tenant failed", logSafeError(err));
     if (tenantId) {
       const failed = await rollbackTenant(ctx.adminClient as unknown as RollbackClient, tenantId, invited);
       if (failed.length) console.error("onboard-tenant: rollback incomplete", { steps: failed });

@@ -184,8 +184,10 @@ export const todayEthiopian = (): EthDate => toEthiopian(today());
 /** ISO yyyy-mm-dd for API payloads (GC canonical). */
 export const toIsoDate = (d: Date): string => d.toISOString().slice(0, 10);
 
-/** A stored yyyy-mm-dd (Gregorian, canonical) as UTC midnight, the form the EC helpers read (§17.2). */
-export const fromIsoDate = (iso: string): Date => new Date(`${iso}T00:00:00Z`);
+/** A stored date as UTC midnight, the form the EC helpers read (§17.2). Takes
+ *  a bare yyyy-mm-dd or a full ISO instant (only its date part is used), like
+ *  `<EthDate/>`; never blindly appends to a timestamp. */
+export const fromIsoDate = (iso: string): Date => new Date(`${iso.slice(0, 10)}T00:00:00Z`);
 
 /** The stored date `days` days later (earlier when negative). */
 export const addDaysIso = (iso: string, days: number): string =>

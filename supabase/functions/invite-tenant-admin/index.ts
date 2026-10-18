@@ -24,6 +24,7 @@
 // ============================================================================
 import { z } from "npm:zod@3";
 import { requireRole, errors, json, rateLimit, corsHeaders } from "../_shared/security.ts";
+import { logSafeError } from "../_shared/log-safe.ts";
 import { isRateLimited, rateBucket, resendPlan, statusRow, type InviteState } from "../_shared/invite-state.ts";
 
 const Invite = z.object({
@@ -147,7 +148,7 @@ Deno.serve(async (req) => {
       redirectTo,
     });
     if (uErr) {
-      if (/rate limit/i.test(uErr.message)) return json({ error: RATE_LIMITED }, 429);
+      if (isRateLimited(uErr)) return json({ error: RATE_LIMITED }, 429);
       throw uErr;
     }
     invitedUserId = invited.user.id;
@@ -160,10 +161,7 @@ Deno.serve(async (req) => {
 
     return json({ user_id: invitedUserId, tenant_id: p.tenant_id }, 201);
   } catch (err) {
-    // Auth (GoTrue) errors can quote the address, so they are logged by code
-    // only, as in onboard-tenant (privacy review, WP-01 round 3; REL-TI-04).
-    const e = err as { name?: string; code?: string; message?: string };
-    console.error("invite-tenant-admin failed", e.name?.startsWith("Auth") ? { auth_error: e.code ?? "unknown" } : { message: e.message });
+    console.error("invite-tenant-admin failed", logSafeError(err));
     // Only roll back an auth user we just created ourselves this call --
     // invitedUserId is set exclusively by the invite action above, and the
     // pre-check means we only reach here for a genuinely new user.

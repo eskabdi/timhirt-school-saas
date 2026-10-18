@@ -22,3 +22,4 @@ SURVIVED fake_year_2031: 94 ok, 0 failing [] []
 
 Frontend: F22b (load-failure role=alert removed) -> 1 failing; T2 (resend error shown without the key allow-list) -> 2 failing.
 Equivalent mutant (documented, not a gap): dropping only the tenant predicate or only the module gate on school_calendar_entries — entries are visible only through EXISTS on a visible school_calendars row, and the composite FK (calendar_id, tenant_id) makes the entry's tenant equal its calendar's, so both policies are implied by the calendar's.
+KILLED   unknown_becomes_false (calendar_days reports false instead of NULL for a day whose year has no session): not ok 75 (2026-10-18, after strengthening the Hamle-15 assertion; faked years 2019/2020/2021/2030 pass 94/94)

@@ -98,7 +98,7 @@ export function AcademicYearGridPage() {
   const grid = useMemo(() => {
     // Wait for next year's session too, or its lead-in days would first show
     // as this year's and then flip (and the totals with them).
-    if (!s?.session_starts_on || !s.session_ends_on || !dayTypes.data || !entries.data || nextSettings.isPending) return null;
+    if (!s?.session_starts_on || !s.session_ends_on || !dayTypes.data || !entries.data || nextSettings.isPending || nextSettings.isError) return null;
     return buildYearGrid({
       ecYear: year,
       sessionStartsOn: s.session_starts_on,
@@ -111,7 +111,7 @@ export function AcademicYearGridPage() {
       tentativeHolidays: prefs.hijriHolidays ? hijriHolidaySuggestions(year) : [],
       nextSessionStartsOn,
     });
-  }, [s, dayTypes.data, entries.data, year, prefs.showHijri, prefs.hijriHolidays, nextSessionStartsOn, nextSettings.isPending]);
+  }, [s, dayTypes.data, entries.data, year, prefs.showHijri, prefs.hijriHolidays, nextSessionStartsOn, nextSettings.isPending, nextSettings.isError]);
 
   // Each day's row and column, for keyboard movement.
   const nav = useMemo(() => {
@@ -128,7 +128,9 @@ export function AcademicYearGridPage() {
   useEffect(() => { if (created) noticeRef.current?.focus(); }, [created]);
 
   const loading = settings.isPending || entries.isPending || dayTypes.isPending || nextSettings.isPending;
-  const failed = settings.isError || entries.isError || dayTypes.isError;
+  // Next year's settings decide which lead-in days are next year's; without
+  // them the totals could be wrong, so their failure is a load failure too.
+  const failed = settings.isError || entries.isError || dayTypes.isError || nextSettings.isError;
   const months = tc("months", { returnObjects: true }) as string[];
   const weekdays = tc("weekdaysShort", { returnObjects: true }) as string[]; // Sunday-first
   const weekdayNames = tc("weekdays", { returnObjects: true }) as string[];   // Sunday-first
