@@ -85,8 +85,9 @@ Deno.serve(async (req) => {
     if (existing) return json({ error: "This email is already registered to a user in the system." }, 400);
 
     if (p.role === "teacher" && p.staff_no) {
-      const { data: dupStaffNo } = await db.from("teachers")
+      const { data: dupStaffNo, error: dupErr } = await db.from("teachers")
         .select("id").eq("tenant_id", ctx.tenantId).eq("staff_no", p.staff_no).maybeSingle();
+      if (dupErr) throw dupErr;   // fail closed: never invite on an unverified check
       if (dupStaffNo) return json({ error: "This staff number is already in use." }, 400);
     }
 

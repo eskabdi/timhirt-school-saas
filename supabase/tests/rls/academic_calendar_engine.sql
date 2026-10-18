@@ -353,10 +353,10 @@ select throws_ok($$ insert into public.authority_calendar_entries (calendar_id, 
   '22023', 'invalid_range', 'an authority entry far outside its calendar''s year is refused');
 
 -- ==================================== one day, one answer (CAL-DB-03/04) ==
--- Hamle 15 of last year lies after last year's session (if any) and before
--- this year's Nehase lead-in: asked alone or inside a window reaching this
--- year's session, the answer is the same row, and never "in session"
--- (CAL-DB3-01, CAL-DB4-01).
+-- Hamle 15 of last year lies before this year's Nehase lead-in: asked alone
+-- or inside a window reaching this year's session, the answer is the same
+-- row, and it is in, out of, or with no session exactly as last year's
+-- published MoE calendar says (CAL-DB3-01, CAL-DB4-01).
 select ok((select row(x.*)::text from public.calendar_day_status(pg_temp.ec(11, 15, -1)) x)
             is not distinct from
           (select row(w.*)::text from public.calendar_days(pg_temp.ec(11, 15, -1), pg_temp.ec(11, 15, -1) + 400) w

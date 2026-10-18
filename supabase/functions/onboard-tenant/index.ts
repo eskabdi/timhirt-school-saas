@@ -14,6 +14,7 @@ import { rollbackTenant, type InvitedUser, type RollbackClient } from "../_share
 import { toEthiopian, toGregorian, todayAddis } from "../_shared/ethiopian-date.ts";
 import { defaultPeriods } from "../_shared/default-periods.ts";
 import { isRateLimited, logSafeError, RATE_LIMITED_MESSAGE } from "../_shared/auth-errors.ts";
+import { escapeLike } from "../_shared/invite-guard.ts";
 
 const Payload = z.object({
   name: z.string().trim().min(2).max(120),
@@ -45,9 +46,11 @@ Deno.serve(async (req) => {
     // email already has an account — inserting that id as this new tenant's
     // admin would collide with their existing public.users row and fail
     // with a confusing generic error instead of a clear one.
-    // Case-insensitive: older rows may hold mixed case (LIKE wildcards escaped).
-    const { data: existingUser } = await db.from("users").select("id")
-      .ilike("email", p.admin_email.replace(/[\\%_]/g, (m) => `\\${m}`)).limit(1).maybeSingle();
+    // Case-insensitive: older rows may hold mixed case (LIKE wildcards
+    // escaped). Fails closed: an unverified check never leads to an invite.
+    const { data: existingUser, error: existErr } = await db.from("users").select("id")
+      .ilike("email", escapeLike(p.admin_email)).limit(1).maybeSingle();
+    if (existErr) throw existErr;
     if (existingUser) return json({ error: "This email is already registered to a user in the system." }, 400);
 
     const { data: tenant, error: tErr } = await db.from("tenants")
