@@ -4,6 +4,7 @@ import { isRateLimited, logSafeError } from "./auth-errors.ts";
 Deno.test("Auth errors are logged by code only (they can quote the address)", () => {
   const e = Object.assign(new Error('Email address "a@b.test" is invalid'), { name: "AuthApiError", code: "email_address_invalid" });
   assertEquals(logSafeError(e), { auth_error: "email_address_invalid" });
+  assertEquals(logSafeError(Object.assign(new Error("x"), { name: "AuthApiError", status: 503 })), { auth_error: "unknown", status: "503" });
   assertEquals(logSafeError(Object.assign(new Error("x a@b.test"), { name: "AuthRetryableFetchError" })), { auth_error: "unknown" });
 });
 

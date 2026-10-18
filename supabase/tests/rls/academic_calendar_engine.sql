@@ -355,19 +355,19 @@ select throws_ok($$ insert into public.authority_calendar_entries (calendar_id, 
 -- ==================================== one day, one answer (CAL-DB-03/04) ==
 -- Hamle 15 of last year lies after last year's session (if any) and before
 -- this year's Nehase lead-in: asked alone or inside a window reaching this
--- year's session, the answer is the same row, and never "in session". The
--- NULL/false expectation below names the seeded years (only MoE 2019 today);
--- a migration that seeds another year's calendar must add it there
+-- year's session, the answer is the same row, and never "in session"
 -- (CAL-DB3-01, CAL-DB4-01).
 select ok((select row(x.*)::text from public.calendar_day_status(pg_temp.ec(11, 15, -1)) x)
             is not distinct from
           (select row(w.*)::text from public.calendar_days(pg_temp.ec(11, 15, -1), pg_temp.ec(11, 15, -1) + 400) w
             where w.day = pg_temp.ec(11, 15, -1))
-          -- and precisely, stated by the fixture rather than read back from
-          -- the engine: last year has a session only when it is the seeded
-          -- 2019 (MoE), so the day is "out of session" (false) then and
-          -- "session unknown" (NULL) in every other year.
-          and (select case when pg_temp.y() - 1 = 2019 then x.in_session is false else x.in_session is null end
+          -- and precisely, from the data rather than the engine: "out of
+          -- session" (false) when last year has a published MoE calendar
+          -- (school B follows the MoE and has no academic year then), else
+          -- "session unknown" (NULL), whichever years a migration seeds.
+          and (select case when exists (select 1 from public.authority_calendars c join public.edu_authorities a on a.id = c.authority_id
+                                         where a.code = 'MOE' and c.ec_year = pg_temp.y() - 1 and c.status in ('published', 'closed'))
+                           then x.in_session is false else x.in_session is null end
                  from public.calendar_day_status(pg_temp.ec(11, 15, -1)) x),
   'a day''s session status does not depend on the window it is asked in');
 -- Last year's school entries do not reach into this year's session (its

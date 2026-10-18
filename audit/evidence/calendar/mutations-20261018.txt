@@ -25,3 +25,4 @@ Equivalent mutant (documented, not a gap): dropping only the tenant predicate or
 KILLED   unknown_becomes_false (calendar_days reports false instead of NULL for a day whose year has no session): not ok 75 (2026-10-18, after strengthening the Hamle-15 assertion; faked years 2019/2020/2021/2030 pass 94/94)
 
 Round after code review of ca0d8d3..67f541a: next-year-only settings failure test (mutation: drop nextSettings.isError -> 1 failing); Hamle-15 expectation stated by the fixture (y()-1 = 2019 -> false, else NULL); faked 2019/2020/2021/2030: 94/94; y=2020 with last year's session lost -> killed.
+Final round: Hamle-15 expectation read from authority_calendars (data, not the engine); faked 2019/2020/2021/2030 94/94; unknown->false (y=2019) and false->unknown (y=2020) both killed (#75).

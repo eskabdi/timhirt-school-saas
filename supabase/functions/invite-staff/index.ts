@@ -40,7 +40,12 @@ import { requireRole, errors, json, rateLimit, corsHeaders, STAFF_NO_REGEX } fro
 import { isRateLimited, logSafeError, RATE_LIMITED_MESSAGE } from "../_shared/auth-errors.ts";
 
 const Payload = z.object({
-  email: z.string().email().max(254),
+  // GoTrue stores addresses lower-case; so do we, and the duplicate check
+  // below is case-insensitive (as in invite-tenant-admin and onboard-tenant):
+  // a case-only variant of an existing address used to pass the check, get
+  // that existing account back from inviteUserByEmail, and have the rollback
+  // delete it.
+  email: z.string().trim().email().max(254).transform((s) => s.toLowerCase()),
   full_name: z.string().trim().min(1).max(120),
   role: z.enum(["teacher", "registrar", "hr_officer", "accountant", "librarian"]),
   staff_no: z.string().regex(STAFF_NO_REGEX).optional(),
@@ -71,7 +76,8 @@ Deno.serve(async (req) => {
     if (ctx.role === "hr_officer" && !HR_OFFICER_ASSIGNABLE_ROLES.has(p.role)) return errors.forbidden();
     const db = ctx.adminClient;
 
-    const { data: existing } = await db.from("users").select("id").eq("email", p.email).maybeSingle();
+    const { data: existing } = await db.from("users").select("id")
+      .ilike("email", p.email.replace(/[\\%_]/g, (m) => `\\${m}`)).limit(1).maybeSingle();
     if (existing) return json({ error: "This email is already registered to a user in the system." }, 400);
 
     if (p.role === "teacher" && p.staff_no) {

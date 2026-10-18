@@ -13,7 +13,10 @@ const asRecord = (err: unknown) => (typeof err === "object" && err !== null ? er
  *  always reaches its rollback. */
 export function logSafeError(err: unknown): Record<string, string> {
   const e = asRecord(err);
-  if (isAuthError(e)) return { auth_error: typeof e.code === "string" ? e.code : "unknown" };
+  if (isAuthError(e)) {
+    // The HTTP status carries no personal data and tells a bad address from an outage.
+    return { auth_error: typeof e.code === "string" ? e.code : "unknown", ...(typeof e.status === "number" ? { status: String(e.status) } : {}) };
+  }
   return { message: typeof e.message === "string" ? e.message : String(err) };
 }
 

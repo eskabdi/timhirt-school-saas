@@ -1,0 +1,123 @@
+# verify skill, final release candidate, 2026-10-18T08:09:38Z
+{
+ "en": {
+  "before": {
+   "sw": 360,
+   "iw": 360
+  },
+  "afterSelect": {
+   "sw": 360,
+   "iw": 360
+  },
+  "activeLabel": "Sunday — Tikimt 8, 2019 E.C. — Weekend — Jumada al-Ula 7, 1448 AH — Not a school day",
+  "activeCol": 14,
+  "todayBar": true,
+  "selectedRing": null,
+  "totals": "9,20,21,22,21,14,20,22,19,21,21,–,–",
+  "year": "210",
+  "hint": "Keyboard: arrow keys move between days (up and down stay in ",
+  "down": {
+   "label": "Sunday — Hidar 13, 2019 E.C. — Weekend — Jumada al-Akhirah 12, 1448 AH — Not a school day",
+   "col": 14
+  },
+  "regressionScrollWidthIfStatic": 970,
+  "errors": []
+ },
+ "am": {
+  "before": {
+   "sw": 360,
+   "iw": 360
+  },
+  "afterSelect": {
+   "sw": 360,
+   "iw": 360
+  },
+  "activeLabel": "እሑድ — ጥቅምት 8, 2019 ዓ.ም — የሳምንት መጨረሻ — ጀማደል ኡላ 7, 1448 ዓ.ሂ — የትምህርት ቀን አይደለም",
+  "activeCol": 14,
+  "todayBar": true,
+  "selectedRing": null,
+  "totals": "9,20,21,22,21,14,20,22,19,21,21,–,–",
+  "year": "210",
+  "hint": "በቁልፍ ሰሌዳ፦ የቀስት ቁልፎች በቀናት መካከል ያንቀሳቅሳሉ (ላይና ታች በዚያው ዓምድ ይቆያሉ)",
+  "down": {
+   "label": "እሑድ — ኅዳር 13, 2019 ዓ.ም — የሳምንት መጨረሻ — ጀማደል አኺር 12, 1448 ዓ.ሂ — የትምህርት ቀን አይደለም",
+   "col": 14
+  },
+  "regressionScrollWidthIfStatic": 954,
+  "errors": []
+ },
+ "om": {
+  "before": {
+   "sw": 360,
+   "iw": 360
+  },
+  "afterSelect": {
+   "sw": 360,
+   "iw": 360
+  },
+  "activeLabel": "Dilbata — Onkololeessa 8, 2019 ALI — Dhuma Torbanii — Jumaada Uulaa 7, 1448 A.H. — Guyyaa barnootaa miti",
+  "activeCol": 14,
+  "todayBar": true,
+  "selectedRing": null,
+  "totals": "9,20,21,22,21,14,20,22,19,21,21,–,–",
+  "year": "210",
+  "hint": "Kiiboordii: furtuuwwan xiyyaa guyyoota gidduu socho'u (olii ",
+  "down": {
+   "label": "Dilbata — Sadaasa 13, 2019 ALI — Dhuma Torbanii — Jumaada Aakhira 12, 1448 A.H. — Guyyaa barnootaa miti",
+   "col": 14
+  },
+  "regressionScrollWidthIfStatic": 978,
+  "errors": []
+ }
+}
+{
+ "en": {
+  "inGrid": true,
+  "focusVisible": true,
+  "shadow": "rgb(248, 249, 250) 0px 0px 0px 2px, rgb(4, 22, 53) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+  "hasSelectedOverlay": true,
+  "sw": 360,
+  "iw": 360,
+  "navyRingAfterEnter": true,
+  "back": {
+   "focusVisible": true,
+   "shadow": "rgb(248, 249, 250) 0px 0px 0px 2px, rgb(4, 22, 53) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+   "selected": true
+  },
+  "navyRingBackIn": true,
+  "errors": []
+ },
+ "am": {
+  "inGrid": true,
+  "focusVisible": true,
+  "shadow": "rgb(248, 249, 250) 0px 0px 0px 2px, rgb(4, 22, 53) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+  "hasSelectedOverlay": true,
+  "sw": 360,
+  "iw": 360,
+  "navyRingAfterEnter": true,
+  "back": {
+   "focusVisible": true,
+   "shadow": "rgb(248, 249, 250) 0px 0px 0px 2px, rgb(4, 22, 53) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+   "selected": true
+  },
+  "navyRingBackIn": true,
+  "errors": []
+ },
+ "om": {
+  "inGrid": true,
+  "focusVisible": true,
+  "shadow": "rgb(248, 249, 250) 0px 0px 0px 2px, rgb(4, 22, 53) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+  "hasSelectedOverlay": true,
+  "sw": 360,
+  "iw": 360,
+  "navyRingAfterEnter": true,
+  "back": {
+   "focusVisible": true,
+   "shadow": "rgb(248, 249, 250) 0px 0px 0px 2px, rgb(4, 22, 53) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+   "selected": true
+  },
+  "navyRingBackIn": true,
+  "errors": []
+ }
+}
+{"en":{"alert":"Could not load the academic calendar.","grid":false,"sw":360,"errors":[]},"am":{"alert":"የትምህርት ቀን መቁጠሪያውን መጫን አልተቻለም።","grid":false,"sw":360,"errors":[]},"om":{"alert":"Kaalaandarii barnootaa fe'uun hin danda'amne.","grid":false,"sw":360,"errors":[]}}

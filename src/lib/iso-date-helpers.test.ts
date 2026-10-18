@@ -17,8 +17,14 @@ describe("fromIsoDate / addDaysIso", () => {
     expect(toIsoDate(fromIsoDate("2026-10-17T00:00:00"))).toBe("2026-10-17");
     expect(toIsoDate(fromIsoDate("2026-10-17T23:30"))).toBe("2026-10-17");
   });
+  it("reads Postgres text output: a space separator and short offsets mean the same instant", () => {
+    expect(toIsoDate(fromIsoDate("2026-10-17 10:00:00+00"))).toBe("2026-10-17");
+    expect(toIsoDate(fromIsoDate("2026-10-17T01:00:00+03"))).toBe("2026-10-16");
+    expect(toIsoDate(fromIsoDate("2026-10-17T01:00:00+0300"))).toBe("2026-10-16");
+    expect(toIsoDate(fromIsoDate("2026-10-17T01:00:00.123+03:00"))).toBe("2026-10-16");
+  });
   it("rejects malformed input and impossible dates", () => {
-    for (const bad of ["2026-10-17garbage", "2026-10-170", "17/10/2026", "", "2026-02-30", "2026-02-30T10:00:00Z", "2026-13-01"]) {
+    for (const bad of ["2026-10-17garbage", "2026-10-170", "17/10/2026", "", "2026-02-30", "2026-02-30T10:00:00Z", "2026-13-01", "2026-10-17Tgarbage", "2026-10-17T99:99", "2026-10-17T10:00:00+3"]) {
       expect(Number.isNaN(fromIsoDate(bad).getTime())).toBe(true);
     }
   });
@@ -27,5 +33,8 @@ describe("fromIsoDate / addDaysIso", () => {
     expect(addDaysIso("2027-01-01", -1)).toBe("2026-12-31");
     expect(addDaysIso("2028-02-28", 1)).toBe("2028-02-29");
     expect(addDaysIso("2026-10-17", 7)).toBe("2026-10-24");
+  });
+  it("addDaysIso never throws on an unreadable date", () => {
+    expect(addDaysIso("not a date", 1)).toBe("");
   });
 });
