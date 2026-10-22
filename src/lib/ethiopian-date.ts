@@ -183,3 +183,41 @@ export const todayEthiopian = (): EthDate => toEthiopian(today());
 
 /** ISO yyyy-mm-dd for API payloads (GC canonical). */
 export const toIsoDate = (d: Date): string => d.toISOString().slice(0, 10);
+
+/** A stored date as UTC midnight, the form the EC helpers read (§17.2). A bare
+ *  yyyy-mm-dd is that calendar day; a timestamp with an offset is an instant
+ *  and its UTC day is used (as `<EthDate/>` does); a timestamp without one
+ *  keeps its written date; anything else is an Invalid Date (never blindly
+ *  appends to a timestamp). */
+export const fromIsoDate = (iso: string): Date => {
+  const invalid = new Date(Number.NaN);
+  // Date, then optionally a time (T or space), seconds and fraction, and an
+  // offset (Z, ±hh, ±hhmm or ±hh:mm, as Postgres prints them).
+  const day = /^(\d{4}-\d{2}-\d{2})(?:[T ](\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?)(Z|[+-]\d{2}(?::?\d{2})?)?)?$/.exec(iso);
+  // The written date must exist (Date rolls 2026-02-30 over to March 2).
+  const real = (ymd: string) => { const t = new Date(`${ymd}T00:00:00Z`); return !Number.isNaN(t.getTime()) && toIsoDate(t) === ymd; };
+  if (!day || !real(day[1]!)) return invalid;
+  if (day[2]) {
+    const [h, m, sec] = day[2].split(":").map(Number);
+    if (h! > 23 || m! > 59 || (sec ?? 0) >= 60) return invalid;
+  }
+  // A timestamp with an offset (Z or ±hh:mm) is an instant: use its UTC day.
+  // One without (a Postgres `timestamp`, a datetime-local value) is a local
+  // wall-clock reading: its date part is the day, whatever the browser's zone.
+  // Rewrite to the ES date-time form every engine parses: ±hh:mm, at most
+  // three fraction digits (Safari rejects ±hhmm and longer fractions).
+  const z = day[3];
+  const offset = !z || z === "Z" ? z : z.length === 3 ? `${z}:00` : z.includes(":") ? z : `${z.slice(0, 3)}:${z.slice(3)}`;
+  const time = day[2]?.replace(/(\.\d{3})\d+$/, "$1");
+  const instant = offset ? new Date(`${day[1]}T${time}${offset}`) : null;
+  const date = instant ? (Number.isNaN(instant.getTime()) ? null : toIsoDate(instant)) : day[1]!;
+  if (!date) return invalid;
+  return new Date(`${date}T00:00:00Z`);
+};
+
+/** The stored date `days` days later (earlier when negative). */
+export const addDaysIso = (iso: string, days: number): string => {
+  const d = fromIsoDate(iso);
+  // An unreadable date stays unreadable ("") rather than throwing a RangeError mid-render.
+  return Number.isNaN(d.getTime()) ? "" : toIsoDate(new Date(d.getTime() + days * 86_400_000));
+};

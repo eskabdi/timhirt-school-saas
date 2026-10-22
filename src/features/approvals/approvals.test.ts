@@ -23,6 +23,33 @@ describe("diffRows", () => {
     ]);
   });
 
+  it("hides the ids a grade entry carries for the executor", () => {
+    expect(diffRows({
+      student: "Almaz Tesfaye Bekele", exam_id: "e", student_id: "s", subject_id: "j",
+      from: { score: null }, to: { score: 88 },
+    })).toEqual([
+      { field: "student", from: "Almaz Tesfaye Bekele", to: "Almaz Tesfaye Bekele" },
+      { field: "score", from: null, to: 88 },
+    ]);
+  });
+
+  it("shows an academic calendar change by its labels, not the ids the approval re-checks", () => {
+    expect(diffRows({
+      ec_year: 2019, op: "add", calendar_id: "c", snapshot_hash: "h",
+      from: {},
+      to: { type: { en: "Special Closure" }, day_type_code: "special_closure", name_i18n: { en: "Water outage" },
+            starts_on: "2027-01-10", ends_on: "2027-01-11", overrides_entry_id: null, suppressed: false },
+    })).toEqual([
+      { field: "ec_year", from: 2019, to: 2019 },
+      { field: "op", from: "add", to: "add" },
+      { field: "type", from: null, to: { en: "Special Closure" } },
+      { field: "name_i18n", from: null, to: { en: "Water outage" } },
+      { field: "starts_on", from: null, to: "2027-01-10" },
+      { field: "ends_on", from: null, to: "2027-01-11" },
+      { field: "suppressed", from: null, to: false },
+    ]);
+  });
+
   it("tolerates a payload without from/to", () => {
     expect(diffRows({})).toEqual([]);
     expect(diffRows({ from: "junk", to: [1] })).toEqual([]);
@@ -34,6 +61,19 @@ describe("approvalErrorKey", () => {
     expect(approvalErrorKey({ message: "approval_required" })).toBe("approval_required");
     expect(approvalErrorKey({ message: "maker_cannot_decide" })).toBe("maker_cannot_decide");
     expect(approvalErrorKey(new Error("invoice_void"))).toBe("invoice_void");
+  });
+
+  it("maps the round-1 hardening codes", () => {
+    expect(approvalErrorKey({ message: "amount_exceeds_balance" })).toBe("amount_exceeds_balance");
+    expect(approvalErrorKey({ message: "invoice_amounts_locked" })).toBe("invoice_amounts_locked");
+    expect(approvalErrorKey({ message: "results_published_locked" })).toBe("results_published_locked");
+    expect(approvalErrorKey({ message: "grade_exists" })).toBe("grade_exists");
+  });
+
+  it("maps the academic calendar guards' codes", () => {
+    for (const k of ["calendar_closed", "calendar_entry_locked", "invalid_range", "too_many_entries"]) {
+      expect(approvalErrorKey({ message: k })).toBe(k);
+    }
   });
 
   it("does not confuse a code that is a prefix of another", () => {

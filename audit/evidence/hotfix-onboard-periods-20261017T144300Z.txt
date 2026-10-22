@@ -1,0 +1,16 @@
+# Hotfix: tenant onboarding (onboard-tenant) — 20261017T144300Z
+## Symptom (owner report 2026-10-17: "tenant creation and admin invite is not working")
+Production function logs 2026-10-17 14:33 UTC: two POST /functions/v1/onboard-tenant -> 500, each logged
+  onboard-tenant failed { message: 'null value in column "is_break" of relation "periods" violates not-null constraint' }
+Auth audit: user_invited then user_deleted for the same address both times (the rollback ran; nothing left behind).
+## Root cause
+The 9-row periods bulk insert set is_break only on the Break row. PostgREST builds the insert from the union of the
+rows' keys (json_populate_recordset) and sends NULL, not the column default, for a key a row lacks.
+Reproduced locally with the same json_populate_recordset shape: old payload -> the same not-null error; fixed payload -> 2 rows inserted.
+## Fix (commit 1f01cee)
+supabase/functions/_shared/default-periods.ts: every row carries every column (is_break false/true); Deno test asserts it.
+invite-tenant-admin: email lower-cased and duplicate check case-insensitive (as onboard-tenant).
+Gates: deno test supabase/functions 39 passed; deno-check 28 functions ok (3 baselined); tsc ok.
+## Deploy (production, supabase CLI --use-api, from git archive of 1f01cee)
+onboard-tenant v10, invite-tenant-admin v6, verify_jwt true (matches config.toml); POST without a token -> 401 each.
+Invite redirect: APP_URL = https://timhirt-school-saas.vercel.app (sha256 matched), which is in the auth redirect allow-list and serves the app (200, app-commit e40f87b).

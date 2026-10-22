@@ -80,7 +80,7 @@ export function AcademicRecordTab({ studentId, studentName, admissionNo, classId
     enabled: isPortalViewer && blockUnpaidBalance,
     queryFn: async () => {
       const { count } = await supabase.from("invoice_summary").select("id", { count: "exact", head: true })
-        .eq("student_id", studentId).neq("status", "paid");
+        .eq("student_id", studentId).not("status", "in", "(paid,void)");
       return (count ?? 0) > 0;
     },
   });

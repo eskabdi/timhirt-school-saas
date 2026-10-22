@@ -1,0 +1,25 @@
+# Calendar slice 1 + invite fixes: production pre-deploy capture (20261018T083736Z), read-only Management API. PITR off, no backups (D-03): the migrations add tables, a nullable tenants.edu_authority_id, permission seeds and functions; no existing row is changed, so row counts + md5 per touched table prove the data is unchanged afterwards.
+## state
+migrations | 114
+definer fns | 79
+anon-exec definers | 0
+unpinned definers | 0
+tables w/o FORCE RLS | 0
+merge_tenant_settings auth/anon | true/false
+default acl - | {postgres=X/postgres}
+default acl public | {postgres=X/postgres,service_role=X/postgres}
+default acl extensions | {=X/postgres}
+default acl storage | {postgres=X/postgres,service_role=X/postgres}
+## postgres can SELECT auth.users
+True
+## orphan auth accounts (no profile)
+1
+## table checksums
+academic_years | 7 | 2beb6b72e106b2951a631f1923d0d2cd
+permissions | 221 | db2486d28c63fae569a79da2f5740832
+resource_default_role_grants | 304 | 0bdfcd3a46a16818fd848ec74c0c9e85
+resource_open_actions | 20 | 4b08b291b769c5be8c05a3dcac4a836b
+teachers | 5 | 362cd71bef6cc75422f4fc10ed0252f3
+tenant_configs | 5 | 7e19dc3050eb73bfaf4143fe778165d6
+tenants (pre-existing columns) | 5 | 8f3a1fb86103b0d32a9741e4279748ee
+users | 31 | 06593a641467ee3f5e07b77a7ed9369a

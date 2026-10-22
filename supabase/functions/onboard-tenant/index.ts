@@ -12,6 +12,9 @@ import { z } from "npm:zod@3";
 import { requireRole, errors, json, rateLimit, corsHeaders } from "../_shared/security.ts";
 import { rollbackTenant, type InvitedUser, type RollbackClient } from "../_shared/onboard-rollback.ts";
 import { toEthiopian, toGregorian, todayAddis } from "../_shared/ethiopian-date.ts";
+import { defaultPeriods } from "../_shared/default-periods.ts";
+import { isRateLimited, logSafeError, RATE_LIMITED_MESSAGE } from "../_shared/auth-errors.ts";
+import { escapeLike } from "../_shared/invite-guard.ts";
 
 const Payload = z.object({
   name: z.string().trim().min(2).max(120),
@@ -43,9 +46,11 @@ Deno.serve(async (req) => {
     // email already has an account — inserting that id as this new tenant's
     // admin would collide with their existing public.users row and fail
     // with a confusing generic error instead of a clear one.
-    // Case-insensitive: older rows may hold mixed case (LIKE wildcards escaped).
-    const { data: existingUser } = await db.from("users").select("id")
-      .ilike("email", p.admin_email.replace(/[\\%_]/g, (m) => `\\${m}`)).limit(1).maybeSingle();
+    // Case-insensitive: older rows may hold mixed case (LIKE wildcards
+    // escaped). Fails closed: an unverified check never leads to an invite.
+    const { data: existingUser, error: existErr } = await db.from("users").select("id")
+      .ilike("email", escapeLike(p.admin_email)).limit(1).maybeSingle();
+    if (existErr) throw existErr;
     if (existingUser) return json({ error: "This email is already registered to a user in the system." }, 400);
 
     const { data: tenant, error: tErr } = await db.from("tenants")
@@ -56,7 +61,8 @@ Deno.serve(async (req) => {
     const appUrl = Deno.env.get("APP_URL") ?? "https://timhirt-school-saas.vercel.app";
     const inviteStartedAt = Date.now();
     const { data: invitedData, error: uErr } = await db.auth.admin.inviteUserByEmail(p.admin_email, {
-      data: { full_name: p.admin_full_name },
+      // school_name is shown in the invite email (supabase/templates/invite.html).
+      data: { full_name: p.admin_full_name, school_name: p.name },
       redirectTo: `${appUrl}/accept-invite`,
     });
     if (uErr) throw uErr;
@@ -109,34 +115,22 @@ Deno.serve(async (req) => {
       },
     }));
 
-    // Same default 8-period day 20260802000006 backfilled onto every tenant
-    // that already existed when it ran -- a tenant onboarded after that
-    // migration needs the same seed here, or Timetable Editor opens to a
-    // grid with no period rows to place anything into.
-    await must(db.from("periods").insert([
-      { tenant_id: tenantId, period_no: 1, label: "Period 1", starts_at: "08:30", ends_at: "09:10" },
-      { tenant_id: tenantId, period_no: 2, label: "Period 2", starts_at: "09:10", ends_at: "09:50" },
-      { tenant_id: tenantId, period_no: 3, label: "Period 3", starts_at: "09:50", ends_at: "10:30" },
-      { tenant_id: tenantId, period_no: 4, label: "Period 4", starts_at: "10:30", ends_at: "11:10" },
-      { tenant_id: tenantId, period_no: 5, label: "Break", starts_at: "11:10", ends_at: "11:30", is_break: true },
-      { tenant_id: tenantId, period_no: 6, label: "Period 5", starts_at: "11:30", ends_at: "12:10" },
-      { tenant_id: tenantId, period_no: 7, label: "Period 6", starts_at: "12:10", ends_at: "12:50" },
-      { tenant_id: tenantId, period_no: 8, label: "Period 7", starts_at: "12:50", ends_at: "13:30" },
-      { tenant_id: tenantId, period_no: 9, label: "Period 8", starts_at: "13:30", ends_at: "14:10" },
-    ]));
+    // The default 8-period day (_shared/default-periods.ts); every row carries
+    // is_break, or the bulk insert sends NULL for it.
+    await must(db.from("periods").insert(defaultPeriods(tenant.id)));
 
     return json({ tenant_id: tenantId, ec_year: ecYear }, 201);
   } catch (err) {
-    // Auth (GoTrue) errors can quote the submitted email address, so they are
-    // logged by code only (privacy review, WP-01 round 3).
-    const e = err as { name?: string; code?: string; message?: string };
-    console.error("onboard-tenant failed", e.name === "AuthApiError" || e.name === "AuthError" || e.name?.startsWith("Auth")
-      ? { auth_error: e.code ?? "unknown" }
-      : { message: e.message });
+    console.error("onboard-tenant failed", logSafeError(err));
+    let rolledBack = true;
     if (tenantId) {
       const failed = await rollbackTenant(ctx.adminClient as unknown as RollbackClient, tenantId, invited);
       if (failed.length) console.error("onboard-tenant: rollback incomplete", { steps: failed });
+      rolledBack = failed.length === 0;
     }
+    // GoTrue's email limit, and nothing was kept: say to retry. After an
+    // incomplete rollback a retry would only fail on the slug, so it is a 500.
+    if (rolledBack && isRateLimited(err)) return json({ error: RATE_LIMITED_MESSAGE }, 429);
     return errors.internal();
   }
 });

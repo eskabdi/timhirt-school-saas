@@ -1,0 +1,19 @@
+# Hotfix: invite email opened the login page, not "set password" (owner report 2026-10-17)
+## Root cause
+Production auth config mailer_templates_invite_content (custom HTML set in the dashboard) linked the
+"Accept Invitation & Setup Password" button (MSO and normal variants) to {{ .SiteURL }} = https://www.edux.et (login)
+and never used {{ .ConfirmationURL }}. It also printed {{ .Data }} (the raw metadata map) as the school name.
+The app side was correct: supabase-js flowType implicit, detectSessionInUrl, /accept-invite sets the password.
+## Fix (commit 8c30a21)
+supabase/templates/invite.html (now versioned; config.toml [auth.email.template.invite]): both button hrefs and a
+plain-text fallback use {{ .ConfirmationURL }}; school name from {{ .Data.school_name }} ("your school" if absent).
+onboard-tenant and invite-tenant-admin send school_name in the invite metadata.
+Validated by rendering with Go html/template: 3 verify hrefs, 0 hrefs to the site root, school name / fallback both render.
+## Deploy (production)
+onboard-tenant v11, invite-tenant-admin v7 (verify_jwt true; 401 without a token).
+PATCH /v1/projects/{ref}/config/auth mailer_templates_invite_content -> 200; read back identical to the repo file;
+auth reloaded its config 15:13:17Z. Previous template kept in the session scratchpad.
+## Pending invitee
+One school admin (Future Generation School, invited 15:05:12Z, not yet accepted) re-invited at 15:14:02Z through
+the GoTrue admin invite endpoint (redirect_to https://timhirt-school-saas.vercel.app/accept-invite, school_name set);
+auth log: user_invited 15:14:03Z, no mail error. The 15:05 email's link (login page) is superseded.

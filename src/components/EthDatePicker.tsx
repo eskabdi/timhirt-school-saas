@@ -22,6 +22,8 @@ interface Props {
   /** Digit system; defaults to the tenant's calendar preference. */
   numerals?: NumeralSystem;
   id?: string;
+  /** Id of the visible label, for the input's accessible name (a wrapping <label> would also catch clicks in the popover). */
+  labelledBy?: string;
 }
 
 // Fixed English weekday initials regardless of active locale, matching the
@@ -32,7 +34,7 @@ interface Props {
 // distant birth year is one or two clicks away, not dozens of month steps.
 const YEARS_PER_PAGE = 12;
 
-export function EthDatePicker({ value, onChange, numerals, id }: Props) {
+export function EthDatePicker({ value, onChange, numerals, id, labelledBy }: Props) {
   const { t } = useTranslation("calendar");
   const prefs = useCalendarPrefs();
   const digits = numerals ?? prefs.numerals;
@@ -124,6 +126,7 @@ export function EthDatePicker({ value, onChange, numerals, id }: Props) {
         }}
         aria-haspopup="dialog"
         aria-expanded={open}
+        aria-labelledby={labelledBy}
         className="w-full cursor-pointer rounded-control border border-line bg-card px-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-navy"
       />
 

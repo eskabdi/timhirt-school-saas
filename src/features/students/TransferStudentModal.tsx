@@ -23,6 +23,9 @@ export function TransferStudentModal({ studentId, open, onClose }: {
   // person with students:approve applies it (the database refuses a direct
   // status change to 'transferred').
   const [submitted, setSubmitted] = useState(false);
+  // The modal stays mounted while closed: reset on the way out, so the next
+  // opening starts fresh from its first render (I18N9-5, I18N9R-2).
+  const close = () => { setSubmitted(false); setError(null); onClose(); };
   const submit = useMutation({
     mutationFn: async () => {
       if (!transferredTo.trim() || !date) return;
@@ -43,7 +46,7 @@ export function TransferStudentModal({ studentId, open, onClose }: {
   });
 
   return (
-    <Modal open={open} onClose={onClose} title={t("students.transfer.title")}>
+    <Modal open={open} onClose={close} title={t("students.transfer.title")}>
       <div className="space-y-3">
         <p className="text-sm text-ink-faint">{t("students.transfer.subtitle")}</p>
         <Field label={t("students.transfer.transferredTo")}>
@@ -57,7 +60,7 @@ export function TransferStudentModal({ studentId, open, onClose }: {
         {error && <p role="alert" className="text-sm text-danger">{error}</p>}
         <p role="status" className="text-sm text-ok">{submitted ? t("students.transfer.submittedForApproval") : ""}</p>
         <div className="flex justify-end gap-2">
-          <Button variant="tertiary" onClick={onClose}>{t("students.cancel")}</Button>
+          <Button variant="tertiary" onClick={close}>{submitted ? t("actions.close") : t("students.cancel")}</Button>
           <Button variant="danger" onClick={() => submit.mutate()} disabled={!transferredTo.trim() || !date || submit.isPending}>
             {submit.isPending ? t("students.transfer.submitting") : t("students.transfer.submit")}
           </Button>

@@ -4,19 +4,30 @@ Timhirt — multi-tenant Ethiopian school management SaaS. React + Vite +
 TanStack Query on Supabase (Postgres + RLS + Edge Functions + Storage), no
 custom API server.
 
-> **Deployed state (verified 2026-09-25):** production runs commit `da6055e`
-> (R6 WP-00 and its closeout, PR #8). 108 of the repo's 113 migrations are applied
-> (`20260925000002`, `20260925000003` R6 WP-01, `20260926000001` R6 WP-02 and
-> `20260927000001`/`…02` R6 WP-09 are pending deploy), and 28/28
-> Edge Functions match the repo (names and `verify_jwt`). The frontend is built
-> on Vercel from `da6055e`. See `audit/prod-drift-2026-09-24.md` §5 and
-> `audit/evidence/wp00-closeout-deploy-20260925T072419Z.txt`. A staging project
-> exists but is **empty** (`timhirt-saas-staging`, ref `ekebibapffrhzibidbnr`,
-> created 2026-09-26, sign-up disabled). R6 WP-17 loads the schema into it.
-> Production has **PITR off and no backups**, because the org is on the Free
-> plan. Public sign-up is **disabled** (invite-only, DR-1 closed
-> 2026-09-25). The R6 fix plan is `docs/audits/timhirt-production-fix-plan.md`;
-> progress is in `audit/FIXES_VERIFIED_R6.md`.
+> **Deployed state (verified 2026-10-18):** production runs frontend `61836e2`
+> (served `<meta name="app-commit">` on www.edux.et and the vercel.app domain:
+> the Academic Calendar Engine slice 1 page `/academic-calendar` plus the
+> invite fixes) and all 116 of the repo's migrations (the calendar engine
+> `20261008000001` and the invite state `20261017000001` applied 2026-10-18,
+> staging dry run first). 28/28 Edge Functions match the repo (names and
+> `verify_jwt`); `invite-tenant-admin`, `onboard-tenant`, `invite-staff` and
+> `provision-portal-accounts` run the `61836e2` code. Evidence:
+> `audit/evidence/cal1-predeploy-*.txt`, `cal1-deploy-staging-*.txt`,
+> `cal1-deploy-2*.txt`. The
+> staging project (`timhirt-saas-staging`, ref `ekebibapffrhzibidbnr`,
+> sign-up disabled) has the same 116 migrations, no data and no Edge
+> Functions; it is the dry run for every production migration. Both projects
+> are on the Free plan, which **pauses a project after ~7 days without
+> database activity** (both were paused 2026-10-08 and restored by the owner
+> 2026-10-09; staging again by 2026-10-17). Production has **PITR off and no backups**. Public sign-up is
+> **disabled** (invite-only). The Edge Function secret `APP_URL` is
+> `https://www.edux.et` (invite redirects, document and ID-card verify links;
+> since 2026-10-17, was the vercel.app domain), and both domains are in the
+> auth redirect allow-list. Vercel (Hobby)
+> refuses to build a commit authored by Claude: deploy from a `git archive` of
+> the reviewed commit with `--build-env VITE_COMMIT_SHA=<sha>`. The R6 fix plan
+> is `docs/audits/timhirt-production-fix-plan.md`; progress is in
+> `audit/FIXES_VERIFIED_R6.md`.
 
 The architecture blueprint is [`docs/school-saas-architecture-blueprint.md`](docs/school-saas-architecture-blueprint.md).
 Code comments cite it by section (§6.2 route guards, §17.2 canonical date
@@ -170,7 +181,7 @@ npx vitest run
 npm run check:i18n                  # must be 0
 npm run check:locales               # parity + no wholesale reformat
 npm run build
-PGHOST=… ./supabase/tests/run.sh    # 113 migrations + 65 pgTAP suites
+PGHOST=… ./supabase/tests/run.sh    # 116 migrations + 68 pgTAP suites
 python3 scripts/ci/app-rpc-grants.py      # after run.sh, same PG* env
 bash scripts/ci/deno-check.sh       # Edge Function types (ratchet)
 python3 scripts/ci/semgrep-rule-test.py   # needs semgrep 1.95.0
@@ -183,6 +194,55 @@ configured lint scope. `npx eslint src` is the project's command.
 was found by driving the app in a browser or hitting the endpoint, not by
 reading the diff. Twice a "green" result turned out to be a runner that was
 measuring nothing. Prove a gate fails before trusting that it passed.
+
+**A green suite is not a tested change: every acceptance criterion needs an
+assertion that fails when the code it protects is broken.** The Academic
+Calendar slice 1 suite had 53 passing assertions and the test verifier still
+returned FAIL (CAL-TV, 2026-10-17): seven areas had no test at all. The select
+policy and module gate on `school_calendar_entries` could be replaced with
+`using (true)`, the authority locked/closed/override guards switched off, the
+holiday-over-break precedence swapped, and the "tentative holidays are never
+counted" test passed vacuously (its only date was outside the session). The
+fix, now the rule for every WP:
+- For each new table, policy, guard, RPC and UI behaviour, write the assertion
+  that would catch its removal: cross-tenant reads/writes (tenant B sees 0
+  rows), draft/permission visibility, the module gate, locked/closed guards,
+  precedence, input limits, and the read-side defence as well as the write
+  guard.
+- Add a non-vacuity check next to each "sees 0 rows" probe (the rows exist),
+  and pick fixture dates inside the range the behaviour applies to.
+- Mutation-prove: inside `begin; <mutation>; \i suite.sql` (the suite rolls
+  back) replace the policy with `using (true)`, turn the guard's `if` into
+  `if false`, drop the predicate — each must turn an assertion red (an ERROR
+  that aborts the suite counts). Keep the log in `audit/evidence/`.
+- Time bombs: a fixture that depends on "the current EC year" must still pass
+  when the year is faked forward (2020, 2021…); prefer dates no seeded session
+  covers.
+- UI: test what the user sees (badge, legend, inspector, marks, the error
+  alert, query-key scope), and assert mock arguments (`p_action: "create"`), so
+  a wrong call cannot pass.
+- Keep parity between duplicated sources (a TS copy of a SQL seed) with a test,
+  not a comment.
+
+## Before merge and before deploy (mandatory)
+
+**Before any merge** (to `main` or any shared branch), dispatch all four on
+the commit being merged, fix every confirmed Critical/High/Medium finding, and
+re-run them on the fixed commit:
+1. `code-review` skill — correctness bugs in the diff;
+2. `security-review` skill — exploitable vulnerabilities in the diff;
+3. `tenant-isolation-review` skill (`.claude/skills/tenant-isolation-review`) —
+   no cross-tenant read or write, probed and mutation-proven;
+4. `verify` skill — run it: real Postgres for migrations/RLS, the browser
+   harness for pages.
+
+Their verdicts go in `audit/evidence/reviews/`. A change made after a skill ran
+is not reviewed: re-run the skills on the new commit.
+
+**Every deploy goes through the `deploy` skill** (`.claude/skills/deploy`):
+staging dry run first, then production, then the `deploy-checker` agent and the
+served-bundle grep. Never deploy by hand outside it, and never deploy a commit
+the four pre-merge skills have not passed.
 
 ---
 
@@ -202,8 +262,17 @@ measuring nothing. Prove a gate fails before trusting that it passed.
   threshold, voiding an invoice, changing a grade after results are published
   and transferring a student out go through `approval_requests`
   (`submit_approval` → `decide_approval`); the database refuses the direct
-  write from a client. The enforcement triggers are SECURITY INVOKER and test
-  `current_user` (a definer RPC or service_role path is trusted). A new
+  write from a client. Two kinds of enforcement trigger. The SECURITY INVOKER ones
+  (grades, students, invoice amounts and status, the payment write guard)
+  trust only `current_user` in (`postgres`, `service_role`, `supabase_admin`),
+  i.e. a definer RPC or the service key. The SECURITY DEFINER ones
+  (`payments_reject_void_invoice`, `fee_invoices_header_open_check`) see
+  `current_user = postgres` always, so they trust `current_setting('role')` in
+  (`none`, `service_role`, `postgres`, `supabase_admin`) instead; a definer RPC
+  called by a signed-in user is a client there. Every other role is a client. Invoice
+  amounts and status are written only by payments and approved requests, and
+  an approval re-checks the record it acts on (the state the checker saw)
+  under the invoice-header lock: header first, then its lines by created_at. A new
   sensitive action is registered in `approval_actions` and wired the same way,
   never gated only in the UI.
 - Deploy tokens: never commit, never echo, shred after use.

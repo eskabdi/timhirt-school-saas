@@ -8,9 +8,12 @@ export type ApprovalAction =
   | "manual_payment_accept"
   | "invoice_void"
   | "grade_edit_after_publish"
-  | "student_transfer_out";
+  | "grade_entry_after_publish"
+  | "student_transfer_out"
+  | "academic_calendar_publish"
+  | "academic_calendar_change";
 
-export type ApprovalStatus = "pending" | "approved" | "rejected" | "expired" | "executed";
+export type ApprovalStatus = "pending" | "approved" | "rejected" | "expired" | "executed" | "cancelled";
 
 export interface ApprovalRequest {
   id: string;
@@ -37,8 +40,13 @@ export const APPROVAL_SELECT =
 
 export interface DiffRow { field: string; from: unknown; to: unknown }
 
-/** Context keys used for linking, not for display. */
-const HIDDEN_FIELDS = new Set(["invoice_id"]);
+/** Context keys used for linking or re-checking, not for display. */
+const HIDDEN_FIELDS = new Set([
+  "invoice_id", "exam_id", "student_id", "subject_id",
+  // Academic calendar requests: the type is shown by its label ("type"), the
+  // rest identifies what the approval re-checks.
+  "calendar_id", "snapshot_hash", "day_type_code", "overrides_entry_id",
+]);
 
 /** The `from`/`to` pair the server stored, one row per field that changes,
  * plus any top-level context fields (amount, provider…) as unchanged rows. */
@@ -51,6 +59,7 @@ export function diffRows(payload: Record<string, unknown>): DiffRow[] {
     rows.push({ field: key, from: payload[key], to: payload[key] });
   }
   for (const key of new Set([...Object.keys(from), ...Object.keys(to)])) {
+    if (HIDDEN_FIELDS.has(key)) continue;
     rows.push({ field: key, from: from[key] ?? null, to: to[key] ?? null });
   }
   return rows;
@@ -67,7 +76,11 @@ export const APPROVAL_ERRORS = [
   "approval_already_pending", "entity_changed", "invoice_has_payments", "invoice_already_void",
   "invoice_void", "approval_not_needed", "invalid_score", "invalid_remark", "no_change",
   "invalid_state", "invalid_transferred_to", "invalid_transferred_on", "reason_too_long",
-  "invalid_settings",
+  "invalid_settings", "amount_exceeds_balance", "invoice_amounts_locked", "results_published_locked",
+  "approval_settings_rpc_only", "grade_exists", "approval_action_unavailable", "invalid_changes",
+  "results_unpublish_blocked", "no_tenant",
+  "calendar_closed", "calendar_entry_locked", "invalid_name", "invalid_range", "invalid_day_type",
+  "invalid_override", "too_many_entries", "already_overridden",
 ] as const;
 export type ApprovalErrorKey = (typeof APPROVAL_ERRORS)[number] | "unknown";
 
@@ -92,11 +105,20 @@ export async function submitApproval(action: Exclude<ApprovalAction, "manual_pay
   return data as string;
 }
 
+/** "executed" | "rejected", or "expired" when the request had run out: the
+ * server records the expiry instead of refusing. */
 export async function decideApproval(req: Pick<ApprovalRequest, "id" | "payload_hash">,
   decision: "approved" | "rejected", reason: string | null): Promise<string> {
   const { data, error } = await supabase.rpc("decide_approval", {
     p_id: req.id, p_decision: decision, p_payload_hash: req.payload_hash, p_reason: reason,
   });
+  if (error) throw error;
+  return data as string;
+}
+
+/** The maker withdraws their own pending request: "cancelled" (or "expired"). */
+export async function cancelApproval(id: string): Promise<string> {
+  const { data, error } = await supabase.rpc("cancel_approval", { p_id: id });
   if (error) throw error;
   return data as string;
 }

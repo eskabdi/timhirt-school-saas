@@ -51,8 +51,10 @@ columns, `relrowsecurity`, the policy names, the enum labels.
 All 14 share `_shared/security.ts`, so a change there means redeploying all of
 them. Each deploy is a multipart POST carrying the entrypoint plus the shared
 files, with `verify_jwt` matching what is already live — public endpoints
-(`chapa-webhook`, `check-admission-status`, `submit-admission`,
-`upload-admission-document`, `verify-id`) are `false`; everything else `true`.
+(`check-admission-status`, `check-login-attempt`, `sso-domain-lookup`,
+`submit-admission`, `upload-admission-document`, `verify-admission-bank-url`,
+`verify-id`) are `false`; everything else `true` — `supabase/config.toml` is
+the source of truth (28 functions; `chapa-webhook` no longer exists).
 
 ```bash
 curl -X POST -H "Authorization: Bearer $SB" \

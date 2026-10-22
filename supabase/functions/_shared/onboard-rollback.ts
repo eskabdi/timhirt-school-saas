@@ -13,6 +13,7 @@
 // accepted yet. So the auth user is kept if any public.users row still owns
 // that id after this tenant's users are removed, or if GoTrue created it
 // before this run started.
+import { logSafeError } from "./auth-errors.ts";
 export interface RollbackClient {
   from(table: string): {
     delete(): { eq(col: string, v: string): PromiseLike<{ error: { message: string } | null }> };
@@ -38,10 +39,10 @@ export async function rollbackTenant(db: RollbackClient, tenantId: string, invit
   const step = async (name: string, run: () => PromiseLike<{ error: { message: string } | null }>) => {
     try {
       const { error } = await run();
-      if (error) { failed.push(name); console.error(`onboard-tenant rollback: ${name} failed`, { message: error.message }); }
+      if (error) { failed.push(name); console.error(`onboard-tenant rollback: ${name} failed`, logSafeError(error)); }
     } catch (err) {
       failed.push(name);
-      console.error(`onboard-tenant rollback: ${name} failed`, { message: (err as Error).message });
+      console.error(`onboard-tenant rollback: ${name} failed`, logSafeError(err));
     }
   };
   for (const table of ROLLBACK_ORDER) await step(table, () => db.from(table).delete().eq("tenant_id", tenantId));

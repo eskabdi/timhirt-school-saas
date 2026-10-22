@@ -83,6 +83,7 @@ const NAV: NavSection[] = [
       { to: "/library", key: "nav.library", roles: LIBRARY, module: "library" },
       { to: "/library/circulation", key: "nav.libraryCirculation", roles: LIBRARY, module: "library" },
       { to: "/transport", key: "nav.transport", roles: ["school_admin"], module: "transport" },
+      { to: "/academic-calendar", key: "nav.academicCalendar", roles: STAFF, module: "events" },
       { to: "/events", key: "nav.events", roles: ["school_admin"], module: "events" },
     ],
   },

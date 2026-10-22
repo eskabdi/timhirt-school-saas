@@ -1,0 +1,1 @@
+postgres can SELECT auth.users: production True, staging True (has_table_privilege, 2026-10-17T22:54:34Z); postgres is not superuser in either

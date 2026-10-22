@@ -1,0 +1,12 @@
+tsc-ok
+eslint-ok
+      Tests  182 passed (182)
+TOTAL 0 hardcoded strings across 0 files (after aliasing the removalName signature, a generic the audit read as JSX text)
+locale checks passed
+✓ built in 9.47s
+deno-check: 28 functions, 3 baselined, ok
+    117 migrations applied
+    ok   academic_calendar_authoring.sql (102/102 assertions)
+    ok   academic_calendar_engine.sql (94/94 assertions)
+==> All suites passed
+app-rpc-grants: 31 app RPCs, 0 finding(s)

@@ -27,7 +27,7 @@ export function FinancialReportPage() {
     queryKey: ["financial-report", "invoices"],
     queryFn: async () => {
       const { data, error } = await supabase.from("fee_invoices")
-        .select("id, amount_due, amount_paid, status, created_at").limit(5000);
+        .select("id, amount_due, amount_paid, status, created_at").neq("status", "void").limit(5000);
       if (error) throw error;
       return (data ?? []) as Invoice[];
     },

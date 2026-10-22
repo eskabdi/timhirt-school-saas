@@ -57,7 +57,12 @@ Deno.serve(async (req) => {
     const { data: lines } = await ctx.userClient.from("fee_invoices")
       .select("amount_due, amount_paid, status, fee_structure:fee_structures(name_i18n, billing_cycle)")
       .eq("invoice_header_id", header.id).order("created_at");
-    const lineItems: FeeLineItem[] = (lines ?? []).map((l) => {
+    // Void lines are not owed and are left off the document; an invoice
+    // whose lines are all void is not issued again (R6 WP-09).
+    const allLines = lines ?? [];
+    const openLines = allLines.filter((l) => l.status !== "void");
+    if (p.kind === "invoice" && allLines.length > 0 && openLines.length === 0) return json({ error: "invoice_void" }, 400);
+    const lineItems: FeeLineItem[] = openLines.map((l) => {
       const fs = l.fee_structure as unknown as { name_i18n: Record<string, string>; billing_cycle: string } | null;
       return {
         feeStructureName: fs?.name_i18n?.en ?? "Fee", billingCycle: fs?.billing_cycle ?? "-",

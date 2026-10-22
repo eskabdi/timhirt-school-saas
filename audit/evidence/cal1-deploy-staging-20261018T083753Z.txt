@@ -1,0 +1,19 @@
+# Staging dry run (20261018T083753Z): ekebibapffrhzibidbnr, files from git archive of 61836e2
+114
+applied 20261008000001_academic_calendar_engine.sql
+applied 20261017000001_tenant_admin_invite_states.sql
+## after
+migrations | 116
+definer fns | 81
+anon-exec definers | 0
+unpinned definers | 0
+tables w/o FORCE RLS | 0
+merge_tenant_settings auth/anon | true/false
+default acl - | {postgres=X/postgres}
+default acl public | {postgres=X/postgres,service_role=X/postgres}
+default acl extensions | {=X/postgres}
+default acl storage | {postgres=X/postgres,service_role=X/postgres}
+HTTP 400 {"message":"Failed to run sql query: ERROR:  42501: permission denied for function ec_to_gregorian\n"}
+False | True | 7
+## golden sheet as owner (rolled back)
+18 | 15 | 16 | 9,20,21,22,21,14,20,22,19,21,21,0,0 | 210

@@ -1,0 +1,51 @@
+# Focus ring on the selected cell (CAL-I18N3-01), Chromium 360px, keyboard only: Tab into grid, ArrowRight, Enter, Tab out, Shift+Tab back
+{
+ "en": {
+  "inGrid": true,
+  "focusVisible": true,
+  "shadow": "rgb(248, 249, 250) 0px 0px 0px 2px, rgb(4, 22, 53) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+  "hasSelectedOverlay": true,
+  "sw": 360,
+  "iw": 360,
+  "navyRingAfterEnter": true,
+  "back": {
+   "focusVisible": true,
+   "shadow": "rgb(248, 249, 250) 0px 0px 0px 2px, rgb(4, 22, 53) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+   "selected": true
+  },
+  "navyRingBackIn": true,
+  "errors": []
+ },
+ "am": {
+  "inGrid": true,
+  "focusVisible": true,
+  "shadow": "rgb(248, 249, 250) 0px 0px 0px 2px, rgb(4, 22, 53) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+  "hasSelectedOverlay": true,
+  "sw": 360,
+  "iw": 360,
+  "navyRingAfterEnter": true,
+  "back": {
+   "focusVisible": true,
+   "shadow": "rgb(248, 249, 250) 0px 0px 0px 2px, rgb(4, 22, 53) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+   "selected": true
+  },
+  "navyRingBackIn": true,
+  "errors": []
+ },
+ "om": {
+  "inGrid": true,
+  "focusVisible": true,
+  "shadow": "rgb(248, 249, 250) 0px 0px 0px 2px, rgb(4, 22, 53) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+  "hasSelectedOverlay": true,
+  "sw": 360,
+  "iw": 360,
+  "navyRingAfterEnter": true,
+  "back": {
+   "focusVisible": true,
+   "shadow": "rgb(248, 249, 250) 0px 0px 0px 2px, rgb(4, 22, 53) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+   "selected": true
+  },
+  "navyRingBackIn": true,
+  "errors": []
+ }
+}

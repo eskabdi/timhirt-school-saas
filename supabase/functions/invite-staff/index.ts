@@ -37,9 +37,16 @@
 // ============================================================================
 import { z } from "npm:zod@3";
 import { requireRole, errors, json, rateLimit, corsHeaders, STAFF_NO_REGEX } from "../_shared/security.ts";
+import { isRateLimited, logSafeError, RATE_LIMITED_MESSAGE } from "../_shared/auth-errors.ts";
+import { createdByThisCall, escapeLike, rollbackInvitedUser, type InviteRollbackClient } from "../_shared/invite-guard.ts";
 
 const Payload = z.object({
-  email: z.string().email().max(254),
+  // GoTrue stores addresses lower-case; so do we, and the duplicate check
+  // below is case-insensitive (as in invite-tenant-admin and onboard-tenant):
+  // a case-only variant of an existing address used to pass the check, get
+  // that existing account back from inviteUserByEmail, and have the rollback
+  // delete it.
+  email: z.string().trim().email().max(254).transform((s) => s.toLowerCase()),
   full_name: z.string().trim().min(1).max(120),
   role: z.enum(["teacher", "registrar", "hr_officer", "accountant", "librarian"]),
   staff_no: z.string().regex(STAFF_NO_REGEX).optional(),
@@ -59,6 +66,7 @@ Deno.serve(async (req) => {
   if (ctxOrRes instanceof Response) return ctxOrRes;
   const ctx = ctxOrRes;
   let invitedUserId: string | undefined;
+  let profileInserted = false;
   try {
     if (req.method !== "POST") return errors.badRequest();
     if (!(await rateLimit(`invite-staff:${ctx.userId}`, 15, 60_000))) return errors.tooMany();
@@ -70,26 +78,34 @@ Deno.serve(async (req) => {
     if (ctx.role === "hr_officer" && !HR_OFFICER_ASSIGNABLE_ROLES.has(p.role)) return errors.forbidden();
     const db = ctx.adminClient;
 
-    const { data: existing } = await db.from("users").select("id").eq("email", p.email).maybeSingle();
+    // Fail closed: an unverified duplicate check must never lead to an invite.
+    const { data: existing, error: existErr } = await db.from("users").select("id")
+      .ilike("email", escapeLike(p.email)).limit(1).maybeSingle();
+    if (existErr) throw existErr;
     if (existing) return json({ error: "This email is already registered to a user in the system." }, 400);
 
     if (p.role === "teacher" && p.staff_no) {
-      const { data: dupStaffNo } = await db.from("teachers")
+      const { data: dupStaffNo, error: dupErr } = await db.from("teachers")
         .select("id").eq("tenant_id", ctx.tenantId).eq("staff_no", p.staff_no).maybeSingle();
+      if (dupErr) throw dupErr;   // fail closed: never invite on an unverified check
       if (dupStaffNo) return json({ error: "This staff number is already in use." }, 400);
     }
 
     const appUrl = Deno.env.get("APP_URL") ?? "https://timhirt-school-saas.vercel.app";
+    const inviteStartedAt = Date.now();
     const { data: invited, error: uErr } = await db.auth.admin.inviteUserByEmail(p.email, {
       data: { full_name: p.full_name },
       redirectTo: `${appUrl}/accept-invite`,
     });
     if (uErr) {
-      if (/rate limit/i.test(uErr.message)) {
-        return json({ error: "Too many invite emails sent recently. Try again shortly." }, 429);
+      if (isRateLimited(uErr)) {
+        return json({ error: RATE_LIMITED_MESSAGE }, 429);
       }
       throw uErr;
     }
+    // An auth account that already existed (no profile, or one a concurrent
+    // request is creating) is never adopted, and so never rolled back.
+    if (!createdByThisCall(invited.user.created_at, inviteStartedAt)) return json({ error: "This email is already registered to a user in the system." }, 400);
     invitedUserId = invited.user.id;
 
     const { error: profileErr } = await db.from("users").insert({
@@ -97,6 +113,7 @@ Deno.serve(async (req) => {
       full_name: p.full_name, email: p.email, locale: p.default_locale,
     });
     if (profileErr) throw profileErr;
+    profileInserted = true;
 
     if (p.role === "teacher") {
       const { error: teacherErr } = await db.from("teachers").insert({
@@ -108,9 +125,9 @@ Deno.serve(async (req) => {
 
     return json({ user_id: invitedUserId }, 201);
   } catch (err) {
-    console.error("invite-staff failed", { message: (err as Error).message });
+    console.error("invite-staff failed", logSafeError(err));
     if (invitedUserId) {
-      await ctx.adminClient.auth.admin.deleteUser(invitedUserId).catch(() => {});
+      await rollbackInvitedUser(ctx.adminClient as unknown as InviteRollbackClient, invitedUserId, profileInserted, "invite-staff");
     }
     return errors.internal();
   }

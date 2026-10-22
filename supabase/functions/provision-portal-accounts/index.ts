@@ -27,6 +27,7 @@
 // ============================================================================
 import { z } from "npm:zod@3";
 import { requireRole, errors, json, rateLimit, corsHeaders } from "../_shared/security.ts";
+import { logSafeError } from "../_shared/auth-errors.ts";
 import { fullName } from "../_shared/names.ts";
 
 const Payload = z.object({ student_id: z.string().uuid() });
@@ -171,7 +172,7 @@ Deno.serve(async (req) => {
 
     return json({ already_provisioned: false, accounts }, 201);
   } catch (err) {
-    console.error("provision-portal-accounts failed", { message: (err as Error).message });
+    console.error("provision-portal-accounts failed", logSafeError(err));
     for (const id of createdAuthUserIds) {
       await db.auth.admin.deleteUser(id).catch(() => {});
     }

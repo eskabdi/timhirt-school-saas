@@ -1,0 +1,74 @@
+# Pre-deploy browser verification (verify skill), 2026-10-17T15:56:57Z
+Harness: Vite + real AcademicYearGridPage from the working tree, mocked supabase/session; Chromium 360x800 mobile, show_hijri + hijri_holidays on, today selected (Enter), then ArrowDown.
+Negative control: regressionScrollWidthIfStatic = page width with the region's position reset to static (the CAL-I18N2-01 regression) — the measurement catches it.
+{
+ "en": {
+  "before": {
+   "sw": 360,
+   "iw": 360
+  },
+  "afterSelect": {
+   "sw": 360,
+   "iw": 360
+  },
+  "activeLabel": "Saturday — Tikimt 7, 2019 E.C. — Weekend — Jumada al-Ula 6, 1448 AH — Not a school day",
+  "activeCol": 13,
+  "todayBar": true,
+  "selectedRing": "rgb(255, 255, 255) 0px 0px 0px 2px inset, rgb(17, 17, 17) 0px 0px 0px 4px inset",
+  "totals": "9,20,21,22,21,14,20,22,19,21,21,–,–",
+  "year": "210",
+  "hint": "Keyboard: arrow keys move between days (up and down stay in ",
+  "down": {
+   "label": "Saturday — Hidar 12, 2019 E.C. — Weekend — Jumada al-Akhirah 11, 1448 AH — Not a school day",
+   "col": 13
+  },
+  "regressionScrollWidthIfStatic": 970,
+  "errors": []
+ },
+ "am": {
+  "before": {
+   "sw": 360,
+   "iw": 360
+  },
+  "afterSelect": {
+   "sw": 360,
+   "iw": 360
+  },
+  "activeLabel": "ቅዳሜ — ጥቅምት 7, 2019 ዓ.ም — የሳምንት መጨረሻ — ጀማደል ኡላ 6, 1448 ዓ.ሂ — የትምህርት ቀን አይደለም",
+  "activeCol": 13,
+  "todayBar": true,
+  "selectedRing": "rgb(255, 255, 255) 0px 0px 0px 2px inset, rgb(17, 17, 17) 0px 0px 0px 4px inset",
+  "totals": "9,20,21,22,21,14,20,22,19,21,21,–,–",
+  "year": "210",
+  "hint": "በቁልፍ ሰሌዳ፦ የቀስት ቁልፎች በቀናት መካከል ያንቀሳቅሳሉ (ላይና ታች በዚያው ዓምድ ይቆያሉ)",
+  "down": {
+   "label": "ቅዳሜ — ኅዳር 12, 2019 ዓ.ም — የሳምንት መጨረሻ — ጀማደል አኺር 11, 1448 ዓ.ሂ — የትምህርት ቀን አይደለም",
+   "col": 13
+  },
+  "regressionScrollWidthIfStatic": 954,
+  "errors": []
+ },
+ "om": {
+  "before": {
+   "sw": 360,
+   "iw": 360
+  },
+  "afterSelect": {
+   "sw": 360,
+   "iw": 360
+  },
+  "activeLabel": "Sanbata — Onkololeessa 7, 2019 ALI — Dhuma Torbanii — Jumaada Uulaa 6, 1448 A.H. — Guyyaa barnootaa miti",
+  "activeCol": 13,
+  "todayBar": true,
+  "selectedRing": "rgb(255, 255, 255) 0px 0px 0px 2px inset, rgb(17, 17, 17) 0px 0px 0px 4px inset",
+  "totals": "9,20,21,22,21,14,20,22,19,21,21,–,–",
+  "year": "210",
+  "hint": "Kiiboordii: furtuuwwan xiyyaa guyyoota gidduu socho'u (olii ",
+  "down": {
+   "label": "Sanbata — Sadaasa 12, 2019 ALI — Dhuma Torbanii — Jumaada Aakhira 11, 1448 A.H. — Guyyaa barnootaa miti",
+   "col": 13
+  },
+  "regressionScrollWidthIfStatic": 978,
+  "errors": []
+ }
+}

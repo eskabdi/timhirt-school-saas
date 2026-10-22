@@ -125,6 +125,9 @@ set local request.jwt.claim.sub = 'a0000005-0000-0000-0000-000000000005';
 select is((select count(*)::int from public.fee_invoices), 1, 'role grant: teacher can now read fee invoices');
 reset role;
 
+-- The fixture invoice is fully paid; a client may not pay more than is owed
+-- (R6 WP-09), so leave 100 open for the accountant's payment below.
+update public.fee_invoices set amount_due = 5100, status = 'partial' where id = 'a0000000-0000-0000-0000-0000000f0101';
 set local role authenticated;
 set local request.jwt.claim.sub = 'a0000002-0000-0000-0000-000000000002'; -- accountant, default create population
 select lives_ok(

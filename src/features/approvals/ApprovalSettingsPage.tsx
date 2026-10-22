@@ -77,6 +77,7 @@ export function ApprovalSettingsPage() {
             <ul className="mt-1 list-disc pl-5 text-sm text-ink-soft">
               <li>{t("approvals.action.invoice_void")}</li>
               <li>{t("approvals.action.grade_edit_after_publish")}</li>
+              <li>{t("approvals.action.grade_entry_after_publish")}</li>
               <li>{t("approvals.action.student_transfer_out")}</li>
             </ul>
           </div>
