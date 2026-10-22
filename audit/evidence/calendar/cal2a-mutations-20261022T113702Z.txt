@@ -1,0 +1,31 @@
+# F-01 slice 2a mutation log (20261022T113702Z), suite academic_calendar_authoring.sql (83 assertions)
+# Each mutation is applied inside begin; ... \i suite (the suite rolls back). KILLED = an assertion failed or an ERROR aborted the suite.
+KILLED   M01 calendars select: approve branch dropped ok=81 fails=18,19 
+KILLED   M02 calendars select: using (true) ok=81 fails=16,17 
+KILLED   M03 year settings: draft clause dropped ok=81 fails=31,32 
+KILLED   M04 entry guard: published check off ok=82 fails=70 
+KILLED   M05 calendars guard: transitions unchecked ok=70 fails=71,72,73 ERR: psql:supabase/tests/rls/academic_calendar_authoring.sql:371: ERROR:  calendar_closed
+KILLED   M06 save: tenant filter dropped ok=82 fails=22 
+KILLED   M07 save: pending-publish freeze off ok=41 fails=36 ERR: psql:supabase/tests/rls/academic_calendar_authoring.sql:245: ERROR:  entity_changed
+KILLED   M08 save: permission check off ok=76 fails=14,19,20,35,45,54 
+KILLED   M09 save: module check off ok=82 fails=27 
+KILLED   M10 save: name validation off ok=72 fails=2,4,5,6,7,19 
+KILLED   M11 save: year-closed check off ok=82 fails=78 
+KILLED   M12 delete: tenant filter dropped ok=82 fails=24 
+SURVIVED M13 delete: draft-only off (guard is the 2nd line, expected to survive alone) ok=83 fails= 
+KILLED   M13b delete draft-only off + entry guard published check off ok=59 fails=50,54,56 ERR: psql:supabase/tests/rls/academic_calendar_authoring.sql:323: ERROR:  not_allowed
+KILLED   M14 payload: publish tenant filter dropped ok=33 fails=25 ERR: psql:supabase/tests/rls/academic_calendar_authoring.sql:213: ERROR:  approval_already_pending
+KILLED   M15 payload: publish permission off ok=33 fails=33 ERR: psql:supabase/tests/rls/academic_calendar_authoring.sql:213: ERROR:  approval_already_pending
+KILLED   M16 payload: change entry tenant filter dropped ok=61 fails=57 ERR: psql:supabase/tests/rls/academic_calendar_authoring.sql:323: ERROR:  approval_already_pending
+KILLED   M17 payload: guard trial run swallowed ok=82 fails=53 
+KILLED   M18 payload: unknown keys accepted ok=82 fails=51 
+KILLED   M19 payload: draft check off ok=82 fails=58 
+KILLED   M20 execute: snapshot hash not rechecked ok=70 fails=47,48,58 ERR: psql:supabase/tests/rls/academic_calendar_authoring.sql:374: ERROR:  approval_not_pending
+KILLED   M21 execute: entry 'from' not rechecked ok=63 fails=64,65 ERR: psql:supabase/tests/rls/academic_calendar_authoring.sql:336: ERROR:  approval_not_pending
+KILLED   M22 execute: year-closed not rechecked ok=81 fails=79,80 
+KILLED   M23 execute: version not bumped ok=81 fails=61,69 
+KILLED   M24 year close trigger off ok=79 fails=75,81,82,83 
+KILLED   M25 approve permission default grant removed ok=40 fails=38,42 ERR: psql:supabase/tests/rls/academic_calendar_authoring.sql:245: ERROR:  not_allowed
+KILLED   M26 entries guard: closed check off ok=81 fails=82,83 
+KILLED   M27 calendars guard: closed immutability off ok=82 fails=81 
+# UI (CalendarEditor.test.tsx): UM1 published edit saved directly KILLED; UM2 locked entry removable KILLED; UM3 never frozen KILLED

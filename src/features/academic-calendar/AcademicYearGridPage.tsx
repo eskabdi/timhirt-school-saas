@@ -29,8 +29,9 @@ import { hijriHolidaySuggestions } from "@/lib/ethiopian-holidays";
 import { buildYearGrid, GRID_COLUMNS, type GridCell } from "./grid";
 import { DAY_TYPE_MARKS, OUT_OF_SESSION_FILL } from "./dayTypes";
 import { textOn } from "./contrast";
+import { CalendarEditor } from "./CalendarEditor";
 import {
-  calendarErrorKey, createSchoolCalendar, fetchAuthorities, fetchCanCreateCalendar, fetchDayTypes, fetchEffectiveEntries,
+  calendarErrorKey, createSchoolCalendar, fetchAuthorities, fetchCalendarPermission, fetchCanCreateCalendar, fetchDayTypes, fetchEffectiveEntries,
   fetchYearSettings, toGridDayTypes, toGridEntries, type CalendarOrigin, type CreateCalendarResult, type DayTypeRow,
   type EffectiveEntry,
 } from "./api";
@@ -84,6 +85,16 @@ export function AcademicYearGridPage() {
     queryKey: ["academic-calendar", ...scope, "can-create"],
     queryFn: () => fetchCanCreateCalendar(profile!.id),
     enabled: !!profile?.id,
+  });
+  const canEdit = useQuery({
+    queryKey: ["academic-calendar", ...scope, "can-update"],
+    queryFn: () => fetchCalendarPermission(profile!.id, "update"),
+    enabled: !!profile?.id,
+  });
+  const canPublish = useQuery({
+    queryKey: ["academic-calendar", ...scope, "can-publish"],
+    queryFn: () => fetchCalendarPermission(profile!.id, "publish"),
+    enabled: canEdit.data === true,
   });
   // Only the chooser needs last year (is there a published calendar to copy?).
   const prevSettings = useQuery({
@@ -316,6 +327,12 @@ export function AcademicYearGridPage() {
             typeLabel={typeLabel} lang={lang} />
         )}
       </div>
+
+      {canEdit.data === true && s?.school_calendar_id && (status === "draft" || status === "published") && dayTypes.data && (
+        <CalendarEditor calendarId={s.school_calendar_id} status={status} dayTypes={dayTypes.data} lang={lang}
+          selectedIso={selected?.isoDate ?? null} canPublish={canPublish.data === true}
+          selectedEntries={selected ? selected.entryIds.map((id) => entryById.get(id)).filter((e): e is EffectiveEntry => !!e) : []} />
+      )}
 
       {grid && dayTypes.data && entries.data && (
         <Legend dayTypes={dayTypes.data} entries={entries.data} lang={lang}

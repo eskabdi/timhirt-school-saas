@@ -9,7 +9,9 @@ export type ApprovalAction =
   | "invoice_void"
   | "grade_edit_after_publish"
   | "grade_entry_after_publish"
-  | "student_transfer_out";
+  | "student_transfer_out"
+  | "academic_calendar_publish"
+  | "academic_calendar_change";
 
 export type ApprovalStatus = "pending" | "approved" | "rejected" | "expired" | "executed" | "cancelled";
 
@@ -38,8 +40,13 @@ export const APPROVAL_SELECT =
 
 export interface DiffRow { field: string; from: unknown; to: unknown }
 
-/** Context keys used for linking, not for display. */
-const HIDDEN_FIELDS = new Set(["invoice_id", "exam_id", "student_id", "subject_id"]);
+/** Context keys used for linking or re-checking, not for display. */
+const HIDDEN_FIELDS = new Set([
+  "invoice_id", "exam_id", "student_id", "subject_id",
+  // Academic calendar requests: the type is shown by its label ("type"), the
+  // rest identifies what the approval re-checks.
+  "calendar_id", "snapshot_hash", "day_type_code", "overrides_entry_id",
+]);
 
 /** The `from`/`to` pair the server stored, one row per field that changes,
  * plus any top-level context fields (amount, provider…) as unchanged rows. */
@@ -52,6 +59,7 @@ export function diffRows(payload: Record<string, unknown>): DiffRow[] {
     rows.push({ field: key, from: payload[key], to: payload[key] });
   }
   for (const key of new Set([...Object.keys(from), ...Object.keys(to)])) {
+    if (HIDDEN_FIELDS.has(key)) continue;
     rows.push({ field: key, from: from[key] ?? null, to: to[key] ?? null });
   }
   return rows;
@@ -71,6 +79,8 @@ export const APPROVAL_ERRORS = [
   "invalid_settings", "amount_exceeds_balance", "invoice_amounts_locked", "results_published_locked",
   "approval_settings_rpc_only", "grade_exists", "approval_action_unavailable", "invalid_changes",
   "results_unpublish_blocked", "no_tenant",
+  "calendar_closed", "calendar_entry_locked", "invalid_name", "invalid_range", "invalid_day_type",
+  "invalid_override", "too_many_entries",
 ] as const;
 export type ApprovalErrorKey = (typeof APPROVAL_ERRORS)[number] | "unknown";
 

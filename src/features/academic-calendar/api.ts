@@ -35,6 +35,10 @@ export interface DayTypeRow {
   category: DayCategory;
   counts_as_instructional: boolean;
   legend_order: number;
+  /** Only the MoE or a regional bureau enters it (a school may only remove an unlocked one). */
+  authority_only: boolean;
+  /** Computed by the engine (instructional, weekend); never entered. */
+  derived: boolean;
 }
 
 export async function fetchYearSettings(ecYear: number): Promise<YearSettings | null> {
@@ -52,7 +56,7 @@ export async function fetchEffectiveEntries(ecYear: number): Promise<EffectiveEn
 export async function fetchDayTypes(): Promise<DayTypeRow[]> {
   const { data, error } = await supabase
     .from("calendar_day_types")
-    .select("code,label_i18n,color,category,counts_as_instructional,legend_order")
+    .select("code,label_i18n,color,category,counts_as_instructional,legend_order,authority_only,derived")
     .order("legend_order");
   if (error) throw error;
   // Only #rrggbb reaches a style (the DB CHECK says so too; defence in depth).
@@ -65,8 +69,13 @@ export async function fetchDayTypes(): Promise<DayTypeRow[]> {
  * roles and per-user grants can carry), not a role name.
  */
 export async function fetchCanCreateCalendar(userId: string): Promise<boolean> {
+  return fetchCalendarPermission(userId, "create");
+}
+
+/** academic_calendar:<action> for the signed-in user (the server re-checks it on every call). */
+export async function fetchCalendarPermission(userId: string, action: "create" | "update" | "publish"): Promise<boolean> {
   const { data, error } = await supabase.rpc("has_resource_permission", {
-    p_user_id: userId, p_resource: "academic_calendar", p_action: "create",
+    p_user_id: userId, p_resource: "academic_calendar", p_action: action,
   });
   if (error) throw error;
   return data === true;
@@ -111,3 +120,113 @@ export const toGridDayTypes = (rows: readonly DayTypeRow[]): GridDayType[] =>
 
 export const toGridEntries = (rows: readonly EffectiveEntry[]): GridEntry[] =>
   rows.map((r) => ({ id: r.entry_id, dayTypeCode: r.day_type_code, startsOn: r.starts_on, endsOn: r.ends_on }));
+
+// ------------------------------------------------------------- authoring --
+// 20261022000001: a draft is edited directly; publishing it and changing it
+// once published are maker-checker requests (submit_approval), applied only
+// when a second person with academic_calendar:approve agrees.
+
+export interface SchoolEntry {
+  id: string;
+  day_type_code: string;
+  starts_on: string;
+  ends_on: string;
+  name_i18n: Record<string, string>;
+  overrides_entry_id: string | null;
+  suppressed: boolean;
+}
+
+export interface EntryInput {
+  day_type_code: string;
+  starts_on: string;
+  ends_on: string;
+  name_i18n: Record<string, string>;
+  overrides_entry_id?: string | null;
+  suppressed?: boolean;
+}
+
+/** The school's own entries (removals of MoE/regional dates included). */
+export async function fetchSchoolEntries(calendarId: string): Promise<SchoolEntry[]> {
+  const { data, error } = await supabase
+    .from("school_calendar_entries")
+    .select("id,day_type_code,starts_on,ends_on,name_i18n,overrides_entry_id,suppressed")
+    .eq("calendar_id", calendarId)
+    .order("starts_on");
+  if (error) throw error;
+  return (data as SchoolEntry[] | null) ?? [];
+}
+
+export interface CalendarRequest {
+  id: string;
+  action: "academic_calendar_publish" | "academic_calendar_change";
+  entity_id: string;
+  maker_id: string;
+  payload: { op?: "add" | "update" | "delete" };
+}
+
+/**
+ * The pending requests about this calendar that the user can see (their own,
+ * or all of them for a checker): the publish request names the calendar, a
+ * change request carries it in its payload. calendarId comes from the server.
+ */
+export async function fetchCalendarRequests(calendarId: string): Promise<CalendarRequest[]> {
+  const { data, error } = await supabase
+    .from("approval_requests")
+    .select("id,action,entity_id,maker_id,payload")
+    .eq("status", "pending")
+    .in("action", ["academic_calendar_publish", "academic_calendar_change"])
+    .or(`entity_id.eq.${calendarId},payload->>calendar_id.eq.${calendarId}`);
+  if (error) throw error;
+  return (data as CalendarRequest[] | null) ?? [];
+}
+
+export async function saveDraftEntry(calendarId: string, entryId: string | null, e: EntryInput): Promise<string> {
+  const { data, error } = await supabase.rpc("save_school_calendar_entry", {
+    p_calendar_id: calendarId, p_entry_id: entryId, p_day_type_code: e.day_type_code,
+    p_starts_on: e.starts_on, p_ends_on: e.ends_on, p_name_i18n: e.name_i18n,
+    p_overrides_entry_id: e.overrides_entry_id ?? null, p_suppressed: e.suppressed ?? false,
+  });
+  if (error) throw error;
+  return data as string;
+}
+
+export async function deleteDraftEntry(entryId: string): Promise<void> {
+  const { error } = await supabase.rpc("delete_school_calendar_entry", { p_entry_id: entryId });
+  if (error) throw error;
+}
+
+export async function requestPublish(calendarId: string, reason: string | null): Promise<string> {
+  const { data, error } = await supabase.rpc("submit_approval", {
+    p_action: "academic_calendar_publish", p_entity_id: calendarId, p_changes: {}, p_reason: reason,
+  });
+  if (error) throw error;
+  return data as string;
+}
+
+/** A change to the published calendar: add (entity = the calendar), update or delete (entity = the entry). */
+export async function requestChange(
+  op: "add" | "update" | "delete", entityId: string, e: EntryInput | null, reason: string | null,
+): Promise<string> {
+  const changes = op === "delete" || !e ? { op } : {
+    op, day_type_code: e.day_type_code, starts_on: e.starts_on, ends_on: e.ends_on, name_i18n: e.name_i18n,
+    overrides_entry_id: e.overrides_entry_id ?? null, suppressed: e.suppressed ?? false,
+  };
+  const { data, error } = await supabase.rpc("submit_approval", {
+    p_action: "academic_calendar_change", p_entity_id: entityId, p_changes: changes, p_reason: reason,
+  });
+  if (error) throw error;
+  return data as string;
+}
+
+const EDITOR_ERRORS = [
+  "not_allowed", "approval_required", "approval_already_pending", "approval_not_needed", "calendar_closed",
+  "invalid_name", "invalid_range", "invalid_day_type", "invalid_override", "calendar_entry_locked",
+  "too_many_entries", "invalid_state", "invalid_changes", "no_change", "invalid_calendar",
+] as const;
+export type EditorErrorKey = (typeof EDITOR_ERRORS)[number] | "unknown";
+
+/** The server's error code (exact match, as calendarErrorKey), or "unknown". */
+export function editorErrorKey(err: unknown): EditorErrorKey {
+  const message = err && typeof err === "object" && "message" in err ? String((err as { message: unknown }).message) : "";
+  return EDITOR_ERRORS.find((k) => message === k) ?? "unknown";
+}

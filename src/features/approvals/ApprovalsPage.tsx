@@ -142,6 +142,7 @@ function ApprovalCard({ request: r, myId, onDecided }: {
   const entityLink = r.action === "invoice_void" ? `/fees/invoices/${r.entity_id}`
     : r.action === "manual_payment_accept" && typeof r.payload.invoice_id === "string" ? `/fees/invoices/${r.payload.invoice_id}`
     : r.action === "student_transfer_out" ? `/students/${r.entity_id}`
+    : r.action === "academic_calendar_publish" || r.action === "academic_calendar_change" ? "/academic-calendar"
     : null;
 
   return (
@@ -232,6 +233,7 @@ function ApprovalCard({ request: r, myId, onDecided }: {
 }
 
 const MONEY_FIELDS = new Set(["amount", "amount_due", "amount_paid"]);
+const DATE_FIELDS = new Set(["transferred_on", "starts_on", "ends_on"]);
 
 function DiffValue({ row, side }: { row: DiffRow; side: "from" | "to" }) {
   const { t, i18n } = useTranslation();
@@ -244,8 +246,9 @@ function DiffValue({ row, side }: { row: DiffRow; side: "from" | "to" }) {
     const text: unknown = Array.isArray(v) ? null : tField(v as Record<string, string>, i18n.resolvedLanguage ?? "en");
     return typeof text === "string" && text ? <>{text}</> : <span className="text-ink-soft">—</span>;
   }
-  if (row.field === "transferred_on" && typeof v === "string") return <EthDate value={v} />;
-  if (row.field === "status" && typeof v === "string") return <>{t(`approvals.value.${v}`, { defaultValue: v })}</>;
+  if (DATE_FIELDS.has(row.field) && typeof v === "string") return <EthDate value={v} />;
+  if ((row.field === "status" || row.field === "op") && typeof v === "string") return <>{t(`approvals.value.${v}`, { defaultValue: v })}</>;
+  if (typeof v === "boolean") return <>{t(`approvals.value.${String(v)}`)}</>;
   if (row.field === "provider" && typeof v === "string") return <>{t(`fees.paymentProvider.${v}`, { defaultValue: v })}</>;
   if (MONEY_FIELDS.has(row.field) && Number.isFinite(Number(v))) return <>{formatETB(Number(v), i18n.resolvedLanguage ?? "en")}</>;
   return <>{String(v)}</>;
