@@ -14,6 +14,7 @@
 // labelled region, which is positioned so nothing in it widens the page.
 import { useEffect, useId, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
+import { useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "@/features/auth/useSession";
 import { useCalendarPrefs } from "@/features/settings/useCalendarPrefs";
@@ -59,7 +60,12 @@ export function AcademicYearGridPage() {
   const digits: NumeralSystem = prefs.numerals;
   const num = (v: number) => formatDigits(v, digits);
   const currentYear = useMemo(() => todayEthiopian().year, []);
-  const [year, setYear] = useState(currentYear);
+  // ?year= (the Approvals inbox links a request to its year), within the current year ± 1.
+  const [searchParams] = useSearchParams();
+  const [year, setYear] = useState(() => {
+    const asked = Number(searchParams.get("year"));
+    return Number.isInteger(asked) && Math.abs(asked - currentYear) <= 1 ? asked : currentYear;
+  });
   const [selected, setSelected] = useState<GridCell | null>(null);
   const [focusIso, setFocusIso] = useState<string | null>(null);
   const [created, setCreated] = useState<{ year: number; result: CreateCalendarResult } | null>(null);
@@ -329,7 +335,7 @@ export function AcademicYearGridPage() {
       </div>
 
       {canEdit.data === true && s?.school_calendar_id && (status === "draft" || status === "published") && dayTypes.data && (
-        <CalendarEditor calendarId={s.school_calendar_id} status={status} dayTypes={dayTypes.data} lang={lang}
+        <CalendarEditor key={s.school_calendar_id} calendarId={s.school_calendar_id} status={status} dayTypes={dayTypes.data} lang={lang}
           selectedIso={selected?.isoDate ?? null} canPublish={canPublish.data === true}
           selectedEntries={selected ? selected.entryIds.map((id) => entryById.get(id)).filter((e): e is EffectiveEntry => !!e) : []} />
       )}

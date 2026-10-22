@@ -111,8 +111,12 @@ const CREATE_ERRORS = ["not_allowed", "invalid_origin", "invalid_year", "no_prev
  * message that merely contains a code (say, a column name) is "unknown".
  */
 export function calendarErrorKey(err: unknown): (typeof CREATE_ERRORS)[number] | "unknown" {
+  return exactErrorKey(err, CREATE_ERRORS);
+}
+
+function exactErrorKey<K extends string>(err: unknown, keys: readonly K[]): K | "unknown" {
   const message = err && typeof err === "object" && "message" in err ? String((err as { message: unknown }).message) : "";
-  return CREATE_ERRORS.find((k) => message === k) ?? "unknown";
+  return keys.find((k) => message === k) ?? "unknown";
 }
 
 export const toGridDayTypes = (rows: readonly DayTypeRow[]): GridDayType[] =>
@@ -157,25 +161,21 @@ export async function fetchSchoolEntries(calendarId: string): Promise<SchoolEntr
 }
 
 export interface CalendarRequest {
-  id: string;
   action: "academic_calendar_publish" | "academic_calendar_change";
+  /** The calendar (publish), the entry (update, delete) or the entry to be (add). */
   entity_id: string;
-  maker_id: string;
-  payload: { op?: "add" | "update" | "delete" };
+  op: "add" | "update" | "delete" | null;
+  /** The MoE/regional date a change would replace or remove. */
+  overrides_entry_id: string | null;
 }
 
 /**
- * The pending requests about this calendar that the user can see (their own,
- * or all of them for a checker): the publish request names the calendar, a
- * change request carries it in its payload. calendarId comes from the server.
+ * The calendar's pending, unexpired requests, for every editor and checker of
+ * the school (school_calendar_pending), whoever made them: RLS on
+ * approval_requests shows a request only to its maker and the checkers.
  */
 export async function fetchCalendarRequests(calendarId: string): Promise<CalendarRequest[]> {
-  const { data, error } = await supabase
-    .from("approval_requests")
-    .select("id,action,entity_id,maker_id,payload")
-    .eq("status", "pending")
-    .in("action", ["academic_calendar_publish", "academic_calendar_change"])
-    .or(`entity_id.eq.${calendarId},payload->>calendar_id.eq.${calendarId}`);
+  const { data, error } = await supabase.rpc("school_calendar_pending", { p_calendar_id: calendarId });
   if (error) throw error;
   return (data as CalendarRequest[] | null) ?? [];
 }
@@ -221,12 +221,11 @@ export async function requestChange(
 const EDITOR_ERRORS = [
   "not_allowed", "approval_required", "approval_already_pending", "approval_not_needed", "calendar_closed",
   "invalid_name", "invalid_range", "invalid_day_type", "invalid_override", "calendar_entry_locked",
-  "too_many_entries", "invalid_state", "invalid_changes", "no_change", "invalid_calendar",
+  "too_many_entries", "invalid_state", "invalid_changes", "no_change", "invalid_calendar", "already_overridden",
 ] as const;
 export type EditorErrorKey = (typeof EDITOR_ERRORS)[number] | "unknown";
 
 /** The server's error code (exact match, as calendarErrorKey), or "unknown". */
 export function editorErrorKey(err: unknown): EditorErrorKey {
-  const message = err && typeof err === "object" && "message" in err ? String((err as { message: unknown }).message) : "";
-  return EDITOR_ERRORS.find((k) => message === k) ?? "unknown";
+  return exactErrorKey(err, EDITOR_ERRORS);
 }

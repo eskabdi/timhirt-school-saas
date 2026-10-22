@@ -52,8 +52,10 @@ vi.mock("@/lib/supabase", () => {
       rpc: async (fn: string, args: Record<string, unknown>) => {
         if (fn === "calendar_year_settings") {
           const y = args.p_ec_year as number;
+          // 2020 has a draft too (no session yet), to switch years with a form open.
           return { error: null, data: [{
-            school_calendar_id: y === 2019 ? "s2019" : null, school_status: y === 2019 ? state.status : null,
+            school_calendar_id: y === 2019 ? "s2019" : y === 2020 ? "s2020" : null,
+            school_status: y === 2019 ? state.status : y === 2020 ? "draft" : null,
             school_origin: y === 2019 ? "moe" : null, region_calendar_id: null, region_code: null,
             moe_calendar_id: y === 2019 ? "m" : null, weekend_days: [6, 7],
             session_starts_on: y === 2019 ? MOE_2019_SESSION.startsOn : null, session_ends_on: y === 2019 ? MOE_2019_SESSION.endsOn : null,
@@ -69,6 +71,7 @@ vi.mock("@/lib/supabase", () => {
               starts_on: "2026-10-09", ends_on: "2026-10-09", name_i18n: { en: "PTA" }, locked: false },
           ] };
         }
+        if (fn === "school_calendar_pending") return { data: state.requests, error: null };
         if (fn === "has_resource_permission") {
           return { data: args.p_resource === "academic_calendar" && state.perms.has(args.p_action as string), error: null };
         }
@@ -83,13 +86,14 @@ import { AcademicYearGridPage } from "./AcademicYearGridPage";
 
 const flush = () => act(async () => { await new Promise((r) => setTimeout(r, 20)); });
 
-async function render() {
+async function render() { return renderAt("/"); }
+async function renderAt(path: string) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const host = document.createElement("div");
   document.body.appendChild(host);
   const root = createRoot(host);
   await act(async () => {
-    root.render(<MemoryRouter><QueryClientProvider client={client}><AcademicYearGridPage /></QueryClientProvider></MemoryRouter>);
+    root.render(<MemoryRouter initialEntries={[path]}><QueryClientProvider client={client}><AcademicYearGridPage /></QueryClientProvider></MemoryRouter>);
   });
   await flush(); await flush();
   return { host, client, done: () => { act(() => root.unmount()); host.remove(); } };
@@ -220,7 +224,7 @@ describe("CalendarEditor", () => {
     state.perms = new Set(["update", "publish"]);
     state.schoolEntries = [{ id: "e1", day_type_code: "school_holiday", starts_on: "2026-10-20", ends_on: "2026-10-20",
       name_i18n: { en: "Founders" }, overrides_entry_id: null, suppressed: false }];
-    state.requests = [{ id: "q1", action: "academic_calendar_publish", entity_id: "s2019", maker_id: "u1", payload: {} }];
+    state.requests = [{ action: "academic_calendar_publish", entity_id: "s2019", op: null, overrides_entry_id: null }];
     const { host, done } = await render();
     expect(host.textContent).toContain("Waiting for approval to publish");
     expect(host.textContent).toContain("This draft is waiting for approval to be published, so it cannot be changed.");
@@ -238,7 +242,8 @@ describe("CalendarEditor", () => {
       { id: "e1", day_type_code: "school_holiday", starts_on: "2026-10-20", ends_on: "2026-10-21", name_i18n: { en: "Founders" }, overrides_entry_id: null, suppressed: false },
       { id: "e2", day_type_code: "parent_meeting", starts_on: "2026-10-09", ends_on: "2026-10-09", name_i18n: { en: "PTA" }, overrides_entry_id: "r-pta", suppressed: true },
     ];
-    state.requests = [{ id: "q2", action: "academic_calendar_change", entity_id: "e1", maker_id: "u9", payload: { op: "update" } }];
+    // Made by someone else: the editor still learns it waits (school_calendar_pending).
+    state.requests = [{ action: "academic_calendar_change", entity_id: "e1", op: "update", overrides_entry_id: null }];
     const { host, done } = await render();
     const heading = [...host.querySelectorAll("h3")].find((c) => c.textContent === "The school's own days")!;
     const rows = host.querySelector(`ul[aria-labelledby="${heading.id}"]`)!.querySelectorAll("li");
@@ -258,6 +263,48 @@ describe("CalendarEditor", () => {
     await act(async () => { cell(host, /^Friday — Meskerem 29, 2019/).click(); });
     expect(button(host, "Remove “PTA” for our school")).toBeUndefined();
     done();
+  });
+
+  it("editing a day that replaces a MoE/regional date keeps the replacement", async () => {
+    state.schoolEntries = [{ id: "e3", day_type_code: "parent_meeting", starts_on: "2026-10-09", ends_on: "2026-10-09",
+      name_i18n: { en: "PTA (moved)" }, overrides_entry_id: "r-pta", suppressed: false }];
+    const { host, done } = await render();
+    await act(async () => { named(host, "Edit PTA (moved)").click(); });
+    await submitForm(host);
+    expect(state.rpc[0]![1]).toMatchObject({ p_entry_id: "e3", p_overrides_entry_id: "r-pta" });
+    done();
+  });
+
+  it("does not offer to remove a date a waiting request already removes", async () => {
+    state.requests = [{ action: "academic_calendar_change", entity_id: "new1", op: "add", overrides_entry_id: "r-pta" }];
+    state.status = "published";
+    const { host, done } = await render();
+    await act(async () => { cell(host, /^Friday — Meskerem 29, 2019/).click(); });
+    expect(button(host, "Add a day here")).toBeDefined();
+    expect(button(host, "Remove “PTA” for our school")).toBeUndefined();
+    done();
+  });
+
+  it("an open form does not follow the user to another year's calendar", async () => {
+    const { host, done } = await render();
+    await act(async () => { cell(host, /^Friday — Meskerem 29, 2019/).click(); });
+    await act(async () => { button(host, "Add a day here")!.click(); });
+    expect(host.querySelector("form")).not.toBeNull();
+    const select = host.querySelector<HTMLSelectElement>("#ac-year")!;
+    await act(async () => { select.value = "2020"; select.dispatchEvent(new Event("change", { bubbles: true })); });
+    await flush(); await flush();
+    expect(editor(host)).not.toBeNull(); // 2020's draft editor
+    expect(host.querySelector("form")).toBeNull();
+    done();
+  });
+
+  it("opens on the year a link names (?year=), within the current year ± 1", async () => {
+    const { host, done } = await renderAt("/academic-calendar?year=2020");
+    expect((host.querySelector<HTMLSelectElement>("#ac-year"))!.value).toBe("2020");
+    done();
+    const far = await renderAt("/academic-calendar?year=2031");
+    expect((far.host.querySelector<HTMLSelectElement>("#ac-year"))!.value).toBe("2019");
+    far.done();
   });
 
   it("explains a refusal in the user's language, never the server's text", async () => {

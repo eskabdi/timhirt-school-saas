@@ -22,6 +22,8 @@ import {
 
 interface FormState {
   entryId: string | null;
+  /** Kept when an entry that replaces a MoE/regional date is edited. */
+  overridesEntryId: string | null;
   dayType: string;
   startsOn: string;
   endsOn: string;
@@ -86,6 +88,7 @@ export function CalendarEditor({ calendarId, status, dayTypes, selectedIso, sele
       const input: EntryInput = {
         day_type_code: f.dayType, starts_on: f.startsOn, ends_on: f.endsOn,
         name_i18n: Object.fromEntries(Object.entries(f.names).map(([k, v]) => [k, v.trim()]).filter(([, v]) => v)),
+        overrides_entry_id: f.overridesEntryId,
       };
       return published
         ? requestChange(f.entryId ? "update" : "add", f.entryId ?? calendarId, input, why())
@@ -130,7 +133,11 @@ export function CalendarEditor({ calendarId, status, dayTypes, selectedIso, sele
     save.mutate(form);
   };
 
-  const suppressedTargets = new Set((entries.data ?? []).filter((e) => e.suppressed).map((e) => e.overrides_entry_id));
+  // A date the school already replaces or removes, or a request waits on, is not offered again.
+  const suppressedTargets = new Set([
+    ...(entries.data ?? []).map((e) => e.overrides_entry_id),
+    ...(requests.data ?? []).map((r) => r.overrides_entry_id),
+  ].filter((id): id is string => !!id));
   const removable = selectedEntries.filter((e) => e.level !== "school" && !e.locked && !suppressedTargets.has(e.entry_id));
 
   return (
@@ -165,7 +172,7 @@ export function CalendarEditor({ calendarId, status, dayTypes, selectedIso, sele
           <p className="text-sm text-ink"><EthDate value={selectedIso} /></p>
           <div className="flex flex-wrap gap-2">
             <Button variant="tertiary" disabled={busy}
-              onClick={() => openForm({ entryId: null, dayType: editable[0]?.code ?? "", startsOn: selectedIso, endsOn: selectedIso, names: { en: "", am: "", om: "" } })}>
+              onClick={() => openForm({ entryId: null, overridesEntryId: null, dayType: editable[0]?.code ?? "", startsOn: selectedIso, endsOn: selectedIso, names: { en: "", am: "", om: "" } })}>
               {t("academicCalendar.editor.addHere")}
             </Button>
             {removable.map((e) => (
@@ -205,7 +212,7 @@ export function CalendarEditor({ calendarId, status, dayTypes, selectedIso, sele
               <div className="flex flex-wrap gap-1">
                 {!e.suppressed && (
                   <Button variant="ghost" disabled={busy || pending || frozen} aria-label={t("academicCalendar.editor.editNamed", { name })}
-                    onClick={() => openForm({ entryId: e.id, dayType: e.day_type_code, startsOn: e.starts_on, endsOn: e.ends_on,
+                    onClick={() => openForm({ entryId: e.id, overridesEntryId: e.overrides_entry_id, dayType: e.day_type_code, startsOn: e.starts_on, endsOn: e.ends_on,
                       names: { en: e.name_i18n.en ?? "", am: e.name_i18n.am ?? "", om: e.name_i18n.om ?? "" } })}>
                     {published ? t("academicCalendar.editor.requestChange") : t("academicCalendar.editor.edit")}
                   </Button>

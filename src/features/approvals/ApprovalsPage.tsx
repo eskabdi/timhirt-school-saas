@@ -56,6 +56,8 @@ export function ApprovalsPage() {
     if (n) setNotice((prev) => ({ ...n, seq: (prev?.seq ?? 0) + 1 }));
     qc.invalidateQueries({ queryKey: ["approval-requests"] });
     qc.invalidateQueries({ queryKey: ["approvals-pending-count"] });
+    // An approved calendar request changes what the calendar page shows.
+    qc.invalidateQueries({ queryKey: ["academic-calendar"] });
   };
 
   return (
@@ -142,7 +144,8 @@ function ApprovalCard({ request: r, myId, onDecided }: {
   const entityLink = r.action === "invoice_void" ? `/fees/invoices/${r.entity_id}`
     : r.action === "manual_payment_accept" && typeof r.payload.invoice_id === "string" ? `/fees/invoices/${r.payload.invoice_id}`
     : r.action === "student_transfer_out" ? `/students/${r.entity_id}`
-    : r.action === "academic_calendar_publish" || r.action === "academic_calendar_change" ? "/academic-calendar"
+    : r.action === "academic_calendar_publish" || r.action === "academic_calendar_change"
+      ? `/academic-calendar${typeof r.payload.ec_year === "number" ? `?year=${r.payload.ec_year}` : ""}`
     : null;
 
   return (

@@ -7,7 +7,7 @@
 -- fixture date lies inside that year's session.
 -- ============================================================================
 begin;
-select plan(83);
+select plan(96);
 
 create function pg_temp.y() returns integer language sql stable as $$
   select (public.gregorian_to_ec((now() at time zone 'Africa/Addis_Ababa')::date)).ec_year
@@ -40,6 +40,7 @@ insert into auth.users (id, email) values
   ('0000000d-0000-0000-0000-0000000a0002', 'ca-admin-a2@example.test'),
   ('0000000d-0000-0000-0000-0000000a0003', 'ca-teacher-a@example.test'),
   ('0000000d-0000-0000-0000-0000000a0004', 'ca-checker-a@example.test'),
+  ('0000000d-0000-0000-0000-0000000a0005', 'ca-editor-a@example.test'),
   ('0000000d-0000-0000-0000-0000000b0001', 'ca-admin-b1@example.test'),
   ('0000000d-0000-0000-0000-0000000b0002', 'ca-admin-b2@example.test'),
   ('0000000d-0000-0000-0000-0000000c0001', 'ca-admin-c@example.test');
@@ -53,6 +54,7 @@ insert into public.users (id, tenant_id, role, full_name, email) values
   ('0000000d-0000-0000-0000-0000000a0002', '0000000d-0000-0000-0000-00000000000a', 'school_admin', 'CA Admin A2', 'ca-admin-a2@example.test'),
   ('0000000d-0000-0000-0000-0000000a0003', '0000000d-0000-0000-0000-00000000000a', 'teacher', 'CA Teacher A', 'ca-teacher-a@example.test'),
   ('0000000d-0000-0000-0000-0000000a0004', '0000000d-0000-0000-0000-00000000000a', 'teacher', 'CA Checker A', 'ca-checker-a@example.test'),
+  ('0000000d-0000-0000-0000-0000000a0005', '0000000d-0000-0000-0000-00000000000a', 'teacher', 'CA Editor A', 'ca-editor-a@example.test'),
   ('0000000d-0000-0000-0000-0000000b0001', '0000000d-0000-0000-0000-00000000000b', 'school_admin', 'CA Admin B1', 'ca-admin-b1@example.test'),
   ('0000000d-0000-0000-0000-0000000b0002', '0000000d-0000-0000-0000-00000000000b', 'school_admin', 'CA Admin B2', 'ca-admin-b2@example.test'),
   ('0000000d-0000-0000-0000-0000000c0001', '0000000d-0000-0000-0000-00000000000c', 'school_admin', 'CA Admin C', 'ca-admin-c@example.test');
@@ -61,6 +63,10 @@ insert into public.users (id, tenant_id, role, full_name, email) values
 insert into public.user_permission_overrides (tenant_id, user_id, permission_id, granted)
 select '0000000d-0000-0000-0000-00000000000a', '0000000d-0000-0000-0000-0000000a0004', p.id, true
   from public.permissions p where p.key = 'academic_calendar:approve';
+-- A teacher who may edit but neither publish nor approve (sees no requests through RLS).
+insert into public.user_permission_overrides (tenant_id, user_id, permission_id, granted)
+select '0000000d-0000-0000-0000-00000000000a', '0000000d-0000-0000-0000-0000000a0005', p.id, true
+  from public.permissions p where p.key = 'academic_calendar:update';
 
 -- The MoE calendar for the current year (2019 is seeded) and an Oromia
 -- calendar with a locked regional holiday and an unlocked mid-term break.
@@ -73,7 +79,8 @@ values ('0000000d-0000-0000-0001-000000000001', (select id from public.edu_autho
         pg_temp.ec(12, 25, -1), pg_temp.ec(10, 30), 'published', now());
 insert into public.authority_calendar_entries (id, calendar_id, day_type_code, starts_on, ends_on, name_i18n) values
   ('0000000d-0000-0000-0002-000000000001', '0000000d-0000-0000-0001-000000000001', 'regional_holiday', pg_temp.ec(3, 10), pg_temp.ec(3, 10), '{"en": "R holiday"}'),
-  ('0000000d-0000-0000-0002-000000000002', '0000000d-0000-0000-0001-000000000001', 'mid_term_break',   pg_temp.ec(3, 20), pg_temp.ec(3, 24), '{"en": "R mid-term"}');
+  ('0000000d-0000-0000-0002-000000000002', '0000000d-0000-0000-0001-000000000001', 'mid_term_break',   pg_temp.ec(3, 20), pg_temp.ec(3, 24), '{"en": "R mid-term"}'),
+  ('0000000d-0000-0000-0002-000000000003', '0000000d-0000-0000-0001-000000000001', 'parent_meeting',   pg_temp.ec(4, 5),  pg_temp.ec(4, 5),  '{"en": "R parents"}');
 
 -- Each school chooses the MoE calendar (a draft with no entries of its own).
 select pg_temp.act_as('0000000d-0000-0000-0000-0000000a0001');
@@ -127,6 +134,13 @@ insert into ids values ('a_supp', public.save_school_calendar_entry(pg_temp.cal(
   'mid_term_break', pg_temp.ec(3, 20), pg_temp.ec(3, 24), '{"en": "R mid-term"}', '0000000d-0000-0000-0002-000000000002', true));
 select is((select count(*)::integer from public.effective_calendar_entries(pg_temp.y()) where entry_id = '0000000d-0000-0000-0002-000000000002'), 0,
   'an editor removes the unlocked regional mid-term for the school');
+select throws_ok($$ select public.save_school_calendar_entry(pg_temp.cal('0000000d-0000-0000-0000-00000000000a'), null,
+  'mid_term_break', pg_temp.ec(3, 20), pg_temp.ec(3, 24), '{"en": "again"}', '0000000d-0000-0000-0002-000000000002', true) $$,
+  '22023', 'already_overridden', '... once: the same date cannot be replaced or removed twice');
+select throws_ok(format($$ select public.save_school_calendar_entry(pg_temp.cal('0000000d-0000-0000-0000-00000000000a'), null,
+  'school_holiday', pg_temp.ec(2, 15), pg_temp.ec(2, 15), %L) $$,
+  jsonb_build_object('en', repeat('"', 200), 'am', repeat('"', 200), 'om', repeat('"', 200))), '22023', 'invalid_name',
+  'a name whose stored form would exceed the column limit is refused as invalid_name, not a raw CHECK error');
 insert into ids values ('a_tmp', public.save_school_calendar_entry(pg_temp.cal('0000000d-0000-0000-0000-00000000000a'), null,
   'parent_meeting', pg_temp.ec(4, 2), pg_temp.ec(4, 2), '{"en": "Temp"}'));
 select lives_ok($$ select public.delete_school_calendar_entry(pg_temp.id('a_tmp')) $$, 'an editor deletes a draft entry');
@@ -225,6 +239,30 @@ select throws_ok($$ select public.delete_school_calendar_entry(pg_temp.id('a_hol
 select throws_ok(format($$ select public.decide_approval(%L, 'approved', %L) $$, pg_temp.id('a_pub'),
   (pg_temp.req('academic_calendar_publish', '0000000d-0000-0000-0000-00000000000a')).payload_hash), '42501', 'maker_cannot_decide',
   'the maker cannot approve their own publish request');
+select throws_ok($$ select public.create_school_calendar(pg_temp.y(), 'custom') $$, '22023', 'approval_already_pending',
+  '... and cannot rebuild the frozen draft with Choose Calendar either (the guard holds the freeze)');
+reset role;
+select pg_temp.act_as('0000000d-0000-0000-0000-0000000a0005');
+select is((select count(*)::integer from public.approval_requests where tenant_id = '0000000d-0000-0000-0000-00000000000a'), 0,
+  'an editor who neither made nor may approve the request cannot read it');
+select is((select string_agg(action, ',') from public.school_calendar_pending(pg_temp.cal('0000000d-0000-0000-0000-00000000000a'))),
+  'academic_calendar_publish', '... but learns that a publish waits (school_calendar_pending)');
+reset role;
+alter table public.approval_requests disable trigger approval_requests_transition_guard;
+update public.approval_requests set expires_at = now() - interval '1 minute' where id = pg_temp.id('a_pub');
+select pg_temp.act_as('0000000d-0000-0000-0000-0000000a0005');
+select is((select count(*)::integer from public.school_calendar_pending(pg_temp.cal('0000000d-0000-0000-0000-00000000000a'))), 0,
+  '... and not once it has expired');
+reset role;
+update public.approval_requests set expires_at = now() + interval '7 days' where id = pg_temp.id('a_pub');
+alter table public.approval_requests enable trigger approval_requests_transition_guard;
+select pg_temp.act_as('0000000d-0000-0000-0000-0000000a0003');
+select is((select count(*)::integer from public.school_calendar_pending(pg_temp.cal('0000000d-0000-0000-0000-00000000000a'))), 0,
+  'a teacher without the calendar permissions learns nothing');
+reset role;
+select pg_temp.act_as('0000000d-0000-0000-0000-0000000b0001');
+select is((select count(*)::integer from public.school_calendar_pending(pg_temp.cal('0000000d-0000-0000-0000-00000000000a'))), 0,
+  '... nor does another school''s editor');
 reset role;
 select pg_temp.act_as('0000000d-0000-0000-0000-0000000a0003');
 select is((select count(*)::integer from public.approval_requests where tenant_id = '0000000d-0000-0000-0000-00000000000a'), 0,
@@ -286,6 +324,22 @@ select throws_ok(format($$ select public.submit_approval('academic_calendar_chan
   '42501', 'calendar_entry_locked', 'a change the guards would refuse is refused when asked, not at approval');
 select is((select count(*)::integer from public.school_calendar_entries where calendar_id = pg_temp.cal('0000000d-0000-0000-0000-00000000000a')), 2,
   '... and trying it left nothing behind');
+select throws_ok(format($$ select public.submit_approval('academic_calendar_change', pg_temp.cal('0000000d-0000-0000-0000-00000000000a'), %L) $$,
+  jsonb_build_object('op', 'add', 'day_type_code', 'mid_term_break', 'starts_on', pg_temp.ec(3, 20), 'ends_on', pg_temp.ec(3, 24),
+                     'name_i18n', '{"en": "x"}'::jsonb, 'overrides_entry_id', '0000000d-0000-0000-0002-000000000002', 'suppressed', true)),
+  '22023', 'already_overridden', 'a date the published calendar already removes cannot be removed again by request');
+insert into ids values ('a_s1', public.submit_approval('academic_calendar_change', pg_temp.cal('0000000d-0000-0000-0000-00000000000a'),
+  jsonb_build_object('op', 'add', 'day_type_code', 'parent_meeting', 'starts_on', pg_temp.ec(4, 5), 'ends_on', pg_temp.ec(4, 5),
+                     'name_i18n', '{"en": "R parents"}'::jsonb, 'overrides_entry_id', '0000000d-0000-0000-0002-000000000003', 'suppressed', true)));
+select throws_ok(format($$ select public.submit_approval('academic_calendar_change', pg_temp.cal('0000000d-0000-0000-0000-00000000000a'), %L) $$,
+  jsonb_build_object('op', 'add', 'day_type_code', 'parent_meeting', 'starts_on', pg_temp.ec(4, 5), 'ends_on', pg_temp.ec(4, 5),
+                     'name_i18n', '{"en": "R parents"}'::jsonb, 'overrides_entry_id', '0000000d-0000-0000-0002-000000000003', 'suppressed', true)),
+  '22023', 'already_overridden', '... nor by a second request while the first waits');
+select is((select payload -> 'to' ->> 'overrides' from public.approval_requests where id = pg_temp.id('a_s1')), '{"en": "R parents"}',
+  'the checker sees which MoE/regional date the request removes');
+select is((select string_agg(overrides_entry_id::text, ',') from public.school_calendar_pending(pg_temp.cal('0000000d-0000-0000-0000-00000000000a'))),
+  '0000000d-0000-0000-0002-000000000003', '... and the editor which date a request waits on');
+select is(public.cancel_approval(pg_temp.id('a_s1')), 'cancelled', 'the maker withdraws it');
 insert into ids values ('a_add', public.submit_approval('academic_calendar_change', pg_temp.cal('0000000d-0000-0000-0000-00000000000a'),
   jsonb_build_object('op', 'add', 'day_type_code', 'special_closure', 'starts_on', pg_temp.ec(5, 2), 'ends_on', pg_temp.ec(5, 3),
                      'name_i18n', '{"en": "Water outage"}'::jsonb)));

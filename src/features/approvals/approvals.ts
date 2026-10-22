@@ -80,7 +80,7 @@ export const APPROVAL_ERRORS = [
   "approval_settings_rpc_only", "grade_exists", "approval_action_unavailable", "invalid_changes",
   "results_unpublish_blocked", "no_tenant",
   "calendar_closed", "calendar_entry_locked", "invalid_name", "invalid_range", "invalid_day_type",
-  "invalid_override", "too_many_entries",
+  "invalid_override", "too_many_entries", "already_overridden",
 ] as const;
 export type ApprovalErrorKey = (typeof APPROVAL_ERRORS)[number] | "unknown";
 

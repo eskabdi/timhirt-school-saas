@@ -51,6 +51,10 @@ describe("authoring calls", () => {
   beforeEach(() => { calls.rpc.length = 0; calls.or.length = 0; calls.from.length = 0; });
   const entry = { day_type_code: "school_holiday", starts_on: "2026-10-20", ends_on: "2026-10-21", name_i18n: { en: "Founders" } };
 
+  it("maps the duplicate-override refusal", () => {
+    expect(editorErrorKey({ message: "already_overridden" })).toBe("already_overridden");
+  });
+
   it("a draft entry goes to save_school_calendar_entry, a new one with no id", async () => {
     await saveDraftEntry("cal", null, entry);
     expect(calls.rpc).toEqual([["save_school_calendar_entry", {
@@ -82,9 +86,9 @@ describe("authoring calls", () => {
     ]);
   });
 
-  it("finds the calendar's pending requests by entity or by the payload's calendar", async () => {
+  it("asks the server which requests wait on the calendar (for every editor, not only the maker)", async () => {
     await fetchCalendarRequests("cal");
-    expect(calls.from).toEqual(["approval_requests"]);
-    expect(calls.or).toEqual(["entity_id.eq.cal,payload->>calendar_id.eq.cal"]);
+    expect(calls.from).toEqual([]);
+    expect(calls.rpc).toEqual([["school_calendar_pending", { p_calendar_id: "cal" }]]);
   });
 });

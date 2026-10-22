@@ -46,6 +46,7 @@ insert into definer_allowlist values
   ('create_school_calendar(integer,text)', 'authenticated', 'Choose Calendar; own tenant from auth.uid(), academic_calendar:create, events module on, current EC year ±1'),
   -- Academic Calendar Engine (slice 2a): draft authoring.
   ('save_school_calendar_entry(uuid,uuid,text,date,date,jsonb,uuid,boolean)', 'authenticated', 'Calendar editor; own tenant from auth.uid(), academic_calendar:update, events module on, draft calendars only (a published one changes by request)'),
+  ('school_calendar_pending(uuid)', 'authenticated', 'Calendar editor: which publish/change requests wait; own tenant, events module, academic_calendar:update or approve; no payload or maker'),
   ('delete_school_calendar_entry(uuid)', 'authenticated', 'Calendar editor; own tenant from auth.uid(), academic_calendar:update, events module on, draft calendars only'),
   ('exam_results_published(uuid)', 'authenticated', 'Called by the invoker grades gate as the editing user; answers only for the caller''s tenant'),
   ('get_tenant_id_for_user(uuid)', 'timhirt_view_owner', 'hr_sensitive_view_read / clinic_detail_view_read run as the view owner'),

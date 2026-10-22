@@ -1,0 +1,43 @@
+# F-01 slice 2a mutation log (20261022T115145Z), academic_calendar_authoring.sql (96 assertions). Each mutation inside begin; ...; \i suite (rolled back). KILLED = an assertion failed or an ERROR aborted the suite.
+# Survivors are single layers of a two-layer check; each pair (M07b, M13b, M28b, M30b) is KILLED.
+KILLED   M01 calendars select: approve branch dropped ok=94 fails=20,21 
+KILLED   M02 calendars select: using (true) ok=94 fails=18,19 
+KILLED   M03 year settings: draft clause dropped ok=94 fails=33,34 
+KILLED   M04 entry guard: published check off ok=95 fails=83 
+KILLED   M05 calendars guard: transitions unchecked ok=83 fails=84,85,86 ERR: psql:supabase/tests/rls/academic_calendar_authoring.sql:425: ERROR:  calendar_closed
+KILLED   M06 save: tenant filter dropped ok=95 fails=24 
+SURVIVED M07 save: pending-publish freeze off (guard backs it up) ok=96 fails= 
+KILLED   M07b save freeze off + entries guard freeze off ok=49 fails=38 ERR: psql:supabase/tests/rls/academic_calendar_authoring.sql:283: ERROR:  entity_changed
+SURVIVED M28 entries guard: freeze off ok=96 fails= 
+SURVIVED M29 calendars guard: freeze off (entries guard backs it up) ok=96 fails= 
+KILLED   M28b both guards' freeze off ok=49 fails=41 ERR: psql:supabase/tests/rls/academic_calendar_authoring.sql:283: ERROR:  entity_changed
+KILLED   M30b pending RPC: tenant filter and module check dropped ok=95 fails=46 
+SURVIVED M30 pending RPC: tenant filter dropped (has_module answers only for the caller's school) ok=96 fails= 
+KILLED   M31 pending RPC: permission check off ok=95 fails=45 
+KILLED   M32 pending RPC: expiry ignored ok=95 fails=44 
+KILLED   M33 one-override unique index dropped ok=89 fails=12,21,37,62,63,66 
+KILLED   M34 payload: pending duplicate override allowed ok=94 fails=64,66 
+KILLED   M35 name: serialized length unchecked ok=95 fails=13 
+KILLED   M36 payload: probe unique_violation not mapped ok=95 fails=63 
+KILLED   M08 save: permission check off ok=89 fails=16,21,22,37,53,62 
+KILLED   M09 save: module check off ok=95 fails=29 
+KILLED   M10 save: name validation off ok=84 fails=2,4,5,6,7,13 
+KILLED   M11 save: year-closed check off ok=95 fails=91 
+KILLED   M12 delete: tenant filter dropped ok=95 fails=26 
+SURVIVED M13 delete: draft-only off (guard is the 2nd line, expected to survive alone) ok=96 fails= 
+KILLED   M13b delete draft-only off + entry guard published check off ok=72 fails=58,62,69 ERR: psql:supabase/tests/rls/academic_calendar_authoring.sql:377: ERROR:  not_allowed
+KILLED   M14 payload: publish tenant filter dropped ok=35 fails=27 ERR: psql:supabase/tests/rls/academic_calendar_authoring.sql:227: ERROR:  approval_already_pending
+KILLED   M15 payload: publish permission off ok=35 fails=35 ERR: psql:supabase/tests/rls/academic_calendar_authoring.sql:227: ERROR:  approval_already_pending
+KILLED   M16 payload: change entry tenant filter dropped ok=74 fails=70 ERR: psql:supabase/tests/rls/academic_calendar_authoring.sql:377: ERROR:  approval_already_pending
+KILLED   M17 payload: guard trial run swallowed ok=93 fails=61,63,66 
+KILLED   M18 payload: unknown keys accepted ok=95 fails=59 
+KILLED   M19 payload: draft check off ok=95 fails=71 
+KILLED   M20 execute: snapshot hash not rechecked ok=83 fails=55,56,71 ERR: psql:supabase/tests/rls/academic_calendar_authoring.sql:428: ERROR:  approval_not_pending
+KILLED   M21 execute: entry 'from' not rechecked ok=76 fails=77,78 ERR: psql:supabase/tests/rls/academic_calendar_authoring.sql:390: ERROR:  approval_not_pending
+KILLED   M22 execute: year-closed not rechecked ok=94 fails=92,93 
+KILLED   M23 execute: version not bumped ok=94 fails=74,82 
+KILLED   M24 year close trigger off ok=92 fails=88,94,95,96 
+KILLED   M25 approve permission default grant removed ok=48 fails=40,50 ERR: psql:supabase/tests/rls/academic_calendar_authoring.sql:283: ERROR:  not_allowed
+KILLED   M26 entries guard: closed check off ok=94 fails=95,96 
+KILLED   M27 calendars guard: closed immutability off ok=95 fails=94 
+# UI: UM1 published edit saved directly, UM2 locked date removable, UM3 never frozen, UM4 no key per calendar, UM5 pending targets ignored, UM6 override dropped on edit, UM7 ?year ignored, UM8 no calendar refresh after approval, UM9 override ids shown: all KILLED

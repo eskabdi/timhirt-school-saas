@@ -38,6 +38,10 @@ create policy school_calendars_select on public.school_calendars for select to a
        or public.has_resource_permission(auth.uid(), 'academic_calendar', 'approve'))
 );
 
+-- A school replaces or removes a given MoE/regional entry at most once.
+create unique index school_calendar_entries_one_override on public.school_calendar_entries (calendar_id, overrides_entry_id)
+  where overrides_entry_id is not null;
+
 -- ----------------------------------------------------------- entry names --
 -- {en, am, om}, each at most 200 characters, at least one non-blank. A name
 -- given only in Amharic or Afaan Oromo is copied to en (the column requires
@@ -66,6 +70,10 @@ begin
   if not v ? 'en' then
     v := v || jsonb_build_object('en', coalesce(v ->> 'am', v ->> 'om'));
   end if;
+  -- The column's CHECK counts the serialized object (escapes included).
+  if length(v::text) > 1000 then
+    return null;
+  end if;
   return v;
 end $$;
 revoke execute on function public.normalize_calendar_entry_name(jsonb) from public, anon, authenticated;
@@ -85,6 +93,15 @@ returns jsonb language sql stable set search_path = public, pg_temp as $$
     from public.school_calendars c where c.id = p_calendar_id
 $$;
 revoke execute on function public.school_calendar_snapshot(uuid) from public, anon, authenticated;
+
+-- A publish request for this calendar is waiting (and has not expired).
+create function public.school_calendar_publish_pending(p_calendar_id uuid)
+returns boolean language sql stable set search_path = public, pg_temp as $$
+  select exists (select 1 from public.approval_requests r
+                  where r.action = 'academic_calendar_publish' and r.entity_id = p_calendar_id
+                    and r.status = 'pending' and r.expires_at > now())
+$$;
+revoke execute on function public.school_calendar_publish_pending(uuid) from public, anon, authenticated;
 
 -- ------------------------------------------------------------ year state --
 -- The year a calendar belongs to has closed (academic_years), so nothing in
@@ -128,9 +145,7 @@ begin
   if v_cal.status <> 'draft' then
     raise exception 'approval_required' using errcode = '42501';
   end if;
-  if exists (select 1 from public.approval_requests r
-              where r.action = 'academic_calendar_publish' and r.entity_id = v_cal.id
-                and r.status = 'pending' and r.expires_at > now()) then
+  if public.school_calendar_publish_pending(v_cal.id) then
     raise exception 'approval_already_pending' using errcode = '22023';
   end if;
   v_name := public.normalize_calendar_entry_name(p_name_i18n);
@@ -140,21 +155,25 @@ begin
   if p_day_type_code is null or p_starts_on is null or p_ends_on is null or p_ends_on < p_starts_on then
     raise exception 'invalid_range' using errcode = '22023';
   end if;
-  if p_entry_id is null then
-    insert into public.school_calendar_entries
-      (tenant_id, calendar_id, day_type_code, starts_on, ends_on, name_i18n, overrides_entry_id, suppressed, created_by)
-    values (v_tenant, v_cal.id, p_day_type_code, p_starts_on, p_ends_on, v_name, p_overrides_entry_id,
-            coalesce(p_suppressed, false), v_uid)
-    returning id into v_id;
-  else
-    update public.school_calendar_entries
-       set day_type_code = p_day_type_code, starts_on = p_starts_on, ends_on = p_ends_on, name_i18n = v_name,
-           overrides_entry_id = p_overrides_entry_id, suppressed = coalesce(p_suppressed, false)
-     where id = p_entry_id and calendar_id = v_cal.id and tenant_id = v_tenant
-    returning id into v_id;
-    if v_id is null then
-      raise exception 'not_allowed' using errcode = '42501';
+  begin
+    if p_entry_id is null then
+      insert into public.school_calendar_entries
+        (tenant_id, calendar_id, day_type_code, starts_on, ends_on, name_i18n, overrides_entry_id, suppressed, created_by)
+      values (v_tenant, v_cal.id, p_day_type_code, p_starts_on, p_ends_on, v_name, p_overrides_entry_id,
+              coalesce(p_suppressed, false), v_uid)
+      returning id into v_id;
+    else
+      update public.school_calendar_entries
+         set day_type_code = p_day_type_code, starts_on = p_starts_on, ends_on = p_ends_on, name_i18n = v_name,
+             overrides_entry_id = p_overrides_entry_id, suppressed = coalesce(p_suppressed, false)
+       where id = p_entry_id and calendar_id = v_cal.id and tenant_id = v_tenant
+      returning id into v_id;
     end if;
+  exception when unique_violation then
+    raise exception 'already_overridden' using errcode = '22023';
+  end;
+  if v_id is null then
+    raise exception 'not_allowed' using errcode = '42501';
   end if;
   return v_id;
 end $$;
@@ -186,15 +205,35 @@ begin
   if v_cal.status <> 'draft' then
     raise exception 'approval_required' using errcode = '42501';
   end if;
-  if exists (select 1 from public.approval_requests r
-              where r.action = 'academic_calendar_publish' and r.entity_id = v_cal.id
-                and r.status = 'pending' and r.expires_at > now()) then
+  if public.school_calendar_publish_pending(v_cal.id) then
     raise exception 'approval_already_pending' using errcode = '22023';
   end if;
   delete from public.school_calendar_entries where id = p_entry_id and calendar_id = v_cal.id and tenant_id = v_tenant;
 end $$;
 revoke execute on function public.delete_school_calendar_entry(uuid) from public, anon, authenticated;
 grant execute on function public.delete_school_calendar_entry(uuid) to authenticated;
+
+-- The pending (unexpired) requests about one of the caller's school's
+-- calendars, for its editors and checkers: whether a publish waits, and which
+-- entries (or MoE/regional dates) a change waits on. No payload, reason or
+-- maker: RLS on approval_requests still decides who reads those.
+create function public.school_calendar_pending(p_calendar_id uuid)
+returns table (action text, entity_id uuid, op text, overrides_entry_id uuid)
+language sql stable security definer set search_path = public, pg_temp as $$
+  select r.action, r.entity_id, r.payload ->> 'op', (r.payload -> 'to' ->> 'overrides_entry_id')::uuid
+    from public.school_calendars c
+    join public.approval_requests r on r.tenant_id = c.tenant_id
+   where c.id = p_calendar_id
+     and c.tenant_id = public.get_tenant_id_for_user(auth.uid())
+     and public.has_module(c.tenant_id, 'events')
+     and (coalesce(public.has_resource_permission(auth.uid(), 'academic_calendar', 'update'), false)
+          or coalesce(public.has_resource_permission(auth.uid(), 'academic_calendar', 'approve'), false))
+     and r.status = 'pending' and r.expires_at > now()
+     and ((r.action = 'academic_calendar_publish' and r.entity_id = c.id)
+          or (r.action = 'academic_calendar_change' and r.payload ->> 'calendar_id' = c.id::text))
+$$;
+revoke execute on function public.school_calendar_pending(uuid) from public, anon, authenticated;
+grant execute on function public.school_calendar_pending(uuid) to authenticated;
 
 -- ---------------------------------------------------- approval payloads --
 -- Called by submit_approval (as its owner) with the maker and their school.
@@ -281,7 +320,8 @@ begin
       'type', (select t.label_i18n from public.calendar_day_types t where t.code = v_entry.day_type_code),
       'day_type_code', v_entry.day_type_code, 'name_i18n', v_entry.name_i18n,
       'starts_on', v_entry.starts_on, 'ends_on', v_entry.ends_on,
-      'overrides_entry_id', v_entry.overrides_entry_id, 'suppressed', v_entry.suppressed);
+      'overrides_entry_id', v_entry.overrides_entry_id, 'suppressed', v_entry.suppressed,
+      'overrides', (select a.name_i18n from public.authority_calendar_entries a where a.id = v_entry.overrides_entry_id));
   end if;
   if v_op <> 'delete' then
     begin
@@ -303,9 +343,19 @@ begin
     v_to := jsonb_build_object(
       'type', (select t.label_i18n from public.calendar_day_types t where t.code = v_type),
       'day_type_code', v_type, 'name_i18n', v_name, 'starts_on', v_start, 'ends_on', v_end,
-      'overrides_entry_id', v_over, 'suppressed', v_supp);
+      'overrides_entry_id', v_over, 'suppressed', v_supp,
+      'overrides', (select a.name_i18n from public.authority_calendar_entries a where a.id = v_over));
     if v_op = 'update' and v_to = v_from then
       raise exception 'no_change' using errcode = '22023';
+    end if;
+    -- 6: another request waiting to replace or remove the same date.
+    if v_over is not null and exists (
+         select 1 from public.approval_requests q
+          where q.tenant_id = p_tenant and q.action = 'academic_calendar_change' and q.status = 'pending'
+            and q.expires_at > now() and q.payload ->> 'calendar_id' = v_cal.id::text
+            and q.payload -> 'to' ->> 'overrides_entry_id' = v_over::text
+            and q.entity_id is distinct from v_entry.id) then
+      raise exception 'already_overridden' using errcode = '22023';
     end if;
     -- The guards decide, exactly as they will at approval; nothing is kept.
     begin
@@ -321,10 +371,13 @@ begin
          where id = v_entry.id;
       end if;
       raise exception 'calendar_probe_ok';
-    exception when raise_exception then
-      if sqlerrm <> 'calendar_probe_ok' then
-        raise;
-      end if;
+    exception
+      when unique_violation then
+        raise exception 'already_overridden' using errcode = '22023';
+      when raise_exception then
+        if sqlerrm <> 'calendar_probe_ok' then
+          raise;
+        end if;
     end;
   end if;
   o_entity := case when v_op = 'add' then gen_random_uuid() else v_entry.id end;
@@ -379,6 +432,7 @@ begin
     end if;
   end if;
   perform set_config('timhirt.calendar_change', 'approved', true);
+  begin
   if v_op = 'add' then
     insert into public.school_calendar_entries
       (id, tenant_id, calendar_id, day_type_code, starts_on, ends_on, name_i18n, overrides_entry_id, suppressed, created_by)
@@ -396,6 +450,9 @@ begin
   else
     raise exception 'invalid_changes' using errcode = '22023';
   end if;
+  exception when unique_violation then
+    raise exception 'entity_changed' using errcode = '40001';   -- the date was replaced or removed meanwhile
+  end;
   update public.school_calendars set version = version + 1 where id = v_cal.id;
   perform set_config('timhirt.calendar_change', '', true);
 end $$;
@@ -426,7 +483,11 @@ begin
         raise exception 'approval_required' using errcode = '42501';
       end if;
     elsif old.status = 'draft' and new.status = 'draft' then
-      null;   -- the draft's origin and weekend (create_school_calendar)
+      -- The draft's origin and weekend (create_school_calendar), except while
+      -- its publish request waits: the checker approves what they saw.
+      if public.school_calendar_publish_pending(old.id) then
+        raise exception 'approval_already_pending' using errcode = '22023';
+      end if;
     elsif new.status = 'published' and v_grant = 'approved' then
       null;   -- publishing, or an approved change (version)
     elsif old.status = 'published' and new.status = 'closed' and v_grant = 'close' then
@@ -439,7 +500,11 @@ begin
 end $$;
 
 -- ------------------------------------------------------------ year close --
--- Closing an academic year closes its published calendar, for good.
+-- Closing an academic year closes its published calendar, for good: reopening
+-- the year does not reopen it (a closed calendar is the record of the year).
+-- A draft cannot be closed (it was never published); it is frozen only while
+-- its year is closed (school_year_closed), so reopening the year to correct
+-- it lets the school finish and publish it.
 create function public.academic_years_close_calendar()
 returns trigger language plpgsql security definer set search_path = public, pg_temp as $$
 begin
@@ -528,7 +593,8 @@ end $$;
 
 -- -------------------------------------------------------- entry guard --
 -- As in 20261008000001, plus: an entry of a published calendar changes only
--- in an approved academic_calendar_change (or a trusted context).
+-- in an approved academic_calendar_change, and a draft's entries do not change
+-- while its publish request waits (trusted contexts excepted).
 create or replace function public.school_calendar_entries_guard()
 returns trigger language plpgsql set search_path = public, pg_temp as $$
 declare
@@ -546,6 +612,11 @@ begin
      and coalesce(current_setting('role', true), 'none') not in ('none', 'service_role', 'postgres', 'supabase_admin')
      and coalesce(current_setting('timhirt.calendar_change', true), '') <> 'approved' then
     raise exception 'approval_required' using errcode = '42501';
+  end if;
+  if v_cal.status = 'draft'
+     and coalesce(current_setting('role', true), 'none') not in ('none', 'service_role', 'postgres', 'supabase_admin')
+     and public.school_calendar_publish_pending(coalesce(new.calendar_id, old.calendar_id)) then
+    raise exception 'approval_already_pending' using errcode = '22023';
   end if;
   if tg_op = 'DELETE' then
     return old;
@@ -892,3 +963,11 @@ begin
     on conflict do nothing;
   end if;
 end $$;
+
+-- Years already closed before this migration (none had a published school
+-- calendar, which only this slice can produce; kept for correctness).
+select set_config('timhirt.calendar_change', 'close', true);
+update public.school_calendars c set status = 'closed', closed_at = now()
+  from public.academic_years y
+ where y.tenant_id = c.tenant_id and y.ec_year = c.ec_year and y.status = 'closed' and c.status = 'published';
+select set_config('timhirt.calendar_change', '', true);
