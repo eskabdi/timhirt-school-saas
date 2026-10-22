@@ -29,13 +29,22 @@ insert into public.approval_actions (action, entity_table, checker_resource, pla
   ('academic_calendar_publish', 'school_calendars',        'academic_calendar', true, true, null, 'Publish the school''s academic calendar', 'events'),
   ('academic_calendar_change',  'school_calendar_entries', 'academic_calendar', true, true, null, 'Change the school''s published academic calendar', 'events');
 
--- A checker previews the draft they are asked to publish.
+-- Who sees a school's draft calendar: its editors and its checkers (who
+-- preview what they are asked to publish). The one rule, used by the select
+-- policy and by calendar_year_settings.
+create function public.can_preview_school_calendar_draft()
+returns boolean language sql stable set search_path = public, pg_temp as $$
+  select auth.uid() is not null
+     and (coalesce(public.has_resource_permission(auth.uid(), 'academic_calendar', 'update'), false)
+          or coalesce(public.has_resource_permission(auth.uid(), 'academic_calendar', 'approve'), false))
+$$;
+revoke execute on function public.can_preview_school_calendar_draft() from public, anon;
+grant execute on function public.can_preview_school_calendar_draft() to authenticated;
+
 drop policy school_calendars_select on public.school_calendars;
 create policy school_calendars_select on public.school_calendars for select to authenticated using (
   tenant_id = (select public.get_tenant_id_for_user(auth.uid()))
-  and (status <> 'draft'
-       or public.has_resource_permission(auth.uid(), 'academic_calendar', 'update')
-       or public.has_resource_permission(auth.uid(), 'academic_calendar', 'approve'))
+  and (status <> 'draft' or (select public.can_preview_school_calendar_draft()))
 );
 
 -- A school replaces or removes a given MoE/regional entry at most once.
@@ -152,8 +161,12 @@ begin
   if v_name is null then
     raise exception 'invalid_name' using errcode = '22023';
   end if;
-  if p_day_type_code is null or p_starts_on is null or p_ends_on is null or p_ends_on < p_starts_on then
+  if p_day_type_code is null or p_starts_on is null or p_ends_on is null or p_ends_on < p_starts_on
+     or p_ends_on - p_starts_on > 366 then
     raise exception 'invalid_range' using errcode = '22023';
+  end if;
+  if coalesce(p_suppressed, false) and p_overrides_entry_id is null then
+    raise exception 'invalid_override' using errcode = '22023';
   end if;
   begin
     if p_entry_id is null then
@@ -337,8 +350,11 @@ begin
     if v_name is null then
       raise exception 'invalid_name' using errcode = '22023';
     end if;
-    if v_type is null or v_start is null or v_end is null or v_end < v_start then
+    if v_type is null or v_start is null or v_end is null or v_end < v_start or v_end - v_start > 366 then
       raise exception 'invalid_range' using errcode = '22023';
+    end if;
+    if v_supp and v_over is null then
+      raise exception 'invalid_override' using errcode = '22023';
     end if;
     v_to := jsonb_build_object(
       'type', (select t.label_i18n from public.calendar_day_types t where t.code = v_type),
@@ -469,7 +485,10 @@ create or replace function public.school_calendars_guard()
 returns trigger language plpgsql set search_path = public, pg_temp as $$
 declare
   v_trusted boolean := coalesce(current_setting('role', true), 'none') in ('none', 'service_role', 'postgres', 'supabase_admin');
-  v_grant text := coalesce(current_setting('timhirt.calendar_change', true), '');
+  -- The approval flag counts only inside definer code (execute_approval, the
+  -- year-close trigger), never for another role that sets it.
+  v_grant text := case when current_user in ('postgres', 'supabase_admin')
+                       then coalesce(current_setting('timhirt.calendar_change', true), '') else '' end;
 begin
   if old.status = 'closed' then
     raise exception 'calendar_closed' using errcode = '42501';
@@ -483,8 +502,12 @@ begin
         raise exception 'approval_required' using errcode = '42501';
       end if;
     elsif old.status = 'draft' and new.status = 'draft' then
-      -- The draft's origin and weekend (create_school_calendar), except while
-      -- its publish request waits: the checker approves what they saw.
+      -- The draft's origin and weekend (create_school_calendar), except once
+      -- its year has closed, or while its publish request waits: the checker
+      -- approves what they saw.
+      if public.school_year_closed(old.tenant_id, old.ec_year) then
+        raise exception 'calendar_closed' using errcode = '42501';
+      end if;
       if public.school_calendar_publish_pending(old.id) then
         raise exception 'approval_already_pending' using errcode = '22023';
       end if;
@@ -500,7 +523,8 @@ begin
 end $$;
 
 -- ------------------------------------------------------------ year close --
--- Closing an academic year closes its published calendar, for good: reopening
+-- Closing an academic year (or entering it already closed) closes its
+-- published calendar, for good: reopening
 -- the year does not reopen it (a closed calendar is the record of the year).
 -- A draft cannot be closed (it was never published); it is frozen only while
 -- its year is closed (school_year_closed), so reopening the year to correct
@@ -508,7 +532,7 @@ end $$;
 create function public.academic_years_close_calendar()
 returns trigger language plpgsql security definer set search_path = public, pg_temp as $$
 begin
-  if new.status = 'closed' and old.status is distinct from 'closed' then
+  if new.status = 'closed' and (tg_op = 'INSERT' or old.status is distinct from 'closed') then
     perform set_config('timhirt.calendar_change', 'close', true);
     update public.school_calendars set status = 'closed', closed_at = now()
      where tenant_id = new.tenant_id and ec_year = new.ec_year and status = 'published';
@@ -517,7 +541,7 @@ begin
   return new;
 end $$;
 revoke execute on function public.academic_years_close_calendar() from public, anon, authenticated;
-create trigger academic_years_close_calendar after update of status on public.academic_years
+create trigger academic_years_close_calendar after insert or update of status on public.academic_years
   for each row execute function public.academic_years_close_calendar();
 
 -- ------------------------------------------------------- year settings --
@@ -554,11 +578,11 @@ begin
     select t.edu_authority_id into v_authority from public.tenants t where t.id = v_tenant;
     select s.id, s.status, s.origin, s.weekend_days
       into v_school_id, v_school_status, v_school_origin, v_school_weekend
-      from public.school_calendars s where s.tenant_id = v_tenant and s.ec_year = p_ec_year
-       and (s.status <> 'draft'
-            or (auth.uid() is not null
-                and (coalesce(public.has_resource_permission(auth.uid(), 'academic_calendar', 'update'), false)
-                     or coalesce(public.has_resource_permission(auth.uid(), 'academic_calendar', 'approve'), false))));
+      from public.school_calendars s where s.tenant_id = v_tenant and s.ec_year = p_ec_year;
+    -- A draft applies only for someone who may preview it (once per call).
+    if v_school_status = 'draft' and not public.can_preview_school_calendar_draft() then
+      v_school_id := null; v_school_status := null; v_school_origin := null; v_school_weekend := null;
+    end if;
   end if;
   if v_authority is not null and v_authority is distinct from v_moe then
     select c.id, a.code, c.weekend_days, c.session_starts_on, c.session_ends_on
@@ -610,8 +634,14 @@ begin
   end if;
   if v_cal.status = 'published'
      and coalesce(current_setting('role', true), 'none') not in ('none', 'service_role', 'postgres', 'supabase_admin')
-     and coalesce(current_setting('timhirt.calendar_change', true), '') <> 'approved' then
+     and (current_user not in ('postgres', 'supabase_admin')
+          or coalesce(current_setting('timhirt.calendar_change', true), '') <> 'approved') then
     raise exception 'approval_required' using errcode = '42501';
+  end if;
+  if v_cal.status = 'draft'
+     and coalesce(current_setting('role', true), 'none') not in ('none', 'service_role', 'postgres', 'supabase_admin')
+     and public.school_year_closed(v_cal.tenant_id, v_cal.ec_year) then
+    raise exception 'calendar_closed' using errcode = '42501';
   end if;
   if v_cal.status = 'draft'
      and coalesce(current_setting('role', true), 'none') not in ('none', 'service_role', 'postgres', 'supabase_admin')

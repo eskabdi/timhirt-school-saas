@@ -52,12 +52,12 @@ export function ApprovalsPage() {
   const [notice, setNotice] = useState<{ tone: "ok" | "error"; text: string; seq: number } | null>(null);
   const noticeRef = useRef<HTMLParagraphElement>(null);
   useEffect(() => { if (notice) noticeRef.current?.focus(); }, [notice]);
-  const onDecided = (n?: { tone: "ok" | "error"; text: string }) => {
+  const onDecided = (n?: { tone: "ok" | "error"; text: string }, action?: string) => {
     if (n) setNotice((prev) => ({ ...n, seq: (prev?.seq ?? 0) + 1 }));
     qc.invalidateQueries({ queryKey: ["approval-requests"] });
     qc.invalidateQueries({ queryKey: ["approvals-pending-count"] });
-    // An approved calendar request changes what the calendar page shows.
-    qc.invalidateQueries({ queryKey: ["academic-calendar"] });
+    // A decided calendar request changes what the calendar page shows.
+    if (action?.startsWith("academic_calendar_")) qc.invalidateQueries({ queryKey: ["academic-calendar"] });
   };
 
   return (
@@ -94,7 +94,7 @@ export function ApprovalsPage() {
 }
 
 function ApprovalCard({ request: r, myId, onDecided }: {
-  request: ApprovalRequest; myId: string; onDecided: (notice?: { tone: "ok" | "error"; text: string }) => void;
+  request: ApprovalRequest; myId: string; onDecided: (notice?: { tone: "ok" | "error"; text: string }, action?: string) => void;
 }) {
   const { t } = useTranslation();
   const [rejecting, setRejecting] = useState(false);
@@ -112,7 +112,7 @@ function ApprovalCard({ request: r, myId, onDecided }: {
     else document.getElementById(rejectId)?.focus();
     setFocusTarget(null);
   }, [focusTarget, rejectId]);
-  const failed = (err: unknown) => onDecided({ tone: "error", text: t(`approvals.error.${approvalErrorKey(err)}`) });
+  const failed = (err: unknown) => onDecided({ tone: "error", text: t(`approvals.error.${approvalErrorKey(err)}`) }, r.action);
   const expired = isExpired(r);
   const status = expired ? "expired" : r.status;
   const canDecide = r.status === "pending" && !expired && r.maker_id !== myId;
@@ -127,7 +127,7 @@ function ApprovalCard({ request: r, myId, onDecided }: {
       }
       return outcome;
     },
-    onSuccess: (outcome) => { setResult(outcome); setRejecting(false); onDecided({ tone: "ok", text: t(`approvals.outcome.${outcome}`) }); },
+    onSuccess: (outcome) => { setResult(outcome); setRejecting(false); onDecided({ tone: "ok", text: t(`approvals.outcome.${outcome}`) }, r.action); },
     // Another checker may have decided it, or it expired or the record moved
     // on: reload so the card shows where it stands now.
     onError: failed,
@@ -136,7 +136,7 @@ function ApprovalCard({ request: r, myId, onDecided }: {
   // The maker withdraws a request they no longer want decided.
   const withdraw = useMutation({
     mutationFn: () => cancelApproval(r.id),
-    onSuccess: (outcome) => { setResult(outcome); onDecided({ tone: "ok", text: t(`approvals.outcome.${outcome}`) }); },
+    onSuccess: (outcome) => { setResult(outcome); onDecided({ tone: "ok", text: t(`approvals.outcome.${outcome}`) }, r.action); },
     onError: failed,
   });
   const canWithdraw = r.status === "pending" && !expired && r.maker_id === myId;

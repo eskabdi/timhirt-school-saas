@@ -139,6 +139,11 @@ export function AcademicYearGridPage() {
   const allCells = useMemo(() => grid?.rows.flatMap((r) => r.cells).filter((c): c is GridCell => !!c) ?? [], [grid]);
   const firstIso = allCells[0]?.isoDate ?? null;
   const todayIso = allCells.find((c) => c.isToday)?.isoDate ?? null;
+  // The selected day as the current grid has it (its entries change after an edit).
+  const selectedCell = selected ? nav.get(selected.isoDate)?.cell ?? selected : null;
+  const selectedEntries = useMemo(
+    () => selectedCell?.entryIds.map((id) => entryById.get(id)).filter((e): e is EffectiveEntry => !!e) ?? [],
+    [selectedCell, entryById]);
   const activeIso = (focusIso && nav.has(focusIso) ? focusIso : null) ?? (selected && nav.has(selected.isoDate) ? selected.isoDate : null)
     ?? todayIso ?? firstIso;
 
@@ -328,8 +333,8 @@ export function AcademicYearGridPage() {
 
       {/* Always mounted, so the first selection is announced too. */}
       <div id={inspectorId} aria-live="polite">
-        {selected && (
-          <DayInspector cell={selected} entries={selected.entryIds.map((id) => entryById.get(id)).filter((e): e is EffectiveEntry => !!e)}
+        {selectedCell && (
+          <DayInspector cell={selectedCell} entries={selectedEntries}
             typeLabel={typeLabel} lang={lang} />
         )}
       </div>
@@ -337,7 +342,7 @@ export function AcademicYearGridPage() {
       {canEdit.data === true && s?.school_calendar_id && (status === "draft" || status === "published") && dayTypes.data && (
         <CalendarEditor key={s.school_calendar_id} calendarId={s.school_calendar_id} status={status} dayTypes={dayTypes.data} lang={lang}
           selectedIso={selected?.isoDate ?? null} canPublish={canPublish.data === true}
-          selectedEntries={selected ? selected.entryIds.map((id) => entryById.get(id)).filter((e): e is EffectiveEntry => !!e) : []} />
+          selectedEntries={selectedEntries} />
       )}
 
       {grid && dayTypes.data && entries.data && (

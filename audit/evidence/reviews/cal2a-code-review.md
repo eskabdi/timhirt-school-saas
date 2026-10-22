@@ -20,3 +20,17 @@ Range `7d75a8b..f80cde2` (the slice 2a commit). Severity as in
 Survivors in the mutation log are single layers of two-layer checks (RPC +
 guard, tenant filter + `has_module`); every pair is killed
 (`audit/evidence/calendar/cal2a-mutations-*.txt`).
+
+## Run 2 — `7d75a8b..9f83575`
+| # | Finding | Sev | Disposition |
+|---|---|---|---|
+| 1 | A closed year's draft still rebuildable through `create_school_calendar` (guards did not check the year) | Medium | Fixed: both guards refuse `calendar_closed` for a draft whose year is closed; pgTAP, M37/M37b killed |
+| 2 | Span > 366 days and a removal without a target hit raw CHECK errors | Low | Fixed: `invalid_range` / `invalid_override` in the RPC and the request; pgTAP, M38/M39 killed |
+| 3 | Removing a MoE/regional date copied its name, which may hold other keys or > 200 characters | Medium | Fixed: `removalName` keeps en/am/om, 200 characters; unit + page test, mutation-proven |
+| 4 | A year inserted already closed did not close its calendar | Low | Fixed: the trigger also fires on insert; pgTAP, M40 killed |
+| 5 | The approval flag was honoured for any role that set it | Medium (defence in depth) | Fixed: honoured only when `current_user` is the definer owner (postgres/supabase_admin); pgTAP with a BYPASSRLS role holding write grants, M41 killed |
+| 6 | Draft-visibility rule written twice (policy, `calendar_year_settings`) | Low | Fixed: one helper `can_preview_school_calendar_draft()` used by both (the policy as an initplan) |
+| 7 | Every edit invalidated the whole calendar tree; every decision refetched calendar data | Low | Fixed: the editor invalidates settings/entries/school-entries/requests only; the inbox only for calendar actions; test (no permission refetch), mutation-proven |
+| 8 | Permission lookups repeated per call in `calendar_year_settings` | Low | Fixed with 6: evaluated once, only when the row is a draft |
+| 9 | Selected day's entries came from a stale cell snapshot | Low | Fixed: derived from the current grid; test (the added day appears in the inspector), mutation-proven |
+| 10 | Focus did not move into a re-opened add form; two submit_approval codes unmapped | Low | Fixed: `openedAt` per open; `reason_too_long`, `approval_action_unavailable` mapped in en/am/om; test, mutation-proven |

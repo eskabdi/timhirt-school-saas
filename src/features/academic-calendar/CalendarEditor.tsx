@@ -21,6 +21,8 @@ import {
 } from "./api";
 
 interface FormState {
+  /** Changes each time a form is opened, so focus moves into it every time (WCAG 2.4.3). */
+  openedAt: number;
   entryId: string | null;
   /** Kept when an entry that replaces a MoE/regional date is edited. */
   overridesEntryId: string | null;
@@ -31,6 +33,23 @@ interface FormState {
 }
 
 type Notice = { tone: "ok" | "error"; text: string; seq: number };
+
+const CHANGED = new Set(["settings", "entries", "school-entries", "requests"]);
+
+/**
+ * The name a removal row carries: the MoE/regional entry's, limited to what a
+ * school name may hold (en/am/om, 200 characters each); the server checks it again.
+ */
+type Names = Record<string, string>;
+type RawNames = Record<string, unknown>;
+export function removalName(name: RawNames): Names {
+  const out: Names = {};
+  for (const k of ["en", "am", "om"] as const) {
+    const v = name[k];
+    if (typeof v === "string" && v.trim()) out[k] = v.trim().slice(0, 200);
+  }
+  return Object.keys(out).length ? out : { en: "—" };
+}
 
 export function CalendarEditor({ calendarId, status, dayTypes, selectedIso, selectedEntries, canPublish, lang }: {
   calendarId: string;
@@ -78,7 +97,8 @@ export function CalendarEditor({ calendarId, status, dayTypes, selectedIso, sele
     say("ok", t(`academicCalendar.editor.${key}`));
     setForm(null);
     setReason("");
-    void qc.invalidateQueries({ queryKey: ["academic-calendar"] });
+    // Only what an edit or a request can change: not the permissions, day types or authorities.
+    void qc.invalidateQueries({ queryKey: ["academic-calendar"], predicate: (q) => q.queryKey.some((k) => typeof k === "string" && CHANGED.has(k)) });
     void qc.invalidateQueries({ queryKey: ["approvals-pending-count"] });
   };
   const why = () => reason.trim() || null;
@@ -109,7 +129,7 @@ export function CalendarEditor({ calendarId, status, dayTypes, selectedIso, sele
   const suppress = useMutation({
     mutationFn: (e: EffectiveEntry) => {
       const input: EntryInput = {
-        day_type_code: e.day_type_code, starts_on: e.starts_on, ends_on: e.ends_on, name_i18n: e.name_i18n,
+        day_type_code: e.day_type_code, starts_on: e.starts_on, ends_on: e.ends_on, name_i18n: removalName(e.name_i18n),
         overrides_entry_id: e.entry_id, suppressed: true,
       };
       return published ? requestChange("add", calendarId, input, why()) : saveDraftEntry(calendarId, null, input);
@@ -124,7 +144,7 @@ export function CalendarEditor({ calendarId, status, dayTypes, selectedIso, sele
   });
   const busy = save.isPending || remove.isPending || suppress.isPending || publish.isPending;
 
-  const openForm = (f: FormState) => { setFormError(null); setForm(f); };
+  const openForm = (f: Omit<FormState, "openedAt">) => { setFormError(null); setForm({ ...f, openedAt: Date.now() + Math.random() }); };
   const submit = () => {
     if (!form) return;
     if (!Object.values(form.names).some((v) => v.trim())) return setFormError(t("academicCalendar.editor.needName"));
@@ -249,7 +269,7 @@ function EntryForm({ form, setForm, types, lang, error, busy, submitLabel, onSub
   const ids = useId();
   const typeRef = useRef<HTMLSelectElement>(null);
   // Focus moves into the form when it opens (WCAG 2.4.3).
-  useEffect(() => { typeRef.current?.focus(); }, [form.entryId]);
+  useEffect(() => { typeRef.current?.focus(); }, [form.openedAt]);
   const pick = (key: "startsOn" | "endsOn") => (d: Date) => setForm({ ...form, [key]: toIsoDate(d) });
   return (
     <form className="mt-3 space-y-3 rounded-panel border border-line p-3" aria-labelledby={`${ids}-title`}

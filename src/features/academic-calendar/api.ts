@@ -222,6 +222,7 @@ const EDITOR_ERRORS = [
   "not_allowed", "approval_required", "approval_already_pending", "approval_not_needed", "calendar_closed",
   "invalid_name", "invalid_range", "invalid_day_type", "invalid_override", "calendar_entry_locked",
   "too_many_entries", "invalid_state", "invalid_changes", "no_change", "invalid_calendar", "already_overridden",
+  "reason_too_long", "approval_action_unavailable",
 ] as const;
 export type EditorErrorKey = (typeof EDITOR_ERRORS)[number] | "unknown";
 

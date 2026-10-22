@@ -7,7 +7,7 @@
 -- fixture date lies inside that year's session.
 -- ============================================================================
 begin;
-select plan(96);
+select plan(102);
 
 create function pg_temp.y() returns integer language sql stable as $$
   select (public.gregorian_to_ec((now() at time zone 'Africa/Addis_Ababa')::date)).ec_year
@@ -125,6 +125,12 @@ select throws_ok(format($$ select public.save_school_calendar_entry(pg_temp.cal(
 select throws_ok($$ select public.save_school_calendar_entry(pg_temp.cal('0000000d-0000-0000-0000-00000000000a'), null,
   'school_holiday', pg_temp.ec(2, 15), pg_temp.ec(2, 14), '{"en": "x"}') $$, '22023', 'invalid_range', '... an end before the start');
 select throws_ok($$ select public.save_school_calendar_entry(pg_temp.cal('0000000d-0000-0000-0000-00000000000a'), null,
+  'school_holiday', pg_temp.ec(1, 1) - 50, pg_temp.ec(1, 1) + 320, '{"en": "x"}') $$, '22023', 'invalid_range',
+  '... a span over 366 days (inside the year window, so the code, not a raw CHECK error)');
+select throws_ok($$ select public.save_school_calendar_entry(pg_temp.cal('0000000d-0000-0000-0000-00000000000a'), null,
+  'school_holiday', pg_temp.ec(2, 15), pg_temp.ec(2, 15), '{"en": "x"}', null, true) $$, '22023', 'invalid_override',
+  '... a removal that names no date to remove');
+select throws_ok($$ select public.save_school_calendar_entry(pg_temp.cal('0000000d-0000-0000-0000-00000000000a'), null,
   'national_holiday', pg_temp.ec(2, 15), pg_temp.ec(2, 15), '{"en": "x"}') $$, '22023', 'invalid_day_type',
   '... a type only an authority enters (the guard)');
 select throws_ok($$ select public.save_school_calendar_entry(pg_temp.cal('0000000d-0000-0000-0000-00000000000a'), null,
@@ -169,6 +175,8 @@ reset role;
 
 -- ------------------------------------------------------ tenant isolation --
 select pg_temp.act_as('0000000d-0000-0000-0000-0000000b0001');
+select is((select count(*)::integer from public.school_calendars where tenant_id = '0000000d-0000-0000-0000-00000000000a'), 0,
+  'school B''s editor sees none of A''s calendars (A''s exists: the fixtures count)');
 select is((select count(*)::integer from public.school_calendar_entries where tenant_id = '0000000d-0000-0000-0000-00000000000a'), 0,
   'school B reads none of A''s entries');
 select throws_ok($$ select public.save_school_calendar_entry(pg_temp.cal('0000000d-0000-0000-0000-00000000000a'), null,
@@ -457,6 +465,30 @@ select throws_ok(format($$ select public.decide_approval(%L, 'approved', %L) $$,
 reset role;
 select is((select status from public.school_calendars where id = pg_temp.cal('0000000d-0000-0000-0000-00000000000b')), 'draft',
   '... (it was never published, so it stays a draft)');
+select pg_temp.act_as('0000000d-0000-0000-0000-0000000b0001');
+select throws_ok($$ select public.create_school_calendar(pg_temp.y(), 'custom') $$, '42501', 'calendar_closed',
+  '... nor rebuilt with Choose Calendar (the guards hold the closed year)');
+reset role;
+-- A year entered already closed closes its published calendar too (school C's, published by the platform).
+update public.school_calendars set status = 'published', published_at = now() where id = '0000000d-0000-0000-0003-00000000000c';
+insert into public.academic_years (tenant_id, ec_year, label_i18n, starts_on, ends_on, status) values
+  ('0000000d-0000-0000-0000-00000000000c', pg_temp.y(), '{"en": "C year"}', pg_temp.ec(1, 1), pg_temp.ec(10, 30), 'closed');
+select is((select status from public.school_calendars where id = '0000000d-0000-0000-0003-00000000000c'), 'closed',
+  'a year entered already closed closes its published calendar');
+-- The approval flag counts only inside definer code: a role that may write
+-- (and bypasses RLS) and sets the flag itself is still refused.
+create role ca_rogue_writer bypassrls;
+grant usage on schema public to ca_rogue_writer;
+grant select, insert, update on public.school_calendar_entries, public.school_calendars to ca_rogue_writer;
+update public.academic_years set status = 'active' where tenant_id = '0000000d-0000-0000-0000-00000000000b' and ec_year = pg_temp.y();
+select set_config('ca.b_cal', pg_temp.cal('0000000d-0000-0000-0000-00000000000b')::text, true);
+set local role ca_rogue_writer;
+select set_config('timhirt.calendar_change', 'approved', true);
+select throws_ok($$ update public.school_calendars set status = 'published', published_at = now()
+  where id = current_setting('ca.b_cal')::uuid $$, '42501', 'approval_required',
+  'another role that sets the approval flag still cannot publish a draft');
+reset role;
+select set_config('timhirt.calendar_change', '', true);
 select throws_ok(format($$ update public.school_calendars set weekend_days = '{7}' where id = %L $$, pg_temp.cal('0000000d-0000-0000-0000-00000000000a')),
   '42501', 'calendar_closed', 'a closed calendar never changes, not even for the platform');
 select throws_ok(format($$ insert into public.school_calendar_entries (tenant_id, calendar_id, day_type_code, starts_on, ends_on, name_i18n)

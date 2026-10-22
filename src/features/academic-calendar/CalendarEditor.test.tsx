@@ -20,6 +20,7 @@ const state = vi.hoisted(() => ({
   requests: [] as unknown[],
   failWith: null as string | null,
   rpc: [] as [string, Record<string, unknown>][],
+  permCalls: 0,
 }));
 vi.mock("@/features/auth/useSession", () => ({
   useSession: () => ({ profile: { id: "u1", tenant_id: "t1", role: "school_admin", full_name: "A B C" } }),
@@ -63,16 +64,23 @@ vi.mock("@/lib/supabase", () => {
         }
         if (fn === "effective_calendar_entries") {
           if (args.p_ec_year !== 2019) return { data: [], error: null };
+          // Once the school removes the regional PTA day, the layers no longer return it.
+          const ptaRemoved = state.rpc.some(([f, a]) => f === "save_school_calendar_entry" && a.p_overrides_entry_id === "r-pta");
           return { error: null, data: [
             ...MOE_2019_ENTRIES.map((e) => ({ entry_id: e.id, level: "moe", source_code: "MOE", day_type_code: e.dayTypeCode,
               starts_on: e.startsOn, ends_on: e.endsOn, name_i18n: { en: e.name }, locked: true })),
             // An unlocked regional parents' meeting today (Meskerem 29, 2019).
-            { entry_id: "r-pta", level: "region", source_code: "OR", day_type_code: "parent_meeting",
-              starts_on: "2026-10-09", ends_on: "2026-10-09", name_i18n: { en: "PTA" }, locked: false },
+            ...(ptaRemoved ? [] : [{ entry_id: "r-pta", level: "region", source_code: "OR", day_type_code: "parent_meeting",
+              starts_on: "2026-10-09", ends_on: "2026-10-09", name_i18n: { en: "PTA", ti: "ignored" }, locked: false }]),
+            // A day the school added to its draft.
+            ...state.rpc.filter(([f, a]) => f === "save_school_calendar_entry" && !a.p_overrides_entry_id).map(([, a]) => ({
+              entry_id: "new-id", level: "school", source_code: "SCHOOL", day_type_code: a.p_day_type_code,
+              starts_on: a.p_starts_on, ends_on: a.p_ends_on, name_i18n: a.p_name_i18n, locked: false })),
           ] };
         }
         if (fn === "school_calendar_pending") return { data: state.requests, error: null };
         if (fn === "has_resource_permission") {
+          state.permCalls += 1;
           return { data: args.p_resource === "academic_calendar" && state.perms.has(args.p_action as string), error: null };
         }
         state.rpc.push([fn, args]);
@@ -125,7 +133,7 @@ describe("CalendarEditor", () => {
   });
   afterAll(() => vi.useRealTimers());
   beforeEach(() => Object.assign(state, {
-    perms: new Set(["update"]), status: "draft", schoolEntries: [], requests: [], failWith: null, rpc: [],
+    perms: new Set(["update"]), status: "draft", schoolEntries: [], requests: [], failWith: null, rpc: [], permCalls: 0,
   }));
 
   it("is not offered without academic_calendar:update", async () => {
@@ -155,6 +163,19 @@ describe("CalendarEditor", () => {
     expect([...host.querySelectorAll('[role="status"]')].some((n) => n.textContent === "Saved.")).toBe(true);
     expect(status).not.toBeNull();
     expect(host.querySelector("form")).toBeNull(); // the form closes
+    await flush();
+    // The selected day's details follow the refreshed calendar.
+    expect(host.querySelector("[aria-live=polite]")!.textContent).toContain("Founders");
+    done();
+  });
+
+  it("moves focus into the form each time one is opened, even replacing an open one", async () => {
+    const { host, done } = await render();
+    await act(async () => { cell(host, /^Friday — Meskerem 29, 2019/).click(); });
+    await act(async () => { button(host, "Add a day here")!.click(); });
+    await act(async () => { cell(host, /^Saturday — Meskerem 30, 2019/).click(); });
+    await act(async () => { button(host, "Add a day here")!.focus(); button(host, "Add a day here")!.click(); });
+    expect(document.activeElement).toBe(host.querySelector("form select"));
     done();
   });
 
@@ -171,12 +192,16 @@ describe("CalendarEditor", () => {
   it("removes an unlocked regional day for the school; a locked national holiday offers no removal", async () => {
     const { host, done } = await render();
     await act(async () => { cell(host, /^Friday — Meskerem 29, 2019/).click(); });
+    const permsBefore = state.permCalls;
     await act(async () => { button(host, "Remove “PTA” for our school")!.click(); });
-    await flush();
+    await flush(); await flush();
     expect(state.rpc).toEqual([["save_school_calendar_entry", {
       p_calendar_id: "s2019", p_entry_id: null, p_day_type_code: "parent_meeting", p_starts_on: "2026-10-09",
       p_ends_on: "2026-10-09", p_name_i18n: { en: "PTA" }, p_overrides_entry_id: "r-pta", p_suppressed: true,
     }]]);
+    // The selected day follows the refreshed layers: no second offer to remove it.
+    expect(button(host, "Remove “PTA” for our school")).toBeUndefined();
+    expect(state.permCalls).toBe(permsBefore); // permissions are not refetched by an edit
     await act(async () => { cell(host, /^Friday — Meskerem 1, 2019/).click(); });
     expect(button(host, /for our school$/)).toBeUndefined();
     done();

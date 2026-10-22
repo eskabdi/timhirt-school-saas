@@ -13,6 +13,7 @@ vi.mock("@/lib/supabase", () => {
     },
   };
 });
+import { removalName } from "./CalendarEditor";
 import {
   calendarErrorKey, deleteDraftEntry, editorErrorKey, fetchCalendarRequests, requestChange, requestPublish, saveDraftEntry,
 } from "./api";
@@ -29,6 +30,13 @@ describe("calendarErrorKey", () => {
     expect(calendarErrorKey({ message: "permission denied for function create_school_calendar" })).toBe("unknown");
     expect(calendarErrorKey(new Error("calendar_exists because…"))).toBe("unknown");
     expect(calendarErrorKey(null)).toBe("unknown");
+  });
+});
+
+describe("removalName", () => {
+  it("keeps only en/am/om strings, trimmed and at most 200 characters", () => {
+    expect(removalName({ en: " PTA ", ti: "x", am: 5, om: "o".repeat(250) })).toEqual({ en: "PTA", om: "o".repeat(200) });
+    expect(removalName({ ti: "x" })).toEqual({ en: "—" });
   });
 });
 
